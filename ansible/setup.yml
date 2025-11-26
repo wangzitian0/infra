@@ -1,0 +1,164 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: yes
+  
+  vars_files:
+    - vars/repos.yml
+  
+  tasks:
+    - name: 输出环境信息
+      debug:
+        msg: "开始配置开发环境 - HOME: {{ ansible_env.HOME }}, 主机名: {{ ansible_hostname }}"
+
+    # ============================================
+    # 1. SSH 密钥生成和配置
+    # ============================================
+    
+    - name: 检查 SSH 密钥是否存在
+      stat:
+        path: "{{ ansible_env.HOME }}/.ssh/{{ ansible_hostname }}_github"
+      register: ssh_key_stat
+    
+    - name: 生成 SSH 密钥（如果不存在）
+      shell: "{{ ansible_env.HOME }}/zitian/dev_env/scripts/generate_ssh_key.sh"
+      when: not ssh_key_stat.stat.exists
+      register: ssh_key_generation
+    
+    # ============================================
+    # 2. 安装开发工具
+    # ============================================
+    
+    - name: 安装 oh-my-zsh
+      shell: |
+        RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+      args:
+        creates: "{{ ansible_env.HOME }}/.oh-my-zsh"
+
+    - name: 安装 zsh-autosuggestions 插件
+      git:
+        repo: https://github.com/zsh-users/zsh-autosuggestions
+        dest: "{{ ansible_env.HOME }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+        depth: 1
+        update: no
+
+    - name: 安装 zsh-syntax-highlighting 插件
+      git:
+        repo: https://github.com/zsh-users/zsh-syntax-highlighting
+        dest: "{{ ansible_env.HOME }}/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
+        depth: 1
+        update: no
+
+    - name: 安装 tree (macOS)
+      homebrew:
+        name: tree
+        state: present
+      when: ansible_system == "Darwin"
+
+    - name: 安装 tree (Linux)
+      apt:
+        name: tree
+        state: present
+      become: yes
+      when: ansible_system == "Linux"
+
+    # ============================================
+    # 3. 创建工作目录
+    # ============================================
+    
+    - name: 创建 ~/workspace 目录
+      file:
+        path: "{{ ansible_env.HOME }}/workspace"
+        state: directory
+        mode: '0755'
+    
+    - name: 创建 ~/zitian 目录
+      file:
+        path: "{{ ansible_env.HOME }}/zitian"
+        state: directory
+        mode: '0755'
+
+    # ============================================
+    # 4. 克隆仓库
+    # ============================================
+    
+    - name: 克隆 Shopee 工作仓库
+      git:
+        repo: "{{ item.url }}"
+        dest: "{{ ansible_env.HOME }}/workspace/{{ item.name }}"
+        accept_hostkey: yes
+        update: no
+      loop: "{{ workspace_repos }}"
+      when: workspace_repos is defined and workspace_repos | length > 0
+      ignore_errors: yes
+    
+    - name: 克隆个人项目仓库
+      git:
+        repo: "{{ item.url }}"
+        dest: "{{ ansible_env.HOME }}/zitian/{{ item.name }}"
+        accept_hostkey: yes
+        update: no
+      loop: "{{ zitian_repos }}"
+      when: zitian_repos is defined and zitian_repos | length > 0
+      ignore_errors: yes
+
+    # ============================================
+    # 5. 创建软链接
+    # ============================================
+    
+    - name: 备份现有 ~/.ssh（如果是文件而非软链接）
+      shell: |
+        if [ ! -L ~/.ssh ] && [ -d ~/.ssh ]; then
+          mv ~/.ssh ~/.ssh.backup.$(date +%Y%m%d_%H%M%S)
+        fi
+      args:
+        executable: /bin/bash
+    
+    - name: 创建 ~/.ssh 软链接
+      file:
+        src: "{{ ansible_env.HOME }}/zitian/dev_env/.ssh"
+        dest: "{{ ansible_env.HOME }}/.ssh"
+        state: link
+        force: yes
+    
+    - name: 备份现有 ~/.zshrc（如果是文件而非软链接）
+      shell: |
+        if [ ! -L ~/.zshrc ] && [ -f ~/.zshrc ]; then
+          mv ~/.zshrc ~/.zshrc.backup.$(date +%Y%m%d_%H%M%S)
+        fi
+      args:
+        executable: /bin/bash
+    
+    - name: 创建 ~/.zshrc 软链接
+      file:
+        src: "{{ ansible_env.HOME }}/zitian/dev_env/.zshrc"
+        dest: "{{ ansible_env.HOME }}/.zshrc"
+        state: link
+        force: yes
+
+    # ============================================
+    # 6. 机器特定配置
+    # ============================================
+    
+    - name: 检查 .env.local 是否存在
+      stat:
+        path: "{{ ansible_env.HOME }}/zitian/dev_env/env/.env.local"
+      register: env_local_stat
+    
+    - name: 创建 .env.local 模板（如果不存在）
+      copy:
+        src: "{{ ansible_env.HOME }}/zitian/dev_env/env/.env.example"
+        dest: "{{ ansible_env.HOME }}/zitian/dev_env/env/.env.local"
+        mode: '0600'
+      when: not env_local_stat.stat.exists
+    
+    - name: 提示配置机器特定变量
+      debug:
+        msg: |
+          ✓ 安装完成！
+          
+          下一步：
+          1. 编辑 ~/zitian/dev_env/env/.env.local 填入机器特定的 tokens
+          2. 编辑 ~/zitian/dev_env/ansible/vars/repos.yml 配置需要克隆的仓库
+          3. 重新运行 'ansible-playbook ansible/setup.yml' 克隆仓库
+          4. 重启终端或运行 'source ~/.zshrc'
