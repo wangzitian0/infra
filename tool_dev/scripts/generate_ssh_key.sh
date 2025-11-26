@@ -38,12 +38,10 @@ echo "==================================="
 
 # 添加到 ssh-agent
 if [ "$(uname)" = "Darwin" ]; then
-    # macOS
     eval "$(ssh-agent -s)"
     ssh-add --apple-use-keychain "$KEY_PATH" 2>/dev/null || ssh-add "$KEY_PATH"
     echo "✓ 密钥已添加到 ssh-agent (macOS)"
 else
-    # Linux
     eval "$(ssh-agent -s)"
     ssh-add "$KEY_PATH"
     echo "✓ 密钥已添加到 ssh-agent"
@@ -51,4 +49,9 @@ fi
 
 echo ""
 echo "按 Enter 继续（请先添加公钥到 GitHub）..."
-read -r
+# 在非交互环境下直接跳过
+if [ -t 0 ]; then
+    read -r
+else
+    echo "[非交互模式] 自动跳过等待"
+fi
