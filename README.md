@@ -16,12 +16,26 @@
 本项目遵循 **环境分层** 和 **契约驱动** 的设计哲学。
 详见 **[agents.md](./agents.md)** 了解架构设计与 Agent 角色。
 
-## 快速开始
+## 快速开始（私有仓库）
 
-在新机器上，一键初始化基础环境：
-
+1) 准备 SSH 密钥并添加到 GitHub（若未配置）：
 ```bash
-curl -fsSL https://raw.githubusercontent.com/wangzitian0/infra/main/tool_dev/init.sh | bash
+ssh-keygen -t ed25519 -C "$(hostname -s)_github"
+cat ~/.ssh/*_github.pub   # 拷贝到 https://github.com/settings/keys
+```
+
+2) 手动克隆仓库：
+```bash
+git clone git@github.com:wangzitian0/infra.git ~/zitian/infra
+cd ~/zitian/infra
+```
+
+3) 初始化基础环境：
+```bash
+# 未安装 ansible 时
+./tool_dev/init.sh
+# 已安装 ansible
+ansible-playbook tool_dev/ansible/setup.yml
 ```
 
 ## 常用操作
