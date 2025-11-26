@@ -33,6 +33,19 @@
     # 2. 安装开发工具（必要项）
     # ============================================
     
+    - name: 安装 zsh (macOS)
+      homebrew:
+        name: zsh
+        state: present
+      when: ansible_system == "Darwin"
+
+    - name: 安装 zsh (Linux)
+      apt:
+        name: zsh
+        state: present
+      become: yes
+      when: ansible_system == "Linux"
+
     - name: 安装 oh-my-zsh
       shell: |
         RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
