@@ -20,9 +20,9 @@
 
 1) 生成 SSH key 并添加到 GitHub（若已配置可跳过）：
 ```bash
-ssh-keygen -t ed25519 -C "$(hostname -s)_github" -f ~/.ssh/infra_github -N ''
-ssh-add ~/.ssh/infra_github
-cat ~/.ssh/infra_github.pub   # 复制到 https://github.com/settings/keys
+ssh-keygen -t ed25519 -C "$(hostname -s)_github" -f ~/.ssh/"$(hostname -s)_github" -N ''
+ssh-add ~/.ssh/"$(hostname -s)_github"
+cat ~/.ssh/"$(hostname -s)_github".pub   # 复制到 https://github.com/settings/keys
 ```
 
 2) 克隆私有仓库：
