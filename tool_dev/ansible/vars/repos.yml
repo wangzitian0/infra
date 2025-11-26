@@ -2,14 +2,5 @@
 # 仓库配置文件
 # 定义需要自动克隆的仓库
 
-# 工作仓库 (~/workspace/) —— 可按 workspace 填写，例如 truealpha
-workspace_repos:
-  # 示例：取消注释并填入实际仓库 URL
-  # - name: "PEG-scaner"
-  #   url: "git@github.com:your_org/PEG-scaner.git"
-
-# 个人项目仓库 (~/zitian/)
-zitian_repos:
-  # 示例：取消注释并填入实际仓库 URL
-  # - name: "my_finance"
-  #   url: "git@github.com:wangzitian0/my_finance.git"
+workspace_repos: []
+zitian_repos: []

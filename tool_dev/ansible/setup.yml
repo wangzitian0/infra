@@ -30,7 +30,7 @@
       register: ssh_key_generation
     
     # ============================================
-    # 2. 安装开发工具
+    # 2. 安装开发工具（必要项）
     # ============================================
     
     - name: 安装 oh-my-zsh
@@ -83,10 +83,10 @@
         mode: '0755'
 
     # ============================================
-    # 4. 克隆仓库
+    # 4. 克隆仓库（默认空列表，按需在 vars/repos.yml 配置）
     # ============================================
     
-    - name: 克隆 Shopee 工作仓库
+    - name: 克隆工作仓库
       git:
         repo: "{{ item.url }}"
         dest: "{{ ansible_env.HOME }}/workspace/{{ item.name }}"
@@ -162,6 +162,6 @@
           ✓ 安装完成！
           
           下一步：
-          1. 编辑 tool_dev/ansible/vars/repos.yml 配置需要克隆的仓库
-          2. 重新运行 'ansible-playbook tool_dev/ansible/setup.yml' 克隆仓库
+          1. 如需克隆仓库，编辑 tool_dev/ansible/vars/repos.yml
+          2. 重新运行 'ansible-playbook tool_dev/ansible/setup.yml'
           3. 重启终端或运行 'source ~/.zshrc'
