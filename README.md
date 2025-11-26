@@ -18,23 +18,14 @@
 
 ## 快速开始（私有仓库）
 
-1) 准备 SSH 密钥并添加到 GitHub（若未配置）：
+1) 运行一键私有引导（生成/复用 SSH key、克隆、初始化）：
 ```bash
-ssh-keygen -t ed25519 -C "$(hostname -s)_github"
-cat ~/.ssh/*_github.pub   # 拷贝到 https://github.com/settings/keys
+bash scripts/bootstrap_private_clone.sh
 ```
+   - 脚本会打印公钥，请手动添加到 GitHub 后按回车继续。
 
-2) 手动克隆仓库：
+2) 已经克隆/配置完毕时，可直接运行：
 ```bash
-git clone git@github.com:wangzitian0/infra.git ~/zitian/infra
-cd ~/zitian/infra
-```
-
-3) 初始化基础环境：
-```bash
-# 未安装 ansible 时
-./tool_dev/init.sh
-# 已安装 ansible
 ansible-playbook tool_dev/ansible/setup.yml
 ```
 
