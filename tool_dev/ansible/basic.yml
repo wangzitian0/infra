@@ -3,6 +3,10 @@
   connection: local
   gather_facts: yes
   tasks:
+    - name: 设置仓库根目录
+      set_fact:
+        repo_root: "{{ playbook_dir | realpath | dirname }}"
+
     - name: 输出 ansible_env.HOME 环境变量
       debug:
         msg: "HOME 环境变量为：{{ ansible_env.HOME }}"
@@ -13,19 +17,29 @@
       args:
         creates: "{{ ansible_env.HOME }}/.oh-my-zsh"
 
-    - name: 创建 ~/.ssh 软链接
+    - name: 检查仓库中的 .ssh 与 .zshrc
+      stat:
+        path: "{{ item }}"
+      register: basic_repo_files
+      loop:
+        - "{{ repo_root }}/.ssh"
+        - "{{ repo_root }}/.zshrc"
+
+    - name: 创建 ~/.ssh 软链接（如果源存在）
       file:
-        src: "{{ ansible_env.HOME }}/dev_env/.ssh"
+        src: "{{ repo_root }}/.ssh"
         dest: "{{ ansible_env.HOME }}/.ssh"
         state: link
         force: yes
+      when: basic_repo_files.results[0].stat.exists
 
-    - name: 创建 ~/.zshrc 软链接
+    - name: 创建 ~/.zshrc 软链接（如果源存在）
       file:
-        src: "{{ ansible_env.HOME }}/dev_env/.zshrc"
+        src: "{{ repo_root }}/.zshrc"
         dest: "{{ ansible_env.HOME }}/.zshrc"
         state: link
         force: yes
+      when: basic_repo_files.results[1].stat.exists
 
     - name: 安装 tree (macOS 使用 Homebrew)
       homebrew:

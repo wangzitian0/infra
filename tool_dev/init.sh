@@ -1,21 +1,20 @@
 #!/bin/bash
-# dev_env 初始化和安装脚本
-# 
-# 使用方法 1: 一键安装（在新机器上）
-#   curl -fsSL https://raw.githubusercontent.com/wangzitian0/dev_env/main/init.sh | bash
-#
-# 使用方法 2: 手动安装（已克隆仓库）
-#   ./init.sh
+# infra tool_dev 初始化脚本（ansible 驱动）
+# 用途：在新机器上安装 Ansible 并运行本仓库的 playbook。
+# 使用方法 1: 一键安装（未克隆仓库）
+#   curl -fsSL https://raw.githubusercontent.com/wangzitian0/infra/main/tool_dev/init.sh | bash
+# 使用方法 2: 已克隆仓库
+#   ./tool_dev/init.sh
 
 set -e
 
-REPO_URL="https://github.com/wangzitian0/dev_env.git"
-INSTALL_DIR="$HOME/zitian/dev_env"
+REPO_URL="https://github.com/wangzitian0/infra.git"
+INSTALL_DIR="$HOME/zitian/infra"
 
 # 检测是否通过 curl 执行（没有 git 仓库）
 if [ ! -d ".git" ]; then
   echo "=========================================="
-  echo "dev_env 一键安装"
+  echo "infra 一键安装"
   echo "=========================================="
   echo ""
   
@@ -40,7 +39,7 @@ if [ ! -d ".git" ]; then
   echo ""
   
   # 克隆仓库
-  echo ">>> 克隆 dev_env 仓库到 $INSTALL_DIR..."
+  echo ">>> 克隆 infra 仓库到 $INSTALL_DIR..."
   if [ -d "$INSTALL_DIR" ]; then
     echo "⚠️  目录已存在: $INSTALL_DIR"
     read -p "是否删除并重新克隆？(y/N) " -n 1 -r
@@ -106,7 +105,7 @@ if [ ! -d ".git" ] || [ "$1" == "--auto" ]; then
   echo ""
   read -p "按 Enter 开始..." 
   
-  ansible-playbook ansible/setup.yml
+  ansible-playbook tool_dev/ansible/setup.yml
   
   echo ""
   echo "=========================================="
@@ -116,10 +115,10 @@ if [ ! -d ".git" ] || [ "$1" == "--auto" ]; then
   echo "下一步："
   echo "1. 切换到 SSH URL（推荐）："
   echo "   cd $INSTALL_DIR"
-  echo "   git remote set-url origin git@github.com:wangzitian0/dev_env.git"
+  echo "   git remote set-url origin git@github.com:wangzitian0/infra.git"
   echo ""
-  echo "2. 配置机器特定变量："
-  echo "   vim $INSTALL_DIR/env/.env.local"
+  echo "2. 如需本机私有变量，可在 workspace 目录创建 .env.local（不提交）："
+  echo "   vim $INSTALL_DIR/workspace_truealpha/.env.local"
   echo ""
   echo "3. 重启终端："
   echo "   exec zsh"
