@@ -46,6 +46,13 @@
       become: yes
       when: ansible_system == "Linux"
 
+    - name: 将默认 shell 切换为 zsh (Linux)
+      user:
+        name: "{{ ansible_user_id }}"
+        shell: /bin/zsh
+      become: yes
+      when: ansible_system == "Linux"
+
     - name: 安装 oh-my-zsh
       shell: |
         RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
