@@ -1,188 +1,35 @@
 #!/bin/bash
-# infra tool_dev 初始化脚本（ansible 驱动）
-# 用途：在新机器上安装 Ansible 并运行本仓库的 playbook。
-# 使用方法 1: 一键安装（未克隆仓库）
-#   curl -fsSL https://raw.githubusercontent.com/wangzitian0/infra/main/tool_dev/init.sh | bash
-# 使用方法 2: 已克隆仓库
-#   ./tool_dev/init.sh
+#!/bin/bash
+# infra tool_dev 初始化脚本：只做两件事
+# 1) 安装 Ansible（若未安装）
+# 2) 运行 tool_dev/ansible/setup.yml
 
 set -e
 
-REPO_URL="https://github.com/wangzitian0/infra.git"
-INSTALL_DIR="$HOME/zitian/infra"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# 检测是否通过 curl 执行（没有 git 仓库）
-if [ ! -d ".git" ]; then
-  echo "=========================================="
-  echo "infra 一键安装"
-  echo "=========================================="
-  echo ""
-  
-  # 检查并安装 Git
-  echo ">>> 检查 Git..."
-  if ! command -v git &> /dev/null; then
-    echo "Git 未安装，正在安装..."
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      xcode-select --install
-    elif [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
-      sudo apt-get update
-      sudo apt-get install -y git
-    else
-      echo "❌ 不支持的操作系统，请手动安装 Git"
-      exit 1
+ensure_ansible() {
+  if command -v ansible >/dev/null 2>&1; then
+    return
+  fi
+  echo "Installing Ansible..."
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    if ! command -v brew >/dev/null 2>&1; then
+      /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
-    echo "✓ Git 安装完成"
+    brew install ansible
+  elif [ -f /etc/lsb-release ] || [ -f /etc/debian_version ]; then
+    sudo apt-get update && sudo apt-get install -y ansible
   else
-    echo "✓ Git 已安装"
+    echo "Unsupported OS, please install Ansible manually."
+    exit 1
   fi
-  
-  echo ""
-  
-  # 克隆仓库
-  echo ">>> 克隆 infra 仓库到 $INSTALL_DIR..."
-  if [ -d "$INSTALL_DIR" ]; then
-    echo "⚠️  目录已存在: $INSTALL_DIR"
-    read -p "是否删除并重新克隆？(y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-      rm -rf "$INSTALL_DIR"
-    else
-      echo "安装已取消"
-      exit 0
-    fi
-  fi
-  
-  mkdir -p "$(dirname "$INSTALL_DIR")"
-  
-  # 尝试克隆
-  if ! git clone "$REPO_URL" "$INSTALL_DIR"; then
-    echo ""
-    echo "❌ 克隆失败。这可能是因为仓库是私有的，且你还没有配置 SSH 密钥。"
-    echo ">>> 进入自动密钥配置模式..."
-    echo ""
-    
-    # 获取主机名
-    HOSTNAME_SHORT=$(hostname -s)
-    KEY_NAME="${HOSTNAME_SHORT}_github"
-    SSH_DIR="$HOME/.ssh"
-    KEY_PATH="$SSH_DIR/$KEY_NAME"
-    
-    mkdir -p "$SSH_DIR"
-    
-    # 生成密钥
-    if [ ! -f "$KEY_PATH" ]; then
-      echo "生成新的 SSH 密钥: $KEY_PATH"
-      ssh-keygen -t ed25519 -C "${HOSTNAME_SHORT}@$(whoami)" -f "$KEY_PATH" -N ""
-    else
-      echo "使用现有密钥: $KEY_PATH"
-    fi
-    
-    # 添加到 ssh-agent
-    eval "$(ssh-agent -s)"
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-      ssh-add --apple-use-keychain "$KEY_PATH" 2>/dev/null || ssh-add "$KEY_PATH"
-    else
-      ssh-add "$KEY_PATH"
-    fi
-    
-    # 配置 SSH Config 以使用该密钥
-    CONFIG_PATH="$SSH_DIR/config"
-    if [ ! -f "$CONFIG_PATH" ] || ! grep -q "$KEY_NAME" "$CONFIG_PATH"; then
-      echo "更新 ~/.ssh/config..."
-      cat >> "$CONFIG_PATH" <<EOF
+}
 
-Host github.com
-  IdentityFile $KEY_PATH
-  AddKeysToAgent yes
-EOF
-    fi
+main() {
+  ensure_ansible
+  ansible-playbook "$REPO_ROOT/tool_dev/ansible/setup.yml"
+}
 
-    echo ""
-    echo "==================================="
-    echo "请将以下公钥添加到 GitHub:"
-    echo "https://github.com/settings/keys"
-    echo "==================================="
-    echo ""
-    cat "${KEY_PATH}.pub"
-    echo ""
-    echo "==================================="
-    echo ""
-    read -p "添加完成后，按 Enter 重试克隆..."
-    
-    echo ">>> 重试克隆..."
-    git clone "$REPO_URL" "$INSTALL_DIR" || {
-      echo "❌ 克隆依然失败。请检查公钥是否正确添加，或是否有仓库访问权限。"
-      exit 1
-    }
-  fi
-  
-  echo "✓ 仓库克隆完成"
-  
-  echo ""
-  
-  # 切换到仓库目录并继续安装
-  cd "$INSTALL_DIR"
-fi
-
-# 以下是原有的 Ansible 安装逻辑
-echo "=========================================="
-echo "安装 Ansible"
-echo "=========================================="
-echo ""
-
-# Detect the operating system
-if [[ "$OSTYPE" == "darwin"* ]]; then
-  # macOS: check if Homebrew is installed, then use it to install Ansible
-  if ! command -v brew &>/dev/null; then
-    echo "Homebrew not found, installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  fi
-  echo "Installing Ansible via Homebrew..."
-  brew install ansible
-elif [ -f /etc/lsb-release ]; then
-  # Ubuntu: update apt repository and install Ansible
-  echo "Updating apt repository..."
-  sudo apt-get update
-  echo "Installing Ansible via apt-get..."
-  sudo apt-get install -y ansible
-else
-  echo "Unsupported OS"
-  exit 1
-fi
-
-echo ""
-echo "✓ Ansible 安装完成"
-echo ""
-
-# 如果是一键安装模式，继续运行 ansible-playbook
-if [ ! -d ".git" ] || [ "$1" == "--auto" ]; then
-  echo "=========================================="
-  echo "运行自动化配置"
-  echo "=========================================="
-  echo ""
-  echo "注意："
-  echo "1. 安装过程中会生成 SSH 密钥"
-  echo "2. 你需要将公钥添加到 GitHub"
-  echo "3. 添加完成后按 Enter 继续"
-  echo ""
-  read -p "按 Enter 开始..." 
-  
-  ansible-playbook tool_dev/ansible/setup.yml
-  
-  echo ""
-  echo "=========================================="
-  echo "✓ 安装完成！"
-  echo "=========================================="
-  echo ""
-  echo "下一步："
-  echo "1. 切换到 SSH URL（推荐）："
-  echo "   cd $INSTALL_DIR"
-  echo "   git remote set-url origin git@github.com:wangzitian0/infra.git"
-  echo ""
-  echo "2. 如需本机私有变量，可在 workspace 目录创建 .env.local（不提交）："
-  echo "   vim $INSTALL_DIR/workspace_truealpha/.env.local"
-  echo ""
-  echo "3. 重启终端："
-  echo "   exec zsh"
-  echo ""
-fi
+main "$@"
