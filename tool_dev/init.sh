@@ -53,7 +53,69 @@ if [ ! -d ".git" ]; then
   fi
   
   mkdir -p "$(dirname "$INSTALL_DIR")"
-  git clone "$REPO_URL" "$INSTALL_DIR"
+  
+  # 尝试克隆
+  if ! git clone "$REPO_URL" "$INSTALL_DIR"; then
+    echo ""
+    echo "❌ 克隆失败。这可能是因为仓库是私有的，且你还没有配置 SSH 密钥。"
+    echo ">>> 进入自动密钥配置模式..."
+    echo ""
+    
+    # 获取主机名
+    HOSTNAME_SHORT=$(hostname -s)
+    KEY_NAME="${HOSTNAME_SHORT}_github"
+    SSH_DIR="$HOME/.ssh"
+    KEY_PATH="$SSH_DIR/$KEY_NAME"
+    
+    mkdir -p "$SSH_DIR"
+    
+    # 生成密钥
+    if [ ! -f "$KEY_PATH" ]; then
+      echo "生成新的 SSH 密钥: $KEY_PATH"
+      ssh-keygen -t ed25519 -C "${HOSTNAME_SHORT}@$(whoami)" -f "$KEY_PATH" -N ""
+    else
+      echo "使用现有密钥: $KEY_PATH"
+    fi
+    
+    # 添加到 ssh-agent
+    eval "$(ssh-agent -s)"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      ssh-add --apple-use-keychain "$KEY_PATH" 2>/dev/null || ssh-add "$KEY_PATH"
+    else
+      ssh-add "$KEY_PATH"
+    fi
+    
+    # 配置 SSH Config 以使用该密钥
+    CONFIG_PATH="$SSH_DIR/config"
+    if [ ! -f "$CONFIG_PATH" ] || ! grep -q "$KEY_NAME" "$CONFIG_PATH"; then
+      echo "更新 ~/.ssh/config..."
+      cat >> "$CONFIG_PATH" <<EOF
+
+Host github.com
+  IdentityFile $KEY_PATH
+  AddKeysToAgent yes
+EOF
+    fi
+
+    echo ""
+    echo "==================================="
+    echo "请将以下公钥添加到 GitHub:"
+    echo "https://github.com/settings/keys"
+    echo "==================================="
+    echo ""
+    cat "${KEY_PATH}.pub"
+    echo ""
+    echo "==================================="
+    echo ""
+    read -p "添加完成后，按 Enter 重试克隆..."
+    
+    echo ">>> 重试克隆..."
+    git clone "$REPO_URL" "$INSTALL_DIR" || {
+      echo "❌ 克隆依然失败。请检查公钥是否正确添加，或是否有仓库访问权限。"
+      exit 1
+    }
+  fi
+  
   echo "✓ 仓库克隆完成"
   
   echo ""

@@ -27,9 +27,11 @@
 ### Sync Tool Agent (基础建设者)
 - **设计目标**：Zero-friction Bootstrapping（零摩擦启动）。
 - **职责**：
-  - 维护 `tool_dev/` 下的 Ansible Playbook 和 Init 脚本。
+  - 维护 `tool_dev/` 下的 Ansible Playbook。
   - 屏蔽 OS 差异（macOS vs Linux），提供统一的系统级接口。
   - 确保新机器在 5 分钟内达到“Ready to Code”状态。
+  - 检查 HostName_github 这个密钥是否已经存在，如果不存在则添加。
+  - 围绕 Init 脚本（wget | bash 模式，中间允许交互）建设，整个过程尽量一键完成。
 
 ### Workspace Env Agent (上下文管理者)
 - **设计目标**：Context Isolation（上下文隔离）。
@@ -51,3 +53,9 @@
 2.  **聚合 (Aggregate)**: 运行工具从各项目收集 `.env.ci`，形成 Workspace 契约。
 3.  **同步 (Sync)**: Sync Tool Agent 将基础环境推送到物理机；Shell 根据当前目录或配置加载对应的 Workspace 上下文。
 4.  **守卫 (Guard)**: CI Guardian 在每次提交时验证契约的一致性。
+
+## 目录说明
+- `tool_dev/`：基础环境配置，包括 Ansible Playbook、Init 脚本等。
+- `workspace_*/`：工作区配置，包括 `workspace.toml`、`workspace.zsh` 等。
+- `tool_env_vars/`：环境变量管理工具，包括 `collect_env_ci.py` 等。
+
