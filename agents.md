@@ -55,8 +55,10 @@
 3.  **同步 (Sync)**: Sync Tool Agent 将基础环境推送到物理机；Shell 根据当前目录或配置加载对应的 Workspace 上下文。
 4.  **守卫 (Guard)**: CI Guardian 在每次提交时验证契约的一致性。
 
-## 目录说明
+## 修改checklist
+### 目录结构
 - `tool_dev/`：基础环境配置，包括 Ansible Playbook、Init 脚本等。
 - `workspace_*/`：工作区配置，包括 `workspace.toml`、`workspace.zsh` 等。
 - `tool_env_vars/`：环境变量管理工具，包括 `collect_env_ci.py` 等。
-
+### 文档
+- 每次改动文档，或者改动代码，都要检查对应文件夹的 readme.md确保强一致。
