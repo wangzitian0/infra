@@ -1,0 +1,16 @@
+---
+# 仓库配置文件
+# 定义需要自动克隆的仓库
+
+# Shopee 工作仓库 (~/workspace/)
+workspace_repos:
+  # 示例：取消注释并填入实际仓库 URL
+  # - name: "heheda-main"
+  #   url: "git@git.garena.com:shopee/order/heheda-main.git"
+
+# 个人项目仓库 (~/zitian/)
+zitian_repos:
+  # dev_env 仓库会自动跳过（已经存在）
+  # 示例：取消注释并填入实际仓库 URL
+  # - name: "my_finance"
+  #   url: "git@github.com:wangzitian0/my_finance.git"
