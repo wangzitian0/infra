@@ -24,20 +24,11 @@ tool_dev/
 
 ## 使用方法
 
-### 一键安装 (Bootstrap)
+### 运行 Ansible
 
-在新机器上运行：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/wangzitian0/infra/main/tool_dev/init.sh | bash
-```
-
-### 手动运行 Ansible
-
-如果你已经克隆了仓库：
+在已克隆的仓库根目录运行：
 
 ```bash
-# 在 infra 根目录
 ansible-playbook tool_dev/ansible/setup.yml
 ```
 
