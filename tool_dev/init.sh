@@ -29,7 +29,7 @@ ensure_ansible() {
 
 main() {
   ensure_ansible
-  ansible-playbook "$REPO_ROOT/tool_dev/ansible/setup.yml"
+  ansible-playbook "$REPO_ROOT/tool_dev/ansible/setup.yml --ask-become-pass"
 }
 
 main "$@"
