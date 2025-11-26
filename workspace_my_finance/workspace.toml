@@ -1,0 +1,9 @@
+# workspace definition for my_finance
+
+name = "my_finance"
+
+[[repos]]
+name = "my_finance"
+# 本地路径（可用绝对路径或 ~ 展开）
+path = "~/zitian/my_finance"
+source = "github"

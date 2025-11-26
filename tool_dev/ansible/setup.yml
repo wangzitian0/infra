@@ -9,7 +9,7 @@
   tasks:
     - name: 设置仓库根目录
       set_fact:
-        repo_root: "{{ playbook_dir | realpath | dirname }}"
+        repo_root: "{{ playbook_dir | realpath | dirname | dirname }}"
 
     - name: 输出环境信息
       debug:
@@ -25,7 +25,7 @@
       register: ssh_key_stat
     
     - name: 生成 SSH 密钥（如果不存在）
-      shell: "{{ repo_root }}/scripts/generate_ssh_key.sh"
+      shell: "{{ repo_root }}/tool_dev/scripts/generate_ssh_key.sh"
       when: not ssh_key_stat.stat.exists
       register: ssh_key_generation
     
