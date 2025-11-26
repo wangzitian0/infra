@@ -24,13 +24,14 @@ tool_dev/
 
 ## 使用方法
 
-### 运行 Ansible
-
-在已克隆的仓库根目录运行：
-
+新机器（私有仓库）：
+1) 生成 SSH key 并添加到 GitHub，然后：
 ```bash
-ansible-playbook tool_dev/ansible/setup.yml
+git clone git@github.com:wangzitian0/infra.git ~/zitian/infra
+cd ~/zitian/infra
+./tool_dev/init.sh
 ```
+（若已安装 ansible，可直接运行 `ansible-playbook tool_dev/ansible/setup.yml`）
 
 ## 配置说明
 

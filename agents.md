@@ -61,4 +61,4 @@
 - `workspace_*/`：工作区配置，包括 `workspace.toml`、`workspace.zsh` 等。
 - `tool_env_vars/`：环境变量管理工具，包括 `collect_env_ci.py` 等。
 ### 文档
-- 每次改动文档，或者改动代码，都要检查对应文件夹的 readme.md确保强一致。
+- 每次改动文档，或者改动代码，都要检查对应文件夹的 readme.md确保强一致，readme的路径是相对于当前目录而言的。
