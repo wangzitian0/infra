@@ -35,7 +35,7 @@ cd ~/zitian/infra
 ```bash
 ./tool_dev/init.sh
 ```
-（如果已安装 ansible，可直接执行 `ansible-playbook tool_dev/ansible/setup.yml`）
+（如果已安装 ansible，可直接执行 `ansible-playbook tool_dev/ansible/setup.yml --ask-become-pass`；Linux 需输入 sudo 密码以安装 zsh/切换默认 shell）
 
 ## 常用操作
 

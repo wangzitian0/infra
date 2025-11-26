@@ -31,7 +31,7 @@ git clone git@github.com:wangzitian0/infra.git ~/zitian/infra
 cd ~/zitian/infra
 ./tool_dev/init.sh
 ```
-（若已安装 ansible，可直接运行 `ansible-playbook tool_dev/ansible/setup.yml`）
+（若已安装 ansible，可直接运行 `ansible-playbook tool_dev/ansible/setup.yml --ask-become-pass`，Linux 需输入 sudo 密码安装 zsh/切换默认 shell）
 
 ## 配置说明
 
