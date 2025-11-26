@@ -7,6 +7,10 @@
     - vars/repos.yml
   
   tasks:
+    - name: 设置仓库根目录
+      set_fact:
+        repo_root: "{{ playbook_dir | realpath | dirname }}"
+
     - name: 输出环境信息
       debug:
         msg: "开始配置开发环境 - HOME: {{ ansible_env.HOME }}, 主机名: {{ ansible_hostname }}"
@@ -21,7 +25,7 @@
       register: ssh_key_stat
     
     - name: 生成 SSH 密钥（如果不存在）
-      shell: "{{ ansible_env.HOME }}/zitian/dev_env/scripts/generate_ssh_key.sh"
+      shell: "{{ repo_root }}/scripts/generate_ssh_key.sh"
       when: not ssh_key_stat.stat.exists
       register: ssh_key_generation
     
@@ -106,59 +110,58 @@
     # 5. 创建软链接
     # ============================================
     
-    - name: 备份现有 ~/.ssh（如果是文件而非软链接）
+    - name: 检查仓库中的 .ssh 与 .zshrc
+      stat:
+        path: "{{ item }}"
+      register: repo_files_stat
+      loop:
+        - "{{ repo_root }}/.ssh"
+        - "{{ repo_root }}/.zshrc"
+
+    - name: 备份现有 ~/.ssh（如果源存在且本地是目录）
       shell: |
         if [ ! -L ~/.ssh ] && [ -d ~/.ssh ]; then
           mv ~/.ssh ~/.ssh.backup.$(date +%Y%m%d_%H%M%S)
         fi
       args:
         executable: /bin/bash
-    
-    - name: 创建 ~/.ssh 软链接
+      when: repo_files_stat.results[0].stat.exists
+
+    - name: 创建 ~/.ssh 软链接（如果源存在）
       file:
-        src: "{{ ansible_env.HOME }}/zitian/dev_env/.ssh"
+        src: "{{ repo_root }}/.ssh"
         dest: "{{ ansible_env.HOME }}/.ssh"
         state: link
         force: yes
-    
-    - name: 备份现有 ~/.zshrc（如果是文件而非软链接）
+      when: repo_files_stat.results[0].stat.exists
+
+    - name: 备份现有 ~/.zshrc（如果源存在且本地是文件）
       shell: |
         if [ ! -L ~/.zshrc ] && [ -f ~/.zshrc ]; then
           mv ~/.zshrc ~/.zshrc.backup.$(date +%Y%m%d_%H%M%S)
         fi
       args:
         executable: /bin/bash
-    
-    - name: 创建 ~/.zshrc 软链接
+      when: repo_files_stat.results[1].stat.exists
+
+    - name: 创建 ~/.zshrc 软链接（如果源存在）
       file:
-        src: "{{ ansible_env.HOME }}/zitian/dev_env/.zshrc"
+        src: "{{ repo_root }}/.zshrc"
         dest: "{{ ansible_env.HOME }}/.zshrc"
         state: link
         force: yes
+      when: repo_files_stat.results[1].stat.exists
 
     # ============================================
     # 6. 机器特定配置
     # ============================================
     
-    - name: 检查 .env.local 是否存在
-      stat:
-        path: "{{ ansible_env.HOME }}/zitian/dev_env/env/.env.local"
-      register: env_local_stat
-    
-    - name: 创建 .env.local 模板（如果不存在）
-      copy:
-        src: "{{ ansible_env.HOME }}/zitian/dev_env/env/.env.example"
-        dest: "{{ ansible_env.HOME }}/zitian/dev_env/env/.env.local"
-        mode: '0600'
-      when: not env_local_stat.stat.exists
-    
-    - name: 提示配置机器特定变量
+    - name: 提示后续操作
       debug:
         msg: |
           ✓ 安装完成！
           
           下一步：
-          1. 编辑 ~/zitian/dev_env/env/.env.local 填入机器特定的 tokens
-          2. 编辑 ~/zitian/dev_env/ansible/vars/repos.yml 配置需要克隆的仓库
-          3. 重新运行 'ansible-playbook ansible/setup.yml' 克隆仓库
-          4. 重启终端或运行 'source ~/.zshrc'
+          1. 编辑 tool_dev/ansible/vars/repos.yml 配置需要克隆的仓库
+          2. 重新运行 'ansible-playbook tool_dev/ansible/setup.yml' 克隆仓库
+          3. 重启终端或运行 'source ~/.zshrc'

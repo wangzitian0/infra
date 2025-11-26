@@ -2,15 +2,14 @@
 # 仓库配置文件
 # 定义需要自动克隆的仓库
 
-# Shopee 工作仓库 (~/workspace/)
+# 工作仓库 (~/workspace/) —— 可按 workspace 填写，例如 truealpha
 workspace_repos:
   # 示例：取消注释并填入实际仓库 URL
-  # - name: "heheda-main"
-  #   url: "git@git.garena.com:shopee/order/heheda-main.git"
+  # - name: "PEG-scaner"
+  #   url: "git@github.com:your_org/PEG-scaner.git"
 
 # 个人项目仓库 (~/zitian/)
 zitian_repos:
-  # dev_env 仓库会自动跳过（已经存在）
   # 示例：取消注释并填入实际仓库 URL
   # - name: "my_finance"
   #   url: "git@github.com:wangzitian0/my_finance.git"
