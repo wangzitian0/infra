@@ -4,6 +4,6 @@ name = "truealpha"
 
 [[repos]]
 name = "PEG-scaner"
-# 路径相对 workspace_truealpha/，可指向本地 checkout
-path = "../PEG-scaner"
+# 本地路径（可用绝对路径或 ~ 展开）
+path = "~/zitian/PEG-scaner"
 source = "github"

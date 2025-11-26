@@ -8,12 +8,13 @@
 
 ## 目录结构
 
-- `tool_dev/`：ansible playbooks + init 脚本 + ssh key 脚本。
+- `tool_dev/`：ansible playbooks + init 脚本 + ssh key 脚本 + `.zshrc`（软链接到 `~/.zshrc`，自动加载各 workspace 的 `workspace.zsh`）。
 - `tool_env_vars/`：聚合/校验脚本。
-- `workspace_truealpha/`：
+- `workspace_truealpha/`、`workspace_shopee/`：
   - `workspace.toml`：workspace 配置（包含 repo 列表）。
   - `.env.ci`：聚合后的 schema（提交到仓库）。
   - `.env.test` / `.env.prod`：按 schema 填写的环境配置。
+  - `workspace.zsh`：workspace 专属 shell 设置（别名/环境变量）。
 - `agents.md`：角色与流程。
 
 ## 角色
@@ -29,7 +30,7 @@
 ```bash
 ansible-playbook tool_dev/ansible/setup.yml
 ```
-- 按 workspace 的 `.env.ci` schema 在本机私有位置（例如 `workspace_truealpha/.env.local`，不提交）填实际值。
+- 按 workspace 的 `.env.ci` schema 在本机私有位置（例如 `workspace_<name>/.env.local`，不提交）填实际值；shell 配置可在对应的 `workspace.zsh` 编写并在 `.zshrc` 里按需 source。
 
 ### 2) truealpha workspace
 - 配置：`workspace_truealpha/workspace.toml`（当前包含 `PEG-scaner`）。
@@ -39,6 +40,11 @@ python tool_env_vars/collect_env_ci.py truealpha --update   # 写入 workspace_t
 python tool_env_vars/collect_env_ci.py truealpha --check    # CI 模式，检测 drift
 ```
 - `.env.test` / `.env.prod` 需遵循 `.env.ci` 的键集合。
+
+### 2b) shopee workspace
+- 配置：`workspace_shopee/workspace.toml`（示例指向本地 `~/workspace/heheda-main`）。
+- workspace 专属 shell 配置：`workspace_shopee/workspace.zsh`（包含目录别名、Go 环境、GOPRIVATE/ENV）。
+- 聚合/校验同上：`python tool_env_vars/collect_env_ci.py shopee --update|--check`。
 
 ### 3) 变更规则
 - `.env.ci` 允许的变更：新增 key 或删除 key。

@@ -116,7 +116,7 @@
       register: repo_files_stat
       loop:
         - "{{ repo_root }}/.ssh"
-        - "{{ repo_root }}/.zshrc"
+        - "{{ repo_root }}/tool_dev/.zshrc"
 
     - name: 备份现有 ~/.ssh（如果源存在且本地是目录）
       shell: |
@@ -146,7 +146,7 @@
 
     - name: 创建 ~/.zshrc 软链接（如果源存在）
       file:
-        src: "{{ repo_root }}/.zshrc"
+        src: "{{ repo_root }}/tool_dev/.zshrc"
         dest: "{{ ansible_env.HOME }}/.zshrc"
         state: link
         force: yes
