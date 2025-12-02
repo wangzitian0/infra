@@ -1,0 +1,25 @@
+# Test Environment Override (PR Previews)
+# 用于 PR 预览环境，动态域名
+
+services:
+  backend:
+    labels:
+      - "traefik.http.routers.backend-${PEG_ENV}.rule=Host(`${PR_DOMAIN}`)"
+      - "traefik.http.routers.backend-${PEG_ENV}.tls=true"
+      - "traefik.http.routers.backend-${PEG_ENV}.tls.certresolver=letsencrypt"
+    environment:
+      - PUBLIC_URL=https://${PR_DOMAIN}
+
+  # Test 环境使用共享的 staging 数据库
+  neo4j:
+    profiles:
+      - skip
+
+  postgres:
+    profiles:
+      - skip
+
+  # 使用临时 Redis
+  redis:
+    volumes:
+      - /tmp/redis-${PR_NUMBER}:/data
