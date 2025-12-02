@@ -1,0 +1,38 @@
+# CI Environment Override
+# 用于 GitHub Actions，最小化资源，快速启动
+
+services:
+  backend:
+    environment:
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - CI=true
+    mem_limit: 512m
+    cpus: 1
+
+  neo4j:
+    environment:
+      - NEO4J_dbms_memory_heap_max__size=512m
+    mem_limit: 1g
+    cpus: 1
+
+  postgres:
+    mem_limit: 256m
+    cpus: 0.5
+
+  redis:
+    mem_limit: 128m
+    cpus: 0.5
+
+  # CI 环境不需要 Celery
+  celery-worker:
+    profiles:
+      - skip
+
+  celery-beat:
+    profiles:
+      - skip
+
+  flower:
+    profiles:
+      - skip

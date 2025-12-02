@@ -1,3 +1,86 @@
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
-# OS noise
+# Environment Variables
+.env
+.env.*
+!.env.example
+*.local
+
+# Secrets
+secrets/*
+!secrets/.env.example
+!secrets/README.md
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
+
+# Logs
+*.log
+logs/
+x-log/
+
+# Data
+x-data/
+*.db
+*.sqlite
+
+# Backup
+*.backup
+*.bak
+*.old
+
+# Temporary
+tmp/
+temp/
+.cache/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Node (for Backstage)
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+.npm/
+.yarn/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# Atlantis
+.atlantis/
