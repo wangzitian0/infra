@@ -1,0 +1,110 @@
+name: PR Preview Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+
+jobs:
+  deploy-preview:
+    if: github.event.action != 'closed'
+    name: Deploy PR Preview
+    runs-on: ubuntu-latest
+    environment: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        run: |
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "PR_DOMAIN=pr-${{ github.event.pull_request.number }}.truealpha.club" >> $GITHUB_ENV
+
+      - name: Export secrets
+        uses: Infisical/action@v1
+        with:
+          client-id: ${{ secrets.INFISICAL_CLIENT_ID }}
+          client-secret: ${{ secrets.INFISICAL_CLIENT_SECRET }}
+          environment: test
+          project-id: ${{ secrets.INFISICAL_PROJECT_ID }}
+          secret-type: dotenv
+          path: .env.test
+
+      - name: Deploy preview environment
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        
+      - name: Deploy to server
+        run: |
+          # Copy files
+          scp -r compose scripts .env.test \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/truealpha/previews/pr-${{ env.PR_NUMBER }}/
+          
+          # Deploy with PR-specific configuration
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd /opt/truealpha/previews/pr-${{ env.PR_NUMBER }} && \
+             PR_NUMBER=${{ env.PR_NUMBER }} PR_DOMAIN=${{ env.PR_DOMAIN }} \
+             docker compose \
+               -f compose/base.yml \
+               -f compose/test.yml \
+               --env-file .env.test \
+               -p pr-${{ env.PR_NUMBER }} \
+               up -d"
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## 🚀 PR Preview Environment
+            
+            Your preview environment has been deployed!
+            
+            - **URL**: https://${{ env.PR_DOMAIN }}
+            - **API**: https://${{ env.PR_DOMAIN }}/graphql
+            - **GraphiQL**: https://${{ env.PR_DOMAIN }}/graphql (interactive explorer)
+            
+            The preview environment will be automatically destroyed when this PR is closed.
+            
+            *Last updated: ${new Date().toUTCString()}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  cleanup-preview:
+    if: github.event.action == 'closed'
+    name: Cleanup PR Preview
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Cleanup preview environment
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd /opt/truealpha/previews/pr-${{ github.event.pull_request.number }} && \
+             docker compose -p pr-${{ github.event.pull_request.number }} down -v && \
+             cd .. && rm -rf pr-${{ github.event.pull_request.number }}"
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🧹 PR preview environment has been cleaned up.'
+            });
