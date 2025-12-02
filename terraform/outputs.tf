@@ -21,14 +21,6 @@ output "dns_records" {
   }
 }
 
-# Database Outputs
-
-output "database_connection" {
-  description = "Database connection details"
-  value       = var.enable_managed_database ? module.database[0].connection_string : "Using containerized databases"
-  sensitive   = true
-}
-
 # Environment Info
 
 output "environment_info" {
