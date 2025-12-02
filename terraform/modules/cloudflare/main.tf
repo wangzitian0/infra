@@ -4,11 +4,13 @@ locals {
   primary_ip = length(var.vps_ips) > 0 ? var.vps_ips[0] : ""
   
   # Domain names based on environment
-  subdomain_prefix = var.environment == "prod" ? "" : "${var.environment}."
-  api_subdomain = var.environment == "prod" ? "api" : "api.${var.environment}"
+  # Non-prod: *.{env}.x.truealpha.club (covered by *.x.truealpha.club cert)
+  # Prod: *.truealpha.club (covered by *.truealpha.club cert)
+  env_base_domain = var.environment == "prod" ? var.domain : "${var.environment}.x.${var.domain}"
+  api_subdomain   = var.environment == "prod" ? "api" : "api.${var.environment}.x"
 }
 
-# Main domain record
+# Main domain record (prod only)
 resource "cloudflare_record" "main" {
   count   = var.environment == "prod" ? 1 : 0
   zone_id = var.zone_id
@@ -19,18 +21,20 @@ resource "cloudflare_record" "main" {
   comment = "Managed by Terraform - ${var.environment}"
 }
 
-# Environment subdomain (dev/test/staging)
+# Environment base domain (dev/test/staging)
+# Creates: dev.x.truealpha.club, test.x.truealpha.club, staging.x.truealpha.club
 resource "cloudflare_record" "environment" {
   count   = var.environment != "prod" ? 1 : 0
   zone_id = var.zone_id
-  name    = var.environment
+  name    = local.env_base_domain
   type    = "A"
   value   = local.primary_ip
   proxied = true
-  comment = "Managed by Terraform - ${var.environment}"
+  comment = "Managed by Terraform - ${var.environment} base"
 }
 
 # API subdomain
+# Creates: api.truealpha.club (prod) or api.{env}.x.truealpha.club (non-prod)
 resource "cloudflare_record" "api" {
   zone_id = var.zone_id
   name    = local.api_subdomain
@@ -41,14 +45,15 @@ resource "cloudflare_record" "api" {
 }
 
 # Wildcard for PR previews (test environment only)
+# Creates: *.test.x.truealpha.club (e.g., pr01.test.x.truealpha.club)
 resource "cloudflare_record" "pr_wildcard" {
   count   = var.environment == "test" ? 1 : 0
   zone_id = var.zone_id
-  name    = "pr*"
+  name    = "*.test.x"
   type    = "A"
   value   = local.primary_ip
   proxied = true
-  comment = "Managed by Terraform - PR preview environments (prXX.truealpha.club)"
+  comment = "Managed by Terraform - PR preview environments (prXX.test.x.truealpha.club)"
 }
 
 # CDN Cache Rules
