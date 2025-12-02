@@ -28,24 +28,5 @@ module "cloudflare" {
   vps_ips      = var.vps_count > 0 ? module.vps[*].public_ip : [var.vps_ip]
 }
 
-# Database Module (optional)
-module "database" {
-  source = "./modules/database"
-  count  = var.enable_managed_database ? 1 : 0
-
-  environment  = var.environment
-  project_name = var.project_name
-  size         = var.database_size
-  region       = var.vps_region
-  tags         = var.tags
-}
-
-# Monitoring Module (optional)
-module "monitoring" {
-  source = "./modules/monitoring"
-  count  = var.enable_monitoring ? 1 : 0
-
-  environment  = var.environment
-  project_name = var.project_name
-  vps_ips      = module.vps[*].public_ip
-}
+# Note: Database and Monitoring modules removed as they are managed via Docker Compose
+# See compose/base.yml for database services (Neo4j, PostgreSQL, Redis)

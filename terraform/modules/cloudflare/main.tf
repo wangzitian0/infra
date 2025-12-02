@@ -44,11 +44,11 @@ resource "cloudflare_record" "api" {
 resource "cloudflare_record" "pr_wildcard" {
   count   = var.environment == "test" ? 1 : 0
   zone_id = var.zone_id
-  name    = "pr-*"
+  name    = "pr*"
   type    = "A"
   value   = local.primary_ip
   proxied = true
-  comment = "Managed by Terraform - PR preview environments"
+  comment = "Managed by Terraform - PR preview environments (prXX.truealpha.club)"
 }
 
 # CDN Cache Rules
