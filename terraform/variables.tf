@@ -35,6 +35,12 @@ variable "cloudflare_zone_id" {
 
 # VPS Configuration (adjust based on provider)
 
+variable "vps_ip" {
+  description = "VPS IP address (for existing/manual VPS)"
+  type        = string
+  default     = ""
+}
+
 variable "vps_count" {
   description = "Number of VPS instances"
   type        = number
