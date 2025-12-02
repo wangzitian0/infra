@@ -1,9 +1,0 @@
-# workspace definition for shopee
-
-name = "shopee"
-
-[[repos]]
-name = "heheda-main"
-# 本地路径（可用绝对路径或 ~ 展开）
-path = "~/workspace/heheda-main"
-source = "git.garena.com"

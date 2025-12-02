@@ -1,9 +1,0 @@
-# workspace definition for truealpha
-
-name = "truealpha"
-
-[[repos]]
-name = "PEG-scaner"
-# 本地路径（可用绝对路径或 ~ 展开）
-path = "~/zitian/PEG-scaner"
-source = "github"

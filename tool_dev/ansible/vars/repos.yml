@@ -1,6 +1,0 @@
----
-# 仓库配置文件
-# 定义需要自动克隆的仓库
-
-workspace_repos: []
-zitian_repos: []
