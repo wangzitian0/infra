@@ -1,0 +1,33 @@
+# Development Environment Override
+# 用于本地开发，暴露所有端口，挂载源代码
+
+services:
+  backend:
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../../PEG-scaner/apps/backend:/app:delegated
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+
+  neo4j:
+    ports:
+      - "7474:7474"  # Browser UI
+      - "7687:7687"  # Bolt protocol
+    environment:
+      - NEO4J_dbms_logs_debug_level=DEBUG
+
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_LOG_STATEMENT=all
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  flower:
+    ports:
+      - "5555:5555"
