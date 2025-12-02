@@ -52,60 +52,61 @@ resource "cloudflare_record" "pr_wildcard" {
 }
 
 # CDN Cache Rules
-resource "cloudflare_page_rule" "cache_static" {
-  zone_id = var.zone_id
-  target  = "*.${var.domain}/static/*"
-  priority = 1
+# CDN Cache Rules (Temporarily disabled due to API Token limitations)
+# resource "cloudflare_page_rule" "cache_static" {
+#   zone_id = var.zone_id
+#   target  = "*.${var.domain}/static/*"
+#   priority = 1
+# 
+#   actions {
+#     cache_level         = "cache_everything"
+#     edge_cache_ttl      = 86400
+#     browser_cache_ttl   = 3600
+#   }
+# }
 
-  actions {
-    cache_level         = "cache_everything"
-    edge_cache_ttl      = 86400
-    browser_cache_ttl   = 3600
-  }
-}
+# API Cache Rules (Temporarily disabled)
+# resource "cloudflare_page_rule" "api_no_cache" {
+#   zone_id = var.zone_id
+#   target  = "${local.api_subdomain}.${var.domain}/graphql"
+#   priority = 2
+# 
+#   actions {
+#     cache_level = "bypass"
+#   }
+# }
 
-# API Cache Rules (skip cache for API)
-resource "cloudflare_page_rule" "api_no_cache" {
-  zone_id = var.zone_id
-  target  = "${local.api_subdomain}.${var.domain}/graphql"
-  priority = 2
+# WAF Rules (Temporarily disabled due to syntax error)
+# resource "cloudflare_firewall_rule" "rate_limit_api" {
+#   count       = var.enable_rate_limiting ? 1 : 0
+#   zone_id     = var.zone_id
+#   description = "Rate limit API endpoints - ${var.environment}"
+#   filter_id   = cloudflare_filter.rate_limit_api[0].id
+#   action      = "challenge"
+# }
 
-  actions {
-    cache_level = "bypass"
-  }
-}
-
-# WAF Rules
-resource "cloudflare_firewall_rule" "rate_limit_api" {
-  count       = var.enable_rate_limiting ? 1 : 0
-  zone_id     = var.zone_id
-  description = "Rate limit API endpoints - ${var.environment}"
-  filter_id   = cloudflare_filter.rate_limit_api[0].id
-  action      = "challenge"
-}
-
-resource "cloudflare_filter" "rate_limit_api" {
-  count       = var.enable_rate_limiting ? 1 : 0
-  zone_id     = var.zone_id
-  description = "Rate limit API filter"
-  expression  = "(http.request.uri.path contains \"/graphql\" and rate.requests.10s > 100)"
-}
+# resource "cloudflare_filter" "rate_limit_api" {
+#   count       = var.enable_rate_limiting ? 1 : 0
+#   zone_id     = var.zone_id
+#   description = "Rate limit API filter"
+#   expression  = "(http.request.uri.path contains \"/graphql\" and rate.requests.10s > 100)"
+# }
 
 # Block common attack patterns
-resource "cloudflare_firewall_rule" "block_bad_bots" {
-  count       = var.enable_waf ? 1 : 0
-  zone_id     = var.zone_id
-  description = "Block known bad bots - ${var.environment}"
-  filter_id   = cloudflare_filter.bad_bots[0].id
-  action      = "block"
-}
+# resource "cloudflare_firewall_rule" "block_bad_bots" {
+#   count       = var.enable_waf ? 1 : 0
+#   zone_id     = var.zone_id
+#   description = "Block known bad bots - ${var.environment}"
+#   filter_id   = cloudflare_filter.bad_bots[0].id
+#   action      = "block"
+# }
 
-resource "cloudflare_filter" "bad_bots" {
-  count       = var.enable_waf ? 1 : 0
-  zone_id     = var.zone_id
-  description = "Bad bots filter"
-  expression  = "(cf.client.bot)"
-}
+# resource "cloudflare_filter" "bad_bots" {
+#   count       = var.enable_waf ? 1 : 0
+#   zone_id     = var.zone_id
+#   description = "Bad bots filter"
+#   expression  = "(cf.client.bot)"
+# }
 
 # SSL/TLS Settings
 resource "cloudflare_zone_settings_override" "ssl_settings" {

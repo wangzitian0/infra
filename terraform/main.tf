@@ -25,7 +25,7 @@ module "cloudflare" {
   domain       = var.domain
   environment  = var.environment
   project_name = var.project_name
-  vps_ips      = module.vps[*].public_ip
+  vps_ips      = var.vps_count > 0 ? module.vps[*].public_ip : [var.vps_ip]
 }
 
 # Database Module (optional)
