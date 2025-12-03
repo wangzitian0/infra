@@ -74,34 +74,69 @@ infra/
 └── ci/                          # CI/CD 配置
 ```
 
-## 文档约定
+## 文档导航
 
-### 📋 需要用户做什么 → `docs/0.hi_zitian.md`
+### 📚 文档类型说明
 
-这个文件记录了**需要用户（Zitian）完成的配置和决策事项**，包括:
-- 云服务商账号配置
-- API Token 获取
-- 环境变量填写
-- 首次部署步骤
+本仓库文档分为5类，各司其职：
 
-👉 **开始使用前，请先查看此文件！**
+#### 1. 技术比对细节 → `docs/architecture.md`
+- 技术选型对比与rationale
+- 系统架构设计
+- 数据流图和安全设计
 
-### 📝 AI 做了什么 → `docs/change_log/BRN-XXX.md`
+#### 2. 介绍文档 → `README.md` (本文件)
+- 仓库概述和快速开始
+- 核心概念和工作流
+- 文档导航
 
-按 BRN 编号组织的变更日志，记录每次实现的详细内容:
-- 新增的文件和功能
-- 修改的配置
-- 技术债务标记
-- Git 提交建议
+#### 3. 部署SOP模板 → `docs/deployment-sop.md`
+**通用部署标准操作流程**，适用于所有环境
+- GitHub Secrets 配置
+- Infisical 配置
+- 部署流程和验证
+- 故障处理
 
-**命名规则**: 
-- 对应 BRN 文档的变更记录在 `change_log/BRN-XXX.md`
-- 例如：BRN-004 的变更 → `change_log/BRN-004.md`
-- 同一个 BRN 可能有多次变更，都累积在同一个文件中
+#### 4. 环境特定SOP → `docs/env.d/{env}_sop.md`
+每个环境的具体配置和操作，**以 deployment-sop.md 为模板**
+- `docs/env.d/staging_sop.md` - Staging 环境配置
+- `docs/env.d/test_sop.md` - Test (PR预览) 配置
+- `docs/env.d/prod_sop.md` - Production 配置
 
-**Git 集成**:
-- 每次重要变更后，在 change_log 中记录
-- 参考 change_log 中的提交建议进行 Git commit
+#### 5. 部署进度追踪 → 两个层级
+
+**整体进度**: `docs/PROGRESS.md`
+- 所有环境的总体完成度
+- 代码完成度 vs 实际部署状态
+- 跨环境完成度对比
+
+**具体环境状态**: `terraform/envs/{env}/STATUS.md`
+- `terraform/envs/staging/STATUS.md` - Staging 部署状态
+- `terraform/envs/test/STATUS.md` - Test 部署状态
+- `terraform/envs/prod/STATUS.md` - Production 部署状态
+
+---
+
+### 📋 常用文档快速链接
+
+| 场景 | 文档 |
+|------|------|
+| 我要开始部署 staging | 1. [deployment-sop.md](docs/deployment-sop.md) 了解流程<br>2. [env.d/staging_sop.md](docs/env.d/staging_sop.md) 查看配置<br>3. [envs/staging/STATUS.md](terraform/envs/staging/STATUS.md) 追踪进度 |
+| 我要了解架构 | [architecture.md](docs/architecture.md) |
+| 我要查看整体进度 | [PROGRESS.md](docs/PROGRESS.md) |
+| 我需要运维操作 | [runbooks/operations.md](docs/runbooks/operations.md) |
+| 我要开发新功能 | [guides/developer-onboarding.md](docs/guides/developer-onboarding.md) |
+
+---
+
+### 📝 文档更新规则
+
+- **介绍/架构文档**: 唯一，避免重复
+- **SOP模板**: 通用流程，所有环境复用
+- **环境SOP**: 特定配置，基于模板扩展
+- **进度追踪**: 实时更新，反映真实状态
+
+更多规则见 [AGENTS.md](AGENTS.md)
 
 ## 环境管理
 
