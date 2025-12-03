@@ -14,16 +14,47 @@ GitHub Actions → Terraform (DNS) → VPS (Docker/Dokploy) → 应用部署 →
 
 ---
 
-## 📋 阶段 1: 基础设施准备 (手动)
+## 📋 阶段 1: 基础设施准备 (Terraform 自动化)
 
-### 1.1 VPS 准备
-- [ ] SSH 登录 VPS (103.214.23.41)
-- [ ] 安装 Docker
-- [ ] 安装 Dokploy
-- [ ] 配置防火墙 (UFW)
-- [ ] 配置 fail2ban (安全)
+### 方案 A: Terraform 自动化 (推荐)
 
-**命令**:
+使用 Terraform `vps-bootstrap` 模块通过 SSH 自动安装。
+
+**配置**: `terraform/envs/staging/terraform.tfvars`
+
+```hcl
+environment = "staging"
+vps_ip = "103.214.23.41"
+vps_count = 0
+
+# 启用自动化 bootstrap
+enable_vps_bootstrap = true
+ssh_user = "prod"
+ssh_private_key = file("~/.ssh/id_rsa")  # 或通过环境变量
+
+# Cloudflare
+cloudflare_api_token = "<token>"
+cloudflare_zone_id = "<zone-id>"
+```
+
+**执行**:
+```bash
+cd terraform/envs/staging
+terraform init
+terraform apply
+```
+
+**自动完成**:
+- ✅ 安装 Docker
+- ✅ 安装 Dokploy
+- ✅ 配置 UFW 防火墙 (SSH/HTTP/HTTPS)
+- ✅ 安装 fail2ban
+- ✅ 验证所有安装
+
+### 方案 B: 手动执行 (备选)
+
+如果不想使用 Terraform provisioner：
+
 ```bash
 ssh prod@103.214.23.41
 
@@ -33,11 +64,12 @@ sudo sh get-docker.sh
 sudo usermod -aG docker $USER
 
 # 安装 Dokploy
-curl -sSL https://dokploy.com/install.sh | sh
+curl -sSL https://dokploy.com/install.sh | sudo sh
 
-# 验证
-docker --version
-docker compose version
+# 配置防火墙
+sudo apt-get install -y ufw fail2ban
+sudo ufw allow ssh && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp
+sudo ufw enable
 ```
 
 ### 1.2 Secrets 管理

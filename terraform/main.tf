@@ -28,5 +28,15 @@ module "cloudflare" {
   vps_ips      = var.vps_count > 0 ? module.vps[*].public_ip : [var.vps_ip]
 }
 
+# VPS Bootstrap Module (optional, for automated setup)
+module "vps_bootstrap" {
+  source = "./modules/vps-bootstrap"
+  count  = var.enable_vps_bootstrap ? 1 : 0
+
+  vps_ip          = var.vps_ip
+  ssh_user        = var.ssh_user
+  ssh_private_key = var.ssh_private_key
+}
+
 # Note: Database and Monitoring modules removed as they are managed via Docker Compose
 # See compose/base.yml for database services (Neo4j, PostgreSQL, Redis)

@@ -47,6 +47,25 @@ variable "vps_count" {
   default     = 1
 }
 
+variable "enable_vps_bootstrap" {
+  description = "Enable automated VPS bootstrap (Docker, Dokploy, etc.)"
+  type        = bool
+  default     = false
+}
+
+variable "ssh_user" {
+  description = "SSH user for VPS access"
+  type        = string
+  default     = "prod"
+}
+
+variable "ssh_private_key" {
+  description = "SSH private key for VPS access (leave empty if using ssh-agent)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "vps_size" {
   description = "VPS instance size/type"
   type        = string
