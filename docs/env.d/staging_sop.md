@@ -4,6 +4,7 @@
 **域名**: x-staging.truealpha.club, api-x-staging.truealpha.club  
 **VPS**: 103.214.23.41  
 **Dokploy 控制面**: cloud.truealpha.club  
+**Infisical**: secrets.truealpha.club（Cloudflare 记录由 staging Terraform 创建）  
 **通用流程**: 见 `docs/deployment-sop.md`（Layer 1/2/3 三层模型）
 
 **进度状态**: 见 `terraform/envs/staging/STATUS.md`

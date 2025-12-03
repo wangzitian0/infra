@@ -96,7 +96,7 @@ REDIS_PASSWORD=<generate>
 
 ### 0. Layer 1（仅一次，staging 阶段完成）
 - Terraform/Dokploy 安装（单台 VPS 103.214.23.41）：安装 Docker → 部署 Dokploy（含 Traefik），控制面域名 `cloud.truealpha.club`  
-- Terraform/脚本部署自托管 Infisical（容器方式），并生成 Machine Identity；SigNoz/PostHog 预留自托管模块  
+- Terraform/脚本部署自托管 Infisical（容器方式，域名 `secrets.truealpha.club`），并生成 Machine Identity；SigNoz/PostHog 预留自托管模块  
 - 完成 Dokploy 基本设置（管理员、域名入口）
 
 ### 1. GitHub Secrets（仅 MI 三元组）

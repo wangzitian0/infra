@@ -139,7 +139,7 @@
 | Environment Configs | ✅ | ❌ | ❌ |
 
 **Blockers**:
-- [ ] Self-hosted Infisical not implemented（需要 Terraform/compose + deploy 集成）
+- [ ] Self-hosted Infisical not implemented（需要 Terraform/compose + deploy 集成；DNS 记录 secrets.truealpha.club 新增需 apply）
 - [ ] Environment variables not populated
 - [ ] No secrets exported to VPS
 

@@ -11,6 +11,27 @@ locals {
   api_subdomain = var.environment == "prod" ? "api" : "api-x-${var.environment}"
 }
 
+# Global platform records (managed once via staging to avoid duplication)
+resource "cloudflare_record" "platform_cloud" {
+  count   = var.environment == "staging" ? 1 : 0
+  zone_id = var.zone_id
+  name    = "cloud"
+  type    = "A"
+  content = local.primary_ip
+  proxied = true
+  comment = "Dokploy control plane"
+}
+
+resource "cloudflare_record" "platform_secrets" {
+  count   = var.environment == "staging" ? 1 : 0
+  zone_id = var.zone_id
+  name    = "secrets"
+  type    = "A"
+  content = local.primary_ip
+  proxied = true
+  comment = "Self-hosted Infisical"
+}
+
 # Main domain record (prod only)
 resource "cloudflare_record" "main" {
   count   = var.environment == "prod" ? 1 : 0
