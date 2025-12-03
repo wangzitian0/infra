@@ -1,334 +1,376 @@
-# Staging 环境部署计划
+# Staging 环境全自动化部署
 
-**目标**: 通过部署 staging 环境，建立完整的 GitHub CI 自动部署流程
+**核心理念**: GitOps - 一切通过 Git + GitHub Actions 自动化
 
-**策略**: End-to-End，从基础设施到应用部署全流程打通
-
----
-
-## 🎯 部署路径
-
-```
-GitHub Actions → Terraform (DNS) → VPS (Docker/Dokploy) → 应用部署 → 验证
-```
+**目标**: 实现 `git push` → 自动部署 staging 的完整流程
 
 ---
 
-## 📋 阶段 1: 基础设施准备 (Terraform 自动化)
+## 🎯 自动化部署流程
 
-### 方案 A: Terraform 自动化 (推荐)
+```
+git push → GitHub Actions → Terraform (VPS + DNS) → Docker Compose → 健康检查 → 完成
+```
 
-使用 Terraform `vps-bootstrap` 模块通过 SSH 自动安装。
+**人工介入**: 仅需一次性配置 GitHub Secrets
 
-**配置**: `terraform/envs/staging/terraform.tfvars`
+---
 
-```hcl
-environment = "staging"
-vps_ip = "103.214.23.41"
-vps_count = 0
+## ⚙️ 一次性配置 (前置条件)
 
-# 启用自动化 bootstrap
-enable_vps_bootstrap = true
-ssh_user = "prod"
-ssh_private_key = file("~/.ssh/id_rsa")  # 或通过环境变量
+### GitHub Repository Secrets
+
+在 `Settings → Secrets and variables → Actions` 添加：
+
+```yaml
+# VPS Access
+SSH_PRIVATE_KEY: <your-ssh-private-key>  # ~/.ssh/id_rsa 内容
+SSH_USER: prod
+SSH_HOST: 103.214.23.41
 
 # Cloudflare
-cloudflare_api_token = "<token>"
-cloudflare_zone_id = "<zone-id>"
+CLOUDFLARE_API_TOKEN: <your-token>
+CLOUDFLARE_ZONE_ID: <your-zone-id>
+
+# Secrets Management (二选一)
+# 方案 A: Infisical Cloud
+INFISICAL_CLIENT_ID: <machine-identity-id>
+INFISICAL_CLIENT_SECRET: <machine-identity-secret>
+INFISICAL_PROJECT_ID: <project-id>
+
+# 方案 B: 直接使用 GitHub Secrets (简单但不推荐生产)
+# NEO4J_PASSWORD: xxx
+# POSTGRES_PASSWORD: xxx
+# ... (81 个环境变量)
 ```
 
-**执行**:
-```bash
-cd terraform/envs/staging
-terraform init
-terraform apply
-```
-
-**自动完成**:
-- ✅ 安装 Docker
-- ✅ 安装 Dokploy
-- ✅ 配置 UFW 防火墙 (SSH/HTTP/HTTPS)
-- ✅ 安装 fail2ban
-- ✅ 验证所有安装
-
-### 方案 B: 手动执行 (备选)
-
-如果不想使用 Terraform provisioner：
-
-```bash
-ssh prod@103.214.23.41
-
-# 安装 Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-
-# 安装 Dokploy
-curl -sSL https://dokploy.com/install.sh | sudo sh
-
-# 配置防火墙
-sudo apt-get install -y ufw fail2ban
-sudo ufw allow ssh && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp
-sudo ufw enable
-```
-
-### 1.2 Secrets 管理
-- [ ] 注册 Infisical Cloud (https://app.infisical.com)
-- [ ] 创建项目 "truealpha-infra"
-- [ ] 创建环境: staging
-- [ ] 从 `secrets/.env.example` 复制并填充所有 81 个变量
-
-**关键变量**:
-```
-# Database
-NEO4J_PASSWORD=<generate>
-POSTGRES_PASSWORD=<generate>
-REDIS_PASSWORD=<generate>
-
-# Backend
-JWT_SECRET=<generate>
-OPENAI_API_KEY=<your-key>
-
-# Observability
-SIGNOZ_ENDPOINT=http://signoz:4317
-```
-
-### 1.3 GitHub Secrets 配置
-在 GitHub Repo Settings → Secrets 添加：
-
-- [ ] `INFISICAL_CLIENT_ID` - Infisical Machine Identity
-- [ ] `INFISICAL_CLIENT_SECRET` - Infisical Secret
-- [ ] `INFISICAL_PROJECT_ID` - Project ID
-- [ ] `SSH_PRIVATE_KEY` - VPS SSH 私钥
-- [ ] `SSH_USER` - prod
-- [ ] `SSH_HOST` - 103.214.23.41
-- [ ] `CLOUDFLARE_API_TOKEN` - 已有
+**推荐方案 A** (Infisical):
+1. 注册 https://app.infisical.com
+2. 创建项目 "truealpha"
+3. 创建环境: staging
+4. 从 `secrets/.env.example` 复制并填充变量
+5. 创建 Machine Identity → 获取 Client ID/Secret
 
 ---
 
-## 📋 阶段 2: Terraform DNS (GitHub Actions)
+## 🚀 完全自动化部署
 
-### 2.1 创建 staging 环境配置
-
-**文件**: `terraform/envs/staging/terraform.tfvars`
-
-```hcl
-environment = "staging"
-project_name = "truealpha"
-domain = "truealpha.club"
-
-# Cloudflare
-cloudflare_api_token = "<from-secret>"
-cloudflare_zone_id = "<zone-id>"
-
-# VPS (manual)
-vps_ip = "103.214.23.41"
-vps_count = 0
-
-# Tags
-tags = {
-  Environment = "staging"
-  ManagedBy   = "terraform"
-}
-```
-
-### 2.2 通过 GitHub Actions 部署 DNS
-
-**Workflow**: `.github/workflows/terraform.yml`
-
-触发方式:
-```bash
-# 推送 terraform 变更到 main
-git push origin brn-004-02:main
-
-# 或手动触发
-# GitHub → Actions → Terraform Infrastructure → Run workflow
-```
-
-**预期结果**:
-- ✅ DNS 记录创建: x-staging.truealpha.club → 103.214.23.41
-- ✅ API 记录: api-x-staging.truealpha.club → 103.214.23.41
-
----
-
-## 📋 阶段 3: 应用部署 (GitHub Actions)
-
-### 3.1 配置 Infisical CLI (在 VPS 上)
+### 步骤 1: 推送代码
 
 ```bash
-# 在 VPS 上
-curl -1sLf 'https://dl.cloudsmith.io/public/infisical/infisical-cli/setup.deb.sh' | sudo -E bash
-sudo apt-get update && sudo apt-get install -y infisical
-
-# 登录
-infisical login
+# 合并到 main 分支
+git checkout main
+git merge brn-004-02
+git push origin main
 ```
 
-### 3.2 手动首次部署 (验证流程)
+### 步骤 2: GitHub Actions 自动执行
 
-```bash
-# 在 VPS 上
-cd /opt/truealpha
-git clone https://github.com/wangzitian0/infra.git
-cd infra
+**Workflow**: `.github/workflows/deploy-staging.yml` (新建)
 
-# 导出 secrets
-./scripts/deploy/export-secrets.sh staging
+```yaml
+name: Deploy Staging Environment
 
-# 部署
-./scripts/deploy/deploy.sh staging
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  terraform:
+    name: Provision Infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      
+      - name: Terraform Init
+        working-directory: terraform/envs/staging
+        run: terraform init
+      
+      - name: Terraform Apply (VPS + DNS)
+        working-directory: terraform/envs/staging
+        env:
+          TF_VAR_vps_ip: ${{ secrets.SSH_HOST }}
+          TF_VAR_ssh_user: ${{ secrets.SSH_USER }}
+          TF_VAR_ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_enable_vps_bootstrap: true
+        run: |
+          terraform apply -auto-approve \
+            -var="environment=staging" \
+            -var="project_name=truealpha" \
+            -var="domain=truealpha.club"
+
+  deploy:
+    name: Deploy Application
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # 克隆/更新代码
+            mkdir -p /opt/truealpha
+            cd /opt/truealpha
+            if [ -d "infra" ]; then
+              cd infra && git pull
+            else
+              git clone https://github.com/wangzitian0/infra.git
+              cd infra
+            fi
+            
+            # 从 Infisical 导出环境变量
+            export INFISICAL_TOKEN="${{ secrets.INFISICAL_TOKEN }}"
+            ./scripts/deploy/export-secrets.sh staging > .env
+            
+            # 部署应用
+            ./scripts/deploy/deploy.sh staging
+      
+      - name: Health Check
+        run: |
+          sleep 30  # 等待服务启动
+          curl -f https://x-staging.truealpha.club/health || exit 1
+          curl -f https://api-x-staging.truealpha.club/graphql || exit 1
 ```
 
-**预期结果**:
-- ✅ 所有服务启动 (backend, neo4j, postgres, redis, celery, flower, traefik)
+### 步骤 3: 验证部署
+
+**自动化验证** (在 GitHub Actions 中):
+- ✅ Terraform 成功应用
+- ✅ DNS 记录创建
+- ✅ VPS Docker/Dokploy 安装完成
+- ✅ 应用服务启动
 - ✅ 健康检查通过
-- ✅ https://x-staging.truealpha.club 可访问
 
-### 3.3 配置 GitHub Actions 自动部署
-
-**Workflow**: `.github/workflows/deploy.yml`
-
-触发条件:
-- Push to `main` branch (自动)
-- Workflow dispatch (手动)
-
-**部署流程**:
-1. GitHub Actions 连接 VPS (SSH)
-2. Pull 最新代码
-3. 从 Infisical 导出环境变量
-4. 运行 `./scripts/deploy/deploy.sh staging`
-5. 验证健康检查
-
----
-
-## 📋 阶段 4: 验证与监控
-
-### 4.1 功能验证
-- [ ] DNS 解析: `dig x-staging.truealpha.club`
-- [ ] SSL 证书: `curl -I https://x-staging.truealpha.club`
-- [ ] GraphQL API: `curl https://api-x-staging.truealpha.club/graphql`
-- [ ] Neo4j: 连接测试
-- [ ] PostgreSQL: 连接测试
-- [ ] Redis: 连接测试
-- [ ] Celery: 查看 Flower UI
-
-### 4.2 部署 SigNoz (可选，建议第二阶段)
-
+**手动验证** (可选):
 ```bash
-# 在 VPS 上
-cd /opt/signoz
-git clone https://github.com/SigNoz/signoz.git
-cd signoz/deploy
-docker compose -f docker/clickhouse-setup/docker-compose.yaml up -d
+# DNS
+dig x-staging.truealpha.club
+
+# SSL
+curl -I https://x-staging.truealpha.club
+
+# API
+curl https://api-x-staging.truealpha.club/graphql
 ```
 
 ---
 
-## 📋 阶段 5: PR 预览环境测试
+## 🔄 持续部署
 
-### 5.1 创建测试 PR
+### 自动触发场景
 
-1. 在 PEG-scaner 创建 PR #1
-2. GitHub Actions 自动触发 `pr-preview.yml`
-3. 自动创建 DNS: x-test-1.truealpha.club
-4. 自动部署应用
-5. PR 评论中显示预览链接
+1. **代码更新**: `git push origin main` → 自动部署
+2. **配置更新**: 修改 `compose/staging.yml` → 自动部署
+3. **手动触发**: GitHub UI → Actions → Run workflow
 
-### 5.2 验证 PR 预览
+### 回滚机制
 
-- [ ] x-test-1.truealpha.club 可访问
-- [ ] 独立的数据库实例
-- [ ] PR 关闭后自动清理
-
----
-
-## 🎯 成功标准
-
-### 最小可行产品 (MVP)
-- ✅ staging 环境完全可用
-- ✅ GitHub Actions 自动部署成功
-- ✅ 所有服务健康运行
-- ✅ https://x-staging.truealpha.club 可访问
-
-### 完整流程
-- ✅ 代码 push → 自动部署 → 验证通过
-- ✅ PR 创建 → 预览环境 → 自动清理
-- ✅ Secrets 从 Infisical 自动同步
-- ✅ 健康检查和回滚机制
+```bash
+# 在 GitHub Actions 中
+git revert <commit-hash>
+git push origin main
+# 自动触发重新部署
+```
 
 ---
 
-## 📝 执行顺序
+## 🧪 PR 预览环境 (完全自动化)
 
-### Week 1: 基础设施
-**Day 1-2**: VPS 准备
-- [ ] 安装 Docker & Dokploy
-- [ ] 配置 Infisical
-- [ ] 配置 GitHub Secrets
+### Workflow: `.github/workflows/pr-preview.yml`
 
-**Day 3**: Terraform DNS
-- [ ] 推送分支到 main
-- [ ] 手动运行 Terraform (或通过 Actions)
-- [ ] 验证 DNS 记录
+**触发**: PR 打开/更新/关闭
 
-### Week 2: 应用部署
-**Day 4-5**: 手动部署验证
-- [ ] VPS 上手动运行部署脚本
-- [ ] 调试所有服务
-- [ ] 确保健康检查通过
+**流程**:
+1. PR 打开 → 自动创建 DNS (`x-test-<PR#>.truealpha.club`)
+2. PR 更新 → 自动重新部署
+3. PR 关闭 → 自动清理资源
 
-**Day 6-7**: GitHub Actions
-- [ ] 配置自动部署 workflow
-- [ ] 测试 push-to-deploy 流程
-- [ ] 验证完整的 CI/CD
+**示例**:
+```yaml
+name: PR Preview Environment
 
-### Week 3: PR 预览与监控
-**Day 8-9**: PR 预览环境
-- [ ] 测试 PR 预览 workflow
-- [ ] 验证自动创建/清理
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
 
-**Day 10**: 监控与优化
-- [ ] 部署 SigNoz
-- [ ] 配置告警
-- [ ] 文档更新
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - if: github.event.action != 'closed'
+        name: Create Preview Environment
+        run: |
+          # Terraform 创建 DNS: x-test-${{ github.event.number }}
+          # Docker Compose 部署独立实例
+          # 在 PR 评论中添加预览链接
+      
+      - if: github.event.action == 'closed'
+        name: Cleanup Preview Environment
+        run: |
+          # Terraform 删除 DNS
+          # Docker Compose 停止并删除容器
+```
 
 ---
 
-## 🚧 潜在问题与解决方案
+## 📊 自动化程度对比
 
-### 问题 1: Infisical 配置复杂
-**解决**: 使用 Infisical Cloud (快速)，避免自托管
+### 传统手动方式
+```
+1. SSH 登录 VPS ❌ 手动
+2. 安装 Docker   ❌ 手动
+3. 配置防火墙   ❌ 手动
+4. 克隆代码     ❌ 手动
+5. 配置环境变量 ❌ 手动
+6. 启动服务     ❌ 手动
+7. 验证健康     ❌ 手动
+```
 
-### 问题 2: GitHub Actions SSH 连接失败
-**解决**: 
-- 确保 SSH 私钥格式正确 (PEM)
-- 测试 known_hosts
-- 使用 `appleboy/ssh-action`
+### 完全自动化 (EaaS)
+```
+1. git push origin main          ✅ 一条命令
+2. 所有步骤自动执行              ✅ GitHub Actions
+3. 健康检查自动验证              ✅ 自动化
+4. 失败自动回滚 (optional)       ✅ 可配置
+```
 
-### 问题 3: Docker Compose 服务启动失败
-**解决**:
-- 逐个服务启动调试
-- 检查日志: `docker compose logs -f <service>`
-- 验证环境变量
+---
 
-### 问题 4: DNS 解析延迟
-**解决**:
-- Cloudflare Proxied 模式有缓存
-- 等待 1-5 分钟 DNS 传播
+## 🎯 实施时间线
+
+### Day 1: 配置 GitHub Secrets (30 分钟)
+- [ ] 添加 SSH 密钥
+- [ ] 添加 Cloudflare Token
+- [ ] 配置 Infisical (或直接用 GitHub Secrets)
+
+### Day 2: 创建自动化 Workflow (1 小时)
+- [ ] 创建 `deploy-staging.yml`
+- [ ] 测试 Terraform 步骤
+- [ ] 测试部署步骤
+
+### Day 3: 首次完整部署 (2 小时)
+- [ ] `git push origin main`
+- [ ] 监控 GitHub Actions 执行
+- [ ] 验证所有服务
+- [ ] 调试问题 (如有)
+
+### Day 4-5: PR 预览环境 (1 天)
+- [ ] 创建 `pr-preview.yml`
+- [ ] 测试 PR 工作流
+- [ ] 验证自动清理
+
+**总计**: 3-5 天完成完全自动化
+
+---
+
+## 🔐 Secrets 管理策略
+
+### 推荐: Infisical Cloud (生产级)
+
+**优点**:
+- ✅ 集中管理所有环境
+- ✅ 审计日志
+- ✅ 版本控制
+- ✅ 细粒度权限
+
+**使用**:
+```bash
+# 在 VPS 上 (GitHub Actions 自动执行)
+export INFISICAL_TOKEN="${{ secrets.INFISICAL_TOKEN }}"
+infisical export --env=staging > .env
+```
+
+### 备选: GitHub Secrets (开发环境)
+
+**优点**:
+- ✅ 简单快速
+- ✅ 无需额外服务
+
+**缺点**:
+- ❌ GitHub Secrets 数量限制
+- ❌ 81 个变量太多
+
+---
+
+## ✅ 成功标准
+
+### 自动化程度
+- ✅ 0 次 SSH 登录
+- ✅ 0 次手动命令执行  
+- ✅ 1 条命令触发部署: `git push`
+
+### 可重复性
+- ✅ 销毁环境 → 重新部署 → 完全相同
+- ✅ 多个环境 (test/staging/prod) 配置一致
+- ✅ PR 预览环境自动创建/销毁
+
+### 可观测性
+- ✅ GitHub Actions 日志
+- ✅ 自动健康检查
+- ✅ 失败通知 (可选: Slack/Email)
+
+---
+
+## 🚨 注意事项
+
+### 安全
+1. **SSH 密钥**: 确保使用 GitHub Secrets，不要提交到代码
+2. **API Token**: 最小权限原则
+3. **环境变量**: 使用 Infisical 或 GitHub Secrets，不要硬编码
+
+### 幂等性
+1. **Terraform**: 多次 apply 不会重复创建资源  
+2. **Docker Compose**: restart 策略确保服务更新
+3. **Secrets**: 环境变量可以重复导出
+
+### 监控
+1. **GitHub Actions**: 查看执行日志
+2. **VPS 日志**: `docker compose logs -f`
+3. **健康检查**: 自动验证服务状态
 
 ---
 
 ## 📚 相关文档
 
-- [0.hi_zitian.md](0.hi_zitian.md) - 详细配置步骤
-- [architecture.md](architecture.md) - 架构设计
-- [runbooks/operations.md](runbooks/operations.md) - 运维手册
+- [terraform.yml](../ci/github-actions/terraform.yml) - Terraform 自动化
+- [deploy.yml](../ci/github-actions/deploy.yml) - 应用部署
+- [pr-preview.yml](../ci/github-actions/pr-preview.yml) - PR 预览
 - [TODOWRITE.md](TODOWRITE.md) - 完成度追踪
 
 ---
 
-**目标**: 2 周内完成 staging 环境端到端部署
+## 🎊 总结
 
-**当前状态**: ✅ 代码完成，开始执行部署
+**人工操作**: 仅配置 GitHub Secrets (一次)
 
-**下一步**: 推送代码 → 准备 VPS → 配置 Secrets → 部署！
+**自动化流程**:
+```
+git push 
+  ↓
+GitHub Actions
+  ↓
+Terraform (VPS + DNS)
+  ↓
+Docker Compose (应用部署)
+  ↓
+健康检查
+  ↓
+✅ 部署成功
+```
+
+**EaaS 核心价值**: 
+- 🚀 快速: 5 分钟部署完成
+- 🔄 可重复: 销毁重建完全一致
+- 🛡️ 可靠: 自动化减少人为错误
+- 📈 可扩展: 轻松复制到更多环境
