@@ -84,7 +84,7 @@ CLOUDFLARE_ZONE_ID=<...>
 1. **复用全局层**  
    - 确认已完成 `iac_sop.md`（Dokploy+Infisical+MI 安装完毕，GitHub Secrets 已填 MI 三元组）。
 
-2. **配置 Infisical（一次性，唯一源）**  
+2. **配置自托管 Infisical（一次性，唯一源）**  
    - 项目: truealpha  
    - 环境: prod  
    - 导入 81 个变量，创建 Machine Identity。
@@ -97,8 +97,9 @@ CLOUDFLARE_ZONE_ID=<...>
    terraform apply
    ```
 
-4. **部署应用（Layer 3）**  
-   - CI/CD 自动部署或手动 `./scripts/deploy/deploy.sh prod`
+4. **部署应用（Layer 3，全自动，无 UI）**  
+   - CI/CD 自动部署（Dokploy API/CLI 应用 compose）或手动  
+   - `./scripts/deploy/export-secrets.sh prod && ./scripts/deploy/deploy.sh prod`
 
 5. **验证**  
    - `dig truealpha.club`  

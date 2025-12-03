@@ -3,26 +3,31 @@
 **适用范围**: test / staging / prod  
 **模型**: IRD-004 三层 (Layer 1/2/3)  
 **顺序**: 先完成 staging（同时完成 Layer 1），再做 test、prod  
-**平台形态**: 单台 VPS，Layer 1 只安装一次（Dokploy + Infisical + CI 入口）  
+**平台形态**: 单台 VPS，Layer 1 只安装一次  
+**组件（全部自有部署，Terraform 管理）**: Dokploy（运行时+Traefik）、自托管 Infisical（密钥）、Cloudflare（DNS/WAF/CDN 由 Terraform 控制）、自托管 SigNoz、 自托管 PostHog、API/Neo4j/PostgreSQL/Redis/Celery/Flower  
 **Secrets 规则**: GitHub Secrets 仅存 Infisical Machine Identity (MI) 三元组；SSH/Cloudflare/DB/应用等全部在 Infisical（唯一密钥源）  
+**部署方式**: Terraform 声明所有组件；Dokploy 通过 API/脚本应用 compose 定义，无需 UI 点选  
 **环境特定配置**: 见 `docs/env.d/iac_sop.md`（全局层）与 `docs/env.d/{env}_sop.md`
 
 ---
 
 ## 📋 部署前置条件
 
-### 三层模型（组件已定）
+### 三层模型（组件已定，全部自有部署）
 - **Layer 1：全局平台（单次，staging 阶段完成）**  
-  - 运行时与入口: Dokploy（单实例）、Traefik（随 Dokploy）、CI 入口  
-  - 密钥管理: Infisical（Machine Identity）  
-  - 观测/日志基座: 预留 SigNoz（后续部署）  
+  - Terraform 管理：Dokploy（含 Traefik）、Infisical、自托管 SigNoz/PostHog 预留、CI 入口依赖  
   - 仅在此处安装/配置，后续 test/prod 直接复用
 - **Layer 2：共享基础设施（按环境，Terraform）**  
-  - Cloudflare DNS/CDN/WAF、VPS 引导、数据库/缓存/对象存储/监控组件（按模块编排）  
+  - Cloudflare DNS/WAF/CDN、VPS 引导、数据库/缓存/对象存储/监控组件（按模块编排）  
   - 目录: `terraform/envs/{env}`，先做 staging，再 test、prod
 - **Layer 3：应用层（按环境，Dokploy/Compose）**  
-  - 业务服务: API、Neo4j、PostgreSQL、Redis、Celery Worker/Beat、Flower 等  
+  - 业务服务: API、Neo4j、PostgreSQL、Redis、Celery Worker/Beat、Flower  
   - 配置来源: Infisical 导出的环境变量
+
+### 域名方案（扁平，符合 BRN-004）
+- test: `x-test.truealpha.club`, `api-x-test.truealpha.club`，PR 预览 `x-test-*.truealpha.club`  
+- staging: `x-staging.truealpha.club`, `api-x-staging.truealpha.club`  
+- prod: `truealpha.club`, `api.truealpha.club`
 
 ### Secrets 来源（简化策略）
 
@@ -56,10 +61,9 @@ INFISICAL_PROJECT_ID: <project-id>
 
 ### Infisical 配置（所有实际密钥）
 
-1. 注册 https://app.infisical.com
-2. 创建项目 "truealpha"
-3. 创建环境: `{ENV_NAME}` (staging, test, prod)
-4. 从 `secrets/.env.example` 导入并填充 **所有 81 个变量**：
+1. 在自托管 Infisical（容器）中创建项目 "truealpha"
+2. 创建环境: `{ENV_NAME}` (staging, test, prod)
+3. 从 `secrets/.env.example` 导入并填充 **所有 81 个变量**：
 
 ```bash
 # VPS Access
@@ -86,22 +90,15 @@ REDIS_PASSWORD=<generate>
 ## 🚀 部署流程（按顺序执行）
 
 ### 0. Layer 1（仅一次，staging 阶段完成）
-在 VPS（单台）上安装：
-```bash
-# 安装 Docker
-curl -fsSL https://get.docker.com | sh
-
-# 安装 Dokploy（控制面 + Traefik）
-curl -sSL https://dokploy.com/install.sh | sh
-```
-- 在 Dokploy UI 完成基础设置（管理员账户、域名入口）。  
-- 确认 Infisical 可访问（Cloud 版或自托管），生成 MI。
+- Terraform/Dokploy 安装（单台 VPS）：安装 Docker → 通过脚本部署 Dokploy（含 Traefik）  
+- Terraform/脚本部署自托管 Infisical（容器方式），并生成 Machine Identity；SigNoz/PostHog 预留自托管模块  
+- 完成 Dokploy 基本设置（管理员、域名入口）
 
 ### 1. GitHub Secrets（仅 MI 三元组）
 在仓库 Settings → Secrets and variables → Actions 填写：`INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` / `INFISICAL_PROJECT_ID`。
 
 ### 2. Infisical（唯一密钥源，分环境）
-在 https://app.infisical.com：
+在自托管 Infisical（容器）中：
 - 创建项目 `truealpha`，环境：staging / test / prod  
 - 导入 `secrets/.env.example` 中全部变量（81 个），补充真实值  
 - 将以下凭据也放入 Infisical（不要放 GitHub Secrets）：`SSH_PRIVATE_KEY`、`SSH_USER`、`SSH_HOST`、`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ZONE_ID`
@@ -122,7 +119,7 @@ terraform apply
 ```bash
 # 在 CI 或本地执行
 ./scripts/deploy/export-secrets.sh <env>   # 从 Infisical 拉取全部变量
-./scripts/deploy/deploy.sh <env>
+./scripts/deploy/deploy.sh <env>            # 通过 Dokploy API/CLI 应用 compose
 ```
 - Dokploy 作为运行时，compose 定义见 `compose/{env}.yml`（API、Neo4j、PostgreSQL、Redis、Celery、Flower 等）。
 
@@ -146,7 +143,7 @@ git push origin main
 ### CI/GitHub Actions 自动执行摘要
 1. 使用 MI 三元组拉取 Infisical 全部环境变量  
 2. Terraform plan/apply（Cloudflare + 基建）  
-3. 渲染 Dokploy/Compose（API、DB、Cache、Worker 等）并启动  
+3. 通过 Dokploy API/CLI 应用 compose，启动 API/DB/Cache/Worker 等  
 4. 健康检查：域名、API `/graphql`
 
 ---

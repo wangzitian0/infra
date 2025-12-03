@@ -1,6 +1,6 @@
 # 运维手册 - 常见操作指南
 
-> 通用运维操作在此，环境差异请参见 `docs/env.d/{env}_sop.md`；三层部署模型与密钥来源规则见 `docs/deployment-sop.md`。
+> 通用运维操作在此，环境差异请参见 `docs/env.d/{env}_sop.md`；三层部署模型与密钥来源规则见 `docs/deployment-sop.md`（自托管 Dokploy/Infisical/SigNoz/PostHog）。
 
 ## 部署相关
 
@@ -107,7 +107,7 @@ terraform show
 terraform output
 ```
 
-## 密钥管理
+## 密钥管理（自托管 Infisical）
 
 ### 从 Infisical 导出
 
@@ -119,14 +119,13 @@ terraform output
 infisical export --env=prod --format=dotenv
 ```
 
-### 更新密钥
+### 更新密钥（自托管 Infisical）
 
 ```bash
-# 通过 Infisical CLI
+# 通过 Infisical CLI（自托管）
 infisical secrets set API_KEY "new_value" --env=prod
 
-# 或通过 Web UI
-# https://app.infisical.com
+# 或通过自托管 Web UI
 ```
 
 ## 监控与调试

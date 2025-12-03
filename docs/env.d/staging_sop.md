@@ -94,10 +94,10 @@ CLOUDFLARE_ZONE_ID=<...>
 ### 2. 配置 Infisical (一次性，唯一源)
 
 ```bash
-# 1. 登录 https://app.infisical.com
+# 1. 登录自托管 Infisical (UI)
 # 2. 创建项目 "truealpha"
 # 3. 创建环境 "staging"
-# 4. 导入变量
+# 4. 导入变量（来自 secrets/.env.example）
 cp secrets/.env.example staging-secrets.env
 # 编辑 staging-secrets.env 填充实际值
 # 5. 在 Infisical UI 中批量导入
@@ -113,11 +113,11 @@ terraform plan
 terraform apply
 ```
 
-### 4. Layer 3：部署应用
+### 4. Layer 3：部署应用（全自动，无 UI）
 
 ```bash
-./scripts/deploy/export-secrets.sh staging   # 从 Infisical 拉取
-./scripts/deploy/deploy.sh staging
+./scripts/deploy/export-secrets.sh staging   # 从 Infisical 拉取全部变量
+./scripts/deploy/deploy.sh staging           # 通过 Dokploy API/CLI 应用 compose
 ```
 
 ### 5. 验证部署

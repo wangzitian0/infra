@@ -18,7 +18,7 @@
 - **SSL**: 单一 `*.truealpha.club` 通配符证书覆盖所有
 
 ### Secrets 管理
-- **方案**: Infisical Cloud
+- **方案**: 自托管 Infisical（容器，Terraform/脚本部署）
 - **项目**: truealpha
 - **环境**: staging, test, prod
 - **变量数**: 81（from secrets/.env.example）

@@ -79,14 +79,14 @@
 - ✅ `compose/prod.yml` - Production (with HA)
 
 **Blockers**:
-- [ ] VPS not set up with Docker & Dokploy
-- [ ] Secrets not configured in Infisical
+- [ ] VPS not set up with Docker & Dokploy (self-hosted)
+- [ ] Secrets not configured in self-hosted Infisical
 - [ ] Deployment scripts not executed
 
 **Next Steps**:
 1. SSH into VPS (103.214.23.41)
 2. Install Docker & Dokploy
-3. Set up Infisical (or Infisical Cloud)
+3. Set up self-hosted Infisical
 4. Run `./scripts/deploy/deploy.sh test`
 
 ---
@@ -110,7 +110,7 @@
 
 **Secrets 存放策略**:
 - GitHub Secrets: 仅 Infisical MI 三元组  
-- Infisical: SSH/Cloudflare/DB/应用等全部 81+ 变量
+- Infisical（自托管）: SSH/Cloudflare/DB/应用等全部 81+ 变量
 
 **Blockers**:
 - [ ] GitHub Actions secrets not configured
@@ -125,24 +125,24 @@
 
 ---
 
-## 4️⃣ Secrets Management
+## 4️⃣ Secrets Management (self-hosted)
 
 ### Code Status: ✅ 80% Complete
 ### Deployment Status: ❌ Not Set Up
 
 | Component | Code | Configured | Populated |
 |-----------|------|------------|-----------|
-| Infisical Integration | ✅ | ❌ | ❌ |
+| Infisical Integration (self-hosted) | ✅ | ❌ | ❌ |
 | `.env.example` Template | ✅ | N/A | N/A |
 | `export-secrets.sh` | ✅ | ❌ | ❌ |
 | Environment Configs | ✅ | ❌ | ❌ |
 
 **Blockers**:
-- [ ] Infisical not deployed (recommend Infisical Cloud)
+- [ ] Self-hosted Infisical not deployed
 - [ ] Environment variables not populated
 - [ ] No secrets exported to VPS
 
-**Required Secrets** (81 variables in `.env.example`):
+**Required Secrets** (81 variables in `.env.example`, stored in self-hosted Infisical):
 - Database credentials (Neo4j, PostgreSQL, Redis)
 - API keys (OpenAI, Anthropic, etc.)
 - Observability endpoints (SigNoz, PostHog)
@@ -150,7 +150,7 @@
 
 **Files**:
 - `secrets/.env.example` ✅ (template)
-- `secrets/README.md` ✅
+- `secrets/README.md` ✅ (自托管 Infisical 指引)
 - `scripts/deploy/export-secrets.sh` ✅
 
 ---
@@ -219,7 +219,7 @@
   - Create DNS records: x-test.truealpha.club
   - Configure Cloudflare SSL/TLS
 - [ ] **Set up Infisical**
-  - Deploy Infisical Cloud or self-hosted
+  - Deploy self-hosted Infisical
   - Populate all 81 environment variables
 - [ ] **Prepare VPS**
   - Install Docker
