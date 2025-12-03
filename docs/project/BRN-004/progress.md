@@ -19,7 +19,7 @@
 
 ## 短期行动清单
 
-1. 完成 Staging GitHub Secrets + Infisical 环境配置  
+1. 完成 Staging GitHub Secrets + 自托管 Infisical 环境配置（含部署脚本/模块）  
 2. 执行 Staging Terraform apply 并验证服务健康  
 3. 补齐 Test 预览环境域名和流水线脚本  
 4. 定义 Backstage catalog 实体与健康检查接口雏形

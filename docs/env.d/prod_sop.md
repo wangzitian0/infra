@@ -98,7 +98,7 @@ CLOUDFLARE_ZONE_ID=<...>
    ```
 
 4. **部署应用（Layer 3，全自动，无 UI）**  
-   - CI/CD 自动部署（Dokploy API/CLI 应用 compose）或手动  
+   - CI/CD 自动部署（脚本应用 compose）或手动  
    - `./scripts/deploy/export-secrets.sh prod && ./scripts/deploy/deploy.sh prod`
 
 5. **验证**  

@@ -1,6 +1,8 @@
 # IaC / 全局层 (Layer 1 + 基础基建) SOP
 
-**目的**: 在单台 VPS 上一次性完成全局平台与基础基建声明（自有部署，Terraform 管理），供 staging/test/prod 复用。完成后，其他环境只需运行 Terraform (Layer 2) + Dokploy/Compose (Layer 3)，部署通过脚本/API 全自动，无需 Dokploy UI 点击。
+**目的**: 在单台 VPS (103.214.23.41) 上一次性完成全局平台与基础基建声明（自有部署，Terraform 管理），供 staging/test/prod 复用。完成后，其他环境只需运行 Terraform (Layer 2) + Dokploy/Compose (Layer 3)，部署通过脚本全自动，无需 Dokploy UI 点击。
+
+**当前落地状态**: Cloudflare/VPS/compose 脚本已具备；自托管 Infisical/SigNoz/PostHog 的 Terraform/compose 定义、Dokploy API 集成尚待补齐。
 
 ## 角色与组件
 - 运行时/入口: Dokploy（单实例，内含 Traefik，Terraform 管理）
@@ -10,7 +12,7 @@
 - 产品分析: PostHog（自托管，Terraform/脚本部署）
 - 业务组件: API、Neo4j、PostgreSQL、Redis、Celery Worker/Beat、Flower（compose 归档）
 - CI/CD: GitHub Actions（使用 MI 拉取密钥）
-  - 部署方式: 通过脚本/CI 调用 Dokploy API/CLI 应用 compose 定义
+  - 部署方式: 通过脚本/CI 执行 deploy.sh（compose，无 UI）
 
 ## 一次性安装步骤（仅此处执行）
 1) **安装 Docker**（VPS）  

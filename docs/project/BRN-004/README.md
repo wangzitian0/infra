@@ -44,7 +44,7 @@
 ### 进行中
 - 🟡 Staging 环境首次部署
   - ⏳ 配置 GitHub Secrets
-  - ⏳ 配置 Infisical
+  - ⏳ 配置自托管 Infisical
   - ⏳ 执行 Terraform apply
   - ⏳ 验证服务运行
 

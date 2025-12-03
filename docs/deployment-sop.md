@@ -6,8 +6,13 @@
 **平台形态**: 单台 VPS，Layer 1 只安装一次  
 **组件（全部自有部署，Terraform 管理）**: Dokploy（运行时+Traefik）、自托管 Infisical（密钥）、Cloudflare（DNS/WAF/CDN 由 Terraform 控制）、自托管 SigNoz、 自托管 PostHog、API/Neo4j/PostgreSQL/Redis/Celery/Flower  
 **Secrets 规则**: GitHub Secrets 仅存 Infisical Machine Identity (MI) 三元组；SSH/Cloudflare/DB/应用等全部在 Infisical（唯一密钥源）  
-**部署方式**: Terraform 声明所有组件；Dokploy 通过 API/脚本应用 compose 定义，无需 UI 点选  
+**部署方式**: Terraform 声明组件；通过脚本（`scripts/deploy/layered_deploy.sh` → Terraform + export-secrets + deploy.sh）应用 compose 定义，无需 UI 点选  
 **环境特定配置**: 见 `docs/env.d/iac_sop.md`（全局层）与 `docs/env.d/{env}_sop.md`
+
+**当前落地状态（与代码对应）**: 
+- Terraform 现有：Cloudflare/VPS 基础，compose 部署脚本（deploy.sh/layered_deploy）。
+- 待补：自托管 Infisical/SigNoz/PostHog 的 Terraform/脚本化部署与 Dokploy API 集成（当前 deploy.sh 直接调用 docker compose）。
+- 运行时暂用 compose 文件，后续可接 Dokploy API/CLI 实现完全声明式。
 
 ---
 
@@ -90,7 +95,7 @@ REDIS_PASSWORD=<generate>
 ## 🚀 部署流程（按顺序执行）
 
 ### 0. Layer 1（仅一次，staging 阶段完成）
-- Terraform/Dokploy 安装（单台 VPS）：安装 Docker → 通过脚本部署 Dokploy（含 Traefik）  
+- Terraform/Dokploy 安装（单台 VPS 103.214.23.41）：安装 Docker → 部署 Dokploy（含 Traefik），控制面域名 `cloud.truealpha.club`  
 - Terraform/脚本部署自托管 Infisical（容器方式），并生成 Machine Identity；SigNoz/PostHog 预留自托管模块  
 - 完成 Dokploy 基本设置（管理员、域名入口）
 
@@ -118,8 +123,8 @@ terraform apply
 
 ```bash
 # 在 CI 或本地执行
-./scripts/deploy/export-secrets.sh <env>   # 从 Infisical 拉取全部变量
-./scripts/deploy/deploy.sh <env>            # 通过 Dokploy API/CLI 应用 compose
+./scripts/deploy/export-secrets.sh <env>   # 从自托管 Infisical 拉取全部变量
+./scripts/deploy/deploy.sh <env>            # 通过脚本应用 compose（无 UI）
 ```
 - Dokploy 作为运行时，compose 定义见 `compose/{env}.yml`（API、Neo4j、PostgreSQL、Redis、Celery、Flower 等）。
 
@@ -141,9 +146,9 @@ git push origin main
 ```
 
 ### CI/GitHub Actions 自动执行摘要
-1. 使用 MI 三元组拉取 Infisical 全部环境变量  
+1. 使用 MI 三元组拉取自托管 Infisical 全部环境变量  
 2. Terraform plan/apply（Cloudflare + 基建）  
-3. 通过 Dokploy API/CLI 应用 compose，启动 API/DB/Cache/Worker 等  
+3. 通过脚本应用 compose（deploy.sh），启动 API/DB/Cache/Worker 等  
 4. 健康检查：域名、API `/graphql`
 
 ---

@@ -98,7 +98,7 @@ CLOUDFLARE_ZONE_ID=<...>
    ```
 
 4. **部署应用（Layer 3，全自动，无 UI）**  
-   - 通过 CI/PR 触发 PR 预览部署（Dokploy API/CLI 应用 compose）  
+   - 通过 CI/PR 触发 PR 预览部署（脚本应用 compose）  
    - 或手动 `./scripts/deploy/export-secrets.sh test && ./scripts/deploy/deploy.sh test`
 
 5. **验证**  

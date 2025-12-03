@@ -3,6 +3,7 @@
 **环境**: Staging (预发布)  
 **域名**: x-staging.truealpha.club, api-x-staging.truealpha.club  
 **VPS**: 103.214.23.41  
+**Dokploy 控制面**: cloud.truealpha.club  
 **通用流程**: 见 `docs/deployment-sop.md`（Layer 1/2/3 三层模型）
 
 **进度状态**: 见 `terraform/envs/staging/STATUS.md`
@@ -116,8 +117,8 @@ terraform apply
 ### 4. Layer 3：部署应用（全自动，无 UI）
 
 ```bash
-./scripts/deploy/export-secrets.sh staging   # 从 Infisical 拉取全部变量
-./scripts/deploy/deploy.sh staging           # 通过 Dokploy API/CLI 应用 compose
+./scripts/deploy/export-secrets.sh staging   # 从自托管 Infisical 拉取全部变量
+./scripts/deploy/deploy.sh staging           # 脚本应用 compose（无 UI）
 ```
 
 ### 5. 验证部署

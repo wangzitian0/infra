@@ -26,7 +26,7 @@
 | **开发者门户** | Backstage (预留) | latest | [backstage/](backstage/) |
 | **网络层** | Cloudflare | - | [terraform/modules/cloudflare/](terraform/modules/cloudflare/) |
 | **产品分析** | PostHog | latest | [analytics/posthog/](analytics/posthog/) |
-| **密钥管理** | Infisical | latest | [secrets/](secrets/) |
+| **密钥管理** | 自托管 Infisical | latest | [secrets/](secrets/) |
 | **CI/CD** | GitHub Actions + Atlantis | - | [ci/](ci/) |
 
 ## 快速开始
@@ -145,21 +145,18 @@ infra/
 |-----|------|---------|--------|---------|
 | **dev** | 日常开发 | localhost | 本地容器 | 持久 |
 | **ci** | 自动化测试 | - | 临时容器 | 分钟级 |
-| **test** | PR 预览 | pr-{number}.{domain} | 临时 | PR 生命周期 |
-| **staging** | 预发测试 | staging.{domain} | prod dump | 持久 |
-| **prod** | 生产环境 | {domain} | 正式数据 | 持久 |
+| **test** | PR 预览 | x-test.truealpha.club / api-x-test.truealpha.club；PR: x-test-*.truealpha.club | 临时 | PR 生命周期 |
+| **staging** | 预发测试 | x-staging.truealpha.club / api-x-staging.truealpha.club | prod dump | 持久 |
+| **prod** | 生产环境 | truealpha.club / api.truealpha.club | 正式数据 | 持久 |
 
-### 部署命令
+### 部署命令（脚本化，无 UI）
 
 ```bash
-# 部署到特定环境
-ENV=staging ./scripts/deploy/deploy.sh
+# 一键分层部署 (Terraform plan/apply + 拉取密钥 + compose 部署)
+./scripts/deploy/layered_deploy.sh staging apply
 
-# 通过 Terraform 管理基础设施
-cd terraform/envs/staging
-terraform init
-terraform plan
-terraform apply
+# 仅应用层（已完成 Terraform 且已有 .env.<env>）
+./scripts/deploy/deploy.sh staging
 ```
 
 ## 核心工作流
@@ -198,7 +195,7 @@ graph LR
 
 ## 密钥管理
 
-所有敏感配置通过 Infisical 统一管理:
+所有敏感配置通过自托管 Infisical 统一管理（GitHub Secrets 仅存 MI 三元组）:
 
 ```bash
 # 导出环境变量
@@ -251,19 +248,15 @@ terraform apply -var-file=terraform.tfvars
 terraform destroy -var-file=terraform.tfvars
 ```
 
-## 监控与观测
+## 监控与观测（自托管）
 
-### SigNoz
-- **URL**: `http://signoz.{domain}:3301`
-- **功能**: Metrics + Logs + Traces 一体化查看
+- SigNoz（待部署模块）: `http://signoz.{domain}:3301` — Metrics/Logs/Traces  
+- PostHog（待部署模块）: `http://posthog.{domain}:8000` — 产品分析  
+- Dokploy: `http://dokploy.{domain}:3000` — 应用部署管理（当前部署基于 compose，后续可接 Dokploy API）
 
-### PostHog
-- **URL**: `http://posthog.{domain}:8000`
-- **功能**: 产品分析与事件追踪
-
-### Dokploy
-- **URL**: `http://dokploy.{domain}:3000`
-- **功能**: 应用部署管理
+## 自动化覆盖说明
+- 已有：Cloudflare/VPS Terraform，compose 部署脚本（deploy.sh，layered_deploy.sh 组合 Terraform + 部署）。
+- 待补：自托管 Infisical/SigNoz/PostHog 的 Terraform/compose 定义与部署；Dokploy API/CLI 集成，实现完全声明式、无 UI。
 
 ## 故障排查
 

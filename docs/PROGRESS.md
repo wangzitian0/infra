@@ -10,10 +10,11 @@
 
 | Category | Code Ready | Deployed | Status |
 |----------|------------|----------|--------|
-| Terraform (DNS) | ✅ 100% | ❌ 0% | 🟡 Ready to deploy |
-| Docker Compose | ✅ 100% | ❌ 0% | 🟡 Ready to deploy |
+| Terraform (DNS/VPS) | ✅ 100% | ❌ 0% | 🟡 Ready to deploy |
+| Self-hosted Infisical | 🟥 Not implemented | ❌ 0% | 🔴 Needs module/compose |
+| Self-hosted SigNoz/PostHog | 🟥 Not implemented | ❌ 0% | 🔴 Needs module/compose |
+| Docker Compose (apps) | ✅ 100% | ❌ 0% | 🟡 Ready to deploy |
 | CI/CD Pipelines | ✅ 90% | ❌ 0% | 🟡 Needs secrets |
-| Observability | ✅ 80% | ❌ 0% | 🟡 Config ready |
 | Documentation | ✅ 100% | N/A | ✅ Complete |
 
 ---
@@ -86,7 +87,7 @@
 **Next Steps**:
 1. SSH into VPS (103.214.23.41)
 2. Install Docker & Dokploy
-3. Set up self-hosted Infisical
+3. Set up self-hosted Infisical (pending automation)
 4. Run `./scripts/deploy/deploy.sh test`
 
 ---
@@ -113,7 +114,7 @@
 - Infisical（自托管）: SSH/Cloudflare/DB/应用等全部 81+ 变量
 
 **Blockers**:
-- [ ] GitHub Actions secrets not configured
+- [ ] GitHub Actions secrets not configured (MI 三元组)
 - [ ] No test run performed
 - [ ] Atlantis not deployed (optional)
 
@@ -132,13 +133,13 @@
 
 | Component | Code | Configured | Populated |
 |-----------|------|------------|-----------|
-| Infisical Integration (self-hosted) | ✅ | ❌ | ❌ |
+| Infisical Integration (self-hosted) | 🟥 Not implemented | ❌ | ❌ |
 | `.env.example` Template | ✅ | N/A | N/A |
 | `export-secrets.sh` | ✅ | ❌ | ❌ |
 | Environment Configs | ✅ | ❌ | ❌ |
 
 **Blockers**:
-- [ ] Self-hosted Infisical not deployed
+- [ ] Self-hosted Infisical not implemented（需要 Terraform/compose + deploy 集成）
 - [ ] Environment variables not populated
 - [ ] No secrets exported to VPS
 
@@ -157,7 +158,7 @@
 
 ## 5️⃣ Observability Stack
 
-### Code Status: ✅ 80% Complete
+### Code Status: 🟥 Missing (self-hosted modules TBD)
 ### Deployment Status: ❌ Not Deployed
 
 | Component | Config | Deployed | Integrated |
@@ -182,9 +183,10 @@
 - ✅ Health monitoring concept
 - ❌ Not implemented
 
-**Files**:
+**Files** (app services only)：
 - `observability/otel/otel-collector-config.yml` ✅
 - `backstage/README.md` ✅ (design doc)
+*自托管 SigNoz/PostHog 模块/compose 未实现*
 
 ---
 
@@ -218,7 +220,7 @@
 - [ ] **Apply Terraform for test environment**
   - Create DNS records: x-test.truealpha.club
   - Configure Cloudflare SSL/TLS
-- [ ] **Set up Infisical**
+- [ ] **Set up self-hosted Infisical**
   - Deploy self-hosted Infisical
   - Populate all 81 environment variables
 - [ ] **Prepare VPS**
@@ -276,7 +278,7 @@
 ### Key Decision Points
 - **Domain naming**: x-{env}.truealpha.club (flat structure, SSL compatible)
 - **VPS management**: Manual (HostHatch has no Terraform provider)
-- **Secrets**: Infisical (recommend Cloud for quick start)
+- **Secrets**: 自托管 Infisical（容器部署，MI 仅在 GitHub Secrets，其余在 Infisical）
 - **Databases**: Containerized via Docker Compose (no managed DB)
 - **Observability**: SigNoz + PostHog (self-hosted)
 

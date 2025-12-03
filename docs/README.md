@@ -4,7 +4,7 @@
 - `project/BRN-004/` → 项目主文档（标准 3-5 文件 + README，含外部 BRN/IRD/TRD 链接）
 
 ## 参考导航（简洁清单）
-- 待办：`0.hi_zitian.md`
+- 待办：`0.hi_zitian.md`（自托管流程 + 脚本入口）
 - 总览进度：`PROGRESS.md`（跨环境）  
   - 环境状态：`terraform/envs/{env}/STATUS.md`
 - 架构/选型：`architecture.md`
