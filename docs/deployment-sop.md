@@ -1,25 +1,28 @@
 # 部署标准操作流程 (SOP)
 
-**模板说明**: 通用部署流程，对应 IRD-004 的三层模型 (Layer 1/2/3)，适用于所有环境 (test/staging/prod)。  
-**关键前提**: Layer 1（全局平台：Dokploy + Infisical + CI 入口）在 **单台 VPS 上只安装一次**（建议在 staging 阶段完成）；test/prod 仅复用，不重复安装。  
-**Secrets 规则**: GitHub Secrets 只存 Infisical Machine Identity 三元组；所有业务/访问密钥（含 SSH/Cloudflare/DB 等）统一存 Infisical。  
-**环境特定配置**: 见 `docs/env.d/{env}_sop.md`
+**适用范围**: test / staging / prod  
+**模型**: IRD-004 三层 (Layer 1/2/3)  
+**顺序**: 先完成 staging（同时完成 Layer 1），再做 test、prod  
+**平台形态**: 单台 VPS，Layer 1 只安装一次（Dokploy + Infisical + CI 入口）  
+**Secrets 规则**: GitHub Secrets 仅存 Infisical Machine Identity (MI) 三元组；SSH/Cloudflare/DB/应用等全部在 Infisical（唯一密钥源）  
+**环境特定配置**: 见 `docs/env.d/iac_sop.md`（全局层）与 `docs/env.d/{env}_sop.md`
 
 ---
 
 ## 📋 部署前置条件
 
-### 三层部署模型（遵循 IRD-004）
-
-- **Layer 1：全局平台（一次性，仅 staging 阶段执行）**  
-  - 单台 VPS 上安装 Dokploy 控制面、Infisical、CI/CD 入口、基础监控/日志。  
-  - 仅在此层配置 Machine Identity、全局域名/入口。  
-  - GitHub Secrets 仅保存 Infisical MI 三元组；所有其他凭据/业务变量存 Infisical。后续 test/prod 复用，无需重装。
-- **Layer 2：共享基础设施（按环境）**  
-  - VPC/VNet、DNS、数据库、消息队列、对象存储、监控组件等“基建全家桶”，按环境落地并由 Terraform 管理。  
-  - 状态与配置跟随 `terraform/envs/{env}`。
-- **Layer 3：应用层**  
-  - 业务应用通过 Dokploy/Compose 部署，所有应用变量从 Infisical 拉取。
+### 三层模型（组件已定）
+- **Layer 1：全局平台（单次，staging 阶段完成）**  
+  - 运行时与入口: Dokploy（单实例）、Traefik（随 Dokploy）、CI 入口  
+  - 密钥管理: Infisical（Machine Identity）  
+  - 观测/日志基座: 预留 SigNoz（后续部署）  
+  - 仅在此处安装/配置，后续 test/prod 直接复用
+- **Layer 2：共享基础设施（按环境，Terraform）**  
+  - Cloudflare DNS/CDN/WAF、VPS 引导、数据库/缓存/对象存储/监控组件（按模块编排）  
+  - 目录: `terraform/envs/{env}`，先做 staging，再 test、prod
+- **Layer 3：应用层（按环境，Dokploy/Compose）**  
+  - 业务服务: API、Neo4j、PostgreSQL、Redis、Celery Worker/Beat、Flower 等  
+  - 配置来源: Infisical 导出的环境变量
 
 ### Secrets 来源（简化策略）
 
@@ -40,7 +43,7 @@ INFISICAL_PROJECT_ID     →   Database passwords / App keys / 81 vars
 - ✅ 避免在两个地方同步密钥
 - ✅ GitHub Secrets 只存"钥匙的钥匙"
 
-### GitHub Secrets 配置（仅3个）
+### GitHub Secrets 配置（仅 MI 三元组）
 
 在 `Settings → Secrets and variables → Actions` 添加：
 
@@ -80,10 +83,58 @@ REDIS_PASSWORD=<generate>
 
 ---
 
-## 🚀 自动化部署流程
+## 🚀 部署流程（按顺序执行）
 
-### 部署触发（CI/CD）
+### 0. Layer 1（仅一次，staging 阶段完成）
+在 VPS（单台）上安装：
+```bash
+# 安装 Docker
+curl -fsSL https://get.docker.com | sh
 
+# 安装 Dokploy（控制面 + Traefik）
+curl -sSL https://dokploy.com/install.sh | sh
+```
+- 在 Dokploy UI 完成基础设置（管理员账户、域名入口）。  
+- 确认 Infisical 可访问（Cloud 版或自托管），生成 MI。
+
+### 1. GitHub Secrets（仅 MI 三元组）
+在仓库 Settings → Secrets and variables → Actions 填写：`INFISICAL_CLIENT_ID` / `INFISICAL_CLIENT_SECRET` / `INFISICAL_PROJECT_ID`。
+
+### 2. Infisical（唯一密钥源，分环境）
+在 https://app.infisical.com：
+- 创建项目 `truealpha`，环境：staging / test / prod  
+- 导入 `secrets/.env.example` 中全部变量（81 个），补充真实值  
+- 将以下凭据也放入 Infisical（不要放 GitHub Secrets）：`SSH_PRIVATE_KEY`、`SSH_USER`、`SSH_HOST`、`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ZONE_ID`
+- 为每个环境创建 Machine Identity（对应 GitHub Secrets 中的 MI 三元组）
+
+### 3. Layer 2（每个环境）
+
+```bash
+cd terraform/envs/<env>   # 先做 staging，再 test、prod
+terraform init
+terraform plan
+terraform apply
+```
+- 负责 Cloudflare DNS/WAF、VPS 引导、必要的基建组件。
+
+### 4. Layer 3（每个环境，Dokploy/Compose）
+
+```bash
+# 在 CI 或本地执行
+./scripts/deploy/export-secrets.sh <env>   # 从 Infisical 拉取全部变量
+./scripts/deploy/deploy.sh <env>
+```
+- Dokploy 作为运行时，compose 定义见 `compose/{env}.yml`（API、Neo4j、PostgreSQL、Redis、Celery、Flower 等）。
+
+### 5. 部署验证
+```bash
+dig <domain>
+curl -I https://<domain>
+curl https://api.<domain>/graphql
+```
+- Dokploy UI 确认应用/容器健康；后续接入 SigNoz/PostHog 做观测。
+
+### 6. CI/CD 触发方式
 ```bash
 # 方式1: 推送代码自动触发
 git push origin main
@@ -92,35 +143,11 @@ git push origin main
 # GitHub → Actions → Deploy {ENV} → Run workflow
 ```
 
-### 部署步骤（按层执行）
-
-**GitHub Actions 自动执行**:
-
-1. **Layer 1: 全局平台**（仅首次，在 staging 阶段完成；后续 test/prod 跳过）
-   - VPS Bootstrap (Docker + Dokploy) — 手动/脚本一次性装在主机上
-   - 部署 Dokploy 控制面、Infisical Agent/CLI、基础监控组件
-   - 配置防火墙/入口域名
-
-2. **Layer 2: 共享基础设施 (Terraform)**
-   - DNS 记录创建
-   - 基础设施组件（DB、MQ、对象存储、监控等）落地
-   - 网络/防火墙规则同步
-
-3. **Layer 3: 应用部署 (Dokploy/Compose)**
-   - 从 Infisical 导出所有环境变量：
-     ```bash
-     # GitHub Actions 中
-     infisical export --env=staging > .env
-     source .env
-     # 现在所有密钥都在环境变量中
-     ```
-   - 克隆/更新代码
-   - 渲染 Compose/Dokploy 应用并启动服务
-
-4. **健康检查**
-   - 等待服务启动 (30s)
-   - 验证主域名可访问
-   - 验证 API 端点
+### CI/GitHub Actions 自动执行摘要
+1. 使用 MI 三元组拉取 Infisical 全部环境变量  
+2. Terraform plan/apply（Cloudflare + 基建）  
+3. 渲染 Dokploy/Compose（API、DB、Cache、Worker 等）并启动  
+4. 健康检查：域名、API `/graphql`
 
 ---
 

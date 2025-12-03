@@ -12,7 +12,7 @@
 ## 📝 环境特定配置（按 Layer 1/2/3）
 
 ### Layer 1：全局平台（仅此处一次性安装/变更）
-- 单台 VPS 完成 Dokploy 控制面 + Infisical（Machine Identity）；完成后 test/prod 复用，不再重装。  
+- 复用 `docs/env.d/iac_sop.md`：单台 VPS 完成 Dokploy + Infisical（Machine Identity），完成后 test/prod 复用，不再重装。  
 - GitHub Secrets 仅存 Infisical MI 三元组；SSH/Cloudflare 等访问凭据也放在 Infisical。
 
 ### Layer 2：共享基础设施（Terraform）
@@ -88,10 +88,8 @@ CLOUDFLARE_ZONE_ID=<...>
 
 ## 🚀 首次部署步骤
 
-### 1. 配置 GitHub Secrets (一次性)
-
-在 `github.com/wangzitian0/infra/settings/secrets/actions` 仅添加：
-- INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, INFISICAL_PROJECT_ID
+### 1. 复用全局层
+- 确认已完成 `iac_sop.md`（Dokploy+Infisical+MI 安装完毕，GitHub Secrets 已填 MI 三元组）。
 
 ### 2. 配置 Infisical (一次性，唯一源)
 
@@ -106,17 +104,23 @@ cp secrets/.env.example staging-secrets.env
 # 6. 创建 Machine Identity 获取凭证
 ```
 
-### 3. 执行部署
+### 3. Layer 2：Terraform
 
 ```bash
-# 推送代码触发自动部署
-git push origin main
-
-# 或手动触发
-# GitHub → Actions → Deploy Staging → Run workflow
+cd terraform/envs/staging
+terraform init
+terraform plan
+terraform apply
 ```
 
-### 4. 验证部署
+### 4. Layer 3：部署应用
+
+```bash
+./scripts/deploy/export-secrets.sh staging   # 从 Infisical 拉取
+./scripts/deploy/deploy.sh staging
+```
+
+### 5. 验证部署
 
 ```bash
 # 等待 5-10 分钟后验证

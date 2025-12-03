@@ -81,8 +81,8 @@ CLOUDFLARE_ZONE_ID=<...>
 
 ## 🚀 首次部署步骤
 
-1. **配置 GitHub Secrets（一次性）**  
-   仅填写 Infisical MI 三元组（Client ID/Secret/Project ID）。
+1. **复用全局层**  
+   - 确认已完成 `iac_sop.md`（Dokploy+Infisical+MI 安装完毕，GitHub Secrets 已填 MI 三元组）。
 
 2. **配置 Infisical（一次性，唯一源）**  
    - 项目: truealpha  
