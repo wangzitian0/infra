@@ -29,7 +29,7 @@
 - 👉 开始配置/部署: [0.hi_zitian.md](0.hi_zitian.md)
 - 👉 查看当前项目实施: `project/BRN-004/`（优先）
 - 👉 了解架构/选型: [architecture.md](architecture.md)
-- 👉 参考通用 SOP: [deployment-sop.md](deployment-sop.md)
+- 👉 参考通用 SOP (三层模型): [deployment-sop.md](deployment-sop.md)
 - 👉 环境特定操作: [env.d/](env.d/)
 - 👉 运维操作: [runbooks/operations.md](runbooks/operations.md)
 - 👉 变更记录: [change_log/BRN-004.md](change_log/BRN-004.md)

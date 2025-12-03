@@ -3,15 +3,19 @@
 **环境**: Staging (预发布)  
 **域名**: x-staging.truealpha.club, api-x-staging.truealpha.club  
 **VPS**: 103.214.23.41  
-**通用流程**: 见 `docs/deployment-sop.md`
+**通用流程**: 见 `docs/deployment-sop.md`（Layer 1/2/3 三层模型）
 
 **进度状态**: 见 `terraform/envs/staging/STATUS.md`
 
 ---
 
-## 📝 环境特定配置
+## 📝 环境特定配置（按 Layer 1/2/3）
 
-### Terraform 变量
+### Layer 1：全局平台（如有变更/首次）
+- Dokploy 控制面 + Infisical（Machine Identity）在全局层完成后再做环境层。  
+- GitHub Secrets 仅存访问凭据：SSH、Cloudflare、Infisical MI（三元组），不存业务值。
+
+### Layer 2：共享基础设施（Terraform）
 
 **文件**: `terraform/envs/staging/terraform.tfvars`
 
@@ -38,7 +42,13 @@ tags = {
 }
 ```
 
-### GitHub Secrets
+### Layer 3：应用层（Dokploy/Compose）
+
+- 所有业务变量从 **Infisical** 拉取（项目: truealpha，环境: staging），不在 GitHub Secrets。
+- Dokploy Project: `truealpha-staging`，引用 compose/staging.yml 生成的栈。
+- 域名路由：Traefik / Cloudflare 终结，证书由 Cloudflare/Traefik 管理。
+
+### GitHub Secrets（凭据类）
 
 ```yaml
 # 特定于 staging
@@ -51,7 +61,7 @@ INFISICAL_PROJECT_ID: <project-id>
 # 环境: staging
 ```
 
-### 环境变量 (Infisical)
+### 环境变量 (Infisical) — 唯一源
 
 **项目**: truealpha  
 **环境**: staging  
@@ -83,7 +93,7 @@ POSTHOG_HOST=https://app.posthog.com
 - CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID
 - INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, INFISICAL_PROJECT_ID
 
-### 2. 配置 Infisical (一次性)
+### 2. 配置 Infisical (一次性，唯一源)
 
 ```bash
 # 1. 登录 https://app.infisical.com
@@ -143,9 +153,8 @@ git push origin main
 ### 环境变量更新
 
 ```bash
-# 1. 在 Infisical 中更新变量
-# 2. 手动触发部署
-# GitHub → Actions → Deploy Staging → Run workflow
+# 1. 在 Infisical 中更新变量（唯一源）
+# 2. 手动触发部署 (GitHub → Actions → Deploy Staging → Run workflow)
 ```
 
 ---
