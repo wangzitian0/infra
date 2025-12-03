@@ -37,6 +37,7 @@ infra/
 ├── docs/                      → 所有文档
 │   ├── README.md              → 文档导航
 │   ├── 0.hi_zitian.md         → 用户待办事项
+│   ├── TODOWRITE.md           → 管理完成度还有实际部署状态
 │   ├── architecture.md        → 架构设计
 │   ├── change_log/            → 变更记录
 │   ├── guides/                → 操作指南
