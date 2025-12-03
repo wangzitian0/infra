@@ -14,7 +14,7 @@
 - **Layer 1：全局平台（一次性，仅 staging 阶段执行）**  
   - 单台 VPS 上安装 Dokploy 控制面、Infisical、CI/CD 入口、基础监控/日志。  
   - 仅在此层配置 Machine Identity、全局域名/入口。  
-  - GitHub Secrets 仅保存访问凭据，不保存业务变量。后续 test/prod 复用，无需重装。
+  - GitHub Secrets 仅保存 Infisical MI 三元组；所有其他凭据/业务变量存 Infisical。后续 test/prod 复用，无需重装。
 - **Layer 2：共享基础设施（按环境）**  
   - VPC/VNet、DNS、数据库、消息队列、对象存储、监控组件等“基建全家桶”，按环境落地并由 Terraform 管理。  
   - 状态与配置跟随 `terraform/envs/{env}`。
@@ -269,8 +269,8 @@ docker system df
 
 ## 🔐 安全检查清单
 
-- [ ] Secrets 已从 Infisical/GitHub Secrets 加载，未硬编码
-- [ ] SSH 密钥仅存储在 GitHub Secrets
+- [ ] Secrets 已从 Infisical 拉取（GitHub Secrets 仅含 MI 三元组），未硬编码
+- [ ] SSH/Cloudflare 等凭据仅存于 Infisical
 - [ ] API Token 使用最小权限
 - [ ] 防火墙仅开放必要端口 (SSH/HTTP/HTTPS)
 - [ ] SSL 证书配置正确

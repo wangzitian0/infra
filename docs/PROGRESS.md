@@ -103,14 +103,14 @@
 | `pr-preview.yml` | ✅ | ❌ | ❌ |
 | Atlantis Config | ✅ | N/A | ❌ |
 
-**GitHub Secrets Required**:
+**GitHub Secrets Required** (最小化，仅 Infisical MI):
 - ❌ `INFISICAL_CLIENT_ID`
 - ❌ `INFISICAL_CLIENT_SECRET`
 - ❌ `INFISICAL_PROJECT_ID`
-- ❌ `SSH_PRIVATE_KEY`
-- ❌ `SSH_USER`
-- ❌ `SSH_HOST`  
-- ❌ `CLOUDFLARE_API_TOKEN`
+
+**Secrets 存放策略**:
+- GitHub Secrets: 仅 Infisical MI 三元组  
+- Infisical: SSH/Cloudflare/DB/应用等全部 81+ 变量
 
 **Blockers**:
 - [ ] GitHub Actions secrets not configured

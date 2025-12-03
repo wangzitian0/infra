@@ -12,7 +12,7 @@
 
 ### Layer 1：全局平台
 - 已在 staging 阶段单台 VPS 完成 Dokploy + Infisical；生产仅复用，不重装。  
-- GitHub Secrets 仅存访问凭据：SSH、Cloudflare、Infisical MI，不存业务值。
+- GitHub Secrets 仅存 Infisical MI 三元组；SSH/Cloudflare 等访问凭据也放在 Infisical。
 
 ### Layer 2：共享基础设施（Terraform）
 
@@ -82,7 +82,7 @@ CLOUDFLARE_ZONE_ID=<...>
 ## 🚀 首次部署步骤
 
 1. **配置 GitHub Secrets（一次性）**  
-   SSH/Cloudflare/Infisical MI 三元组。
+   仅 Infisical MI 三元组（Client ID/Secret/Project ID）。
 
 2. **配置 Infisical（一次性，唯一源）**  
    - 项目: truealpha  

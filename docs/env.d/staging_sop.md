@@ -13,7 +13,7 @@
 
 ### Layer 1：全局平台（仅此处一次性安装/变更）
 - 单台 VPS 完成 Dokploy 控制面 + Infisical（Machine Identity）；完成后 test/prod 复用，不再重装。  
-- GitHub Secrets 仅存访问凭据：SSH、Cloudflare、Infisical MI（三元组），不存业务值。
+- GitHub Secrets 仅存 Infisical MI 三元组；SSH/Cloudflare 等访问凭据也放在 Infisical。
 
 ### Layer 2：共享基础设施（Terraform）
 
@@ -90,9 +90,7 @@ CLOUDFLARE_ZONE_ID=<...>
 
 ### 1. 配置 GitHub Secrets (一次性)
 
-在 `github.com/wangzitian0/infra/settings/secrets/actions` 添加：
-- SSH_HOST, SSH_USER, SSH_PRIVATE_KEY
-- CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID
+在 `github.com/wangzitian0/infra/settings/secrets/actions` 仅添加：
 - INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, INFISICAL_PROJECT_ID
 
 ### 2. 配置 Infisical (一次性，唯一源)
