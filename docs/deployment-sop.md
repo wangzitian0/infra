@@ -1,6 +1,8 @@
 # 部署标准操作流程 (SOP)
 
-**模板说明**: 通用部署流程，对应 IRD-004 的三层模型 (Layer 1/2/3)，适用于所有环境 (test/staging/prod)  
+**模板说明**: 通用部署流程，对应 IRD-004 的三层模型 (Layer 1/2/3)，适用于所有环境 (test/staging/prod)。  
+**关键前提**: Layer 1（全局平台：Dokploy + Infisical + CI 入口）在 **单台 VPS 上只安装一次**（建议在 staging 阶段完成）；test/prod 仅复用，不重复安装。  
+**Secrets 规则**: GitHub Secrets 只存 Infisical Machine Identity 三元组；所有业务/访问密钥（含 SSH/Cloudflare/DB 等）统一存 Infisical。  
 **环境特定配置**: 见 `docs/env.d/{env}_sop.md`
 
 ---
@@ -9,48 +11,72 @@
 
 ### 三层部署模型（遵循 IRD-004）
 
-- **Layer 1：全局平台（一次性/变更时）**  
-  - Dokploy 控制面、Infisical、CI/CD 入口、基础监控/日志等全局服务放在 IaC project。  
+- **Layer 1：全局平台（一次性，仅 staging 阶段执行）**  
+  - 单台 VPS 上安装 Dokploy 控制面、Infisical、CI/CD 入口、基础监控/日志。  
   - 仅在此层配置 Machine Identity、全局域名/入口。  
-  - GitHub Secrets 仅保存访问凭据，不保存业务变量。
+  - GitHub Secrets 仅保存访问凭据，不保存业务变量。后续 test/prod 复用，无需重装。
 - **Layer 2：共享基础设施（按环境）**  
   - VPC/VNet、DNS、数据库、消息队列、对象存储、监控组件等“基建全家桶”，按环境落地并由 Terraform 管理。  
   - 状态与配置跟随 `terraform/envs/{env}`。
 - **Layer 3：应用层**  
   - 业务应用通过 Dokploy/Compose 部署，所有应用变量从 Infisical 拉取。
 
-### Secrets 来源
+### Secrets 来源（简化策略）
 
-- **唯一源**: Infisical（项目: `truealpha`，环境: `{env}`），Machine Identity 用于 CI/CD 拉取。  
-- **GitHub Secrets**: 仅保存访问凭据（SSH key、Cloudflare token、Infisical MI 凭据），不保存业务配置。
+**单一真相来源**: Infisical  
+**GitHub Secrets 最小化**: 仅存访问 Infisical 的凭证（3 个）
 
-### GitHub Secrets 配置
+```
+GitHub Secrets (3个)         Infisical (所有密钥/凭据)
+    ↓                              ↓
+访问 Infisical                    实际密钥 + 凭据
+INFISICAL_CLIENT_ID      →   SSH_PRIVATE_KEY
+INFISICAL_CLIENT_SECRET  →   CLOUDFLARE_API_TOKEN
+INFISICAL_PROJECT_ID     →   Database passwords / App keys / 81 vars
+```
+
+**设计理由**:
+- ✅ Infisical 提供审计日志、版本控制、细粒度权限
+- ✅ 避免在两个地方同步密钥
+- ✅ GitHub Secrets 只存"钥匙的钥匙"
+
+### GitHub Secrets 配置（仅3个）
 
 在 `Settings → Secrets and variables → Actions` 添加：
 
 ```yaml
-# VPS Access
-SSH_PRIVATE_KEY: <your-ssh-private-key>
-SSH_USER: <username>
-SSH_HOST: <vps-ip>
-
-# Cloudflare
-CLOUDFLARE_API_TOKEN: <your-token>
-CLOUDFLARE_ZONE_ID: <your-zone-id>
-
-# Secrets Management
+# 仅存访问 Infisical 的凭证
 INFISICAL_CLIENT_ID: <machine-identity-id>
 INFISICAL_CLIENT_SECRET: <machine-identity-secret>
 INFISICAL_PROJECT_ID: <project-id>
 ```
 
-### Infisical 配置
+### Infisical 配置（所有实际密钥）
 
 1. 注册 https://app.infisical.com
 2. 创建项目 "truealpha"
-3. 创建环境: `{ENV_NAME}`
-4. 从 `secrets/.env.example` 复制并填充 81 个变量
-5. 创建 Machine Identity → 获取凭证（仅写入 GitHub Secrets）
+3. 创建环境: `{ENV_NAME}` (staging, test, prod)
+4. 从 `secrets/.env.example` 导入并填充 **所有 81 个变量**：
+
+```bash
+# VPS Access
+SSH_PRIVATE_KEY=<your-ssh-private-key>
+SSH_USER=prod
+SSH_HOST=103.214.23.41
+
+# Cloudflare
+CLOUDFLARE_API_TOKEN=<your-token>
+CLOUDFLARE_ZONE_ID=<your-zone-id>
+
+# Database
+NEO4J_PASSWORD=<generate>
+POSTGRES_PASSWORD=<generate>
+REDIS_PASSWORD=<generate>
+
+# ... 所有其他密钥
+```
+
+5. 创建 Machine Identity → 获取 Client ID/Secret（写入 GitHub Secrets）
 
 ---
 
@@ -70,8 +96,8 @@ git push origin main
 
 **GitHub Actions 自动执行**:
 
-1. **Layer 1: 全局平台**（首次/变更时）
-   - VPS Bootstrap (Docker + Dokploy)
+1. **Layer 1: 全局平台**（仅首次，在 staging 阶段完成；后续 test/prod 跳过）
+   - VPS Bootstrap (Docker + Dokploy) — 手动/脚本一次性装在主机上
    - 部署 Dokploy 控制面、Infisical Agent/CLI、基础监控组件
    - 配置防火墙/入口域名
 
@@ -81,8 +107,14 @@ git push origin main
    - 网络/防火墙规则同步
 
 3. **Layer 3: 应用部署 (Dokploy/Compose)**
+   - 从 Infisical 导出所有环境变量：
+     ```bash
+     # GitHub Actions 中
+     infisical export --env=staging > .env
+     source .env
+     # 现在所有密钥都在环境变量中
+     ```
    - 克隆/更新代码
-   - 通过 Machine Identity 从 Infisical 拉取环境变量
    - 渲染 Compose/Dokploy 应用并启动服务
 
 4. **健康检查**

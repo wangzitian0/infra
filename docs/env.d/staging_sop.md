@@ -11,8 +11,8 @@
 
 ## 📝 环境特定配置（按 Layer 1/2/3）
 
-### Layer 1：全局平台（如有变更/首次）
-- Dokploy 控制面 + Infisical（Machine Identity）在全局层完成后再做环境层。  
+### Layer 1：全局平台（仅此处一次性安装/变更）
+- 单台 VPS 完成 Dokploy 控制面 + Infisical（Machine Identity）；完成后 test/prod 复用，不再重装。  
 - GitHub Secrets 仅存访问凭据：SSH、Cloudflare、Infisical MI（三元组），不存业务值。
 
 ### Layer 2：共享基础设施（Terraform）
@@ -48,20 +48,15 @@ tags = {
 - Dokploy Project: `truealpha-staging`，引用 compose/staging.yml 生成的栈。
 - 域名路由：Traefik / Cloudflare 终结，证书由 Cloudflare/Traefik 管理。
 
-### GitHub Secrets（凭据类）
+### GitHub Secrets（仅 Infisical MI 三元组）
 
 ```yaml
-# 特定于 staging
-SSH_HOST: 103.214.23.41
-SSH_USER: prod
-SSH_PRIVATE_KEY: <staging-ssh-key>
-
-# Infisical
-INFISICAL_PROJECT_ID: <project-id>
-# 环境: staging
+INFISICAL_CLIENT_ID: <machine-identity-id>
+INFISICAL_CLIENT_SECRET: <machine-identity-secret>
+INFISICAL_PROJECT_ID: <project-id>  # 环境: staging
 ```
 
-### 环境变量 (Infisical) — 唯一源
+### 环境变量 / 凭据 (Infisical) — 唯一源
 
 **项目**: truealpha  
 **环境**: staging  
@@ -80,6 +75,13 @@ REDIS_HOST=redis
 # Observability
 SIGNOZ_ENDPOINT=http://signoz-otel-collector:4317
 POSTHOG_HOST=https://app.posthog.com
+
+# Access
+SSH_PRIVATE_KEY=<...>
+SSH_USER=prod
+SSH_HOST=103.214.23.41
+CLOUDFLARE_API_TOKEN=<...>
+CLOUDFLARE_ZONE_ID=<...>
 ```
 
 ---

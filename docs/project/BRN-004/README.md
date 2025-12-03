@@ -7,19 +7,18 @@
 
 ---
 
-## 📋 相关文档
+## 📌 标准文件入口
+- `README.md` (本页) — 索引与外部链接  
+- `context.md` — 背景、环境信息、决策依据  
+- `progress.md` — 里程碑与完成度（补充/细化 `docs/PROGRESS.md`）  
+- `decisions.md` — 关键决策时间线  
+- `ops.md` — 操作入口（SOP/Runbook 链接）  
+- 变更记录：`docs/change_log/BRN-004.md`
 
-**设计文档** (in PEG-scaner):
-- [BRN-004: 选型理念](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md) - 为什么选择 Terraform/Dokploy/SigNoz
-- [IRD-004: 基础设施设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/infra/IRD-004.env_eaas_infra.md) - 三层架构、仓库结构、组件清单
-- [TRD-004: 实施方案](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/tech/TRD-004.env_eaas_implementation.md) - 6个阶段实施步骤
-
-**实施文档** (in infra):
-- [progress.md](progress.md) - 整体实施进度
-- [context.md](context.md) - 实施上下文和决策记录
-- [runbooks/](../runbooks/) - 运维操作手册
-- [decisions.md](decisions.md) - 关键决策时间线
-- [ops.md](ops.md) - 运行与操作入口
+## 📋 外部设计文档 (PEG-scaner)
+- [BRN-004: 选型理念](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
+- [IRD-004: 基础设施设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/infra/IRD-004.env_eaas_infra.md) — 三层架构、仓库结构、组件清单
+- [TRD-004: 实施方案](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/tech/TRD-004.env_eaas_implementation.md)
 
 ---
 

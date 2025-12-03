@@ -3,7 +3,7 @@
 聚合与本项目直接相关的操作手册，指向已有 runbooks/SOP，避免重复。
 
 ## 通用流程
-- **通用部署 SOP**: `docs/deployment-sop.md`（遵循 Layer0/1/2 三层模型，参考 IRD-004）  
+- **通用部署 SOP**: `docs/deployment-sop.md`（Layer 1/2/3 三层模型，参考 IRD-004）  
 - **Secrets 导出**: `scripts/deploy/export-secrets.sh <env>`（依赖 Infisical）
 - **部署脚本**: `scripts/deploy/deploy.sh`（按 `ENV` 变量）
 

@@ -3,7 +3,7 @@
 ## AGENTS.md - AI 工作指南
 
 **本仓库**: https://github.com/wangzitian0/infra  
-**应用仓库**: https://github.com/wangzitian0/PEG-scaner  
+**应用仓库(apps 软链)**: https://github.com/wangzitian0/PEG-scaner  
 **设计文档**: https://github.com/wangzitian0/PEG-scaner/blob/main/docs/
 
 ---
@@ -13,25 +13,25 @@
 ### 依赖关系
 
 ```
-PEG-scaner (app) ←──── infra 了解 app
-                 app 不需要了解 infra
+apps ←──── infra 了解 app
+       apps 不需要了解 infra
 ```
 
 ### 文档体系对应 + 设计变更流程
 
-- ✅ **infra 可以保留自己的文档体系**，但必须和 PEG-scaner 的 BRN/IRD/TRD 对齐  
-  - `docs/architecture.md` 对应 → `PEG-scaner/docs/specs/infra/IRD-004.env_eaas_infra.md`
-  - `docs/runbooks/deployment.md` 对应 → `PEG-scaner/docs/specs/tech/TRD-004.env_eaas_implementation.md`
+- ✅ **infra 可以保留自己的文档体系**，但必须和 apps 的 BRN/IRD/TRD 对齐  
+  - `docs/architecture.md` 对应 → `apps/docs/specs/infra/IRD-004.env_eaas_infra.md`
+  - `docs/runbooks/deployment.md` 对应 → `apps/docs/specs/tech/TRD-004.env_eaas_implementation.md`
   - `docs/project/BRN-004/` 对应 → 实施记录（infra 特有）
 - ❌ **不要只改 infra 的 architecture.md 就算设计变更**
-- ✅ **设计变更必须修改 PEG-scaner 的 IRD 文档**
-  - 例如：改变域名策略 → 更新 `PEG-scaner/docs/specs/infra/IRD-004.env_eaas_infra.md`
+- ✅ **设计变更必须修改 apps 的 IRD 文档**
+  - 例如：改变域名策略 → 更新 `apps/docs/specs/infra/IRD-004.env_eaas_infra.md`
   - 例如：三层架构调整 → 更新 IRD
 - ✅ **infra 特定的实施细节**可以只在 infra/docs 记录
   - 例如：Terraform 模块具体实现 → 可以只在 infra
   - 例如：某环境的部署状态 → `terraform/envs/*/STATUS.md`
 
-**简单判断**: 如果 app (PEG-scaner) 需要感知的设计 → 改 IRD；如果只是 infra 内部实施 → infra/docs
+**简单判断**: 如果 apps 需要感知的设计 → 改 IRD；如果只是 infra 内部实施 → infra/docs
 
 ---
 

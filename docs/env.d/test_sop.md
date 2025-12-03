@@ -11,7 +11,7 @@
 ## 📝 环境特定配置（按 Layer 1/2/3）
 
 ### Layer 1：全局平台
-- Dokploy + Infisical 已在全局层完成后，再执行环境层。  
+- 已在 staging 阶段单台 VPS 上安装 Dokploy + Infisical（一次性）；此环境只复用，不重装。  
 - GitHub Secrets 仅存访问凭据：SSH、Cloudflare、Infisical MI，不存业务值。
 
 ### Layer 2：共享基础设施（Terraform）
@@ -47,20 +47,15 @@ tags = {
 - 环境变量唯一来源 Infisical（项目: truealpha，环境: test），PR 动态变量通过 CI 注入/覆写。  
 - 域名：`x-test-{pr}.truealpha.club` / `api-x-test-{pr}.truealpha.club`（由 Cloudflare + Traefik 路由）。
 
-### GitHub Secrets（凭据类）
+### GitHub Secrets（仅 Infisical MI 三元组）
 
 ```yaml
-# 特定于 test
-SSH_HOST: <test-vps-ip>
-SSH_USER: <user>
-SSH_PRIVATE_KEY: <test-ssh-key>
-
-# Infisical (Machine Identity)
-INFISICAL_PROJECT_ID: <project-id>
-# 环境: test
+INFISICAL_CLIENT_ID: <machine-identity-id>
+INFISICAL_CLIENT_SECRET: <machine-identity-secret>
+INFISICAL_PROJECT_ID: <project-id>  # 环境: test
 ```
 
-### 环境变量 (Infisical) — 唯一源
+### 环境变量 / 凭据 (Infisical) — 唯一源
 
 **项目**: truealpha  
 **环境**: test  
@@ -73,6 +68,13 @@ DOMAIN=x-test.truealpha.club
 POSTGRES_HOST=postgres
 REDIS_HOST=redis
 SIGNOZ_ENDPOINT=http://signoz-otel-collector:4317
+
+# Access / Infra
+SSH_PRIVATE_KEY=<...>
+SSH_USER=<user>
+SSH_HOST=<test-vps-ip>
+CLOUDFLARE_API_TOKEN=<...>
+CLOUDFLARE_ZONE_ID=<...>
 ```
 
 ---
