@@ -6,6 +6,16 @@
 
 本仓库实现了 TrueAlpha 项目的完整基础设施管理，遵循 **开源、自托管、单人强控、长期可扩展** 四个核心约束。
 
+### 目录职责速览（入口优先级）
+
+- `docs/project/BRN-004/` → 主文档入口（标准 3-5 文件 + README，记录背景/进度/决策/操作）
+- `docs/` → 历史/参考文档（architecture、SOP 模板、runbooks 等），新增文档优先落在 `docs/project/`
+- `terraform/` → 基础设施即代码（modules + envs）
+- `compose/` → Docker Compose 运行时编排
+- `scripts/` → 自动化脚本（部署、导出密钥等）
+- `observability/`、`analytics/`、`backstage/` → 配套子系统
+- `ci/` → CI/CD 配置
+
 ### 核心技术栈
 
 | 组件 | 技术选型 | 版本 | 文档 |
@@ -56,11 +66,13 @@ docker compose -p truealpha-dev ps
 ```
 infra/
 ├── README.md                    # 本文件
-├── docs/                        # 文档目录
+├── docs/                        # 文档目录（主入口在 project/，其余为参考/历史）
 │   ├── 0.hi_zitian.md           # 👉 需要 Zitian 做的事情
 │   ├── architecture.md          # 架构设计
 │   ├── change_log/              # 变更日志
 │   │   └── BRN-004.md           # BRN-004 相关变更记录
+│   ├── project/                 # 📌 主文档集合（标准 3-5 文件 + README）
+│   │   └── BRN-004/             # 当前项目实施记录
 │   ├── runbooks/                # 运维手册
 │   └── guides/                  # 开发指南
 ├── terraform/                   # Terraform 配置
@@ -76,44 +88,31 @@ infra/
 
 ## 文档导航
 
-### 📚 文档类型说明
+### 📚 主文档（集中在 `docs/project/BRN-004/`）
 
-本仓库文档分为5类，各司其职：
+标准文件集（新增内容优先放这里）：
+- `README.md` → 项目索引、外部 BRN/IRD/TRD 链接、当前阶段/状态
+- `context.md` → 背景、环境信息、决策依据
+- `progress.md` → 里程碑与完成度（补充/细化 `docs/PROGRESS.md`）
+- `decisions.md` → 关键决策与变更记录（保持时间线）
+- `ops.md` → 与该项目强相关的 SOP/运行手册入口（可链接到 runbooks）
 
-#### 1. 技术比对细节 → `docs/architecture.md`
-- 技术选型对比与rationale
-- 系统架构设计
-- 数据流图和安全设计
+### 📖 配套/参考文档（保留历史，不新增同类散件）
+- `docs/architecture.md` → 技术选型对比、系统架构设计
+- `docs/deployment-sop.md` → 通用部署 SOP 模板（所有环境复用）
+- `docs/env.d/{env}_sop.md` → 环境特定 SOP（staging/test/prod）
+- `docs/runbooks/` → 运维操作手册
+- `docs/guides/` → 开发/接入指南
+- `docs/change_log/` → 变更记录（按 BRN）
+- `docs/0.hi_zitian.md` → 用户待办
+- `docs/PROGRESS.md` → 跨环境整体进度
+- `terraform/envs/{env}/STATUS.md` → 具体环境部署状态
 
-#### 2. 介绍文档 → `README.md` (本文件)
-- 仓库概述和快速开始
-- 核心概念和工作流
-- 文档导航
-
-#### 3. 部署SOP模板 → `docs/deployment-sop.md`
-**通用部署标准操作流程**，适用于所有环境
-- GitHub Secrets 配置
-- Infisical 配置
-- 部署流程和验证
-- 故障处理
-
-#### 4. 环境特定SOP → `docs/env.d/{env}_sop.md`
-每个环境的具体配置和操作，**以 deployment-sop.md 为模板**
-- `docs/env.d/staging_sop.md` - Staging 环境配置
-- `docs/env.d/test_sop.md` - Test (PR预览) 配置
-- `docs/env.d/prod_sop.md` - Production 配置
-
-#### 5. 部署进度追踪 → 两个层级
-
-**整体进度**: `docs/PROGRESS.md`
-- 所有环境的总体完成度
-- 代码完成度 vs 实际部署状态
-- 跨环境完成度对比
-
-**具体环境状态**: `terraform/envs/{env}/STATUS.md`
-- `terraform/envs/staging/STATUS.md` - Staging 部署状态
-- `terraform/envs/test/STATUS.md` - Test 部署状态
-- `terraform/envs/prod/STATUS.md` - Production 部署状态
+### 🧭 外部设计文档
+- [BRN-004: EaaS 基础设施设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
+- [BRN-007: 应用环境机制](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-007.app_env_design.md)
+- [IRD-004: 基础设施设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/infra/IRD-004.env_eaas_infra.md)
+- [TRD-004: 实施方案](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/tech/TRD-004.env_eaas_implementation.md)
 
 ---
 

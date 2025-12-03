@@ -1,33 +1,40 @@
 # 📚 Documentation Index
 
+## 主文档入口（标准 3-5 文件 + README）
+
+`docs/project/BRN-004/`（新增内容优先落这里）
+- `README.md` - 项目索引、外部 BRN/IRD/TRD 链接、阶段与状态
+- `context.md` - 背景、环境信息、决策依据
+- `progress.md` - 里程碑与完成度（补充/细化 `docs/PROGRESS.md`）
+- `decisions.md` - 关键决策与变更记录（时间线）
+- `ops.md` - 与本项目强相关的 SOP/运行手册入口（可链接 runbooks）
+
+## 配套/参考文档（保留历史，不新增同类散件）
+- **[0.hi_zitian.md](0.hi_zitian.md)** - 用户待办
+- **[PROGRESS.md](PROGRESS.md)** - 跨环境整体完成度
+- **[architecture.md](architecture.md)** - 系统架构与技术选型
+- **[deployment-sop.md](deployment-sop.md)** - 通用部署 SOP 模板
+- **[env.d/](env.d/)** - 环境特定 SOP（staging/test/prod）
+- **[change_log/](change_log/)** - 变更记录（按 BRN）
+- **[guides/](guides/)** - 开发/接入指南
+- **[runbooks/](runbooks/)** - 运维操作手册
+- **外部设计文档（PEG-scaner）**  
+  - [BRN-004: EaaS 基础设施设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)  
+  - [BRN-007: 应用环境机制](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-007.app_env_design.md)  
+  - [IRD-004: 基础设施设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/infra/IRD-004.env_eaas_infra.md)  
+  - [TRD-004: 实施方案](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/tech/TRD-004.env_eaas_implementation.md)
+
 ## 快速导航
 
-### 👉 开始这里
-- **[用户待办](0.hi_zitian.md)** - 需要 Zitian 做的配置和部署步骤
-- **[架构设计](architecture.md)** - 系统整体架构和设计决策
+- 👉 开始配置/部署: [0.hi_zitian.md](0.hi_zitian.md)
+- 👉 查看当前项目实施: `project/BRN-004/`（优先）
+- 👉 了解架构/选型: [architecture.md](architecture.md)
+- 👉 参考通用 SOP: [deployment-sop.md](deployment-sop.md)
+- 👉 环境特定操作: [env.d/](env.d/)
+- 👉 运维操作: [runbooks/operations.md](runbooks/operations.md)
+- 👉 变更记录: [change_log/BRN-004.md](change_log/BRN-004.md)
 
-### 📖 参考文档
-- **[开发者指南](guides/developer-onboarding.md)** - 本地环境搭建、服务接入
-- **[运维手册](runbooks/operations.md)** - 日常操作、故障排查
-
-### 📝 变更记录
-- **[BRN-004 变更日志](change_log/BRN-004.md)** - 详细的实现记录
-
-## 文档类型
-
-### 设计文档（来自 PEG-scaner）
-- [BRN-004: EaaS 基础设施设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
-- [BRN-007: 应用环境机制](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-007.app_env_design.md)
-
-### 实现文档（本仓库）
-- [架构设计](architecture.md) - 技术架构详解
-- [变更日志](change_log/) - 按 BRN 组织的变更记录
-
-### 操作文档
-- [开发者指南](guides/developer-onboarding.md) - 如何接入和开发
-- [运维手册](runbooks/operations.md) - 如何部署和维护
-
-## 文档规范
+## 文档引用规则
 
 ### 引用 PEG-scaner 文档
 使用完整 GitHub URL：
