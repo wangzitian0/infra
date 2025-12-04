@@ -16,8 +16,8 @@
 
 | Secret | 说明 | 必填 |
 |--------|------|------|
-| `R2_ACCESS_KEY_ID` | Cloudflare R2 Access Key | ✅ |
-| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 Secret Key | ✅ |
+| `AWS_ACCESS_KEY_ID` | R2 Access Key（S3 兼容 API） | ✅ |
+| `AWS_SECRET_ACCESS_KEY` | R2 Secret Key（S3 兼容 API） | ✅ |
 | `R2_BUCKET` | R2 Bucket 名称 | ✅ |
 | `R2_ACCOUNT_ID` | Cloudflare Account ID | ✅ |
 | `VPS_HOST` | VPS 公网 IP 或域名 | ✅ |
