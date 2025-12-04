@@ -10,21 +10,16 @@
 - 开放端口：22 (SSH)、6443 (k8s API)
 - Ubuntu 22.04+ / Debian 11+，账户可 sudo
 
-### 2. 配置 Terraform 后端
-```bash
-cd terraform
-cp backend.tf.example backend.tf
-# 编辑 backend.tf，填入 R2 bucket 和 account-id
-```
-
-### 3. CI 部署（推荐）
+### 2. CI 部署（推荐）
 
 在 GitHub Repository Secrets 配置：
 
 | Secret | 说明 | 必填 |
 |--------|------|------|
-| `AWS_ACCESS_KEY_ID` | R2 API Token Access Key | ✅ |
-| `AWS_SECRET_ACCESS_KEY` | R2 API Token Secret Key | ✅ |
+| `R2_ACCESS_KEY_ID` | Cloudflare R2 Access Key | ✅ |
+| `R2_SECRET_ACCESS_KEY` | Cloudflare R2 Secret Key | ✅ |
+| `R2_BUCKET` | R2 Bucket 名称 | ✅ |
+| `R2_ACCOUNT_ID` | Cloudflare Account ID | ✅ |
 | `VPS_HOST` | VPS 公网 IP 或域名 | ✅ |
 | `VPS_SSH_KEY` | SSH 私钥内容 | ✅ |
 | `VPS_USER` | SSH 用户（默认 root） | |
@@ -36,29 +31,31 @@ cp backend.tf.example backend.tf
 
 Push 到 main 或手动触发 `Deploy k3s to VPS` 工作流。
 
-### 4. 本地部署（可选）
+### 3. 本地部署（可选）
 
 ```bash
 cd terraform
 
-# 复制模板
-cp backend.tf.example backend.tf
+# 1. 设置环境变量（Terraform 读取 AWS_*，R2_* 用于构造 backend-config）
+export AWS_ACCESS_KEY_ID=<your-r2-access-key>      # Terraform S3 backend 凭据
+export AWS_SECRET_ACCESS_KEY=<your-r2-secret-key>  # Terraform S3 backend 凭据
+export R2_BUCKET=<your-bucket-name>                # 用于 -backend-config
+export R2_ACCOUNT_ID=<your-cloudflare-account-id>  # 用于 -backend-config
+
+# 2. 复制变量模板并填入 VPS/SSH 信息
 cp terraform.tfvars.example terraform.tfvars
+vim terraform.tfvars
 
-# 编辑配置
-# vim backend.tf      # 填入 R2 bucket/account
-# vim terraform.tfvars # 填入 VPS/SSH 信息
+# 3. 初始化（和 CI 使用相同的 -backend-config 参数）
+terraform init \
+  -backend-config="bucket=$R2_BUCKET" \
+  -backend-config="endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"
 
-# 设置 R2 凭据
-export AWS_ACCESS_KEY_ID=...
-export AWS_SECRET_ACCESS_KEY=...
-
-# 执行
-terraform init
+# 4. 计划和部署
 terraform plan
-terraform apply
+# terraform apply  # 真正部署时取消注释
 
-# 验证
+# 5. 验证（apply 后）
 export KUBECONFIG=./output/truealpha-k3s-kubeconfig.yaml
 kubectl get nodes
 ```
@@ -77,10 +74,9 @@ kubectl get nodes
 │   ├── main.tf                        # 核心资源
 │   ├── variables.tf                   # 变量定义
 │   ├── outputs.tf                     # 输出定义
+│   ├── backend.tf                     # R2 后端（bucket/endpoint 通过 -backend-config 传入）
 │   ├── scripts/install-k3s.sh.tmpl    # k3s 安装脚本
-│   ├── backend.tf.example             # R2 后端模板
-│   ├── terraform.tfvars.example       # 变量模板
-│   └── .env.example                   # 环境变量模板
+│   └── terraform.tfvars.example       # 本地变量模板
 └── .github/workflows/deploy-k3s.yml   # CI 工作流
 ```
 
@@ -100,7 +96,7 @@ kubectl get nodes
 
 - **State 存储**：Cloudflare R2（S3 兼容，无锁）。需要锁请改用 S3+DynamoDB 或 Terraform Cloud。
 - **API Endpoint**：可用域名访问 API，需配置 DNS 指向 VPS。
-- **SSH Key**：tfvars 中使用 heredoc 保留换行；.env 中用 `\n` 转义。
+- **SSH Key**：tfvars 中使用 heredoc 保留换行。
 
 ## 后续演进
 

@@ -17,9 +17,15 @@
 # 仓库定位
 
 本仓库（infra）是 [BRN-004 EaaS 设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md) 的**基础设施层**实现。
+## 第一原则
+作为 infra 类型的 IaC repo，必须保证强一致性
+- 本地和 CI 使用相同的命令
+- 本地和 CI 使用相同的环境变量配置key
+- 本地 plan 和 CI plan 的输出一致
+- 被部署的资源一致，状态一致
 
 ## 设计原则
-
+尽可能简化和正交，每一块功能只做一件事
 参考 BRN-004 核心约束：**开源、自托管、单人强控、长期可扩展**
 
 ```
