@@ -72,12 +72,11 @@ IaC (Terraform) → Runtime (k3s) → Apps (PEG-scaner)
 │   ├── main.tf                        # 核心资源定义
 │   ├── variables.tf                   # 变量定义
 │   ├── outputs.tf                     # 输出定义
+│   ├── backend.tf                     # R2 后端（bucket/endpoint 通过 -backend-config 传入）
 │   ├── scripts/
 │   │   └── install-k3s.sh.tmpl        # k3s 安装脚本模板
 │   ├── output/                        # kubeconfig 输出（gitignored）
-│   ├── terraform.tfvars.example       # 本地 tfvars 模板
-│   ├── .env.example                   # 本地环境变量模板
-│   └── backend.tf.example             # R2 后端模板
+│   └── terraform.tfvars.example       # 本地 tfvars 模板
 └── .github/
     └── workflows/
         └── deploy-k3s.yml             # CI 工作流
@@ -100,16 +99,14 @@ IaC (Terraform) → Runtime (k3s) → Apps (PEG-scaner)
 ## State 管理
 
 - **后端**：Cloudflare R2（S3 兼容，无锁）
-- **配置**：复制 `backend.tf.example` → `backend.tf` 并填值
+- **配置**：`backend.tf` 入库，bucket/endpoint 通过 `-backend-config` 传入
 - **凭据**：`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` 通过环境变量或 CI Secrets
 
 ## 敏感文件（不入库）
 
 | 文件 | 用途 |
 |------|------|
-| `terraform/backend.tf` | R2 后端配置（真实 bucket/account） |
 | `terraform/terraform.tfvars` | 本地变量值 |
-| `terraform/.env` | 本地环境变量 |
 | `*.pem` / `*.key` | SSH 私钥 |
 
 ---
@@ -159,6 +156,8 @@ IaC (Terraform) → Runtime (k3s) → Apps (PEG-scaner)
 |------|------------|------|
 | R2 | `AWS_ACCESS_KEY_ID` | ✅ |
 | R2 | `AWS_SECRET_ACCESS_KEY` | ✅ |
+| R2 | `R2_BUCKET` | ✅ |
+| R2 | `R2_ACCOUNT_ID` | ✅ |
 | VPS | `VPS_HOST` | ✅ |
 | VPS | `VPS_SSH_KEY` | ✅ |
 | VPS | `VPS_USER` | ❌ (默认 root) |
