@@ -1,42 +1,24 @@
-# 📚 Documentation Index
+# 文档导航（k3s bootstrap）
 
-## 快速导航
+当前范围：只实现“GitHub Actions + Terraform 在 VPS 上部署 k3s”这一件事，IaC 与 infra 都在本仓库，应用通过 `apps/` 子模块引入。
 
-### 👉 开始这里
-- **[用户待办](0.hi_zitian.md)** - 需要 Zitian 做的配置和部署步骤
-- **[架构设计](architecture.md)** - 系统整体架构和设计决策
+## 必看
+- `docs/0.hi_zitian.md`：需要 Zitian 补充/决策的事项
+- `docs/change_log/2024-12-04.md`：本次重置的改动记录
 
-### 📖 参考文档
-- **[开发者指南](guides/developer-onboarding.md)** - 本地环境搭建、服务接入
-- **[运维手册](runbooks/operations.md)** - 日常操作、故障排查
+## 如何使用（CI 摘要）
+1. 在仓库 Secrets 配置 `VPS_HOST`、`VPS_SSH_KEY`（可选：`VPS_USER`、`VPS_SSH_PORT`、`K3S_API_ENDPOINT`、`K3S_CHANNEL`、`K3S_VERSION`、`K3S_CLUSTER_NAME`）。
+2. 触发 `Deploy k3s to VPS` 工作流（push main 或手动）。
+3. 下载 artifact 中的 kubeconfig，或在本地 `terraform/output/<cluster>-kubeconfig.yaml`。
 
-### 📝 变更记录
-- **[BRN-004 变更日志](change_log/BRN-004.md)** - 详细的实现记录
-
-## 文档类型
-
-### 设计文档（来自 PEG-scaner）
-- [BRN-004: EaaS 基础设施设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
-- [BRN-007: 应用环境机制](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-007.app_env_design.md)
-
-### 实现文档（本仓库）
-- [架构设计](architecture.md) - 技术架构详解
-- [变更日志](change_log/) - 按 BRN 组织的变更记录
-
-### 操作文档
-- [开发者指南](guides/developer-onboarding.md) - 如何接入和开发
-- [运维手册](runbooks/operations.md) - 如何部署和维护
-
-## 文档规范
-
-### 引用 PEG-scaner 文档
-使用完整 GitHub URL：
-```markdown
-[BRN-004](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
+## 本地运行摘要
+```bash
+git submodule update --init --recursive
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
+cd terraform && terraform init && terraform plan && terraform apply
+export KUBECONFIG=./output/truealpha-k3s-kubeconfig.yaml
+kubectl get nodes
 ```
 
-### 引用本仓库文档
-使用相对路径：
-```markdown
-[架构设计](architecture.md)
-```
+## 参考
+- 三层架构与目标： [BRN-004.dev_test_prod_design](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)

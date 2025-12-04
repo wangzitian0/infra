@@ -1,143 +1,58 @@
-# AI Agent 工作指南
+# AI Agent 工作指南（k3s reboot）
 
-## 📦 Repo 关系
+## 仓库关系
+- 本仓库：`infra`（IaC + infra）
+- 应用仓库：`apps/` 子模块指向 https://github.com/wangzitian0/PEG-scaner  
+- 依赖方向：infra → apps（保持单向，禁止再用软链）
+- 设计背景：沿用 BRN-004 三层（IaC → k3s 平台 → Apps），文档引用必须用完整 GitHub URL，例如  
+  `https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md`
 
-**本仓库**: https://github.com/wangzitian0/infra  
-**应用仓库**: https://github.com/wangzitian0/PEG-scaner
+## 当前目标与范围
+- 仅实现一件事：通过 GitHub Actions + Terraform 把 k3s 装到 VPS，并产出 kubeconfig。
+- Dokploy 已下线；运行时统一切到 k3s。
+- 后续改进按照“能跑 → 能观测 → 能自动化”的顺序推进。
 
-### 依赖关系
-
+## 目录速览
 ```
-infra/ (基础设施)
-  ↓ 部署
-PEG-scaner/ (应用代码)
-```
-
-- **infra**: 管理所有环境的基础设施（Terraform, Docker Compose, CI/CD）
-- **PEG-scaner**: 应用代码，被 infra 部署到各个环境
-
-### 文档引用规则
-
-**❌ 错误 - 相对路径**:
-```markdown
-[BRN-004](../PEG-scaner/docs/origin/BRN-004.md)
-```
-
-**✅ 正确 - 完整 GitHub URL**:
-```markdown
-[BRN-004](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
-```
-
-## 🗂️ 目录结构与用途
-
-```
-infra/
-├── README.md                  → 项目总入口
-├── AGENTS.md                  → 本文件，AI 工作指南
-├── docs/                      → 所有文档
-│   ├── README.md              → 文档导航
-│   ├── 0.hi_zitian.md         → 用户待办事项
-│   ├── architecture.md        → 架构设计
-│   ├── change_log/            → 变更记录
-│   ├── guides/                → 操作指南
-│   └── runbooks/              → 运维手册
-├── terraform/                 → 基础设施代码
-│   ├── README.md              → Terraform 使用指南
-│   ├── modules/               → 可复用模块
-│   └── envs/                  → 环境配置
-├── compose/                   → 服务编排
-│   └── README.md              → Compose 使用指南
-├── scripts/                   → 自动化脚本
-│   └── README.md              → 脚本说明
-├── ci/                        → CI/CD 配置
-│   └── README.md              → CI/CD 指南
-├── observability/             → 可观测性
-│   └── README.md              → 监控配置
-└── backstage/                 → 开发者门户
-    └── README.md              → Backstage 指南
+.
+├── AGENTS.md                      # 本文件
+├── README.md                      # 面向使用者的总览
+├── apps/                          # PEG-scaner 子模块
+├── docs/                          # 文档
+│   ├── README.md
+│   ├── 0.hi_zitian.md             # 需要 Zitian 处理的事项
+│   └── change_log/2024-12-04.md   # 本次重置的变更记录
+├── terraform/                     # k3s IaC
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── scripts/install-k3s.sh.tmpl
+│   └── terraform.tfvars.example
+└── .github/workflows/deploy-k3s.yml
 ```
 
-## 🎯 核心设计：Backstage 健康监测系统
+## 工作流（必须可跑）
+- CI 部署（推荐）：工作流 `.github/workflows/deploy-k3s.yml`
+  - 必填 secrets：`VPS_HOST`、`VPS_SSH_KEY`
+  - 可选：`VPS_USER`、`VPS_SSH_PORT`、`K3S_API_ENDPOINT`、`K3S_CHANNEL`、`K3S_VERSION`、`K3S_CLUSTER_NAME`
+  - 步骤：生成 tfvars 与 SSH key → terraform fmt/init/plan/apply → 拉 kubeconfig、替换 API Endpoint → `kubectl get nodes` → 上传 artifact
+- 本地部署：`cp terraform/terraform.tfvars.example terraform/terraform.tfvars` 填好后运行 `terraform init && terraform plan && terraform apply`，kubeconfig 输出在 `terraform/output/<cluster>-kubeconfig.yaml`
 
-### 监测目标
+## 文档与记录规则
+- 引用 PEG-scaner 文档时使用完整 GitHub URL，禁止相对路径。
+- 每次改动：更新 `docs/change_log/2024-12-04.md` 说明做了什么、如何验证。
+- 如果有需要用户决策/补充的事项，写入 `docs/0.hi_zitian.md`。
 
-**环境 × 基建 = 是否真的好了？**
+## apps 子模块规则
+- 初始化：`git submodule update --init --recursive`
+- 同步 upstream：`git submodule update --remote --merge`（或进入 apps 目录拉 main 分支）
+- 不要改回软链，保持 infra 对 apps 的只读依赖。
 
-| 环境 | 基建状态 | 应用状态 | 整体健康 |
-|------|---------|---------|---------|
-| dev | ✅ | ✅ | 🟢 健康 |
-| test | ✅ | ⚠️ | 🟡 警告 |
-| staging | ✅ | ❌ | 🔴 故障 |
-| prod | ✅ | ✅ | 🟢 健康 |
+## 渐进式改进路径
+1. 稳定 k3s 引导：CI 可 plan/apply，kubeconfig artifact 可下载，冒烟通过。
+2. 逐步把应用部署到 k3s（参考 PEG-scaner），并用同一套 CI 触发。
+3. 添加观测与 Backstage 健康视图，仍保持 IaC 在本仓库集中管理。
 
-### Backstage 组件设计
-
-#### 1. Service Catalog（服务目录）
-
-**catalog-info.yaml 模板**:
-```yaml
-apiVersion: backstage.io/v1alpha1
-kind: System
-metadata:
-  name: truealpha
-  title: TrueAlpha Platform
-spec:
-  owner: platform-team
-
----
-# 环境资源
-apiVersion: backstage.io/v1alpha1
-kind: Resource
-metadata:
-  name: environment-dev
-  title: Development Environment
-  annotations:
-    backstage.io/health-check: "https://dev.truealpha.club/health"
-spec:
-  type: environment
-  owner: platform-team
-  system: truealpha
-```
-
-#### 2. Health Dashboard（健康仪表盘）
-
-监测所有环境和基建组件的健康状态。
-
-#### 3. TechDocs（技术文档）
-
-自动从 `/docs` 生成文档站点。
-
-### 实施路径
-
-**Phase 1**: 定义 catalog entities  
-**Phase 2**: 开发健康检查插件  
-**Phase 3**: 自动化操作
-
-## 📍 每个目录的快速指南
-
-详见各目录的 README.md：
-- `/docs/README.md` - 文档导航
-- `/terraform/README.md` - 如何使用 Terraform
-- `/compose/README.md` - 如何使用 Docker Compose
-- `/backstage/README.md` - Backstage 设置（重点！）
-
-## 🚀 快速开始（针对 AI Agent）
-
-### 修改文档时
-- 使用完整 GitHub URL 引用 PEG-scaner 文档
-- 更新对应的 change_log
-- 如果有用户待办，更新 0.hi_zitian.md
-
-### 修改基础设施时
-- 先更新 Terraform 模块
-- 记录到 change_log
-- 更新相关 README
-
-## 🎯 Backstage 优先级
-
-Backstage 是整个系统的核心入口：
-1. ✅ 先完善 catalog 定义
-2. ✅ 再开发健康检查
-3. ✅ 最后添加自动化操作
-
-**目标**: 让用户通过 Backstage 一眼看到所有环境的健康状态！
+## 安全与习惯
+- 私钥、真实 tfvars 不入库，CI 用 GitHub Secrets， 本地用未跟踪的 tfvars。
+- 变更 Terraform/CI 时先 fmt/plan，再提交 change_log 与 README/AGENTS。
