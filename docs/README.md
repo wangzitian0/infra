@@ -4,7 +4,7 @@
 
 ## 必看
 - `docs/0.hi_zitian.md`：需要 Zitian 补充/决策的事项
-- `docs/change_log/2024-12-04.md`：本次重置的改动记录
+- `docs/change_log/2025-12-04.k3s_bootstrap_reset.md`：本次重置的改动记录
 
 ## 如何使用（CI 摘要）
 1. 在仓库 Secrets 配置 `VPS_HOST`、`VPS_SSH_KEY`（可选：`VPS_USER`、`VPS_SSH_PORT`、`K3S_API_ENDPOINT`、`K3S_CHANNEL`、`K3S_VERSION`、`K3S_CLUSTER_NAME`）。
@@ -21,4 +21,4 @@ kubectl get nodes
 ```
 
 ## 参考
-- 三层架构与目标： [BRN-004.dev_test_prod_design](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
+- 三层架构与目标： [BRN-004.env_eaas_design](./BRN-004.env_eaas_design.md)
