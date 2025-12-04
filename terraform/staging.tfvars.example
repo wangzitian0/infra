@@ -1,7 +1,7 @@
 # Staging 环境模板（复制为 staging.tfvars 并填入实际值）
 
 # VPS 信息
-vps_host            = "staging-vps.truealpha.club"
+vps_host            = "staging-vps.internal"  # 或 IP 地址
 vps_user            = "root"
 ssh_port            = 22
 ssh_private_key     = <<'KEY'
@@ -14,12 +14,12 @@ KEY
 cluster_name        = "staging-k3s"
 k3s_channel         = "stable"
 k3s_version         = ""
-api_endpoint        = "staging-api.truealpha.club"
+api_endpoint        = "api.staging.x.truealpha.club"
 disable_components  = ["traefik"]
 
 # 环境标识
 environment         = "staging"
-base_domain         = "staging.truealpha.club"
+base_domain         = "staging.x.truealpha.club"  # 按规范 {env}.x.truealpha.club
 enable_ssl          = true
 
 # 密钥（改为强密码）
