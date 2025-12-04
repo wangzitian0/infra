@@ -1,7 +1,7 @@
-# infra — k3s 基础设施引导
+# infra — k3s + Kubero 基础设施引导
 
-> 基于 [BRN-004 EaaS 设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md) 的三层架构（IaC → k3s 平台 → Apps）。
-> 当前只做一件事：用 **Terraform + GitHub Actions** 把 k3s 装到你的 VPS。
+> 基于 [BRN-004 EaaS 设计](./docs/BRN-004.env_eaas_design.md) 的三层架构（IaC → k3s 平台 → Apps）。
+> 当前只做一件事：用 **Terraform + GitHub Actions** 把 k3s 装到你的 VPS，并为后续 Kubero/Kubero UI 提供底座。
 
 ## 快速开始
 
@@ -29,7 +29,7 @@
 | `K3S_VERSION` | 指定版本（留空跟随 channel） | |
 | `K3S_CLUSTER_NAME` | 集群名称（默认 truealpha-k3s） | |
 
-Push 到 main 或手动触发 `Deploy k3s to VPS` 工作流。
+Push 到 main 或手动触发 `Deploy k3s to VPS` 工作流（`.github/workflows/deploy-k3s.yml`）。
 
 ### 3. 本地部署（可选）
 
@@ -100,13 +100,13 @@ kubectl get nodes
 
 ## 后续演进
 
-- [ ] 在 k3s 上部署 kubero（Kubernetes PaaS）
-- [ ] 安装 kubero-ui（Web 控制台）
+- [ ] 在 k3s 上部署 Kubero（k8s PaaS）
+- [ ] 安装 Kubero UI（Web 控制台）
 - [ ] 部署 PEG-scaner 应用
 - [ ] 接入 SigNoz 观测平台
 
 ## 相关文档
 
-- [BRN-004: EaaS 设计理念](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
+- [BRN-004: EaaS 设计理念](./docs/BRN-004.env_eaas_design.md)
 - [AGENTS.md](./AGENTS.md): AI Agent 工作规范
 - [docs/0.hi_zitian.md](./docs/0.hi_zitian.md): 用户待办清单

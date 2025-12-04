@@ -1,11 +1,11 @@
-name: Terraform Apply (Main)
+name: Deploy k3s to VPS
 
 on:
   push:
     branches: [main]
     paths:
       - "terraform/**"
-      - ".github/workflows/terraform-*.yml"
+      - ".github/workflows/deploy-k3s.yml"
   workflow_dispatch:
 
 env:
