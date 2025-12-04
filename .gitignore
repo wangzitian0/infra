@@ -6,6 +6,7 @@
 .terraform/
 .terraform.lock.hcl
 terraform/output/
+terraform/backend.tf
 crash.log
 crash.*.log
 override.tf
