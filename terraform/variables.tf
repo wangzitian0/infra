@@ -75,6 +75,7 @@ variable "postgres_password" {
   description = "PostgreSQL root password"
   type        = string
   sensitive   = true
+  default     = "CHANGE_ME"
 }
 
 variable "postgres_storage" {
@@ -88,6 +89,7 @@ variable "redis_password" {
   description = "Redis password"
   type        = string
   sensitive   = true
+  default     = "CHANGE_ME"
 }
 
 variable "redis_storage" {
@@ -101,6 +103,7 @@ variable "neo4j_password" {
   description = "Neo4j password"
   type        = string
   sensitive   = true
+  default     = "CHANGE_ME"
 }
 
 variable "neo4j_storage" {
