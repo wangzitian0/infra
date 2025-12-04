@@ -1,7 +1,7 @@
-# Example Terraform variables for dev environment
+# Example Terraform variables for staging environment
 # Copy to terraform.tfvars and fill in actual values
 
-environment = "dev"
+environment = "staging"
 project_name = "truealpha"
 domain = "truealpha.club"
 
@@ -21,6 +21,22 @@ database_size = "db-s-1vcpu-1gb"
 
 # Monitoring
 enable_monitoring = true
+
+# Dokploy + Infisical bootstrap (runs only when enable_dokploy_infisical=true)
+enable_dokploy_infisical   = true
+dokploy_api_key            = "dokploy-api-key"
+dokploy_ssh_public_key     = "ssh-ed25519 AAAA..."
+dokploy_ssh_private_key    = "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"
+infisical_encryption_key   = "32+chars-random-key"
+infisical_admin_email      = "admin@example.com"
+infisical_admin_password   = "super-strong-password"
+infisical_postgres_user    = "infisical"
+infisical_postgres_password= "infisical-db-password"
+infisical_postgres_db      = "infisical"
+infisical_license_key      = ""
+infisical_host             = "secrets.truealpha.club"
+infisical_redis_password   = "infisical-redis-password"
+dokploy_force_redeploy_token = "" # bump when rotating secrets to force redeploy
 
 # Tags
 tags = {

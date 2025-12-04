@@ -157,6 +157,8 @@ infra/
 
 # 仅应用层（已完成 Terraform 且已有 .env.<env>）
 ./scripts/deploy/deploy.sh staging
+
+# （计划）自托管 Infisical/SigNoz/PostHog 由 Terraform/Dokploy 自动化，当前仅提供 compose 定义，待接入 TF。 
 ```
 
 ## 核心工作流
@@ -166,9 +168,9 @@ infra/
 ```mermaid
 graph LR
     A[修改 .tf 文件] --> B[创建 PR]
-    B --> C[Atlantis 自动 plan]
+    B --> C[GitHub Actions terraform.yml 运行 plan]
     C --> D[审查 plan 输出]
-    D --> E[评论 'atlantis apply']
+    D --> E[workflow_dispatch: action=apply]
     E --> F[变更生效]
 ```
 

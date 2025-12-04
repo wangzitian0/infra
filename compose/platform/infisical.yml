@@ -1,30 +1,76 @@
+# Self-hosted Infisical (Dokploy Compose)
+# Values are populated via envsubst before sending to Dokploy API.
+
+version: "3.8"
+
 services:
   infisical-db:
-    image: postgres:15
-    container_name: infisical-db
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: infisical
-      POSTGRES_USER: ${INFISICAL_DB_USER:-infisical}
-      POSTGRES_PASSWORD: ${INFISICAL_DB_PASSWORD:-change-me}
+      POSTGRES_DB: ${INFISICAL_POSTGRES_DB}
+      POSTGRES_USER: ${INFISICAL_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${INFISICAL_POSTGRES_PASSWORD}
     volumes:
-      - infisical-pg:/var/lib/postgresql/data
+      - infisical_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${INFISICAL_POSTGRES_USER} -d ${INFISICAL_POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infisical
+
+  infisical-redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${INFISICAL_REDIS_PASSWORD}
+    restart: unless-stopped
+    volumes:
+      - infisical_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${INFISICAL_REDIS_PASSWORD} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - infisical
 
   infisical:
-    image: infisical/self-hosted:latest
-    container_name: infisical
+    image: infisical/infisical:latest
     restart: unless-stopped
     depends_on:
       - infisical-db
+      - infisical-redis
     environment:
+      NODE_ENV: production
       PORT: 8080
-      INFISICAL_ENCRYPTION_KEY: ${INFISICAL_ENCRYPTION_KEY}
-      INFISICAL_DB_CONNECTION_URI: ${INFISICAL_DB_CONNECTION_URI:-postgresql://${INFISICAL_DB_USER:-infisical}:${INFISICAL_DB_PASSWORD:-change-me}@infisical-db:5432/infisical}
-      SITE_URL: ${SITE_URL:-https://secrets.truealpha.club}
-      TELEMETRY_ENABLED: "false"
-    ports:
-      - "8080:8080"
-    # If using Traefik/Dokploy, bind via reverse proxy instead of ports. Keep ports for bootstrap.
+      SITE_URL: https://${INFISICAL_HOST}
+      ENCRYPTION_KEY: ${INFISICAL_ENCRYPTION_KEY}
+      AUTH_SECRET: ${INFISICAL_AUTH_SECRET}
+      DATABASE_URL: postgres://${INFISICAL_POSTGRES_USER}:${INFISICAL_POSTGRES_PASSWORD}@infisical-db:5432/${INFISICAL_POSTGRES_DB}
+      REDIS_URL: redis://:${INFISICAL_REDIS_PASSWORD}@infisical-redis:6379
+      TELEMETRY_DISABLED: ${INFISICAL_TELEMETRY_DISABLED}
+      ADMIN_EMAIL: ${INFISICAL_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${INFISICAL_ADMIN_PASSWORD}
+      LICENSE_KEY: ${INFISICAL_LICENSE_KEY}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.infisical.rule=Host(`${INFISICAL_HOST}`)"
+      - "traefik.http.routers.infisical.entrypoints=websecure"
+      - "traefik.http.routers.infisical.tls.certresolver=letsencrypt"
+      - "traefik.http.services.infisical.loadbalancer.server.port=8080"
+      - "traefik.docker.network=${INFISICAL_TRAEFIK_NETWORK}"
+    networks:
+      - infisical
+      - traefik
 
 volumes:
-  infisical-pg:
+  infisical_pg_data:
+  infisical_redis_data:
+
+networks:
+  infisical:
+    driver: bridge
+  traefik:
+    external: true
+    name: ${INFISICAL_TRAEFIK_NETWORK}

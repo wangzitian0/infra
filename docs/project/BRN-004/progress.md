@@ -8,7 +8,7 @@
 |--------|--------|------------|------------|------|
 | Terraform 基础设施（VPS + DNS） | infra | ✅ | ✅ | 已创建模块并应用到 staging/test/prod 规划 |
 | Docker Compose 基座 | infra | ✅ | ✅ | base + 环境覆盖 |
-| Secrets 管理 (Infisical) | infra | 🟡 | 🟡 | 需完成项目/环境配置与注入 |
+| Secrets 管理 (Infisical) | infra | 🟡 | 🟡 | Dokploy API + Terraform 引导已就绪，待填密钥并部署 |
 | Staging 首次部署 | infra | 🟡 | 🟡 | 待完成 GitHub Secrets、Terraform apply、服务验证 |
 | Test 预览环境 | infra | ⏳ | ⏳ | 待配置域名与流水线 |
 | Production 上线 | infra | ⏳ | ⏳ | 待 staging 验证后推进 |

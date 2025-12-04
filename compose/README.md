@@ -18,7 +18,9 @@ compose/
 ├── ci.yml         → CI 环境覆盖
 ├── test.yml       → 测试/PR 预览覆盖
 ├── staging.yml    → 预发环境覆盖
-└── prod.yml       → 生产环境覆盖
+├── prod.yml       → 生产环境覆盖
+└── platform/
+    └── infisical.yml → 自托管 Infisical（供 Dokploy API 上传的 compose 模板）
 ```
 
 ## 🚀 快速开始
@@ -81,6 +83,7 @@ docker compose -p truealpha-dev logs -f backend
 - 环境变量从 Infisical 导出
 - 不同环境使用不同的项目名 (-p)
 - 生产环境有资源限制和副本数
+- 如需自托管 Infisical，通过 Terraform 模块调用 Dokploy API，使用 `platform/infisical.yml`（模板使用 envsubst 变量）
 
 ## 📚 更多文档
 

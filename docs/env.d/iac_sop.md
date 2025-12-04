@@ -2,7 +2,7 @@
 
 **目的**: 在单台 VPS (103.214.23.41) 上一次性完成全局平台与基础基建声明（自有部署，Terraform 管理），供 staging/test/prod 复用。完成后，其他环境只需运行 Terraform (Layer 2) + Dokploy/Compose (Layer 3)，部署通过脚本全自动，无需 Dokploy UI 点击。
 
-**当前落地状态**: Cloudflare/VPS/compose 脚本已具备；自托管 Infisical/SigNoz/PostHog 的 Terraform/compose 定义、Dokploy API 集成尚待补齐。
+**当前落地状态**: Cloudflare/VPS/compose 脚本已具备；自托管 Infisical 的 Terraform + Dokploy API 引导已补齐（`scripts/dokploy/bootstrap_infisical.sh` + `terraform/modules/dokploy`），SigNoz/PostHog 部署仍待补。
 
 ## 角色与组件
 - 运行时/入口: Dokploy（单实例，内含 Traefik，Terraform 管理）

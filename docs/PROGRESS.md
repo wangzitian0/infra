@@ -11,10 +11,10 @@
 | Category | Code Ready | Deployed | Status |
 |----------|------------|----------|--------|
 | Terraform (DNS/VPS) | ✅ 100% | ❌ 0% | 🟡 Ready to deploy |
-| Self-hosted Infisical | 🟥 Not implemented | ❌ 0% | 🔴 Needs module/compose |
+| Self-hosted Infisical | 🟡 80% (Dokploy API bootstrap added) | ❌ 0% | 🟡 Terraform+Dokploy compose ready; waiting for apply |
 | Self-hosted SigNoz/PostHog | 🟥 Not implemented | ❌ 0% | 🔴 Needs module/compose |
 | Docker Compose (apps) | ✅ 100% | ❌ 0% | 🟡 Ready to deploy |
-| CI/CD Pipelines | ✅ 90% | ❌ 0% | 🟡 Needs secrets |
+| CI/CD Pipelines | ✅ 90% | ❌ 0% | 🟡 Needs secrets / enable GH Actions |
 | Documentation | ✅ 100% | N/A | ✅ Complete |
 
 ---
@@ -87,7 +87,7 @@
 **Next Steps**:
 1. SSH into VPS (103.214.23.41)
 2. Install Docker & Dokploy
-3. Set up self-hosted Infisical (pending automation)
+3. Set up self-hosted Infisical (Terraform → Dokploy API bootstrap)
 4. Run `./scripts/deploy/deploy.sh test`
 
 ---
@@ -133,13 +133,13 @@
 
 | Component | Code | Configured | Populated |
 |-----------|------|------------|-----------|
-| Infisical Integration (self-hosted) | 🟥 Not implemented | ❌ | ❌ |
+| Infisical Integration (self-hosted) | 🟡 Dokploy API module + compose ready | ❌ | ❌ |
 | `.env.example` Template | ✅ | N/A | N/A |
 | `export-secrets.sh` | ✅ | ❌ | ❌ |
 | Environment Configs | ✅ | ❌ | ❌ |
 
 **Blockers**:
-- [ ] Self-hosted Infisical not implemented（需要 Terraform/compose + deploy 集成；DNS 记录 secrets.truealpha.club 新增需 apply）
+- [ ] Run Terraform with Dokploy API key + secrets to create Infisical (uses compose/platform/infisical.yml)
 - [ ] Environment variables not populated
 - [ ] No secrets exported to VPS
 

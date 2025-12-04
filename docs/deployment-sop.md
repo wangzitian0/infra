@@ -11,8 +11,8 @@
 
 **当前落地状态（与代码对应）**: 
 - Terraform 现有：Cloudflare/VPS 基础，compose 部署脚本（deploy.sh/layered_deploy）。
-- 待补：自托管 Infisical/SigNoz/PostHog 的 Terraform/脚本化部署与 Dokploy API 集成（当前 deploy.sh 直接调用 docker compose）。
-- 运行时暂用 compose 文件，后续可接 Dokploy API/CLI 实现完全声明式。
+- 待补：自托管 Infisical/SigNoz/PostHog 的 Terraform/Dokploy API 部署（当前 deploy.sh 直接调用 docker compose）。
+- 运行时暂用 compose 文件，后续接 Dokploy API/CLI 实现完全声明式。
 
 ---
 
@@ -96,7 +96,7 @@ REDIS_PASSWORD=<generate>
 
 ### 0. Layer 1（仅一次，staging 阶段完成）
 - Terraform/Dokploy 安装（单台 VPS 103.214.23.41）：安装 Docker → 部署 Dokploy（含 Traefik），控制面域名 `cloud.truealpha.club`  
-- Terraform/脚本部署自托管 Infisical（容器方式，域名 `secrets.truealpha.club`），并生成 Machine Identity；SigNoz/PostHog 预留自托管模块  
+- 预期：Terraform/Dokploy API 部署自托管 Infisical（域名 `secrets.truealpha.club`），并生成 Machine Identity；SigNoz/PostHog 预留自托管模块  
 - 完成 Dokploy 基本设置（管理员、域名入口）
 
 ### 1. GitHub Secrets（仅 MI 三元组）

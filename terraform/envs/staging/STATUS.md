@@ -39,10 +39,10 @@
   - [ ] CLOUDFLARE_API_TOKEN, CLOUDFLARE_ZONE_ID
   - [ ] INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, INFISICAL_PROJECT_ID
 
-- [ ] **Infisical 配置** - 需要设置
-  - [ ] 创建项目 "truealpha"
-  - [ ] 创建环境 "staging"
-  - [ ] 导入 81 个环境变量
+- [ ] **Infisical 配置** - 需要设置（Terraform + Dokploy API）
+  - [ ] terraform.tfvars 启用 `enable_dokploy_infisical=true`，填 Dokploy API Key + SSH Key + 管理员/DB/Redis 密钥
+  - [ ] 创建项目 "truealpha" / 环境 "staging"（自动）
+  - [ ] 导入 81 个环境变量（手动导入模板）
   - [ ] 创建 Machine Identity
 
 - [ ] **Terraform 变量** - 需要填充
