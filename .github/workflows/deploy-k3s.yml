@@ -6,8 +6,6 @@ on:
     paths:
       - "terraform/**"
       - ".github/workflows/deploy-k3s.yml"
-      - "README.md"
-      - "AGENTS.md"
   workflow_dispatch:
 
 env:
@@ -17,6 +15,11 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    env:
+      # R2 凭据 (S3 兼容 API)
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
     steps:
       - name: Checkout
@@ -29,7 +32,21 @@ jobs:
         with:
           terraform_version: 1.6.6
 
-      - name: Validate secrets and render tfvars
+      - name: Validate secrets
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          [ -z "${R2_BUCKET}" ] && echo "Missing R2_BUCKET" && exit 1
+          [ -z "${R2_ACCOUNT_ID}" ] && echo "Missing R2_ACCOUNT_ID" && exit 1
+          [ -z "${VPS_HOST}" ] && echo "Missing VPS_HOST" && exit 1
+          [ -z "${VPS_SSH_KEY}" ] && echo "Missing VPS_SSH_KEY" && exit 1
+          echo "All required secrets present"
+
+      - name: Render tfvars and SSH
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
@@ -42,9 +59,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -z "${VPS_HOST}" ]; then echo "Missing secret VPS_HOST"; exit 1; fi
-          if [ -z "${VPS_SSH_KEY}" ]; then echo "Missing secret VPS_SSH_KEY"; exit 1; fi
-
           VPS_USER_VALUE="${VPS_USER:-root}"
           SSH_PORT_VALUE="${VPS_SSH_PORT:-22}"
           CLUSTER_NAME_VALUE="${K3S_CLUSTER_NAME:-truealpha-k3s}"
@@ -53,28 +67,24 @@ jobs:
           VERSION_VALUE="${K3S_VERSION:-}"
 
           cat > terraform/terraform.tfvars <<EOF
-vps_host        = "${VPS_HOST}"
-vps_user        = "${VPS_USER_VALUE}"
-ssh_port        = ${SSH_PORT_VALUE}
-ssh_private_key = <<'KEY'
-${VPS_SSH_KEY}
-KEY
-cluster_name    = "${CLUSTER_NAME_VALUE}"
-api_endpoint    = "${API_ENDPOINT_VALUE}"
-k3s_channel     = "${CHANNEL_VALUE}"
-k3s_version     = "${VERSION_VALUE}"
-EOF
+          vps_host        = "${VPS_HOST}"
+          vps_user        = "${VPS_USER_VALUE}"
+          ssh_port        = ${SSH_PORT_VALUE}
+          ssh_private_key = <<'KEY'
+          ${VPS_SSH_KEY}
+          KEY
+          cluster_name    = "${CLUSTER_NAME_VALUE}"
+          api_endpoint    = "${API_ENDPOINT_VALUE}"
+          k3s_channel     = "${CHANNEL_VALUE}"
+          k3s_version     = "${VERSION_VALUE}"
+          EOF
 
           mkdir -p ~/.ssh
-          cat > ~/.ssh/id_rsa <<'KEY'
-${VPS_SSH_KEY}
-KEY
+          echo "${VPS_SSH_KEY}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "${SSH_PORT_VALUE}" "${VPS_HOST}" >> ~/.ssh/known_hosts
 
-          echo "API_ENDPOINT_VALUE=${API_ENDPOINT_VALUE}" >> "${GITHUB_ENV}"
-          echo "SSH_PORT_VALUE=${SSH_PORT_VALUE}" >> "${GITHUB_ENV}"
-          echo "VPS_USER_VALUE=${VPS_USER_VALUE}" >> "${GITHUB_ENV}"
+          # Export for later steps
           echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
 
       - name: Terraform fmt
@@ -83,7 +93,13 @@ KEY
 
       - name: Terraform init
         working-directory: terraform
-        run: terraform init -input=false
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${R2_BUCKET}" \
+            -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
 
       - name: Terraform plan
         working-directory: terraform
@@ -94,14 +110,13 @@ KEY
         working-directory: terraform
         run: terraform apply -auto-approve tfplan
 
-      - name: Prepare kubeconfig path
+      - name: Prepare kubeconfig
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
-        working-directory: terraform
         run: |
           set -euo pipefail
           KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
           if [ ! -f "${KUBECONFIG_PATH}" ]; then
-            echo "kubeconfig not found at ${KUBECONFIG_PATH}. Check terraform apply output."
+            echo "kubeconfig not found at ${KUBECONFIG_PATH}"
             exit 1
           fi
           chmod 600 "${KUBECONFIG_PATH}"
@@ -113,7 +128,7 @@ KEY
         with:
           version: v1.28.4
 
-      - name: Smoke test cluster
+      - name: Smoke test
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
