@@ -33,3 +33,7 @@ infisical_api_token = ""
 postgres_storage    = "50Gi"
 redis_storage       = "20Gi"
 neo4j_storage       = "100Gi"
+
+# Infisical 配置
+infisical_chart_version = "0.4.2"
+infisical_image_tag     = "1.17.0"

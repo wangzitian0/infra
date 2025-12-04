@@ -43,3 +43,11 @@ variable "neo4j_storage" {
 variable "enable_observability" {
   type = bool
 }
+
+variable "infisical_chart_version" {
+  type = string
+}
+
+variable "infisical_image_tag" {
+  type = string
+}
