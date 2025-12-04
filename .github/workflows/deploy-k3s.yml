@@ -17,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # R2 凭据 (S3 兼容 API)
-      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      # R2 用 S3 兼容 API，所以凭据变量名是 AWS_*
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
       - name: Checkout
@@ -40,6 +40,8 @@ jobs:
           VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
         run: |
           set -euo pipefail
+          [ -z "${AWS_ACCESS_KEY_ID}" ] && echo "Missing AWS_ACCESS_KEY_ID" && exit 1
+          [ -z "${AWS_SECRET_ACCESS_KEY}" ] && echo "Missing AWS_SECRET_ACCESS_KEY" && exit 1
           [ -z "${R2_BUCKET}" ] && echo "Missing R2_BUCKET" && exit 1
           [ -z "${R2_ACCOUNT_ID}" ] && echo "Missing R2_ACCOUNT_ID" && exit 1
           [ -z "${VPS_HOST}" ] && echo "Missing VPS_HOST" && exit 1
