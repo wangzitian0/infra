@@ -16,7 +16,7 @@
 
 # 仓库定位
 
-本仓库（infra）是 [BRN-004 EaaS 设计](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md) 的**基础设施层**实现。
+本仓库（infra）是 [BRN-004 EaaS 设计](./docs/BRN-004.env_eaas_design.md) 的**基础设施层**实现。
 ## 第一原则
 作为 infra 类型的 IaC repo，必须保证强一致性
 - 本地和 CI 使用相同的命令
@@ -66,8 +66,10 @@ IaC (Terraform) → Runtime (k3s) → Apps (PEG-scaner)
 ├── docs/
 │   ├── README.md                      # 文档导航
 │   ├── 0.hi_zitian.md                 # 用户待办（5W1H）
+│   ├── BRN-004.env_eaas_design.md     # EaaS 设计理念（infra 版）
+│   ├── ci-workflow-todo.md            # CI/CD 工作流设计 TODO
 │   └── change_log/
-│       └── 2025-12-04.do_some_thing_important.md              # 变更日志
+│       └── YYYY-MM-DD.*.md            # 变更日志
 ├── terraform/
 │   ├── main.tf                        # 核心资源定义
 │   ├── variables.tf                   # 变量定义
@@ -213,6 +215,8 @@ Phase 4: 观测 + 平台
 
 # 参考文档
 
-- [BRN-004: EaaS 设计理念](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/origin/BRN-004.dev_test_prod_design.md)
-- [IRD-004: 环境基础设施规范](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/infra/IRD-004.env_eaas_infra.md)
-- [TRD-004: 实现技术规范](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/tech/TRD-004.env_eaas_implementation.md)
+- [BRN-004: EaaS 设计理念（infra 版）](./docs/BRN-004.env_eaas_design.md)
+- [CI/CD 工作流设计 TODO](./docs/ci-workflow-todo.md)
+- [用户待办（5W1H）](./docs/0.hi_zitian.md)
+- [外部参考: IRD-004 环境基础设施规范](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/infra/IRD-004.env_eaas_infra.md)
+- [外部参考: TRD-004 实现技术规范](https://github.com/wangzitian0/PEG-scaner/blob/main/docs/specs/tech/TRD-004.env_eaas_implementation.md)

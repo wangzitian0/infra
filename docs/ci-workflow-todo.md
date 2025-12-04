@@ -16,13 +16,34 @@ PR 创建 → 自动 plan → 评论结果
 `/revert` → 回滚到上一个状态
 ```
 
-## 环境设计
+## 五套环境设计
 
-| 环境 | 用途 | 触发方式 | State Key |
-|------|------|----------|-----------|
-| **test** | CI 验证（临时） | PR 自动 | `test/terraform.tfstate` |
-| **staging** | 预发布验证 | `/apply staging` | `staging/terraform.tfstate` |
-| **prod** | 生产环境 | `/apply prod` + approval | `prod/terraform.tfstate` |
+| 环境 | 用途 | 特点 | 触发方式 | State Key |
+|------|------|------|----------|-----------|
+| **dev** | 本地开发 | 与 CI 高度一致，启动快速，本地拉起依赖 | 本地手动 | `dev/terraform.tfstate` |
+| **ci** | CI 验证 | 与 dev 高度一致，自动化验证 | PR 自动 | `ci/terraform.tfstate` |
+| **test** | 手动测试 | 与 CI 一致，生命周期较长，可通过域名手动测试，直到 PR 合并 | PR 创建时自动创建，合并后销毁 | `test/terraform.tfstate` |
+| **staging** | 预发布验证 | 定期从 prod 导出数据，除数据不全外与 prod 几乎 1:1；infra 变更先在此验证 | `/apply staging` | `staging/terraform.tfstate` |
+| **prod** | 生产环境 | 真实用户数据和流量 | `/apply prod` + approval | `prod/terraform.tfstate` |
+
+### 环境一致性原则
+
+```
+dev ≈ ci          # 高度一致，保证本地开发结果可在 CI 复现
+ci ≈ test         # 一致，区别仅在生命周期（ci 临时，test 可手动测试）
+staging ≈ prod    # 几乎 1:1，staging 数据从 prod 定期导出（非全量）
+```
+
+### 变更流程
+
+```
+1. 本地 dev 环境验证
+2. 提 PR → ci 自动 plan
+3. test 环境创建，可通过域名手动验证
+4. /apply staging → staging 环境验证（与 prod 1:1）
+5. staging 验证通过 → /apply prod（需 approval）
+6. 合并到 main
+```
 
 ## Phase 1: Staging 完整流程 ✅ 优先
 
