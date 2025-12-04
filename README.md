@@ -106,12 +106,13 @@ kubectl get nodes
 
 **BRN-004：Staging 完整部署（进行中）**
 
-- [x] k3s 引导（Phase 0 完成）
-- [ ] Phase 1.1: PostgreSQL
-- [ ] Phase 1.2: Infisical
-- [ ] Phase 2.1: Redis + Neo4j
-- [ ] Phase 3.1: Kubero
-- [ ] Phase 3.2: Kubero UI
+- [x] Phase 0.0: k3s 引导
+- [x] Phase 0.1: Infisical (Secrets Management)
+- [x] Phase 0.2: Kubernetes Dashboard
+- [ ] Phase 1.1: PostgreSQL (Application database)
+- [ ] Phase 2.x: Redis + Neo4j (密码管理通过 Infisical)
+- [ ] Phase 3.x: Kubero + Kubero UI
+- [ ] Phase 4.x: SigNoz + PostHog (Observability)
 
 **BRN-007：多环境自动化（后期）**
 
