@@ -104,10 +104,21 @@ kubectl get nodes
 
 ## 后续演进
 
-- [ ] 在 k3s 上部署 Kubero（k8s PaaS）
-- [ ] 安装 Kubero UI（Web 控制台）
-- [ ] 部署 PEG-scaner 应用
-- [ ] 接入 SigNoz 观测平台
+**BRN-004：Staging 完整部署（进行中）**
+
+- [x] k3s 引导（Phase 0 完成）
+- [ ] Phase 1.1: PostgreSQL
+- [ ] Phase 1.2: Infisical
+- [ ] Phase 2.1: Redis + Neo4j
+- [ ] Phase 3.1: Kubero
+- [ ] Phase 3.2: Kubero UI
+
+**BRN-007：多环境自动化（后期）**
+
+- [ ] 五环境配置（dev/ci/test/staging/prod）
+- [ ] 评论驱动 CI/CD（`/plan`, `/apply` 命令）
+- [ ] 可观测性（SigNoz + PostHog）
+- [ ] 开发者门户（Backstage）
 
 ## 相关文档
 

@@ -1,0 +1,34 @@
+# Staging 环境模板（复制为 staging.tfvars 并填入实际值）
+
+# VPS 信息
+vps_host            = "staging-vps.truealpha.club"
+vps_user            = "root"
+ssh_port            = 22
+ssh_private_key     = <<'KEY'
+-----BEGIN OPENSSH PRIVATE KEY-----
+PASTE_YOUR_PRIVATE_KEY_HERE
+-----END OPENSSH PRIVATE KEY-----
+KEY
+
+# k3s 集群
+cluster_name        = "staging-k3s"
+k3s_channel         = "stable"
+k3s_version         = ""
+api_endpoint        = "staging-api.truealpha.club"
+disable_components  = ["traefik"]
+
+# 环境标识
+environment         = "staging"
+base_domain         = "staging.truealpha.club"
+enable_ssl          = true
+
+# 密钥（改为强密码）
+postgres_password   = "CHANGE_ME"
+redis_password      = "CHANGE_ME"
+neo4j_password      = "CHANGE_ME"
+infisical_api_token = ""
+
+# 存储
+postgres_storage    = "50Gi"
+redis_storage       = "20Gi"
+neo4j_storage       = "100Gi"
