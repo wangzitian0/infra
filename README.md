@@ -7,19 +7,23 @@
 - ✅ 应用依赖：`apps/` 为 PEG-scaner 子仓库（submodule），保持 infra → apps 单向依赖。
 - ⏳ 后续演进：在 k3s 上接入应用、观测、Backstage，但先保证集群可用、流程能跑。
 
-## CI 工作流（推荐）
-1. 准备一台可 SSH 的 VPS，开放 22 与 6443，用户具备 sudo。
-2. 在 GitHub Secrets 配置：
-   - 必填：`VPS_HOST`、`VPS_SSH_KEY`
+## CI 工作流（推荐，R2 后端）
+1. 复制 `terraform/backend.tf.example` 为 `terraform/backend.tf`，替换 `<r2-bucket-name>`、`<account-id>`，确保使用 Cloudflare R2 作为 Terraform state（S3 兼容，无锁）。
+2. 准备一台可 SSH 的 VPS，开放 22 与 6443，用户具备 sudo。
+3. 在 GitHub Repository Secrets 配置：
+   - R2（必填）：`AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY`
+   - VPS（必填）：`VPS_HOST`、`VPS_SSH_KEY`
    - 可选：`VPS_USER`(默认 root)、`VPS_SSH_PORT`(默认 22)、`K3S_API_ENDPOINT`(默认 VPS_HOST)、`K3S_CHANNEL`(默认 stable)、`K3S_VERSION`(留空跟随 channel)、`K3S_CLUSTER_NAME`(默认 truealpha-k3s)
-3. 触发工作流 `Deploy k3s to VPS`（推送 main 或手动 dispatch）。
-4. 工作流会 fmt/init/plan/apply → 拉回 kubeconfig → `kubectl get nodes` 冒烟 → 上传 kubeconfig artifact。
+4. 触发工作流 `Deploy k3s to VPS`（推送 main 或手动 dispatch）。
+5. 工作流会 fmt/init/plan/apply → 拉回 kubeconfig → `kubectl get nodes` 冒烟 → 上传 kubeconfig artifact。
 
 ## 本地运行（可选）
 ```bash
 git submodule update --init --recursive
 cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-# 填写 VPS 主机、用户、SSH 私钥、API 域名等
+# 或使用 .env: cp terraform/.env.example terraform/.env && set -a; source terraform/.env; set +a
+# 填写 R2、VPS 主机、用户、SSH 私钥、API 域名等
+# 若使用 R2，复制 backend.tf.example 为 backend.tf 并替换占位符
 cd terraform
 terraform init
 terraform plan
@@ -50,6 +54,8 @@ kubectl get nodes
 ## GitHub Secrets 说明
 | 名称 | 作用 |
 | ---- | ---- |
+| `AWS_ACCESS_KEY_ID` | R2 API Token Access Key（必填） |
+| `AWS_SECRET_ACCESS_KEY` | R2 API Token Secret Key（必填） |
 | `VPS_HOST` | VPS 公网 IP 或域名（必填） |
 | `VPS_SSH_KEY` | SSH 私钥内容，具备 sudo 权限（必填） |
 | `VPS_USER` | SSH 用户，缺省为 root |

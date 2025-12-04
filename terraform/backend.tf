@@ -1,0 +1,19 @@
+terraform {
+  backend "s3" {
+    bucket                      = "<r2-bucket-name>"
+    key                         = "k3s/terraform.tfstate"
+    region                      = "auto"
+    endpoint                    = "https://<account-id>.r2.cloudflarestorage.com"
+    skip_credentials_validation = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
+    force_path_style            = true
+  }
+}
+
+# 使用方法：
+# 1) 复制为 terraform/backend.tf 并替换占位符。
+# 2) 在 CI 或本地导出 R2 凭据：
+#    export AWS_ACCESS_KEY_ID=...
+#    export AWS_SECRET_ACCESS_KEY=...
+# 3) 运行 terraform init 即会使用 R2 作为 state 存储（无锁，如需锁请改用 S3+DynamoDB 或 Terraform Cloud）。
