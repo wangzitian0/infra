@@ -1,6 +1,7 @@
-# Phase 1.2: Infisical (Secrets Management)
-# Namespace: iac (shared with PostgreSQL)
-# Dependencies: PostgreSQL (Phase 1.1)
+# Phase 0.1: Infisical (Secrets Management)
+# Namespace: iac
+# Dependencies: Phase 0.0 (k3s)
+# Embedded: MongoDB, Redis (managed by Infisical Helm chart)
 # Helm chart: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
 
 resource "helm_repository" "infisical" {
