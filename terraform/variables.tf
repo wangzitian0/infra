@@ -50,3 +50,85 @@ variable "disable_components" {
   type        = list(string)
   default     = ["traefik"]
 }
+
+# Environment & domain
+variable "environment" {
+  description = "Environment name (staging, prod, etc.)"
+  type        = string
+  default     = "staging"
+}
+
+variable "base_domain" {
+  description = "Base domain (e.g., truealpha.club)"
+  type        = string
+  default     = "truealpha.club"
+}
+
+variable "domain_prefix" {
+  description = "Domain prefix (e.g., x-staging, x-test, empty for prod)"
+  type        = string
+  default     = "x-staging"
+}
+
+# PostgreSQL
+variable "postgres_password" {
+  description = "PostgreSQL root password"
+  type        = string
+  sensitive   = true
+  default     = "CHANGE_ME"
+}
+
+variable "postgres_storage" {
+  description = "PostgreSQL storage size"
+  type        = string
+  default     = "50Gi"
+}
+
+# Redis
+variable "redis_password" {
+  description = "Redis password"
+  type        = string
+  sensitive   = true
+  default     = "CHANGE_ME"
+}
+
+variable "redis_storage" {
+  description = "Redis storage size"
+  type        = string
+  default     = "20Gi"
+}
+
+# Neo4j
+variable "neo4j_password" {
+  description = "Neo4j password"
+  type        = string
+  sensitive   = true
+  default     = "CHANGE_ME"
+}
+
+variable "neo4j_storage" {
+  description = "Neo4j storage size"
+  type        = string
+  default     = "100Gi"
+}
+
+# Infisical
+variable "infisical_api_token" {
+  description = "Infisical API token (generated after initial deployment)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# Feature flags
+variable "enable_observability" {
+  description = "Enable SigNoz and PostHog (staging/prod only)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_ssl" {
+  description = "Enable SSL/TLS"
+  type        = bool
+  default     = true
+}

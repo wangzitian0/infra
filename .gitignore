@@ -85,3 +85,6 @@ env/
 
 # Atlantis
 .atlantis/
+
+# Wrangler
+.wrangler/
