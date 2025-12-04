@@ -1,11 +1,11 @@
-name: Deploy k3s to VPS
+name: Terraform Apply (Main)
 
 on:
   push:
     branches: [main]
     paths:
       - "terraform/**"
-      - ".github/workflows/deploy-k3s.yml"
+      - ".github/workflows/terraform-*.yml"
   workflow_dispatch:
 
 env:
@@ -13,11 +13,10 @@ env:
   TF_INPUT: "false"
 
 jobs:
-  deploy:
+  apply:
     runs-on: ubuntu-latest
 
     env:
-      # R2 用 S3 兼容 API，所以凭据变量名是 AWS_*
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
@@ -68,25 +67,24 @@ jobs:
           CHANNEL_VALUE="${K3S_CHANNEL:-stable}"
           VERSION_VALUE="${K3S_VERSION:-}"
 
-          cat > terraform/terraform.tfvars <<EOF
+          cat > terraform/terraform.tfvars <<EOFVARS
           vps_host        = "${VPS_HOST}"
           vps_user        = "${VPS_USER_VALUE}"
           ssh_port        = ${SSH_PORT_VALUE}
-          ssh_private_key = <<'KEY'
+          ssh_private_key = <<-EOF
           ${VPS_SSH_KEY}
-          KEY
+          EOF
           cluster_name    = "${CLUSTER_NAME_VALUE}"
           api_endpoint    = "${API_ENDPOINT_VALUE}"
           k3s_channel     = "${CHANNEL_VALUE}"
           k3s_version     = "${VERSION_VALUE}"
-          EOF
+          EOFVARS
 
           mkdir -p ~/.ssh
           echo "${VPS_SSH_KEY}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "${SSH_PORT_VALUE}" "${VPS_HOST}" >> ~/.ssh/known_hosts
 
-          # Export for later steps
           echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
 
       - name: Terraform fmt
@@ -108,12 +106,10 @@ jobs:
         run: terraform plan -out=tfplan -input=false
 
       - name: Terraform apply
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         working-directory: terraform
         run: terraform apply -auto-approve tfplan
 
       - name: Prepare kubeconfig
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         run: |
           set -euo pipefail
           KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
@@ -125,13 +121,11 @@ jobs:
           echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
 
       - name: Setup kubectl
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         uses: azure/setup-kubectl@v4
         with:
           version: v1.28.4
 
       - name: Smoke test
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
@@ -139,7 +133,6 @@ jobs:
           kubectl get nodes
 
       - name: Upload kubeconfig
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@v4
         with:
           name: kubeconfig

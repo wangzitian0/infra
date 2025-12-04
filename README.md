@@ -53,7 +53,7 @@ terraform init \
 
 # 4. 计划和部署
 terraform plan
-# terraform apply  # 真正部署时取消注释
+# terraform apply  # 真正部署时取消注释 
 
 # 5. 验证（apply 后）
 export KUBECONFIG=./output/truealpha-k3s-kubeconfig.yaml
