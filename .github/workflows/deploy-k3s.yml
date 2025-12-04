@@ -1,0 +1,129 @@
+name: Deploy k3s to VPS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/deploy-k3s.yml"
+      - "README.md"
+      - "AGENTS.md"
+  workflow_dispatch:
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Validate secrets and render tfvars
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          K3S_API_ENDPOINT: ${{ secrets.K3S_API_ENDPOINT }}
+          K3S_CHANNEL: ${{ secrets.K3S_CHANNEL }}
+          K3S_VERSION: ${{ secrets.K3S_VERSION }}
+          K3S_CLUSTER_NAME: ${{ secrets.K3S_CLUSTER_NAME }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${VPS_HOST}" ]; then echo "Missing secret VPS_HOST"; exit 1; fi
+          if [ -z "${VPS_SSH_KEY}" ]; then echo "Missing secret VPS_SSH_KEY"; exit 1; fi
+
+          VPS_USER_VALUE="${VPS_USER:-root}"
+          SSH_PORT_VALUE="${VPS_SSH_PORT:-22}"
+          CLUSTER_NAME_VALUE="${K3S_CLUSTER_NAME:-truealpha-k3s}"
+          API_ENDPOINT_VALUE="${K3S_API_ENDPOINT:-$VPS_HOST}"
+          CHANNEL_VALUE="${K3S_CHANNEL:-stable}"
+          VERSION_VALUE="${K3S_VERSION:-}"
+
+          cat > terraform/terraform.tfvars <<EOF
+vps_host        = "${VPS_HOST}"
+vps_user        = "${VPS_USER_VALUE}"
+ssh_port        = ${SSH_PORT_VALUE}
+ssh_private_key = <<'KEY'
+${VPS_SSH_KEY}
+KEY
+cluster_name    = "${CLUSTER_NAME_VALUE}"
+api_endpoint    = "${API_ENDPOINT_VALUE}"
+k3s_channel     = "${CHANNEL_VALUE}"
+k3s_version     = "${VERSION_VALUE}"
+EOF
+
+          mkdir -p ~/.ssh
+          cat > ~/.ssh/id_rsa <<'KEY'
+${VPS_SSH_KEY}
+KEY
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "${SSH_PORT_VALUE}" "${VPS_HOST}" >> ~/.ssh/known_hosts
+
+          echo "API_ENDPOINT_VALUE=${API_ENDPOINT_VALUE}" >> "${GITHUB_ENV}"
+          echo "SSH_PORT_VALUE=${SSH_PORT_VALUE}" >> "${GITHUB_ENV}"
+          echo "VPS_USER_VALUE=${VPS_USER_VALUE}" >> "${GITHUB_ENV}"
+          echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
+
+      - name: Terraform fmt
+        working-directory: terraform
+        run: terraform fmt -check
+
+      - name: Terraform init
+        working-directory: terraform
+        run: terraform init -input=false
+
+      - name: Terraform plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan -input=false
+
+      - name: Terraform apply
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        working-directory: terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Prepare kubeconfig path
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        working-directory: terraform
+        run: |
+          set -euo pipefail
+          KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
+          if [ ! -f "${KUBECONFIG_PATH}" ]; then
+            echo "kubeconfig not found at ${KUBECONFIG_PATH}. Check terraform apply output."
+            exit 1
+          fi
+          chmod 600 "${KUBECONFIG_PATH}"
+          echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
+
+      - name: Setup kubectl
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.28.4
+
+      - name: Smoke test cluster
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          kubectl version --client
+          kubectl get nodes
+
+      - name: Upload kubeconfig
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: ${{ env.KUBECONFIG_PATH }}
