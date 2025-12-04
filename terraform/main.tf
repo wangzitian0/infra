@@ -5,6 +5,7 @@
 #   terraform apply -target="kubernetes_namespace.iac" -var-file="staging.tfvars"        # Phase 1.1 setup
 #   terraform apply -target="helm_release.postgresql" -var-file="staging.tfvars"        # Phase 1.1
 #   terraform apply -target="helm_release.infisical" -var-file="staging.tfvars"         # Phase 1.2
+#   terraform apply -target="helm_release.kubernetes_dashboard" -var-file="staging.tfvars" # Phase 1.3 (Dashboard)
 #
 # Upcoming phases:
 #   terraform apply -target="helm_release.redis" -var-file="staging.tfvars"             # Phase 2.1 (Redis)
