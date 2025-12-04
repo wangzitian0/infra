@@ -67,18 +67,18 @@ jobs:
           CHANNEL_VALUE="${K3S_CHANNEL:-stable}"
           VERSION_VALUE="${K3S_VERSION:-}"
 
-          cat > terraform/terraform.tfvars <<EOF
+          cat > terraform/terraform.tfvars <<EOFVARS
           vps_host        = "${VPS_HOST}"
           vps_user        = "${VPS_USER_VALUE}"
           ssh_port        = ${SSH_PORT_VALUE}
-          ssh_private_key = <<'KEY'
+          ssh_private_key = <<-EOF
           ${VPS_SSH_KEY}
-          KEY
+          EOF
           cluster_name    = "${CLUSTER_NAME_VALUE}"
           api_endpoint    = "${API_ENDPOINT_VALUE}"
           k3s_channel     = "${CHANNEL_VALUE}"
           k3s_version     = "${VERSION_VALUE}"
-          EOF
+          EOFVARS
 
           mkdir -p ~/.ssh
           echo "${VPS_SSH_KEY}" > ~/.ssh/id_rsa

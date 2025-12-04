@@ -64,18 +64,18 @@ jobs:
           K3S_VERSION: ${{ secrets.K3S_VERSION }}
           K3S_CLUSTER_NAME: ${{ secrets.K3S_CLUSTER_NAME }}
         run: |
-          cat > terraform/terraform.tfvars <<EOF
+          cat > terraform/terraform.tfvars <<EOFVARS
           vps_host        = "${VPS_HOST}"
           vps_user        = "${VPS_USER:-root}"
           ssh_port        = ${VPS_SSH_PORT:-22}
-          ssh_private_key = <<'KEY'
+          ssh_private_key = <<-EOF
           ${VPS_SSH_KEY}
-          KEY
+          EOF
           cluster_name    = "${K3S_CLUSTER_NAME:-truealpha-k3s}"
           api_endpoint    = "${K3S_API_ENDPOINT:-$VPS_HOST}"
           k3s_channel     = "${K3S_CHANNEL:-stable}"
           k3s_version     = "${K3S_VERSION:-}"
-          EOF
+          EOFVARS
 
       - name: Terraform plan
         id: plan
