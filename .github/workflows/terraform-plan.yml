@@ -1,0 +1,114 @@
+name: Terraform Plan (PR)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform-*.yml"
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform fmt
+        id: fmt
+        working-directory: terraform
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform init
+        id: init
+        working-directory: terraform
+        env:
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${R2_BUCKET}" \
+            -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
+
+      - name: Terraform validate
+        id: validate
+        working-directory: terraform
+        run: terraform validate -no-color
+
+      - name: Render tfvars
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          K3S_API_ENDPOINT: ${{ secrets.K3S_API_ENDPOINT }}
+          K3S_CHANNEL: ${{ secrets.K3S_CHANNEL }}
+          K3S_VERSION: ${{ secrets.K3S_VERSION }}
+          K3S_CLUSTER_NAME: ${{ secrets.K3S_CLUSTER_NAME }}
+        run: |
+          cat > terraform/terraform.tfvars <<EOFVARS
+          vps_host        = "${VPS_HOST}"
+          vps_user        = "${VPS_USER:-root}"
+          ssh_port        = ${VPS_SSH_PORT:-22}
+          ssh_private_key = <<-EOF
+          ${VPS_SSH_KEY}
+          EOF
+          cluster_name    = "${K3S_CLUSTER_NAME:-truealpha-k3s}"
+          api_endpoint    = "${K3S_API_ENDPOINT:-$VPS_HOST}"
+          k3s_channel     = "${K3S_CHANNEL:-stable}"
+          k3s_version     = "${K3S_VERSION:-}"
+          EOFVARS
+
+      - name: Terraform plan
+        id: plan
+        working-directory: terraform
+        run: terraform plan -no-color -out=tfplan
+        continue-on-error: true
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Format 🖌 \`${{ steps.fmt.outcome }}\`
+            #### Terraform Init ⚙️ \`${{ steps.init.outcome }}\`
+            #### Terraform Validate 🤖 \`${{ steps.validate.outcome }}\`
+            #### Terraform Plan 📖 \`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`terraform
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
