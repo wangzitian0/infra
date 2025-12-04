@@ -96,6 +96,12 @@ kubectl get nodes
 # 应返回单节点 Ready 状态
 ```
 
+## 附带部署：Infisical
+- Terraform apply 会自动用 Helm 在 `iac` namespace 安装 Infisical（chart 0.4.2，image tag 1.17.0），副本数降为 1，默认关闭 Ingress。后续 Cloudflare/Kubero 也放进同一命名空间。
+- 依赖组件：内置 MongoDB、Redis、Mailhog（开发用 SMTP），生成的加密/JWT/Mongo 密钥存放在 Terraform state（R2），注意备份与权限。
+- 访问（默认无 Ingress）：设置好 `KUBECONFIG` 后执行 `kubectl -n iac port-forward svc/infisical-backend 8080:8080`，浏览器打开 http://localhost:8080。
+- 可调变量：`infisical_namespace`、`infisical_chart_version`、`infisical_image_tag`、`infisical_site_url`（见 `terraform/terraform.tfvars.example`）。
+
 ## 设计提示
 
 - **State 存储**：Cloudflare R2（S3 兼容，无锁）。需要锁请改用 S3+DynamoDB 或 Terraform Cloud。

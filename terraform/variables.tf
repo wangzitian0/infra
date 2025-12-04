@@ -50,3 +50,27 @@ variable "disable_components" {
   type        = list(string)
   default     = ["traefik"]
 }
+
+variable "infisical_namespace" {
+  description = "Namespace where the Infisical release will be installed"
+  type        = string
+  default     = "iac"
+}
+
+variable "infisical_chart_version" {
+  description = "Helm chart version for Infisical (https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/)"
+  type        = string
+  default     = "0.4.2"
+}
+
+variable "infisical_image_tag" {
+  description = "Container image tag for Infisical (avoid latest for reproducibility)"
+  type        = string
+  default     = "1.17.0"
+}
+
+variable "infisical_site_url" {
+  description = "Absolute URL Infisical should advertise (used in emails/links)"
+  type        = string
+  default     = "http://infisical.local"
+}

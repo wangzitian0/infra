@@ -1,11 +1,15 @@
 vps_host        = "1.2.3.4"
 vps_user        = "root"
 ssh_port        = 22
-ssh_private_key = <<'KEY'
+ssh_private_key = <<-EOF
 PASTE_PRIVATE_KEY_HERE
-KEY
+EOF
 cluster_name       = "truealpha-k3s"
 api_endpoint       = "k3s.example.com"
 k3s_channel        = "stable"
 k3s_version        = ""
 disable_components = ["traefik"]
+infisical_namespace     = "iac"
+infisical_chart_version = "0.4.2"
+infisical_image_tag     = "1.17.0"
+infisical_site_url      = "http://infisical.local"
