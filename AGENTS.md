@@ -67,7 +67,7 @@ IaC (Terraform) → Runtime (k3s) → Apps (PEG-scaner)
 │   ├── README.md                      # 文档导航
 │   ├── 0.hi_zitian.md                 # 用户待办（5W1H）
 │   └── change_log/
-│       └── 2025-12-04.md              # 变更日志
+│       └── 2025-12-04.do_some_thing_important.md              # 变更日志
 ├── terraform/
 │   ├── main.tf                        # 核心资源定义
 │   ├── variables.tf                   # 变量定义
