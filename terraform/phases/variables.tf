@@ -13,7 +13,7 @@ variable "domains" {
   type = map(string)
 }
 
-variable "postgres_password" {
+variable "infisical_postgres_password" {
   type      = string
   sensitive = true
 }
@@ -28,7 +28,7 @@ variable "neo4j_password" {
   sensitive = true
 }
 
-variable "postgres_storage" {
+variable "infisical_postgres_storage" {
   type = string
 }
 

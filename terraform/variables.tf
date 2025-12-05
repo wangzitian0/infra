@@ -70,18 +70,18 @@ variable "domain_prefix" {
   default     = "x-staging"
 }
 
-# PostgreSQL
-variable "postgres_password" {
-  description = "PostgreSQL root password"
+# Infisical PostgreSQL (dedicated)
+variable "infisical_postgres_password" {
+  description = "PostgreSQL password for Infisical database"
   type        = string
   sensitive   = true
   default     = "CHANGE_ME"
 }
 
-variable "postgres_storage" {
-  description = "PostgreSQL storage size"
+variable "infisical_postgres_storage" {
+  description = "PostgreSQL storage size for Infisical"
   type        = string
-  default     = "50Gi"
+  default     = "10Gi"
 }
 
 # Redis

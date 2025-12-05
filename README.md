@@ -34,30 +34,25 @@ Push 到 main 或手动触发 `Deploy k3s to VPS` 工作流（`.github/workflows
 ### 3. 本地部署（可选）
 
 ```bash
-cd terraform
+# 1. 设置环境变量
+export AWS_ACCESS_KEY_ID="<your-r2-access-key>"
+export AWS_SECRET_ACCESS_KEY="<your-r2-secret-key>"
+export R2_BUCKET="<your-bucket-name>"
+export R2_ACCOUNT_ID="<your-cloudflare-account-id>"
+export VPS_HOST="<your-vps-ip>"
+export INFISICAL_POSTGRES_PASSWORD="<strong-password>"
 
-# 1. 设置环境变量（Terraform 读取 AWS_*，R2_* 用于构造 backend-config）
-export AWS_ACCESS_KEY_ID=<your-r2-access-key>      # Terraform S3 backend 凭据
-export AWS_SECRET_ACCESS_KEY=<your-r2-secret-key>  # Terraform S3 backend 凭据
-export R2_BUCKET=<your-bucket-name>                # 用于 -backend-config
-export R2_ACCOUNT_ID=<your-cloudflare-account-id>  # 用于 -backend-config
-
-# 2. 复制变量模板并填入 VPS/SSH 信息
-cp terraform.tfvars.example terraform.tfvars
-vim terraform.tfvars
-
-# 3. 初始化（和 CI 使用相同的 -backend-config 参数）
-terraform init \
+# 2. 初始化 Terraform（一键）
+cd terraform && terraform init \
   -backend-config="bucket=$R2_BUCKET" \
   -backend-config="endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"
 
-# 4. 计划和部署
-terraform plan
-# terraform apply  # 真正部署时取消注释 
+# 3. 创建 tfvars（填入 VPS/SSH 信息）
+cp terraform.tfvars.example terraform.tfvars
+# 编辑 terraform.tfvars 填入 vps_host, ssh_private_key 等
 
-# 5. 验证（apply 后）
-export KUBECONFIG=./output/truealpha-k3s-kubeconfig.yaml
-kubectl get nodes
+# 4. 部署
+terraform plan && terraform apply
 ```
 
 ## 目录结构
@@ -65,11 +60,11 @@ kubectl get nodes
 ```
 .
 ├── AGENTS.md                          # AI Agent 工作规范
+├── 0.check_now.md                     # 待办 + 验证清单
 ├── README.md                          # 快速上手（本文件）
 ├── apps/                              # PEG-scaner 子模块
 ├── docs/
 │   ├── README.md                      # 文档导航
-│   ├── 0.hi_zitian.md                 # 用户待办（5W1H）
 │   ├── BRN-004.env_eaas_design.md     # EaaS 设计理念
 │   ├── ci-workflow-todo.md            # CI/CD 工作流设计 TODO
 │   └── change_log/                    # 变更日志
@@ -84,16 +79,20 @@ kubectl get nodes
 └── .github/workflows/deploy-k3s.yml   # CI 工作流
 ```
 
-## 工作流输出
+## 验证部署
 
-成功后可获取 kubeconfig：
-- **CI**：下载 workflow artifact
-- **本地**：`terraform/output/<cluster>-kubeconfig.yaml`
+部署成功后，kubeconfig 会输出到不同位置：
+
+| 方式 | kubeconfig 位置 | 获取方法 |
+|------|-----------------|----------|
+| **CI** | GitHub Artifact | Actions → 对应 Run → Artifacts → `kubeconfig` 下载 |
+| **本地** | `terraform/output/<cluster>-kubeconfig.yaml` | apply 后自动生成 |
 
 ```bash
-export KUBECONFIG=./output/truealpha-k3s-kubeconfig.yaml
-kubectl get nodes
-# 应返回单节点 Ready 状态
+# 本地验证
+export KUBECONFIG=~/zitian/infra/terraform/output/truealpha-k3s-kubeconfig.yaml
+kubectl get nodes   # 应返回 truealpha-k3s Ready
+kubectl get pods -A # 查看所有 pods
 ```
 
 ## 设计提示
@@ -125,4 +124,4 @@ kubectl get nodes
 
 - [BRN-004: EaaS 设计理念](./docs/BRN-004.env_eaas_design.md)
 - [AGENTS.md](./AGENTS.md): AI Agent 工作规范
-- [docs/0.hi_zitian.md](./docs/0.hi_zitian.md): 用户待办清单
+- [0.check_now.md](./0.check_now.md): 待办与验证清单

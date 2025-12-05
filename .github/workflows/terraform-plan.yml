@@ -63,6 +63,7 @@ jobs:
           K3S_CHANNEL: ${{ secrets.K3S_CHANNEL }}
           K3S_VERSION: ${{ secrets.K3S_VERSION }}
           K3S_CLUSTER_NAME: ${{ secrets.K3S_CLUSTER_NAME }}
+          INFISICAL_POSTGRES_PASSWORD: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
         run: |
           cat > terraform/terraform.tfvars <<EOFVARS
           vps_host        = "${VPS_HOST}"
@@ -75,6 +76,7 @@ jobs:
           api_endpoint    = "${K3S_API_ENDPOINT:-$VPS_HOST}"
           k3s_channel     = "${K3S_CHANNEL:-stable}"
           k3s_version     = "${K3S_VERSION:-}"
+          infisical_postgres_password = "${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
           EOFVARS
 
       - name: Terraform plan
