@@ -92,7 +92,7 @@ jobs:
 
       - name: Terraform fmt
         working-directory: terraform
-        run: terraform fmt -check
+        run: terraform fmt -check -recursive -diff phases/
 
       - name: Terraform init
         working-directory: terraform
