@@ -19,8 +19,8 @@
 
 # Phase 路线（phase 内无依赖）
 - Phase 0.x：k3s + Infisical（后续密码都进 Infisical）
-- Phase 1.x：Kubernetes Dashboard、Kubero、Kubero UI、平台 PostgreSQL
-- Phase 2.x：数据服务（应用 PostgreSQL、Neo4j、Redis、ClickHouse）
+- Phase 1.x：Kubernetes Dashboard、Kubero、Kubero UI、平台 PostgreSQL（Infisical/Kubero 用）
+- Phase 2.x：数据服务（业务 PostgreSQL、Neo4j、Redis、ClickHouse）
 - Phase 3.x：可观测/产品分析（SigNoz、PostHog）
 
 # 目录（与实际一致）
