@@ -18,6 +18,9 @@ resource "helm_release" "postgresql" {
 
   values = [
     yamlencode({
+      image = {
+        tag = "16.4.0-debian-12-r23" # Explicit tag to avoid image pull errors
+      }
       auth = {
         username = "infisical"
         password = var.infisical_postgres_password
