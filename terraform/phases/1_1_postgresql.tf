@@ -20,13 +20,13 @@ resource "helm_release" "postgresql" {
     yamlencode({
       auth = {
         username = "infisical"
-        password = var.postgres_password
+        password = var.infisical_postgres_password
         database = "infisical"
       }
       primary = {
         persistence = {
           enabled      = true
-          size         = var.postgres_storage
+          size         = var.infisical_postgres_storage
           storageClass = "local-path"
         }
         resources = {

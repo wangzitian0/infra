@@ -8,7 +8,7 @@
 |------|------|
 | [BRN-004.env_eaas_design.md](./BRN-004.env_eaas_design.md) | EaaS 设计理念（infra 版），三层架构与目标 |
 | [BRN-004.staging_deployment.md](./BRN-004.staging_deployment.md) | Staging 部署完整设计（包括所有选型、命名空间、phases、Terraform 结构） |
-| [0.hi_zitian.md](./0.hi_zitian.md) | 用户待办（5W1H），需要 Zitian 补充/决策的事项 |
+| [0.check_now.md](../0.check_now.md) | 5W1H 待办 + 验证清单（最新版本） |
 | [ci-workflow-todo.md](./ci-workflow-todo.md) | CI/CD 工作流设计 TODO（评论驱动、多环境） |
 | [change_log/](./change_log/) | 变更日志目录 |
 

@@ -67,7 +67,7 @@ resource "helm_release" "infisical" {
 
       backendEnvironmentVariables = {
         # Database - using external PostgreSQL
-        DB_CONNECTION_URI = "postgresql://infisical:${var.postgres_password}@postgresql.${var.namespaces["iac"]}.svc.cluster.local:5432/infisical"
+        DB_CONNECTION_URI = "postgresql://infisical:${var.infisical_postgres_password}@postgresql.${var.namespaces["iac"]}.svc.cluster.local:5432/infisical"
 
         # Encryption keys
         ENCRYPTION_KEY           = random_id.infisical_encryption_key.hex
