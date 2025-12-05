@@ -1,32 +1,50 @@
-# Staging Deployment - All phases in ./phases/*.tf
-#
-# Phase 0.x: k3s + platform PostgreSQL (for Infisical/Kubero) + Infisical
-# Phase 1.x: Kubernetes Dashboard + Kubero + Kubero UI + application PostgreSQL
-# Phase 2.x: Data services (Neo4j, Redis, ClickHouse)
-# Phase 3.x: Observability (SigNoz, PostHog)
-#
-# Deploy order (for manual/staged deployment):
-#   terraform apply -target="null_resource.k3s_server"                    # Phase 0.x: k3s
-#   terraform apply -target="module.phases.helm_release.postgresql"       # Phase 0.x: platform PG
-#   terraform apply -target="module.phases.helm_release.infisical"        # Phase 0.x: Infisical
-#   terraform apply -target="module.phases.helm_release.kubernetes_dashboard"  # Phase 1.x: Dashboard
-#
-# For full deployment: terraform apply
+# Infra Orchestration (L1-L5)
 
-# Load all phase resources from ./phases/ directory
-module "phases" {
-  source = "./phases"
+# L1: Bootstrap
+# L1: Bootstrap
+module "nodep" {
+  source = "./1.nodep"
 
-  kubeconfig_path             = local.kubeconfig_path
-  namespaces                  = local.namespaces
-  domains                     = local.domains
-  infisical_postgres_password = var.infisical_postgres_password
-  infisical_postgres_storage  = var.infisical_postgres_storage
-  redis_password              = var.redis_password
-  redis_storage               = var.redis_storage
-  neo4j_password              = var.neo4j_password
-  neo4j_storage               = var.neo4j_storage
-  enable_observability        = var.enable_observability
+  vps_host          = var.vps_host
+  vps_user          = var.vps_user
+  ssh_port          = var.ssh_port
+  ssh_private_key   = var.ssh_private_key
+  cluster_name      = var.cluster_name
+  api_endpoint      = local.api_endpoint
+  k3s_channel       = var.k3s_channel
+  k3s_version       = var.k3s_version
+  disable_components = var.disable_components
+
+  kubeconfig_path   = local.kubeconfig_path
+}
+
+# L2: Environment & Networking (Secrets + Platform Subs)
+module "env_and_networking" {
+  source = "./2.env_and_networking"
+
   infisical_chart_version     = var.infisical_chart_version
   infisical_image_tag         = var.infisical_image_tag
+  infisical_postgres_password = var.infisical_postgres_password
+  infisical_postgres_storage  = var.infisical_postgres_storage
+  domain_prefix               = var.domain_prefix
+  base_domain                 = var.base_domain
+  namespaces                  = local.namespaces
+
+
+  kubeconfig_path = local.kubeconfig_path
+
+
+  depends_on = [module.nodep]
 }
+
+# L4: Data Services
+# module "data" {
+#   source = "./3.data"
+#   depends_on = [module.platform]
+# }
+
+# L5: Insight
+# module "insight" {
+#   source = "./4.insight"
+#   depends_on = [module.data]
+# }

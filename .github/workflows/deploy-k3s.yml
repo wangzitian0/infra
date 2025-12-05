@@ -69,6 +69,7 @@ jobs:
           VERSION_VALUE="${K3S_VERSION:-}"
           PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
 
+          # Create tfvars in terraform root
           cat > terraform/terraform.tfvars <<EOFVARS
           vps_host        = "${VPS_HOST}"
           vps_user        = "${VPS_USER_VALUE}"
@@ -92,7 +93,7 @@ jobs:
 
       - name: Terraform fmt
         working-directory: terraform
-        run: terraform fmt -check -recursive -diff phases/
+        run: terraform fmt -check -recursive
 
       - name: Terraform init
         working-directory: terraform
@@ -112,13 +113,14 @@ jobs:
         run: |
           set -euo pipefail
           SSH_PORT="${VPS_SSH_PORT:-22}"
+          # Adjusted path to terraform/output
           KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
           mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
           
           echo "Attempting to fetch kubeconfig from VPS..."
           if ssh -i ~/.ssh/id_rsa -p "${SSH_PORT}" -o StrictHostKeyChecking=no "root@${VPS_HOST}" "sudo cat /etc/rancher/k3s/k3s.yaml" > "${KUBECONFIG_PATH}"; then
             echo "Kubeconfig fetched successfully."
-            # 替换 localhost 为实际 API endpoint
+            # Replace localhost with VPS Host
             sed -i "s/127.0.0.1/${VPS_HOST}/g" "${KUBECONFIG_PATH}"
             chmod 600 "${KUBECONFIG_PATH}"
             echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
@@ -131,14 +133,15 @@ jobs:
         working-directory: terraform
         run: terraform plan -input=false
 
-      # Stage 1: Deploy k3s and fetch kubeconfig first (without saved plan)
-      - name: Apply Phase 0.0 (k3s + kubeconfig)
+      # Stage 1: Bootstrap L1 (Node/K3s) + Kubeconfig
+      - name: Apply L1 (Bootstrap)
         working-directory: terraform
         run: |
-          terraform apply -auto-approve -target="null_resource.k3s_server" -target="null_resource.kubeconfig"
+          # Apply only the bootstrap module to generate infrastructure
+          terraform apply -auto-approve -target="module.nodep"
 
-      # Stage 2: Apply remaining resources (Helm releases now have kubeconfig)
-      - name: Apply Helm releases
+      # Stage 2: Apply remaining layers (L2+) which need Kubeconfig
+      - name: Apply L2+ (Platform)
         working-directory: terraform
         run: terraform apply -auto-approve
 
