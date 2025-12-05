@@ -45,65 +45,40 @@ resource "helm_release" "infisical" {
 
   values = [
     yamlencode({
-      backend = {
-        replicaCount = 1
+      # Configuration for Infisical Standalone Chart
+      infisical = {
         image = {
-          tag = var.infisical_image_tag
-        }
-        service = {
-          type = "ClusterIP"
-        }
-        resources = {
-          requests = {
-            cpu    = "100m"
-            memory = "256Mi"
-          }
-          limits = {
-            cpu    = "500m"
-            memory = "512Mi"
-          }
+          repository = "infisical/infisical"
+          tag        = var.infisical_image_tag
         }
       }
+      
+      # Root level image config (fallback/alternative pattern)
+      image = {
+        repository = "infisical/infisical"
+        tag        = var.infisical_image_tag
+      }
 
-      # Disable embedded PostgreSQL (using external)
+      # Controller/Replica config (common standalone pattern)
+      controller = {
+        replicas = 1
+      }
+
+      # Explicitly point to existing secret (if supported by chart schema variations)
+      kubeSecretRef = "infisical-secrets"
+
+      # Disable embedded PostgreSQL
       postgresql = {
         enabled = false
       }
 
-      # Embedded Redis for caching
+      # Embedded Redis
       redis = {
         enabled = true
+        architecture = "standalone"
         auth = {
           enabled = false
         }
-        architecture = "standalone"
-        persistence = {
-          enabled      = true
-          size         = "10Gi"
-          storageClass = "local-path"
-        }
-        resources = {
-          requests = {
-            cpu    = "50m"
-            memory = "128Mi"
-          }
-          limits = {
-            cpu    = "250m"
-            memory = "256Mi"
-          }
-        }
-      }
-
-      # Mailhog for dev email testing
-      mailhog = {
-        enabled = true
-        ingress = {
-          enabled = false
-        }
-      }
-
-      ingress = {
-        enabled = false
       }
     })
   ]
