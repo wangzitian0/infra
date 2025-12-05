@@ -30,14 +30,14 @@ provider "aws" {
   # AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY for R2 backend
 }
 
-# Helm provider depends on kubeconfig from k3s provisioning
+# Helm provider - only configure if kubeconfig exists (after k3s deployment)
 provider "helm" {
   kubernetes {
-    config_path = local.kubeconfig_path
+    config_path = fileexists(local.kubeconfig_path) ? local.kubeconfig_path : null
   }
 }
 
-# Kubernetes provider for namespace creation
+# Kubernetes provider - only configure if kubeconfig exists (after k3s deployment)
 provider "kubernetes" {
-  config_path = local.kubeconfig_path
+  config_path = fileexists(local.kubeconfig_path) ? local.kubeconfig_path : null
 }
