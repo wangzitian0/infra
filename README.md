@@ -65,11 +65,11 @@ kubectl get nodes
 ```
 .
 ├── AGENTS.md                          # AI Agent 工作规范
+├── 0.check_now.md                     # 待办 + 验证清单
 ├── README.md                          # 快速上手（本文件）
 ├── apps/                              # PEG-scaner 子模块
 ├── docs/
 │   ├── README.md                      # 文档导航
-│   ├── 0.hi_zitian.md                 # 用户待办（5W1H）
 │   ├── BRN-004.env_eaas_design.md     # EaaS 设计理念
 │   ├── ci-workflow-todo.md            # CI/CD 工作流设计 TODO
 │   └── change_log/                    # 变更日志
@@ -125,4 +125,4 @@ kubectl get nodes
 
 - [BRN-004: EaaS 设计理念](./docs/BRN-004.env_eaas_design.md)
 - [AGENTS.md](./AGENTS.md): AI Agent 工作规范
-- [docs/0.hi_zitian.md](./docs/0.hi_zitian.md): 用户待办清单
+- [0.check_now.md](./0.check_now.md): 待办与验证清单

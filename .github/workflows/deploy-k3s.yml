@@ -57,6 +57,7 @@ jobs:
           K3S_CHANNEL: ${{ secrets.K3S_CHANNEL }}
           K3S_VERSION: ${{ secrets.K3S_VERSION }}
           K3S_CLUSTER_NAME: ${{ secrets.K3S_CLUSTER_NAME }}
+          INFISICAL_POSTGRES_PASSWORD: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
         run: |
           set -euo pipefail
 
@@ -66,6 +67,7 @@ jobs:
           API_ENDPOINT_VALUE="${K3S_API_ENDPOINT:-$VPS_HOST}"
           CHANNEL_VALUE="${K3S_CHANNEL:-stable}"
           VERSION_VALUE="${K3S_VERSION:-}"
+          PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
 
           cat > terraform/terraform.tfvars <<EOFVARS
           vps_host        = "${VPS_HOST}"
@@ -78,6 +80,7 @@ jobs:
           api_endpoint    = "${API_ENDPOINT_VALUE}"
           k3s_channel     = "${CHANNEL_VALUE}"
           k3s_version     = "${VERSION_VALUE}"
+          infisical_postgres_password = "${PG_PASSWORD}"
           EOFVARS
 
           mkdir -p ~/.ssh
