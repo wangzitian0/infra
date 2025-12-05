@@ -52,7 +52,7 @@ resource "helm_release" "infisical" {
           tag        = var.infisical_image_tag
         }
       }
-      
+
       # Root level image config (fallback/alternative pattern)
       image = {
         repository = "infisical/infisical"
@@ -74,7 +74,7 @@ resource "helm_release" "infisical" {
 
       # Embedded Redis
       redis = {
-        enabled = true
+        enabled      = true
         architecture = "standalone"
         auth = {
           enabled = false
