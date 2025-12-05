@@ -5,17 +5,17 @@
 module "nodep" {
   source = "./1.nodep"
 
-  vps_host          = var.vps_host
-  vps_user          = var.vps_user
-  ssh_port          = var.ssh_port
-  ssh_private_key   = var.ssh_private_key
-  cluster_name      = var.cluster_name
-  api_endpoint      = local.api_endpoint
-  k3s_channel       = var.k3s_channel
-  k3s_version       = var.k3s_version
+  vps_host           = var.vps_host
+  vps_user           = var.vps_user
+  ssh_port           = var.ssh_port
+  ssh_private_key    = var.ssh_private_key
+  cluster_name       = var.cluster_name
+  api_endpoint       = local.api_endpoint
+  k3s_channel        = var.k3s_channel
+  k3s_version        = var.k3s_version
   disable_components = var.disable_components
 
-  kubeconfig_path   = local.kubeconfig_path
+  kubeconfig_path = local.kubeconfig_path
 }
 
 # L2: Environment & Networking (Secrets + Platform Subs)
