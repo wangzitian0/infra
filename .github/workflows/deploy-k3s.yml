@@ -104,17 +104,7 @@ jobs:
             -backend-config="bucket=${R2_BUCKET}" \
             -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
 
-      - name: Terraform plan
-        working-directory: terraform
-        run: terraform plan -input=false
-
-      # Stage 1: Deploy k3s and fetch kubeconfig first (without saved plan)
-      - name: Apply Phase 0.0 (k3s + kubeconfig)
-        working-directory: terraform
-        run: |
-          terraform apply -auto-approve -target="null_resource.k3s_server" -target="null_resource.kubeconfig"
-
-      # Fetch kubeconfig explicity (Terraform provisioner might skip it if state exists)
+      # Fetch kubeconfig explicity (before Plan, so state refresh works)
       - name: Fetch kubeconfig
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
@@ -125,14 +115,27 @@ jobs:
           KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
           mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
           
-          # 直接从 VPS 拉取 kubeconfig
-          ssh -i ~/.ssh/id_rsa -p "${SSH_PORT}" -o StrictHostKeyChecking=no "root@${VPS_HOST}" \
-            "sudo cat /etc/rancher/k3s/k3s.yaml" > "${KUBECONFIG_PATH}"
-          
-          # 替换 localhost 为实际 API endpoint
-          sed -i "s/127.0.0.1/${VPS_HOST}/g" "${KUBECONFIG_PATH}"
-          chmod 600 "${KUBECONFIG_PATH}"
-          echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
+          echo "Attempting to fetch kubeconfig from VPS..."
+          if ssh -i ~/.ssh/id_rsa -p "${SSH_PORT}" -o StrictHostKeyChecking=no "root@${VPS_HOST}" "sudo cat /etc/rancher/k3s/k3s.yaml" > "${KUBECONFIG_PATH}"; then
+            echo "Kubeconfig fetched successfully."
+            # 替换 localhost 为实际 API endpoint
+            sed -i "s/127.0.0.1/${VPS_HOST}/g" "${KUBECONFIG_PATH}"
+            chmod 600 "${KUBECONFIG_PATH}"
+            echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
+          else
+            echo "Warning: Failed to fetch kubeconfig. This is expected if the cluster is not yet deployed."
+            rm -f "${KUBECONFIG_PATH}"
+          fi
+
+      - name: Terraform plan
+        working-directory: terraform
+        run: terraform plan -input=false
+
+      # Stage 1: Deploy k3s and fetch kubeconfig first (without saved plan)
+      - name: Apply Phase 0.0 (k3s + kubeconfig)
+        working-directory: terraform
+        run: |
+          terraform apply -auto-approve -target="null_resource.k3s_server" -target="null_resource.kubeconfig"
 
       # Stage 2: Apply remaining resources (Helm releases now have kubeconfig)
       - name: Apply Helm releases
