@@ -107,7 +107,7 @@ kubectl get nodes
 **BRN-004：Staging 完整部署（进行中）**
 
 - [x] Phase 0.0: k3s 引导
-- [x] Phase 0.1: Infisical (Secrets Management)
+- [x] Phase 0.1: Infisical (Secrets Management, 依赖 PostgreSQL)
 - [x] Phase 0.2: Kubernetes Dashboard
 - [ ] Phase 1.1: PostgreSQL (Application database)
 - [ ] Phase 2.x: Redis + Neo4j (密码管理通过 Infisical)

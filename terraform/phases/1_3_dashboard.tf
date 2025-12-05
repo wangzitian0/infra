@@ -41,7 +41,7 @@ resource "helm_release" "kubernetes_dashboard" {
       kong = {
         proxy = {
           http = {
-            enabled    = true
+            enabled     = true
             servicePort = 8443
           }
         }
