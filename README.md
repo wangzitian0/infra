@@ -103,15 +103,12 @@ kubectl get pods -A # 查看所有 pods
 
 ## 后续演进
 
-**BRN-004：Staging 完整部署（进行中）**
+**BRN-004：Staging 完整部署（phase 内无依赖）**
 
-- [x] Phase 0.0: k3s 引导
-- [x] Phase 0.1: Infisical (Secrets Management, 依赖 PostgreSQL)
-- [x] Phase 0.2: Kubernetes Dashboard
-- [ ] Phase 1.1: PostgreSQL (Application database)
-- [ ] Phase 2.x: Redis + Neo4j (密码管理通过 Infisical)
-- [ ] Phase 3.x: Kubero + Kubero UI
-- [ ] Phase 4.x: SigNoz + PostHog (Observability)
+- Phase 0.x：k3s + Infisical（后续所有密码都存 Infisical）
+- Phase 1.x：Kubernetes Dashboard、Kubero、Kubero UI、平台 PostgreSQL
+- Phase 2.x：数据服务（应用 PostgreSQL、Neo4j、Redis、ClickHouse）
+- Phase 3.x：可观测/产品分析（SigNoz、PostHog）
 
 **BRN-007：多环境自动化（后期）**
 

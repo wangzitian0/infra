@@ -19,7 +19,7 @@ resource "helm_release" "postgresql" {
   values = [
     yamlencode({
       image = {
-        tag = "16.4.0-debian-12-r23" # Explicit tag to avoid image pull errors
+        tag = "16-debian-12" # Stable rolling tag for PG 16
       }
       auth = {
         username = "infisical"
