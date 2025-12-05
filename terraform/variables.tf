@@ -116,13 +116,13 @@ variable "neo4j_storage" {
 variable "infisical_chart_version" {
   description = "Helm chart version for Infisical"
   type        = string
-  default     = "0.4.2"
+  default     = "1.7.2"
 }
 
 variable "infisical_image_tag" {
   description = "Docker image tag for Infisical backend"
   type        = string
-  default     = "1.17.0"
+  default     = "v0.154.0"
 }
 
 variable "infisical_api_token" {
