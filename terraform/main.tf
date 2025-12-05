@@ -9,19 +9,27 @@
 # Phase 4.x: Observability (SigNoz, PostHog)
 #
 # Deploy order (for manual/staged deployment):
-#   terraform apply -target="null_resource.k3s_server" -var-file="staging.tfvars"               # Phase 0.0: k3s
-#   terraform apply -target="helm_release.postgresql" -var-file="staging.tfvars"                # Phase 1.1: PostgreSQL (Infisical DB)
-#   terraform apply -target="helm_release.infisical" -var-file="staging.tfvars"                 # Phase 0.1: Infisical
-#   terraform apply -target="helm_release.kubernetes_dashboard" -var-file="staging.tfvars"      # Phase 0.2: Dashboard
+#   terraform apply -target="null_resource.k3s_server"                    # Phase 0.0: k3s
+#   terraform apply -target="module.phases.helm_release.postgresql"       # Phase 1.1: PostgreSQL
+#   terraform apply -target="module.phases.helm_release.infisical"        # Phase 0.1: Infisical
+#   terraform apply -target="module.phases.helm_release.kubernetes_dashboard"  # Phase 0.2: Dashboard
 #
-# Upcoming phases (will use Infisical for secret management):
-#   terraform apply -target="helm_release.redis" -var-file="staging.tfvars"                     # Phase 2.1 (Redis)
-#   terraform apply -target="helm_release.neo4j" -var-file="staging.tfvars"                     # Phase 2.2 (Neo4j)
-#   terraform apply -target="helm_release.kubero" -var-file="staging.tfvars"                    # Phase 3.1 (Kubero)
-#   terraform apply -target="helm_release.kubero_ui" -var-file="staging.tfvars"                 # Phase 3.2 (Kubero UI)
-#   terraform apply -target="helm_release.signoz" -var-file="staging.tfvars"                    # Phase 4.1 (SigNoz)
-#   terraform apply -target="helm_release.posthog" -var-file="staging.tfvars"                   # Phase 4.2 (PostHog)
-#
-# For full deployment: terraform apply -var-file="staging.tfvars"
-#
-# All phase resources are defined in ./phases/
+# For full deployment: terraform apply
+
+# Load all phase resources from ./phases/ directory
+module "phases" {
+  source = "./phases"
+
+  kubeconfig_path             = local.kubeconfig_path
+  namespaces                  = local.namespaces
+  domains                     = local.domains
+  infisical_postgres_password = var.infisical_postgres_password
+  infisical_postgres_storage  = var.infisical_postgres_storage
+  redis_password              = var.redis_password
+  redis_storage               = var.redis_storage
+  neo4j_password              = var.neo4j_password
+  neo4j_storage               = var.neo4j_storage
+  enable_observability        = var.enable_observability
+  infisical_chart_version     = var.infisical_chart_version
+  infisical_image_tag         = var.infisical_image_tag
+}
