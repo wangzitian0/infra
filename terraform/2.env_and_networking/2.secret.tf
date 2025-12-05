@@ -121,10 +121,8 @@ resource "kubernetes_secret" "infisical_secrets" {
     SMTP_FROM_ADDRESS = "noreply@infisical.local"
     SMTP_USERNAME     = "noreply@infisical.local"
     SMTP_PASSWORD     = ""
+  } # End of data block
 
-    # Redis (embedded)
-    REDIS_URL = "redis://:@infisical-redis-master:6379"
-  }
 
 }
 

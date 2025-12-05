@@ -1,0 +1,9 @@
+variable "vps_host" {}
+variable "vps_user" {}
+variable "ssh_port" {}
+variable "ssh_private_key" {}
+variable "cluster_name" {}
+variable "api_endpoint" {}
+variable "k3s_channel" {}
+variable "k3s_version" {}
+variable "disable_components" {}
