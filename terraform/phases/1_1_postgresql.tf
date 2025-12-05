@@ -14,13 +14,10 @@ resource "helm_release" "postgresql" {
 
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "postgresql"
-  version    = "13.1.0"
+  version    = "15.5.0"
 
   values = [
     yamlencode({
-      image = {
-        tag = "16-debian-12" # Stable rolling tag for PG 16
-      }
       auth = {
         username = "infisical"
         password = var.infisical_postgres_password
