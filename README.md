@@ -59,24 +59,21 @@ terraform plan && terraform apply
 
 ```
 .
-├── AGENTS.md                          # AI Agent 工作规范
-├── 0.check_now.md                     # 待办 + 验证清单
-├── README.md                          # 快速上手（本文件）
-├── apps/                              # PEG-scaner 子模块
-├── docs/
-│   ├── README.md                      # 文档导航
-│   ├── BRN-004.env_eaas_design.md     # EaaS 设计理念
-│   ├── ci-workflow-todo.md            # CI/CD 工作流设计 TODO
-│   └── change_log/                    # 变更日志
-├── terraform/
-│   ├── main.tf                        # 核心资源
-│   ├── variables.tf                   # 变量定义
-│   ├── outputs.tf                     # 输出定义
-│   ├── backend.tf                     # R2 后端（bucket/endpoint 通过 -backend-config 传入）
-│   ├── scripts/install-k3s.sh.tmpl    # k3s 安装脚本
-│   ├── output/                        # kubeconfig 输出（gitignored）
-│   └── terraform.tfvars.example       # 本地变量模板
-└── .github/workflows/deploy-k3s.yml   # CI 工作流
+├── AGENTS.md                          # [SSOT] AI Agent 行为准则
+├── 0.check_now.md -> docs/change_log  # [SSOT] 当前待办 (Symlink)
+├── README.md                          # [SSOT] 项目入口
+├── apps/                              # [SSOT] 业务代码 (Submodule)
+├── project/                           # [SSOT] 实施状态与进度
+│   ├── README.md
+│   └── BRN-004.md                     # Staging 部署实施
+├── docs/                              # [SSOT] 架构设计与文档
+│   ├── README.md
+│   ├── dir.md                         # 目录结构详解
+│   └── ...
+├── terraform/                         # [SSOT] 基础设施状态 (IaC)
+│   ├── README.md
+│   └── ...
+└── .github/                           # [SSOT] 自动化工作流
 ```
 
 ## 验证部署
