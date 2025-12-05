@@ -7,3 +7,4 @@ variable "api_endpoint" {}
 variable "k3s_channel" {}
 variable "k3s_version" {}
 variable "disable_components" {}
+variable "kubeconfig_path" {}

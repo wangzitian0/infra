@@ -69,8 +69,8 @@ jobs:
           VERSION_VALUE="${K3S_VERSION:-}"
           PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
 
-          # Create tfvars in 0.common (Entry Point)
-          cat > terraform/0.common/terraform.tfvars <<EOFVARS
+          # Create tfvars in terraform root
+          cat > terraform/terraform.tfvars <<EOFVARS
           vps_host        = "${VPS_HOST}"
           vps_user        = "${VPS_USER_VALUE}"
           ssh_port        = ${SSH_PORT_VALUE}
@@ -92,11 +92,11 @@ jobs:
           echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
 
       - name: Terraform fmt
-        working-directory: terraform/0.common
-        run: terraform fmt -check -recursive ../
+        working-directory: terraform
+        run: terraform fmt -check -recursive
 
       - name: Terraform init
-        working-directory: terraform/0.common
+        working-directory: terraform
         env:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -113,8 +113,8 @@ jobs:
         run: |
           set -euo pipefail
           SSH_PORT="${VPS_SSH_PORT:-22}"
-          # Adjusted path to 0.common/output
-          KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/0.common/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
+          # Adjusted path to terraform/output
+          KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
           mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
           
           echo "Attempting to fetch kubeconfig from VPS..."
@@ -130,19 +130,19 @@ jobs:
           fi
 
       - name: Terraform plan
-        working-directory: terraform/0.common
+        working-directory: terraform
         run: terraform plan -input=false
 
       # Stage 1: Bootstrap L1 (Node/K3s) + Kubeconfig
       - name: Apply L1 (Bootstrap)
-        working-directory: terraform/0.common
+        working-directory: terraform
         run: |
           # Apply only the bootstrap module to generate infrastructure
           terraform apply -auto-approve -target="module.nodep"
 
       # Stage 2: Apply remaining layers (L2+) which need Kubeconfig
       - name: Apply L2+ (Platform)
-        working-directory: terraform/0.common
+        working-directory: terraform
         run: terraform apply -auto-approve
 
       - name: Setup kubectl

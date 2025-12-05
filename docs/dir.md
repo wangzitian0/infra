@@ -18,15 +18,14 @@ infra/
 │   ├── dir.md               # (!) This map
 │   └── project/             # Project Management (Status, Plans)
 ├── terraform/               # [!] Infrastructure Code (The Truth)
-│   ├── 0.common/            # [!] Orchestration Entry Point
-│   │   ├── envs/            # Environment Specific Configs
-│   │   │   ├── staging.tfvars
-│   │   │   └── *.tfvars     # [*] Secrets (local only)
-│   │   ├── output/          # [*] Generated files (kubeconfig)
-│   │   ├── main.tf          # (!) Layer Orchestration
-│   │   ├── variables.tf     # (!) Global Schema
-│   │   ├── terraform.tfstate# [*] Local state (use R2 backend!)
-│   │   └── providers.tf     # Provider Config
+│   ├── envs/                # Environment Specific Configs
+│   │   ├── staging.tfvars
+│   │   └── *.tfvars         # [*] Secrets (local only)
+│   ├── output/              # [*] Generated files (kubeconfig)
+│   ├── main.tf              # (!) Layer Orchestration
+│   ├── variables.tf         # (!) Global Schema
+│   ├── terraform.tfstate    # [*] Local state (use R2 backend!)
+│   ├── providers.tf         # Provider Config
 │   ├── 1.nodep/             # L1: Bootstrap
 │   │   ├── 1.k3s.tf         # k3s Provisioning
 │   │   └── scripts/         # Install Scripts

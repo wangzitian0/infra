@@ -1,8 +1,9 @@
 # Infra Orchestration (L1-L5)
 
 # L1: Bootstrap
+# L1: Bootstrap
 module "nodep" {
-  source = "../1.nodep"
+  source = "./1.nodep"
 
   vps_host          = var.vps_host
   vps_user          = var.vps_user
@@ -13,11 +14,13 @@ module "nodep" {
   k3s_channel       = var.k3s_channel
   k3s_version       = var.k3s_version
   disable_components = var.disable_components
+
+  kubeconfig_path   = local.kubeconfig_path
 }
 
 # L2: Environment & Networking (Secrets + Platform Subs)
 module "env_and_networking" {
-  source = "../2.env_and_networking"
+  source = "./2.env_and_networking"
 
   infisical_chart_version     = var.infisical_chart_version
   infisical_image_tag         = var.infisical_image_tag

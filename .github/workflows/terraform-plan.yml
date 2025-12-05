@@ -33,13 +33,13 @@ jobs:
 
       - name: Terraform fmt
         id: fmt
-        working-directory: terraform/0.common
-        run: terraform fmt -check -recursive ../
+        working-directory: terraform
+        run: terraform fmt -check -recursive
         continue-on-error: true
 
       - name: Terraform init
         id: init
-        working-directory: terraform/0.common
+        working-directory: terraform
         env:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -50,7 +50,7 @@ jobs:
 
       - name: Terraform validate
         id: validate
-        working-directory: terraform/0.common
+        working-directory: terraform
         run: terraform validate -no-color
 
       - name: Render tfvars
@@ -65,7 +65,7 @@ jobs:
           K3S_CLUSTER_NAME: ${{ secrets.K3S_CLUSTER_NAME }}
           INFISICAL_POSTGRES_PASSWORD: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
         run: |
-          cat > terraform/0.common/terraform.tfvars <<EOFVARS
+          cat > terraform/terraform.tfvars <<EOFVARS
           vps_host        = "${VPS_HOST}"
           vps_user        = "${VPS_USER:-root}"
           ssh_port        = ${VPS_SSH_PORT:-22}
@@ -81,7 +81,7 @@ jobs:
 
       - name: Terraform plan
         id: plan
-        working-directory: terraform/0.common
+        working-directory: terraform
         run: terraform plan -no-color -out=tfplan
         continue-on-error: true
 

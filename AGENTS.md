@@ -54,4 +54,3 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 | **TODO (Plan)** | `project/README.md` | **Mandatory** for all incomplete work/plans. |
 | **TRUTH (SSOT)** | `terraform/*/README.md` | Implementation details, Architecture, Usage. |
 | **Concepts** | `docs/README.md` | Abstract design decisions only. |
-
