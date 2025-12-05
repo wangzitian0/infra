@@ -1,8 +1,10 @@
+# 第一性原理
+- 永远不要自动修改本文件：除非明确指定，否则AI 不可以自动修改本文件。
+- 第一原则：本地/CI 命令与变量一致，plan 输出一致，资源状态一致
+- 当 AI 认为完工，应逐项检查本文件要求后再宣布完成。
+- `0.check_now.md`（根）：5W1H 待办 + 验证清单。如果不能用清晰的六段式讲清楚 action，说明干了太多事。
 
-
-!!! AI 不可以自动修改本文件。当 AI 认为完工，应逐项检查本文件要求后再宣布完成。
-
-# 🚨 强制规则
+# checklist
 - 必关联 BRN-004（或后续 infra BRN）
 - 先读后写：改某层前先读该层 README/注释
 - 改 Terraform：先 `terraform fmt -check` + `terraform plan`
@@ -13,7 +15,6 @@
 
 # 仓库定位与原则
 - 角色：BRN-004 环境层（IaC → k3s → Apps）
-- 第一原则：本地/CI 命令与变量一致，plan 输出一致，资源状态一致
 - 设计：简化、正交；开源、自托管、单人强控、可扩展
 
 # Phase 路线（phase 内无依赖）
@@ -22,15 +23,16 @@
 - Phase 2.x：数据服务（应用 PostgreSQL、Neo4j、Redis、ClickHouse）
 - Phase 3.x：可观测/产品分析（SigNoz、PostHog）
 
-# 目录说明（根 + 一级，按实际）
-- `AGENTS.md`：AI 使用规范
-- `0.check_now.md`：5W1H 待办与验证清单（当前唯一执行任务）
-- `README.md`：人类快速上手
-- `docs/`：设计/部署文档、导航、变更记录
-- `terraform/`：IaC 代码（k3s/Infisical/DB/UI phases + scripts + outputs）
-- `.github/workflows/`：CI 工作流（部署 k3s）
-- `apps/`：业务子模块，只读引用
-- `node_modules/`：依赖目录（无需关注内容）
+# 目录（与实际一致）
+```
+AGENTS.md
+0.check_now.md               # 待办 + 验证
+README.md
+docs/                        # 文档导航、设计、change_log
+terraform/                   # IaC（phases/*）
+.github/workflows/deploy-k3s.yml
+apps/                        # 业务子模块（只读）
+```
 
 # Terraform 变更流程
 1. 修改 .tf
@@ -49,7 +51,6 @@
 - `*.pem` / `*.key`
 
 # 文档职责
-- `0.check_now.md`（根）：5W1H 待办 + 验证清单
 - `docs/change_log/*.md`：每次改动后更新
 - `README.md`：快速上手
 - `docs/README.md`：文档导航
