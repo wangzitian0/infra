@@ -26,89 +26,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform Environment
+        uses: ./.github/actions/terraform-setup
         with:
           terraform_version: 1.6.6
-
-      - name: Terraform fmt
-        id: fmt
-        working-directory: terraform
-        run: terraform fmt -check -recursive
-        continue-on-error: true
-
-      - name: Terraform init
-        id: init
-        working-directory: terraform
-        env:
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-        run: |
-          terraform init -input=false \
-            -backend-config="bucket=${R2_BUCKET}" \
-            -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
-
-      - name: Terraform validate
-        id: validate
-        working-directory: terraform
-        run: terraform validate -no-color
-
-      - name: Render tfvars
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_USER: ${{ secrets.VPS_USER }}
-          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          K3S_API_ENDPOINT: ${{ secrets.K3S_API_ENDPOINT }}
-          K3S_CHANNEL: ${{ secrets.K3S_CHANNEL }}
-          K3S_VERSION: ${{ secrets.K3S_VERSION }}
-          K3S_CLUSTER_NAME: ${{ secrets.K3S_CLUSTER_NAME }}
-          INFISICAL_POSTGRES_PASSWORD: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
-        run: |
-          cat > terraform/terraform.tfvars <<EOFVARS
-          vps_host        = "${VPS_HOST}"
-          vps_user        = "${VPS_USER:-root}"
-          ssh_port        = ${VPS_SSH_PORT:-22}
-          ssh_private_key = <<-EOF
-          ${VPS_SSH_KEY}
-          EOF
-          cluster_name    = "${K3S_CLUSTER_NAME:-truealpha-k3s}"
-          api_endpoint    = "${K3S_API_ENDPOINT:-$VPS_HOST}"
-          k3s_channel     = "${K3S_CHANNEL:-stable}"
-          k3s_version     = "${K3S_VERSION:-}"
-          infisical_postgres_password = "${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
-          EOFVARS
-
-          # Setup SSH for fetching kubeconfig
-          mkdir -p ~/.ssh
-          echo "${VPS_SSH_KEY}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p "${VPS_SSH_PORT:-22}" "${VPS_HOST}" >> ~/.ssh/known_hosts
-
-          echo "CLUSTER_NAME_VALUE=${K3S_CLUSTER_NAME:-truealpha-k3s}" >> "${GITHUB_ENV}"
-
-      # Fetch kubeconfig explicity (before Plan, so state refresh works)
-      - name: Fetch kubeconfig
-        env:
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
-        run: |
-          set -euo pipefail
-          SSH_PORT="${VPS_SSH_PORT:-22}"
-          KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
-          mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
-          
-          echo "Attempting to fetch kubeconfig from VPS..."
-          if ssh -i ~/.ssh/id_rsa -p "${SSH_PORT}" -o StrictHostKeyChecking=no "root@${VPS_HOST}" "sudo cat /etc/rancher/k3s/k3s.yaml" > "${KUBECONFIG_PATH}"; then
-            echo "Kubeconfig fetched successfully."
-            # Replace localhost with VPS Host
-            sed -i "s/127.0.0.1/${VPS_HOST}/g" "${KUBECONFIG_PATH}"
-            chmod 600 "${KUBECONFIG_PATH}"
-            echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
-          else
-            echo "Warning: Failed to fetch kubeconfig. This is expected if the cluster is not yet deployed."
-            rm -f "${KUBECONFIG_PATH}"
-          fi
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          r2_bucket: ${{ secrets.R2_BUCKET }}
+          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          vps_host: ${{ secrets.VPS_HOST }}
+          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+          vps_user: ${{ secrets.VPS_USER }}
+          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
+          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
+          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
+          k3s_channel: ${{ secrets.K3S_CHANNEL }}
+          k3s_version: ${{ secrets.K3S_VERSION }}
+          infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
 
       - name: Terraform plan
         id: plan
