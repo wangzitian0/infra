@@ -39,7 +39,7 @@ resource "helm_release" "infisical" {
   name             = "infisical"
   namespace        = var.namespaces["iac"]
   repository       = "https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/"
-  chart            = "infisical"
+  chart            = "infisical-standalone"
   version          = var.infisical_chart_version
   create_namespace = false
 
