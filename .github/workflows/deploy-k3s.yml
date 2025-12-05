@@ -114,12 +114,8 @@ jobs:
         run: |
           terraform apply -auto-approve -target="null_resource.k3s_server" -target="null_resource.kubeconfig"
 
-      # Stage 2: Apply remaining resources (Helm releases now have kubeconfig)
-      - name: Apply Helm releases
-        working-directory: terraform
-        run: terraform apply -auto-approve
-
-      - name: Prepare kubeconfig
+      # Fetch kubeconfig explicity (Terraform provisioner might skip it if state exists)
+      - name: Fetch kubeconfig
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
@@ -137,6 +133,11 @@ jobs:
           sed -i "s/127.0.0.1/${VPS_HOST}/g" "${KUBECONFIG_PATH}"
           chmod 600 "${KUBECONFIG_PATH}"
           echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
+
+      # Stage 2: Apply remaining resources (Helm releases now have kubeconfig)
+      - name: Apply Helm releases
+        working-directory: terraform
+        run: terraform apply -auto-approve
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
