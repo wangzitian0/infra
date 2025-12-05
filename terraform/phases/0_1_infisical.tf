@@ -55,12 +55,12 @@ resource "helm_release" "infisical" {
         }
         resources = {
           requests = {
-            cpu    = "100m"
-            memory = "256Mi"
+            cpu    = "50m"
+            memory = "128Mi"
           }
           limits = {
-            cpu    = "500m"
-            memory = "512Mi"
+            cpu    = "200m"
+            memory = "256Mi"
           }
         }
       }
@@ -109,27 +109,24 @@ resource "helm_release" "infisical" {
         architecture = "standalone"
         persistence = {
           enabled      = true
-          size         = "10Gi"
+          size         = "1Gi"
           storageClass = "local-path"
         }
         resources = {
           requests = {
-            cpu    = "50m"
-            memory = "128Mi"
+            cpu    = "25m"
+            memory = "64Mi"
           }
           limits = {
-            cpu    = "250m"
-            memory = "256Mi"
+            cpu    = "100m"
+            memory = "128Mi"
           }
         }
       }
 
-      # Mailhog for dev email testing
+      # Mailhog disabled to save resources (enable later if needed)
       mailhog = {
-        enabled = true
-        ingress = {
-          enabled = false
-        }
+        enabled = false
       }
 
       ingress = {
