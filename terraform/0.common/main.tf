@@ -31,7 +31,7 @@ module "env_and_networking" {
   kubeconfig_path = local.kubeconfig_path
 
 
-  depends_on = [module.security]
+  depends_on = [module.nodep]
 }
 
 # L4: Data Services
