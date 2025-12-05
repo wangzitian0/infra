@@ -18,6 +18,9 @@ resource "helm_release" "postgresql" {
 
   values = [
     yamlencode({
+      image = {
+        tag = "latest"
+      }
       auth = {
         username = "infisical"
         password = var.infisical_postgres_password
