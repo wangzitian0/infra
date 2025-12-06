@@ -24,3 +24,7 @@ Root configuration and orchestration module.
 Atlantis supports two auth modes (configured in `variables.tf`):
 - **GitHub App** (preferred): `github_app_id` + `github_app_key`
 - **PAT** (fallback): `github_token`
+
+## Atlantis Runtime Requirements
+- L1 deploy injects TF_VAR_* into the Atlantis pod so Terraform sees VPS/R2/Cloudflare secrets (no backend downgrade).
+- Required env/vars: `VPS_HOST`, `VPS_SSH_KEY`, `R2_BUCKET`, `R2_ACCOUNT_ID`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID` (and TF_VAR_ equivalents).
