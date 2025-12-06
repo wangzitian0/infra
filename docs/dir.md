@@ -1,6 +1,6 @@
 # Directory Structure (SSOT)
 
-This document serves as the navigation map for the `infra` repository. Concepts should point to their SSOT: architecture and decisions in `docs/`, state and history in `docs/project/` + `docs/change_log/`, infrastructure truth in `terraform/`, tooling in `tools/`, and current focus in `0.check_now.md`.
+This map lists every Markdown file in the infra repo with a one-line purpose so each concept can jump to its SSOT (architecture/decisions in `docs/`, state in `docs/project` + `docs/change_log`, infra truth in `terraform/`, tooling in `tools/`, current focus in `0.check_now.md`).
 
 ## Legend
 - `[+]` : Directory
@@ -12,32 +12,32 @@ This document serves as the navigation map for the `infra` repository. Concepts 
 
 ```text
 root/
-├── 0.check_now.md
-├── AGENTS.md
-├── README.md
+├── 0.check_now.md - Current sprint context & checklist
+├── AGENTS.md - Agent guardrails
+├── README.md - Repo entry overview
 ├── docs/
-│   ├── README.md
-│   ├── dir.md
-│   ├── BRN-004.env_eaas_design.md
+│   ├── README.md - Architecture/doc center
+│   ├── dir.md - Repo map (this file)
+│   ├── BRN-004.env_eaas_design.md - Env & EaaS architecture spec
 │   ├── project/
-│   │   ├── README.md
-│   │   └── BRN-004.md
+│   │   ├── README.md - BRN status/index
+│   │   └── BRN-004.md - BRN-004 full architecture/selection
 │   ├── change_log/
-│   │   ├── 2025-12-04.k3s_bootstrap_reset.md
-│   │   ├── 2025-12-05.staging_deployment_design.md
-│   │   └── 2025-12-06.checklist_merge.md
+│   │   ├── 2025-12-04.k3s_bootstrap_reset.md - History: k3s reset
+│   │   ├── 2025-12-05.staging_deployment_design.md - History: staging design
+│   │   └── 2025-12-06.checklist_merge.md - History: checklist merge
 │   └── deep_dives/
-│       ├── DD-001.secret_and_ci_practices.md
-│       └── DD-002.why_atlantis.md
+│       ├── DD-001.secret_and_ci_practices.md - Decisions: secrets & CI
+│       └── DD-002.why_atlantis.md - Decisions: Atlantis rationale
 ├── terraform/
-│   ├── README.md
-│   ├── 1.nodep/README.md
-│   ├── 2.env_and_networking/README.md
-│   ├── 3.computing/README.md
-│   ├── 4.storage/README.md
-│   └── 5.insight/README.md
+│   ├── README.md - IaC entry & layer map
+│   ├── 1.nodep/README.md - L1 bootstrap (k3s/Atlantis)
+│   ├── 2.env_and_networking/README.md - L2 foundation (secrets/ingress/db)
+│   ├── 3.computing/README.md - L3 runtime (PaaS/dashboard)
+│   ├── 4.storage/README.md - L4 data stores
+│   └── 5.insight/README.md - L5 observability/analytics
 └── tools/
-    └── README.md
+    └── README.md - CI/CD tooling & mgmt
 ```
 
 ## Key Layers (Defined in BRN-004)
