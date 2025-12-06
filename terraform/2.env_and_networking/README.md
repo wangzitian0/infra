@@ -20,6 +20,9 @@ We use a layered approach:
 - **Infisical Backend**: Manages encryption keys.
 - **Infisical Agent**: (Future) Syncs secrets to K8s Secrets.
 
+**Ingress / DNS**:
+- Infisical UI exposed via `i-secrets.${base_domain}` through NGINX Ingress with `letsencrypt-prod` certificate.
+
 
 
 ### 3. Usage
