@@ -1,64 +1,50 @@
 name: Deploy k3s to VPS
 
+# NOTE: Terraform Plan/Apply is now handled by Terrateam
+# This workflow only handles post-apply tasks like smoke testing
+# See: .terrateam/config.yml
+
 on:
-  push:
-    branches: [main]
-    paths:
-      - "terraform/**"
-      - ".github/workflows/deploy-k3s.yml"
   workflow_dispatch:
+    inputs:
+      skip_smoke_test:
+        description: 'Skip smoke test'
+        required: false
+        default: 'false'
 
 env:
-  TF_IN_AUTOMATION: "true"
-  TF_INPUT: "false"
+  KUBECONFIG_PATH: terraform/output/truealpha-k3s-kubeconfig.yaml
 
 jobs:
-  apply:
+  smoke-test:
     runs-on: ubuntu-latest
-
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    if: github.event.inputs.skip_smoke_test != 'true'
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: true
 
-      - name: Setup Terraform Environment
-        uses: ./.github/actions/terraform-setup
-        with:
-          terraform_version: 1.6.6
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          r2_bucket: ${{ secrets.R2_BUCKET }}
-          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          vps_host: ${{ secrets.VPS_HOST }}
-          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
-          vps_user: ${{ secrets.VPS_USER }}
-          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
-          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
-          k3s_channel: ${{ secrets.K3S_CHANNEL }}
-          k3s_version: ${{ secrets.K3S_VERSION }}
-          infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
-
-      - name: Terraform plan
-        working-directory: terraform
-        run: terraform plan -input=false
-
-      # Stage 1: Bootstrap L1 (Node/K3s) + Kubeconfig
-      - name: Apply L1 (Bootstrap)
-        working-directory: terraform
+      - name: Setup SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
         run: |
-          # Apply only the bootstrap module to generate infrastructure
-          terraform apply -auto-approve -target="module.nodep"
+          mkdir -p ~/.ssh
+          echo "${VPS_SSH_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p "${VPS_SSH_PORT:-22}" "${VPS_HOST}" >> ~/.ssh/known_hosts
 
-      # Stage 2: Apply remaining layers (L2+) which need Kubeconfig
-      - name: Apply L2+ (Platform)
-        working-directory: terraform
-        run: terraform apply -auto-approve
+      - name: Fetch kubeconfig
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+        run: |
+          SSH_PORT="${VPS_SSH_PORT:-22}"
+          mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
+          ssh -i ~/.ssh/id_rsa -p "${SSH_PORT}" "root@${VPS_HOST}" "sudo cat /etc/rancher/k3s/k3s.yaml" > "${KUBECONFIG_PATH}"
+          sed -i "s/127.0.0.1/${VPS_HOST}/g" "${KUBECONFIG_PATH}"
+          chmod 600 "${KUBECONFIG_PATH}"
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
@@ -66,14 +52,15 @@ jobs:
           version: v1.28.4
 
       - name: Smoke test
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          export KUBECONFIG="${KUBECONFIG_PATH}"
           kubectl version --client
           kubectl get nodes
+          kubectl get pods -n iac
 
       - name: Upload kubeconfig
         uses: actions/upload-artifact@v4
         with:
           name: kubeconfig
           path: ${{ env.KUBECONFIG_PATH }}
+
