@@ -4,6 +4,6 @@
 resource "null_resource" "atlantis_test" {
   triggers = {
     # Change this value to trigger Atlantis plan
-    test_trigger = "atlantis-bot-verification-v1"
+    test_trigger = "atlantis-bot-verification-v2"
   }
 }

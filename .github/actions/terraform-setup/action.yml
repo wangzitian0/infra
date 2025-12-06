@@ -132,13 +132,11 @@ runs:
         PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
 
         # Create tfvars in terraform root
-        cat > terraform/terraform.tfvars <<EOFVARS
+        # Using separate heredocs for multiline values
+        cat > terraform/terraform.tfvars << TFVARS_END
         vps_host        = "${VPS_HOST}"
         vps_user        = "${VPS_USER_VALUE}"
         ssh_port        = ${SSH_PORT_VALUE}
-        ssh_private_key = <<-EOF
-        ${VPS_SSH_KEY}
-        EOF
         cluster_name    = "${CLUSTER_NAME_VALUE}"
         api_endpoint    = "${API_ENDPOINT_VALUE}"
         k3s_channel     = "${CHANNEL_VALUE}"
@@ -150,10 +148,16 @@ runs:
         cloudflare_zone_id   = "${CLOUDFLARE_ZONE_ID}"
         base_domain          = "${BASE_DOMAIN}"
         github_app_id        = "${GITHUB_APP_ID}"
-        github_app_key       = <<-EOF
-        ${GITHUB_APP_KEY}
-        EOF
-        EOFVARS
+        TFVARS_END
+        
+        # Append multiline values using separate heredocs
+        echo 'ssh_private_key = <<-SSHKEY' >> terraform/terraform.tfvars
+        echo "${VPS_SSH_KEY}" >> terraform/terraform.tfvars
+        echo 'SSHKEY' >> terraform/terraform.tfvars
+        
+        echo 'github_app_key = <<-APPKEY' >> terraform/terraform.tfvars
+        echo "${GITHUB_APP_KEY}" >> terraform/terraform.tfvars
+        echo 'APPKEY' >> terraform/terraform.tfvars
 
         # Setup SSH for fetching kubeconfig
         mkdir -p ~/.ssh

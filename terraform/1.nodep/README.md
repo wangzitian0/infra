@@ -62,3 +62,6 @@ After `terraform apply`, these checks run automatically:
 1. **DNS**: Verifies wildcard DNS resolves correctly.
 2. **Cert**: Waits for TLS certificate to be issued (max 2 min).
 3. **Atlantis**: Checks `/healthz` endpoint is reachable.
+
+---
+*Last updated: 2025-12-06*
