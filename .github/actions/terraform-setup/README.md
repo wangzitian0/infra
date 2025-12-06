@@ -23,6 +23,8 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 | `atlantis_webhook_secret` | ✓ | Atlantis webhook secret |
 | `cloudflare_api_token` | ✓ | Cloudflare API token |
 | `cloudflare_zone_id` | ✓ | Cloudflare Zone ID |
+| `github_app_id` | ✗ | GitHub App ID (optional, preferred over PAT) |
+| `github_app_key` | ✗ | GitHub App Private Key PEM |
 
 ## Usage
 

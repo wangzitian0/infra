@@ -15,6 +15,12 @@ Root configuration and orchestration module.
 | File | Purpose |
 |------|---------|
 | `main.tf` | Module orchestration |
-| `variables.tf` | Root variables incl. `env_prefix`, Cloudflare secrets |
+| `variables.tf` | Root variables: `env_prefix`, Cloudflare, **GitHub App** |
 | `locals.tf` | Domain mappings per `network.md` convention |
 | `atlantis.yaml` | (repo root) Atlantis workflow config |
+
+## Authentication
+
+Atlantis supports two auth modes (configured in `variables.tf`):
+- **GitHub App** (preferred): `github_app_id` + `github_app_key`
+- **PAT** (fallback): `github_token`
