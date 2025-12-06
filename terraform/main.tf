@@ -3,7 +3,6 @@
 # L1: Bootstrap (K3s + Atlantis CI Foundation)
 module "nodep" {
   source = "./1.nodep"
-  count  = var.enable_infra ? 1 : 0
 
   vps_host           = var.vps_host
   vps_user           = var.vps_user
@@ -34,7 +33,6 @@ module "nodep" {
 # L2: Environment & Networking (Secrets + Platform Subs)
 module "env_and_networking" {
   source = "./2.env_and_networking"
-  count  = var.enable_infra ? 1 : 0
 
   infisical_chart_version     = var.infisical_chart_version
   infisical_image_tag         = var.infisical_image_tag
