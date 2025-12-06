@@ -10,13 +10,13 @@
 
 ## 2. 命名模式 (Patterns)
 
-### A. 全局/内部服务 (Global Internal)
-*   **Pattern**: `x-{service}.${BASE_DOMAIN}`
+### A. 内部服务 (Internal Service)
+*   **Pattern**: `x-{internal_service}.${BASE_DOMAIN}`
 *   **Example**: `x-atlantis.example.com`
 
-### B. 环境服务 (Environment Services)
-*   **Pattern**: `{service}-${DOMAIN_PREFIX}.${BASE_DOMAIN}`
-*   **Example** (Staging): `{service}-x-staging.example.com`
+### B. 环境服务 (Environment Service)
+*   **Pattern**: `x-{env}-{service}.${BASE_DOMAIN}` (equivalent to `${DOMAIN_PREFIX}-{service}.${BASE_DOMAIN}`)
+*   **Example** (Staging): `x-staging-api.example.com`
 
 ## 3. 服务列表 (Service List)
 
@@ -24,11 +24,11 @@
 |----------|---------|------------------|---------|------------------|------------|
 | **Global** | Atlantis | `atlantis` | **A** | `https://x-atlantis.${BASE_DOMAIN}` | L1 (Nodep) |
 | **Global** | K3s API | `k3s` | **A** | `https://x-k3s.${BASE_DOMAIN}` | L1 (Nodep) |
-| **Env** | Kubero UI | `api` | **B** | `https://api-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Networking) |
-| **Env** | Kubero Backend | `api` | **B** | `https://api-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Networking) |
-| **Env** | Infisical | `cloud` | **B** | `https://cloud-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Networking) |
-| **Env** | SigNoz | `signoz` | **B** | `https://signoz-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Observability) |
-| **Env** | PostHog | `posthog` | **B** | `https://posthog-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Observability) |
+| **Env** | Kubero UI | `api` | **B** | `https://${DOMAIN_PREFIX}-api.${BASE_DOMAIN}` | L2 (Networking) |
+| **Env** | Kubero Backend | `api` | **B** | `https://${DOMAIN_PREFIX}-api.${BASE_DOMAIN}` | L2 (Networking) |
+| **Env** | Infisical | `cloud` | **B** | `https://${DOMAIN_PREFIX}-cloud.${BASE_DOMAIN}` | L2 (Networking) |
+| **Env** | SigNoz | `signoz` | **B** | `https://${DOMAIN_PREFIX}-signoz.${BASE_DOMAIN}` | L2 (Observability) |
+| **Env** | PostHog | `posthog` | **B** | `https://${DOMAIN_PREFIX}-posthog.${BASE_DOMAIN}` | L2 (Observability) |
 | **App** | Frontend | (root) | **B***| `https://${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Networking) |
 
 > *Frontend uses the prefix directly as the subdomain in the environment pattern.
