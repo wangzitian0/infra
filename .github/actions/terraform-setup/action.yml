@@ -61,6 +61,14 @@ inputs:
   base_domain:
     description: "Base domain for services (e.g., truealpha.club)"
     required: true
+  github_app_id:
+    description: "GitHub App ID for Atlantis (optional, preferred over PAT)"
+    required: false
+    default: ""
+  github_app_key:
+    description: "GitHub App Private Key (PEM) for Atlantis"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -110,6 +118,8 @@ runs:
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ZONE_ID: ${{ inputs.cloudflare_zone_id }}
         BASE_DOMAIN: ${{ inputs.base_domain }}
+        GITHUB_APP_ID: ${{ inputs.github_app_id }}
+        GITHUB_APP_KEY: ${{ inputs.github_app_key }}
       run: |
         set -euo pipefail
 
@@ -139,6 +149,10 @@ runs:
         cloudflare_api_token = "${CLOUDFLARE_API_TOKEN}"
         cloudflare_zone_id   = "${CLOUDFLARE_ZONE_ID}"
         base_domain          = "${BASE_DOMAIN}"
+        github_app_id        = "${GITHUB_APP_ID}"
+        github_app_key       = <<-EOF
+        ${GITHUB_APP_KEY}
+        EOF
         EOFVARS
 
         # Setup SSH for fetching kubeconfig

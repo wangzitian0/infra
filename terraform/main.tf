@@ -18,6 +18,8 @@ module "nodep" {
   # Atlantis (CI Foundation)
   github_token            = var.github_token
   atlantis_webhook_secret = var.atlantis_webhook_secret
+  github_app_id           = var.github_app_id
+  github_app_key          = var.github_app_key
   aws_access_key_id       = "" # Set via env: AWS_ACCESS_KEY_ID
   aws_secret_access_key   = "" # Set via env: AWS_SECRET_ACCESS_KEY  
   r2_bucket               = var.r2_bucket

@@ -37,6 +37,8 @@ These secrets are passed as Terraform variables and injected into Atlantis at ru
 | `r2_account_id` | R2 endpoint | `R2_ACCOUNT_ID` |
 | `github_token` | GitHub PAT | (Helm github.token) |
 | `atlantis_webhook_secret` | Webhook verify | (Helm github.secret) |
+| `github_app_id` | GitHub App ID (optional) | (Helm githubApp.id) |
+| `github_app_key` | GitHub App Private Key | (Helm githubApp.key) |
 | `cloudflare_api_token` | DNS & Certs | `CLOUDFLARE_API_TOKEN` |
 | `cloudflare_zone_id` | DNS Zone | `CLOUDFLARE_ZONE_ID` |
 
