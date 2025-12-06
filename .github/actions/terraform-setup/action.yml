@@ -177,10 +177,11 @@ runs:
         R2_ACCOUNT_ID: ${{ inputs.r2_account_id }}
         STATE_KEY: ${{ inputs.tf_state_key }}
       run: |
+        echo "DEBUG: STATE_KEY is '${STATE_KEY}'"
         terraform init -input=false \
           -backend-config="bucket=${R2_BUCKET}" \
-          -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}" \
-          -backend-config="key=${STATE_KEY}"
+          -backend-config="key=${STATE_KEY}" \
+          -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
 
     # Fetch kubeconfig explicity (before Plan, so state refresh works)
     - name: Fetch kubeconfig

@@ -11,8 +11,7 @@
 
 terraform {
   backend "s3" {
-    # bucket, endpoints, and key passed via -backend-config
-    # key                         = "k3s/terraform.tfstate"
+    # Partial configuration: bucket, endpoints, key passed via CLI
     region                      = "auto"
     skip_credentials_validation = true
     skip_region_validation      = true
