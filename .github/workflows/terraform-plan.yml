@@ -52,31 +52,35 @@ jobs:
         run: terraform plan -no-color -out=tfplan
         continue-on-error: true
 
-#      - name: Comment PR
-#        uses: actions/github-script@v7
-#        with:
-#          script: |
-#            const output = `#### Terraform Format 🖌 \`${{ steps.fmt.outcome }}\`
-#            #### Terraform Init ⚙️ \`${{ steps.init.outcome }}\`
-#            #### Terraform Validate 🤖 \`${{ steps.validate.outcome }}\`
-#            #### Terraform Plan 📖 \`${{ steps.plan.outcome }}\`
-#
-#            <details><summary>Show Plan</summary>
-#
-#            \`\`\`terraform
-#            ${{ steps.plan.outputs.stdout }}
-#            \`\`\`
-#
-#            </details>
-#
-#            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
-#
-#            github.rest.issues.createComment({
-#              issue_number: context.issue.number,
-#              owner: context.repo.owner,
-#              repo: context.repo.repo,
-#              body: output
-#            })
+      - name: Comment PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+              const output = `#### Terraform Helper 🤖
+  
+              Welcome! Please review the [CI/CD Workflow Documentation](https://github.com/${{ github.repository }}/tree/${{ github.head_ref }}/.github/README.md).
+              
+              **Quick Reference:**
+              - \`atlantis plan\` - to plan changes
+              - \`atlantis apply\` - to apply changes (before merge)
+              
+              <details><summary>Validation Plan Output</summary>
+  
+              \`\`\`terraform
+              ${{ steps.plan.outputs.stdout }}
+              \`\`\`
+  
+              </details>
+              
+              *Validation Status: \`${{ steps.plan.outcome }}\`*`;
+  
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: output
+              })
 
       - name: Plan Status
         if: steps.plan.outcome == 'failure'
