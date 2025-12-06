@@ -13,10 +13,11 @@ This document serves as the navigation map for the `infra` repository.
 ```text
 root/
 ├── 0.check_now.md          # (!) Current sprint context
-├── .terrateam/              # [+] L0 Orchestration (Config)
-│   └── config.yml           # (!) Terrateam Config
-├── .github/workflows/       # [+] GitHub Runners
-│   └── terrateam.yml        # (!) Workflow Entry
+├── .github/                 # [+] CI/Bots
+│   ├── README.md            # CI/CD folder index
+│   └── workflows/           # [+] GitHub Runners
+│       ├── README.md        # Workflows index
+│       └── terrateam.yml    # (!) Workflow Entry
 ├── AGENTS.md                # (!) AI Behavior Guidelines
 ├── README.md                # (!) Project Index
 ├── docs/
@@ -27,14 +28,17 @@ root/
 │   │   ├── README.md        # BRN status/index
 │   │   └── BRN-004.md       # BRN-004 integrated architecture
 │   ├── change_log/
+│   │   ├── README.md        # Change log index
 │   │   ├── 2025-12-04.k3s_bootstrap_reset.md    # History: k3s reset
 │   │   ├── 2025-12-05.staging_deployment_design.md # History: staging design
 │   │   └── 2025-12-06.checklist_merge.md        # History: checklist merge
 │   └── deep_dives/
+│       ├── README.md        # Deep dive index
 │       ├── DD-001.secret_and_ci_practices.md    # Decisions: secrets & CI
 │       └── DD-002.why_atlantis.md               # Decisions: Atlantis rationale
 ├── terraform/
 │   ├── README.md            # (!) IaC entry & layer map
+│   ├── envs/README.md       # tfvars templates per environment
 │   ├── 1.nodep/README.md    # L1 bootstrap (k3s/Atlantis)
 │   ├── 2.env_and_networking/README.md # L2 foundation (secrets/ingress/db)
 │   ├── 3.computing/README.md # L3 runtime (PaaS/dashboard)
