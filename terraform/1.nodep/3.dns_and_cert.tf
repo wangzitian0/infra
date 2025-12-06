@@ -74,18 +74,34 @@ resource "null_resource" "cluster_issuer_letsencrypt_prod" {
 }
 
 # 5. Cloudflare DNS Records
-# Points 'i-atlantis' subdomain to the VPS IP (Ingress Controller)
-# Proxied = true enables Cloudflare's CDN and DDoS protection
-resource "cloudflare_record" "atlantis" {
+# =============================================================================
+# Architecture: Wildcard DNS + Ingress-based routing
+# - All HTTP/HTTPS services (80/443) route through Ingress Controller
+# - Cloudflare proxy (orange cloud) enabled for CDN & DDoS protection
+# - Special ports (e.g., 6443) use DNS-only (grey cloud)
+# =============================================================================
+
+# Wildcard record: routes all subdomains to Ingress Controller
+# Individual services are differentiated by Ingress Host rules
+resource "cloudflare_record" "wildcard" {
   zone_id = var.cloudflare_zone_id
-  name    = "i-atlantis"
+  name    = "*"
   value   = var.vps_host
   type    = "A"
   proxied = true
 }
 
-# Points 'i-k3s' subdomain to the VPS IP (API Server)
-# Note: K3s API is on port 6443, not standard 443. Access will be https://i-k3s.domain:6443
+# Root domain (optional): direct access to frontend/default service
+resource "cloudflare_record" "root" {
+  zone_id = var.cloudflare_zone_id
+  name    = "@"
+  value   = var.vps_host
+  type    = "A"
+  proxied = true
+}
+
+# K3s API (port 6443) - MUST be DNS-only (grey cloud)
+# Cloudflare proxy doesn't support non-standard ports
 resource "cloudflare_record" "k3s" {
   zone_id = var.cloudflare_zone_id
   name    = "i-k3s"
