@@ -68,7 +68,7 @@ variable "environment" {
 variable "base_domain" {
   description = "Base domain (e.g., truealpha.club)"
   type        = string
-  default     = "truealpha.club"
+  default     = "example.com"
 }
 
 variable "domain_prefix" {

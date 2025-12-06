@@ -14,12 +14,12 @@ KEY
 cluster_name        = "staging-k3s"
 k3s_channel         = "stable"
 k3s_version         = ""
-api_endpoint        = "api-x-staging.truealpha.club"
+api_endpoint        = "api-x-staging.example.com"
 disable_components  = ["traefik"]
 
 # 环境标识
 environment         = "staging"
-base_domain         = "truealpha.club"
+base_domain         = "example.com"
 domain_prefix       = "x-staging"  # Kubero/Infisical 域名前缀
 enable_ssl          = true
 
