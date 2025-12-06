@@ -119,7 +119,7 @@ resource "cloudflare_record" "wildcard" {
   name            = "*"
   value           = var.vps_host
   type            = "A"
-  proxied         = false # Internal services: no proxy
+  proxied         = false  # Internal services: no proxy
   allow_overwrite = true
 }
 
