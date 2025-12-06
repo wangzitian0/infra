@@ -1,7 +1,6 @@
 # Infra Orchestration (L1-L5)
 
-# L1: Bootstrap
-# L1: Bootstrap
+# L1: Bootstrap (K3s + Atlantis CI Foundation)
 module "nodep" {
   source = "./1.nodep"
 
@@ -14,9 +13,17 @@ module "nodep" {
   k3s_channel        = var.k3s_channel
   k3s_version        = var.k3s_version
   disable_components = var.disable_components
+  kubeconfig_path    = local.kubeconfig_path
 
-  kubeconfig_path = local.kubeconfig_path
+  # Atlantis (CI Foundation)
+  github_token            = var.github_token
+  atlantis_webhook_secret = var.atlantis_webhook_secret
+  aws_access_key_id       = "" # Set via env: AWS_ACCESS_KEY_ID
+  aws_secret_access_key   = "" # Set via env: AWS_SECRET_ACCESS_KEY  
+  r2_bucket               = var.r2_bucket
+  r2_account_id           = var.r2_account_id
 }
+
 
 # L2: Environment & Networking (Secrets + Platform Subs)
 module "env_and_networking" {
@@ -29,10 +36,7 @@ module "env_and_networking" {
   domain_prefix               = var.domain_prefix
   base_domain                 = var.base_domain
   namespaces                  = local.namespaces
-
-
-  kubeconfig_path = local.kubeconfig_path
-
+  kubeconfig_path             = local.kubeconfig_path
 
   depends_on = [module.nodep]
 }

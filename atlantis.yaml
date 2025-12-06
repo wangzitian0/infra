@@ -1,0 +1,45 @@
+# Atlantis Repo Configuration
+# See: https://www.runatlantis.io/docs/repo-level-atlantis-yaml.html
+
+version: 3
+
+projects:
+  - dir: terraform
+    workflow: custom
+    autoplan:
+      when_modified:
+        - "**/*.tf"
+        - "**/*.tfvars"
+      enabled: true
+
+workflows:
+  custom:
+    plan:
+      steps:
+        # Setup SSH for kubeconfig fetch (optional, for Helm provider)
+        - run: |
+            if [ -n "$VPS_SSH_KEY" ]; then
+              mkdir -p ~/.ssh
+              echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+              chmod 600 ~/.ssh/id_rsa
+              ssh-keyscan -p 22 "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
+            fi
+        # Terraform init with R2 backend
+        - init:
+            extra_args:
+              - "-backend-config=bucket=$R2_BUCKET"
+              - "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"
+        - plan
+    apply:
+      steps:
+        - run: |
+            if [ -n "$VPS_SSH_KEY" ]; then
+              mkdir -p ~/.ssh
+              echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
+              chmod 600 ~/.ssh/id_rsa
+            fi
+        - init:
+            extra_args:
+              - "-backend-config=bucket=$R2_BUCKET"
+              - "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"
+        - apply
