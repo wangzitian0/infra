@@ -55,6 +55,8 @@ terraform apply -target="module.nodep" -var-file="envs/staging.tfvars"
 - Deploys Atlantis for Terraform CI/CD.
 - Generates `kubeconfig` (output).
 - Prepares node for subsequent layers.
+- Injects secrets via Kubernetes Secret → Atlantis env (`loadEnvFromSecrets`) so `terraform plan/apply` sees R2/Cloudflare/VPS creds and TF_VAR_*.
+- Injects TF_VAR_* into Atlantis so plans see VPS/R2/Cloudflare secrets (no backend downgrade).
 
 ## Post-Apply Validation
 

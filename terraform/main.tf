@@ -20,8 +20,8 @@ module "nodep" {
   atlantis_webhook_secret = var.atlantis_webhook_secret
   github_app_id           = var.github_app_id
   github_app_key          = var.github_app_key
-  aws_access_key_id       = "" # Set via env: AWS_ACCESS_KEY_ID
-  aws_secret_access_key   = "" # Set via env: AWS_SECRET_ACCESS_KEY  
+  aws_access_key_id       = var.aws_access_key_id
+  aws_secret_access_key   = var.aws_secret_access_key
   r2_bucket               = var.r2_bucket
   r2_account_id           = var.r2_account_id
   base_domain             = var.base_domain

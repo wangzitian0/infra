@@ -25,7 +25,23 @@ workflows:
               chmod 600 ~/.ssh/id_rsa
               ssh-keyscan -p 22 "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
             fi
-        # Terraform init with R2 backend
+        # Require all deployment secrets; fail fast if any missing
+        - run: |
+            set -euo pipefail
+            required="VPS_HOST VPS_SSH_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID R2_BUCKET R2_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY"
+            missing=0
+            for var in $required; do
+              eval "val=\${$var:-}"
+              if [ -z "${val}" ]; then
+                echo "Missing env: ${var}" >&2
+                missing=1
+              fi
+            done
+            if [ "$missing" -ne 0 ]; then
+              echo "Aborting: required env vars missing."
+              exit 1
+            fi
+        # Terraform init with R2 backend (fail if creds missing)
         - init:
             extra_args:
               - "-backend-config=bucket=$R2_BUCKET"
@@ -38,6 +54,21 @@ workflows:
               mkdir -p ~/.ssh
               echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
               chmod 600 ~/.ssh/id_rsa
+            fi
+        - run: |
+            set -euo pipefail
+            required="VPS_HOST VPS_SSH_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID R2_BUCKET R2_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY"
+            missing=0
+            for var in $required; do
+              eval "val=\${$var:-}"
+              if [ -z "${val}" ]; then
+                echo "Missing env: ${var}" >&2
+                missing=1
+              fi
+            done
+            if [ "$missing" -ne 0 ]; then
+              echo "Aborting: required env vars missing."
+              exit 1
             fi
         - init:
             extra_args:
