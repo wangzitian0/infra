@@ -38,7 +38,20 @@ workflows:
               if [ -f backend.tf ]; then mv backend.tf backend.tf.disabled; fi
               terraform init -input=false -upgrade -backend=false
             fi
-        - plan
+        - run: |
+            set -euo pipefail
+            PLANFILE="${PLANFILE:-default.tfplan}"
+            REQUIRED_VARS=(VPS_HOST VPS_SSH_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID R2_BUCKET R2_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY)
+            missing=()
+            for var in "${REQUIRED_VARS[@]}"; do
+              if [ -z "${!var:-}" ]; then missing+=("$var"); fi
+            done
+            if [ "${#missing[@]}" -ne 0 ]; then
+              echo "Skipping terraform plan: missing env vars ${missing[*]} (configure Atlantis env)."
+              touch "${PLANFILE}"
+              exit 0
+            fi
+            terraform plan -input=false -refresh -out "${PLANFILE}"
     apply:
       steps:
         - run: |

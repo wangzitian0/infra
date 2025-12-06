@@ -110,7 +110,7 @@ kubectl get pods -A # 查看所有 pods
 
 - 每次变更必须更新 `0.check_now.md`，并同步修改所涉目录的 `README.md`（CI `Documentation Guard` 会检查）。
 - 本地执行 `./tools/docs-guard.sh origin/main` 可提前验证。
-- Atlantis：PR 规划阶段缺少 R2 凭据时会自动降级为本地 backend（不读远端 state）；`atlantis apply` 仍需要提供 `R2_BUCKET`/`R2_ACCOUNT_ID`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`。
+- Atlantis：PR 规划阶段缺少 R2/Cloudflare/VPS 凭据时会自动降级为本地 backend 并跳过 plan（不读远端 state）；`atlantis apply` 仍需要提供 `R2_BUCKET`/`R2_ACCOUNT_ID`/`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`。
 
 ## 后续演进
 
