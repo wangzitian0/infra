@@ -53,3 +53,10 @@ terraform apply -target="module.nodep" -var-file="envs/staging.tfvars"
 - Deploys Atlantis for Terraform CI/CD.
 - Generates `kubeconfig` (output).
 - Prepares node for subsequent layers.
+
+## Post-Apply Validation
+
+After `terraform apply`, these checks run automatically:
+1. **DNS**: Verifies wildcard DNS resolves correctly.
+2. **Cert**: Waits for TLS certificate to be issued (max 2 min).
+3. **Atlantis**: Checks `/healthz` endpoint is reachable.
