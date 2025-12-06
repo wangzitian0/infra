@@ -29,11 +29,13 @@ workflows:
         - run: |
             set -euo pipefail
             if [ -n "${R2_BUCKET:-}" ] && [ -n "${R2_ACCOUNT_ID:-}" ] && [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+              if [ -f backend.tf.disabled ]; then mv backend.tf.disabled backend.tf; fi
               terraform init -input=false -upgrade \
                 -backend-config="bucket=${R2_BUCKET}" \
                 -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
             else
               echo "Warning: R2 backend credentials missing; using local backend for plan (state will not be read)."
+              if [ -f backend.tf ]; then mv backend.tf backend.tf.disabled; fi
               terraform init -input=false -upgrade -backend=false
             fi
         - plan
