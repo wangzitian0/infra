@@ -58,6 +58,9 @@ inputs:
   cloudflare_zone_id:
     description: "Cloudflare Zone ID"
     required: true
+  base_domain:
+    description: "Base domain for services (e.g., truealpha.club)"
+    required: true
 
 runs:
   using: "composite"
@@ -106,6 +109,7 @@ runs:
         ATLANTIS_WEBHOOK_SECRET: ${{ inputs.atlantis_webhook_secret }}
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ZONE_ID: ${{ inputs.cloudflare_zone_id }}
+        BASE_DOMAIN: ${{ inputs.base_domain }}
       run: |
         set -euo pipefail
 
@@ -134,6 +138,7 @@ runs:
         atlantis_webhook_secret = "${ATLANTIS_WEBHOOK_SECRET}"
         cloudflare_api_token = "${CLOUDFLARE_API_TOKEN}"
         cloudflare_zone_id   = "${CLOUDFLARE_ZONE_ID}"
+        base_domain          = "${BASE_DOMAIN}"
         EOFVARS
 
         # Setup SSH for fetching kubeconfig

@@ -57,6 +57,7 @@ jobs:
           atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          base_domain: ${{ secrets.BASE_DOMAIN }}
 
       - name: Terraform plan
         working-directory: terraform
