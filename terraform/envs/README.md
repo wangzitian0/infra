@@ -27,6 +27,22 @@ This infrastructure follows a **5-Layer Design**, mixing Singleton (Shared) and 
         - Prod: `app-prod`, `data-prod`
         - Test: `app-test`, `data-test`
 
+## Design Decision: Namespace vs Cluster Isolation
+
+**Decision**: Use **Namespace Isolation** (Soft Multi-Tenancy) instead of separate Clusters.
+
+**Rationale**:
+1.  **Cost Efficiency**: Running multiple K3s clusters (Control Planes + Node Pools) doubles/triples infrastructure capability requirements.
+2.  **Operational Simplicity**: Managing one set of L1/L2 (Ingress, Certs, Secrets) reduces maintenance burden.
+3.  **Scale Appropriateness**: For this project size, separate physical clusters introduce unnecessary complexity.
+
+**Trade-offs**:
+- **Risk**: Shared Failure Domain. If the L1 Cluster fails (e.g., bad K3s upgrade), *both* Staging and Prod go down.
+- **Mitigation**:
+    - `staging` deployment verifies application logic.
+    - `infra` workflow is separated to prevent accidental cluster-wide changes during app deployment.
+    - Resource Quotas (CPU/RAM) can be applied to namespaces to prevent "Noisy Neighbor" issues.
+
 ## tfvars usage
 
 Use these files to configure non-sensitive environment variables:
