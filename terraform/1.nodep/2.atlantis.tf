@@ -51,10 +51,10 @@ resource "helm_release" "atlantis" {
       }
 
       # Persistence for plan files and locks
-      persistence = {
-        enabled      = true
-        size         = "5Gi"
-        storageClass = "local-path"
+      volumeClaim = {
+        enabled          = true
+        dataStorage      = "5Gi"
+        storageClassName = "local-path"
       }
 
       # Resource limits
