@@ -98,6 +98,11 @@ kubectl get pods -A # 查看所有 pods
 - **API Endpoint**：可用域名访问 API，需配置 DNS 指向 VPS。
 - **SSH Key**：tfvars 中使用 heredoc 保留换行。
 
+## 贡献者提示
+
+- 每次变更必须更新 `0.check_now.md`，并同步修改所涉目录的 `README.md`（CI `Documentation Guard` 会检查）。
+- 本地执行 `./tools/docs-guard.sh origin/main` 可提前验证。
+
 ## 后续演进
 
 **BRN-004：Staging 完整部署（phase 内无依赖）**
