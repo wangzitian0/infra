@@ -3,6 +3,13 @@ variable "vps_host" {
   type        = string
 }
 
+# Trigger Auto-Plan
+variable "r2_bucket" {
+  description = "SSH user on the VPS"
+  type        = string
+  default     = "root"
+}
+
 variable "vps_user" {
   description = "SSH user on the VPS"
   type        = string
