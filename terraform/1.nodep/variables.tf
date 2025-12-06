@@ -18,9 +18,18 @@ variable "github_user" {
 }
 variable "github_token" {
   sensitive = true
+  default   = ""  # Not needed when using GitHub App
 }
 variable "atlantis_webhook_secret" {
   sensitive = true
+}
+# GitHub App Configuration (preferred over PAT)
+variable "github_app_id" {
+  default = ""  # Set to App ID to enable GitHub App auth
+}
+variable "github_app_key" {
+  sensitive = true
+  default   = ""  # PEM-encoded private key
 }
 variable "aws_access_key_id" {
   sensitive = true

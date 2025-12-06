@@ -167,6 +167,20 @@ variable "atlantis_webhook_secret" {
   default     = ""
 }
 
+# GitHub App Configuration (preferred over PAT for Atlantis)
+variable "github_app_id" {
+  description = "GitHub App ID for Atlantis (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "github_app_key" {
+  description = "GitHub App Private Key (PEM) for Atlantis (optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "r2_account_id" {
   description = "Cloudflare R2 account ID"
   type        = string

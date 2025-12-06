@@ -17,13 +17,22 @@ resource "helm_release" "atlantis" {
 
   values = [
     yamlencode({
-      # GitHub Configuration
+      # GitHub Configuration - Use GitHub App (preferred)
       orgAllowlist = "github.com/${var.github_org}/*"
-      github = {
+      
+      # GitHub App Auth (bot account, better than PAT)
+      githubApp = var.github_app_id != "" ? {
+        id     = var.github_app_id
+        key    = var.github_app_key
+        secret = var.atlantis_webhook_secret
+      } : null
+      
+      # Fallback to PAT if GitHub App not configured
+      github = var.github_app_id == "" ? {
         user   = var.github_user
         token  = var.github_token
         secret = var.atlantis_webhook_secret
-      }
+      } : null
 
       # Environment for R2 Backend
       environment = {
