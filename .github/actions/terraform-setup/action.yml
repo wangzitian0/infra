@@ -86,6 +86,12 @@ runs:
       shell: bash
       env:
         VPS_HOST: ${{ inputs.vps_host }}
+        VPS_USER: ${{ inputs.vps_user }}
+        VPS_SSH_PORT: ${{ inputs.vps_ssh_port }}
+        VPS_SSH_KEY: ${{ inputs.vps_ssh_key }}
+        K3S_API_ENDPOINT: ${{ inputs.k3s_api_endpoint }}
+        K3S_CHANNEL: ${{ inputs.k3s_channel }}
+        K3S_VERSION: ${{ inputs.k3s_version }}
         K3S_CLUSTER_NAME: ${{ inputs.k3s_cluster_name }}
         INFISICAL_POSTGRES_PASSWORD: ${{ inputs.infisical_postgres_password }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
