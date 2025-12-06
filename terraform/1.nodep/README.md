@@ -12,18 +12,24 @@
 |------|---------|
 | `1.k3s.tf` | K3s single-node cluster bootstrap |
 | `2.atlantis.tf` | Atlantis Helm release for Terraform CI/CD |
-
 ## Deployment
 
-### 1. Requirements (GitHub Secrets)
-These are used by the CI/CD pipeline to access the VPS and store state.
-- `VPS_HOST`: IP or domain.
-- `VPS_SSH_KEY`: Private key (root access).
-- `VPS_USER`: `root` (default).
-- `R2_BUCKET` / `R2_ACCOUNT_ID`: State Storage.
-- `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`: State Credentials.
-- `GITHUB_TOKEN`: PAT for Atlantis GitHub integration.
-- `ATLANTIS_WEBHOOK_SECRET`: Webhook verification secret.
+### 1. Requirements (Terraform Variables → Atlantis Runtime)
+
+These secrets are passed as Terraform variables and injected into Atlantis at runtime:
+
+| Variable | Purpose | Atlantis Env |
+|----------|---------|--------------|
+| `vps_host` | VPS IP for SSH | `VPS_HOST` |
+| `ssh_private_key` | Root SSH key | `VPS_SSH_KEY` |
+| `aws_access_key_id` | R2 credentials | `AWS_ACCESS_KEY_ID` |
+| `aws_secret_access_key` | R2 credentials | `AWS_SECRET_ACCESS_KEY` |
+| `r2_bucket` | State backend | `R2_BUCKET` |
+| `r2_account_id` | R2 endpoint | `R2_ACCOUNT_ID` |
+| `github_token` | GitHub PAT | (Helm github.token) |
+| `atlantis_webhook_secret` | Webhook verify | (Helm github.secret) |
+
+> **注意**: 所有密钥通过 `terraform.tfvars` 或 `-var` 传入，Atlantis 容器启动时注入为环境变量。
 
 ### 2. Execution
 ```bash
