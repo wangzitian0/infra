@@ -11,7 +11,7 @@ projects:
       when_modified:
         - "**/*.tf"
         - "**/*.tfvars"
-      enabled: true
+      enabled: false  # Disabled: CI triggers plan via comment after validation
 
 workflows:
   custom:
