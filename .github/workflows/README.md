@@ -45,6 +45,7 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | **Deploy K3s** (`deploy-k3s.yml`) | `push: [main]` | **The Enforcer**. Applies `terraform/` to production. Bootsraps K3s, deploys Helm charts. | **SSOT Convergence**. Ensures `main` = `Live State`. Uses state locking. |
 | **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs `terraform plan` on PRs. **Triggers Atlantis** via comment on success. | **Dry Run** + **Atlantis Trigger**. |
 | **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
+| **Claude** (`claude.yml`) | `PTAL` or `@claude` comment | **The Reviewer**. AI code review via Claude GitHub App. Checks structure, maintainability, doc consistency, and SSOT. | **Quality Gate**. On-demand review via comments. |
 
 ## Handling Multi-Environment & Modules
 
@@ -68,3 +69,36 @@ If a bad change is deployed:
 4.  **Merge**: The revert is merged, restoring the codebase to the stable state.
 
 > **Note**: Because we rely on Terraform State, "Reverting" code in Git implies "Rolling forward" the state to the previous configuration. This is safer than manual resource deletion.
+
+---
+
+## Claude Code Review
+
+The `claude.yml` workflow integrates the [Claude GitHub App](https://github.com/apps/claude) for AI-powered code review.
+
+### Setup
+
+**Option A: One-click (Recommended)**
+```bash
+claude
+/install-github-app
+```
+
+**Option B: Manual**
+1. Install App: https://github.com/apps/claude
+2. Add secret: `ANTHROPIC_API_KEY` in Settings → Secrets → Actions
+3. Workflow file is already in place (`claude.yml`)
+
+### Usage
+
+| Trigger | Behavior |
+| :--- | :--- |
+| `PTAL` in comment | Full code review |
+| `@claude` in comment | Responds to questions; reviews if no question |
+
+### What It Reviews
+
+- **Structure**: Correct layer (L1-L5), clean module boundaries
+- **Maintainability**: Abstraction, naming, DRY
+- **Code-Doc Consistency**: README.md / `0.check_now.md` sync
+- **SSOT Compliance**: No duplicate config, proper secrets
