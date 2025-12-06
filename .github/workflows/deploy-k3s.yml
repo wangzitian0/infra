@@ -29,6 +29,24 @@ jobs:
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      # Inject Secrets as Terraform Variables
+      TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+      TF_VAR_vps_user: ${{ secrets.VPS_USER }}
+      TF_VAR_ssh_private_key: ${{ secrets.VPS_SSH_KEY }}
+      TF_VAR_ssh_port: ${{ secrets.VPS_SSH_PORT }}
+      TF_VAR_cluster_name: ${{ vars.K3S_CLUSTER_NAME }}
+      TF_VAR_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
+      TF_VAR_k3s_channel: ${{ secrets.K3S_CHANNEL }}
+      TF_VAR_k3s_version: ${{ secrets.K3S_VERSION }}
+      # Passwords & Tokens
+      TF_VAR_infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
+      TF_VAR_github_token: ${{ secrets.GH_PAT }}
+      TF_VAR_atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+      TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+      TF_VAR_github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+      TF_VAR_github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
     steps:
       - name: Checkout
