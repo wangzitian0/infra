@@ -45,31 +45,14 @@ jobs:
           r2_bucket: ${{ secrets.R2_BUCKET }}
           r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
           vps_host: ${{ secrets.VPS_HOST }}
-          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
           vps_user: ${{ secrets.VPS_USER }}
-          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
-          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
-          k3s_channel: ${{ secrets.K3S_CHANNEL }}
-          k3s_version: ${{ secrets.K3S_VERSION }}
-          infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
-          github_token: ${{ secrets.GH_PAT || github.token }}
-          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          base_domain: ${{ secrets.BASE_DOMAIN }}
-          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          ssh_private_key: ${{ secrets.VPS_SSH_KEY }}
+          ssh_port: ${{ secrets.VPS_SSH_PORT }}
 
       - name: Terraform plan
         working-directory: terraform
         run: terraform plan -input=false
 
-      # Stage 1: Bootstrap L1 (Node/K3s) + Kubeconfig
-      - name: Apply L1 (Bootstrap)
-        if: github.event_name == 'push'
-        working-directory: terraform
-        run: |
           # Apply only the bootstrap module to generate infrastructure
           terraform apply -auto-approve -target="module.nodep"
 
