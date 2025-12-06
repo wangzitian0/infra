@@ -1,12 +1,22 @@
 # Network & Domain SSOT
 
+## 0. DNS Architecture
+
+**Cloudflare Wildcard DNS + Ingress Routing**:
+- `*.truealpha.club` → VPS IP (proxied, orange cloud)
+- `@` (root) → VPS IP (proxied)
+- `i-k3s` → VPS IP (DNS-only, grey cloud, for port 6443)
+
+All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
+Each service defines its own Ingress with specific `host` rule.
+
 ## 1. 变量定义 (Definitions)
 
 | Variable | Description | Example Value | Source |
 |----------|-------------|---------------|--------|
-| `${BASE_DOMAIN}` | 基础域名 | `example.com` | `terraform.tfvars` |
+| `${BASE_DOMAIN}` | 基础域名 | `truealpha.club` | `terraform.tfvars` |
 | `${VPS_HOST}` | 基础 IP | `1.2.3.4` | `terraform.tfvars` (for context) |
-| `${DOMAIN_PREFIX}` | 环境前缀 | `x-staging` | `staging.tfvars` |
+| `${ENV_PREFIX}` | 环境前缀 | `x-staging` | `staging.tfvars` |
 
 ## 2. 命名模式 (Patterns)
 
