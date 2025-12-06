@@ -1,9 +1,9 @@
+# Test resource for Atlantis verification
+# This file exists to verify Atlantis is working correctly.
+# Verification timestamp: 2025-12-06
 resource "null_resource" "atlantis_test" {
   triggers = {
-    timestamp = timestamp()
-  }
-
-  provisioner "local-exec" {
-    command = "echo 'Atlantis is working! Verification ID: ${timestamp()}'"
+    # Change this value to trigger Atlantis plan
+    test_trigger = "atlantis-verification-v1"
   }
 }
