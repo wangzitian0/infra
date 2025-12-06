@@ -16,6 +16,10 @@ jobs:
   apply:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read     # Required for checkout and plan
+      pull-requests: read # Required for Atlantis check (optional but good practice)
+
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -43,6 +47,8 @@ jobs:
           k3s_channel: ${{ secrets.K3S_CHANNEL }}
           k3s_version: ${{ secrets.K3S_VERSION }}
           infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
+          github_token: ${{ secrets.GH_PAT || github.token }}
+          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
 
       - name: Terraform plan
         working-directory: terraform
