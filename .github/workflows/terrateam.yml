@@ -11,7 +11,6 @@ name: 'Terrateam Workflow'
 on:
   workflow_dispatch:
     inputs:
-      # The work-token and api-base-url are automatically passed in by the Terrateam backend
       work-token:
         description: 'Work Token'
         required: true
@@ -36,11 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-<<<<<<< HEAD
-      # Setup SSH and Fetch Kubeconfig (Critical for Helm Provider)
-=======
-      # Restore Logic: Setup SSH and Fetch Kubeconfig (Critical for Helm Provider)
->>>>>>> ccc32a8 (fix(ci): restore kubeconfig fetch and tf_var mapping)
       - name: Setup SSH & Fetch Kubeconfig
         shell: bash
         env:
@@ -51,23 +45,17 @@ jobs:
         run: |
           set -euo pipefail
           
-          # 1. Setup SSH
           mkdir -p ~/.ssh
           echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "${VPS_SSH_PORT:-22}" "$VPS_HOST" >> ~/.ssh/known_hosts
           
-          # 2. Fetch Kubeconfig
           echo "Fetching kubeconfig from VPS..."
           KUBECONFIG_PATH="${{ github.workspace }}/terraform/output/${CLUSTER_NAME}-kubeconfig.yaml"
           mkdir -p "$(dirname "$KUBECONFIG_PATH")"
           
           if ssh -i ~/.ssh/id_rsa -p "${VPS_SSH_PORT:-22}" -o StrictHostKeyChecking=no "root@$VPS_HOST" "sudo cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_PATH"; then
              echo "Kubeconfig fetched."
-<<<<<<< HEAD
-=======
-             # Replace localhost with VPS IP
->>>>>>> ccc32a8 (fix(ci): restore kubeconfig fetch and tf_var mapping)
              sed -i "s/127.0.0.1/$VPS_HOST/g" "$KUBECONFIG_PATH"
              chmod 600 "$KUBECONFIG_PATH"
           else
@@ -82,11 +70,8 @@ jobs:
           work-token: '${{ github.event.inputs.work-token }}'
           api-base-url: '${{ github.event.inputs.api-base-url }}'
         env:
-          # Backend Params
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          
-          # Terraform Variables (Explicit Mapping)
           TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
           TF_VAR_ssh_private_key: ${{ secrets.VPS_SSH_KEY }}
           TF_VAR_ssh_port: ${{ secrets.VPS_SSH_PORT }}
@@ -95,6 +80,5 @@ jobs:
           TF_VAR_k3s_channel: ${{ secrets.K3S_CHANNEL }}
           TF_VAR_k3s_version: ${{ secrets.K3S_VERSION }}
           TF_VAR_infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
-          
           SECRETS_CONTEXT: ${{ toJson(secrets) }}
           VARIABLES_CONTEXT: ${{ toJson(vars) }}
