@@ -1,4 +1,5 @@
-# Terrateam Configuration - Full Featured
+# Terrateam Configuration
+# Step 1: Basic R2 Backend Configuration
 version: "1"
 
 when_modified:
@@ -8,16 +9,7 @@ when_modified:
     - ".terrateam/config.yml"
   autoplan: true
 
-# Global hooks for SSH and Kubeconfig setup
-hooks:
-  all:
-    pre:
-      - type: run
-        cmd: ['bash', '-c', 'mkdir -p ~/.ssh && echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa && chmod 600 ~/.ssh/id_rsa && ssh-keyscan -p "${VPS_SSH_PORT:-22}" "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true']
-      - type: run
-        cmd: ['bash', '-c', 'KUBECONFIG_PATH="terraform/output/${CLUSTER_NAME:-truealpha-k3s}-kubeconfig.yaml" && mkdir -p "$(dirname "$KUBECONFIG_PATH")" && (ssh -i ~/.ssh/id_rsa -p "${VPS_SSH_PORT:-22}" -o StrictHostKeyChecking=no "root@$VPS_HOST" "sudo cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_PATH" 2>/dev/null && sed -i "s/127.0.0.1/$VPS_HOST/g" "$KUBECONFIG_PATH" && chmod 600 "$KUBECONFIG_PATH" && echo "Kubeconfig fetched." || echo "Kubeconfig not available yet.")']
-
-# Workflows with backend configuration
+# Workflow with R2 backend configuration
 workflows:
   - tag_query: ""
     plan:
