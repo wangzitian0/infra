@@ -37,7 +37,7 @@ resource "random_id" "infisical_jwt_provider_secret" {
 # Helm release for Infisical with external PostgreSQL and embedded Redis
 resource "helm_release" "infisical" {
   name             = "infisical"
-  namespace        = var.namespaces["security"]
+  namespace        = kubernetes_namespace.security.metadata[0].name
   repository       = "https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/"
   chart            = "infisical-standalone"
   version          = var.infisical_chart_version
@@ -92,7 +92,7 @@ resource "helm_release" "infisical" {
 resource "kubernetes_secret" "infisical_secrets" {
   metadata {
     name      = "infisical-secrets"
-    namespace = var.namespaces["security"]
+    namespace = kubernetes_namespace.security.metadata[0].name
   }
 
   data = {
