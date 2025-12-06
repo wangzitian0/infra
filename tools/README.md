@@ -14,6 +14,7 @@ It serves as the Single Source of Truth (SSOT) for *how* we manage operations, C
 
 ## 3. Local Scripts
 - `./tools/docs-guard.sh <base-ref> [head-ref]`: Run the documentation guard locally; CI calls it to ensure `0.check_now.md` and touched directories' `README.md` files are updated together.
+- `./tools/setup_remote_debug.sh`: Setup remote debugging environment for k3s cluster.
 
 ---
 

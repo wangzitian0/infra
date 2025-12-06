@@ -22,6 +22,9 @@ module "nodep" {
   aws_secret_access_key   = "" # Set via env: AWS_SECRET_ACCESS_KEY  
   r2_bucket               = var.r2_bucket
   r2_account_id           = var.r2_account_id
+  base_domain             = var.base_domain
+  cloudflare_api_token    = var.cloudflare_api_token
+  cloudflare_zone_id      = var.cloudflare_zone_id
 }
 
 
@@ -33,10 +36,18 @@ module "env_and_networking" {
   infisical_image_tag         = var.infisical_image_tag
   infisical_postgres_password = var.infisical_postgres_password
   infisical_postgres_storage  = var.infisical_postgres_storage
-  domain_prefix               = var.domain_prefix
+  env_prefix                  = var.env_prefix
   base_domain                 = var.base_domain
   namespaces                  = local.namespaces
   kubeconfig_path             = local.kubeconfig_path
+
+  # cloudflare_api_token = var.cloudflare_api_token # Moved to L1
+  # cloudflare_zone_id   = var.cloudflare_zone_id   # Moved to L1
+  # vps_host             = var.vps_host             # Keeping if L2 needs it, but removing passed arg if defined in L2 variables.tf as removed.
+  # Checking L2 variables.tf update: I removed vps_host from L2 variables?
+  # Wait, the previous replacement text for L2 variables.tf kept vps_host.
+  # "variable "vps_host" {} # Needed for A record IF not managed by L1..."
+  vps_host             = var.vps_host
 
   depends_on = [module.nodep]
 }
