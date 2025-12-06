@@ -46,6 +46,12 @@ inputs:
   infisical_postgres_password:
     description: "Postgres Password"
     required: true
+  github_token:
+    description: "GitHub PAT for Atlantis"
+    required: true
+  atlantis_webhook_secret:
+    description: "Atlantis Webhook Secret"
+    required: true
 
 runs:
   using: "composite"
