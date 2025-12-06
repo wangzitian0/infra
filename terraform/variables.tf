@@ -86,10 +86,10 @@ variable "env_prefix" {
 
 # Infisical PostgreSQL (dedicated)
 variable "infisical_postgres_password" {
-  description = "PostgreSQL password for Infisical database"
+  description = "PostgreSQL password for Infisical database (REQUIRED - no default for security)"
   type        = string
   sensitive   = true
-  default     = "CHANGE_ME"
+  # No default - must be provided via tfvars or -var flag
 }
 
 variable "infisical_postgres_storage" {
@@ -203,4 +203,17 @@ variable "cloudflare_api_token" {
 variable "cloudflare_zone_id" {
   description = "Cloudflare Zone ID for the domain"
   type        = string
+}
+
+variable "infisical_github_client_id" {
+  description = "GitHub OAuth App Client ID for Infisical SSO"
+  type        = string
+  default     = ""
+}
+
+variable "infisical_github_client_secret" {
+  description = "GitHub OAuth App Client Secret for Infisical SSO"
+  type        = string
+  sensitive   = true
+  default     = ""
 }

@@ -136,8 +136,12 @@ resource "kubernetes_secret" "infisical_secrets" {
     JWT_PROVIDER_AUTH_SECRET = random_id.infisical_jwt_provider_secret.hex
 
     # Site configuration
-    SITE_URL           = "http://infisical.local"
+    SITE_URL           = "https://i-secrets.${var.base_domain}"
     INVITE_ONLY_SIGNUP = "false"
+
+    # GitHub OAuth SSO
+    CLIENT_ID_GITHUB_LOGIN     = var.infisical_github_client_id
+    CLIENT_SECRET_GITHUB_LOGIN = var.infisical_github_client_secret
 
     # SMTP configuration
     SMTP_HOST         = "mailhog"
