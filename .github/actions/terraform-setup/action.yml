@@ -31,44 +31,9 @@ inputs:
     description: "VPS SSH Port"
     required: false
     default: "22"
-  k3s_cluster_name:
+  k3s_cluster_name: # Still used for fetching kubeconfig
     description: "Cluster Name"
     required: false
-  k3s_api_endpoint:
-    description: "K3s API Endpoint"
-    required: false
-  k3s_channel:
-    description: "K3s Channel"
-    required: false
-  k3s_version:
-    description: "K3s Version"
-    required: false
-  infisical_postgres_password:
-    description: "Postgres Password"
-    required: true
-  github_token:
-    description: "GitHub PAT for Atlantis"
-    required: true
-  atlantis_webhook_secret:
-    description: "Atlantis Webhook Secret"
-    required: true
-  cloudflare_api_token:
-    description: "Cloudflare API Token"
-    required: true
-  cloudflare_zone_id:
-    description: "Cloudflare Zone ID"
-    required: true
-  base_domain:
-    description: "Base domain for services (e.g., truealpha.club)"
-    required: true
-  github_app_id:
-    description: "GitHub App ID for Atlantis (optional, preferred over PAT)"
-    required: false
-    default: ""
-  github_app_key:
-    description: "GitHub App Private Key (PEM) for Atlantis"
-    required: false
-    default: ""
 
 runs:
   using: "composite"
@@ -95,31 +60,16 @@ runs:
         [ -z "${R2_ACCOUNT_ID}" ] && echo "Missing R2_ACCOUNT_ID" && exit 1
         [ -z "${VPS_HOST}" ] && echo "Missing VPS_HOST" && exit 1
         [ -z "${VPS_SSH_KEY}" ] && echo "Missing VPS_SSH_KEY" && exit 1
-        [ -z "${{ inputs.github_token }}" ] && echo "Missing github_token" && exit 1
-        [ -z "${{ inputs.atlantis_webhook_secret }}" ] && echo "Missing atlantis_webhook_secret" && exit 1
-        [ -z "${{ inputs.cloudflare_api_token }}" ] && echo "Missing cloudflare_api_token" && exit 1
-        [ -z "${{ inputs.cloudflare_zone_id }}" ] && echo "Missing cloudflare_zone_id" && exit 1
         echo "All required secrets present"
 
-    - name: Render tfvars and SSH
+    - name: Setup SSH
       shell: bash
       env:
         VPS_HOST: ${{ inputs.vps_host }}
         VPS_USER: ${{ inputs.vps_user }}
         VPS_SSH_PORT: ${{ inputs.vps_ssh_port }}
         VPS_SSH_KEY: ${{ inputs.vps_ssh_key }}
-        K3S_API_ENDPOINT: ${{ inputs.k3s_api_endpoint }}
-        K3S_CHANNEL: ${{ inputs.k3s_channel }}
-        K3S_VERSION: ${{ inputs.k3s_version }}
         K3S_CLUSTER_NAME: ${{ inputs.k3s_cluster_name }}
-        INFISICAL_POSTGRES_PASSWORD: ${{ inputs.infisical_postgres_password }}
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        ATLANTIS_WEBHOOK_SECRET: ${{ inputs.atlantis_webhook_secret }}
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
-        CLOUDFLARE_ZONE_ID: ${{ inputs.cloudflare_zone_id }}
-        BASE_DOMAIN: ${{ inputs.base_domain }}
-        GITHUB_APP_ID: ${{ inputs.github_app_id }}
-        GITHUB_APP_KEY: ${{ inputs.github_app_key }}
       run: |
         set -euo pipefail
 
