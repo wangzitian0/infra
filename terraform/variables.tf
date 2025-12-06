@@ -151,3 +151,24 @@ variable "enable_ssl" {
   type        = bool
   default     = true
 }
+
+# Atlantis (Terraform CI/CD)
+variable "github_token" {
+  description = "GitHub Personal Access Token for Atlantis"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "atlantis_webhook_secret" {
+  description = "Webhook secret for GitHub -> Atlantis"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "r2_account_id" {
+  description = "Cloudflare R2 account ID"
+  type        = string
+  default     = ""
+}
