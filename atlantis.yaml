@@ -25,11 +25,17 @@ workflows:
               chmod 600 ~/.ssh/id_rsa
               ssh-keyscan -p 22 "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
             fi
-        # Terraform init with R2 backend
-        - init:
-            extra_args:
-              - "-backend-config=bucket=$R2_BUCKET"
-              - "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"
+        # Terraform init with R2 backend when credentials are available; otherwise fall back to local backend for plan
+        - run: |
+            set -euo pipefail
+            if [ -n "${R2_BUCKET:-}" ] && [ -n "${R2_ACCOUNT_ID:-}" ] && [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+              terraform init -input=false -upgrade \
+                -backend-config="bucket=${R2_BUCKET}" \
+                -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
+            else
+              echo "Warning: R2 backend credentials missing; using local backend for plan (state will not be read)."
+              terraform init -input=false -upgrade -backend=false
+            fi
         - plan
     apply:
       steps:
@@ -38,6 +44,12 @@ workflows:
               mkdir -p ~/.ssh
               echo "$VPS_SSH_KEY" > ~/.ssh/id_rsa
               chmod 600 ~/.ssh/id_rsa
+            fi
+        - run: |
+            set -euo pipefail
+            if [ -z "${R2_BUCKET:-}" ] || [ -z "${R2_ACCOUNT_ID:-}" ] || [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
+              echo "Error: R2 backend credentials are required for apply. Set R2_BUCKET, R2_ACCOUNT_ID, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY."
+              exit 1
             fi
         - init:
             extra_args:
