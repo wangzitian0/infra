@@ -1,18 +1,34 @@
 # Network & Domain SSOT
 
-Secondary domain and URL Single Source of Truth.
+## 1. 变量定义 (Definitions)
 
-## Domains
+| Variable | Description | Example Value | Source |
+|----------|-------------|---------------|--------|
+| `${BASE_DOMAIN}` | 基础域名 | `example.com` | `terraform.tfvars` |
+| `${VPS_HOST}` | 基础 IP | `1.2.3.4` | `terraform.tfvars` (for context) |
+| `${DOMAIN_PREFIX}` | 环境前缀 | `x-staging` | `staging.tfvars` |
 
-| Scope | Service | Subdomain | Full URL | Managed By |
-|-------|---------|-----------|----------|------------|
-| **Global/Internal** | Atlantis | `x-atlantis` | `https://x-atlantis.${BASE_DOMAIN}` | L1 (Nodep) |
-| **Global/Internal** | K3s API | `x-k3s` | `https://x-k3s.${BASE_DOMAIN}` | L1 (Nodep) |
-| **Env (Staging/Prod)** | Infisical | `cloud` / `cloud-{prefix}` | `https://cloud[-${DOMAIN_PREFIX}].${BASE_DOMAIN}` | L2 (Networking) |
-| **Env (Staging/Prod)** | Kubero UI | `api` / `api-{prefix}` | `https://api[-${DOMAIN_PREFIX}].${BASE_DOMAIN}` | L2 (Networking) |
-| **Env (Staging/Prod)** | SigNoz | `signoz` / `signoz-{prefix}` | `https://signoz[-${DOMAIN_PREFIX}].${BASE_DOMAIN}` | L2 (Observability) |
-| **Env (Staging/Prod)** | PostHog | `posthog` / `posthog-{prefix}` | `https://posthog[-${DOMAIN_PREFIX}].${BASE_DOMAIN}` | L2 (Observability) |
-| **App** | Frontend | (root) / `{prefix}` | `https://[${DOMAIN_PREFIX}.]${BASE_DOMAIN}` | L2 (Networking) |
-| **App** | Backend | `api` / `api-{prefix}` | `https://api[-${DOMAIN_PREFIX}].${BASE_DOMAIN}` | L2 (Networking) |
+## 2. 命名模式 (Patterns)
 
-> **Note**: Base domain is defined in `terraform.tfvars` via `base_domain` variable.
+### A. 全局/内部服务 (Global Internal)
+*   **Pattern**: `x-{service}.${BASE_DOMAIN}`
+*   **Example**: `x-atlantis.example.com`
+
+### B. 环境服务 (Environment Services)
+*   **Pattern**: `{service}-${DOMAIN_PREFIX}.${BASE_DOMAIN}`
+*   **Example** (Staging): `{service}-x-staging.example.com`
+
+## 3. 服务列表 (Service List)
+
+| Category | Service | `{service}` Name | Pattern | Full Example URL | Managed By |
+|----------|---------|------------------|---------|------------------|------------|
+| **Global** | Atlantis | `atlantis` | **A** | `https://x-atlantis.${BASE_DOMAIN}` | L1 (Nodep) |
+| **Global** | K3s API | `k3s` | **A** | `https://x-k3s.${BASE_DOMAIN}` | L1 (Nodep) |
+| **Env** | Kubero UI | `api` | **B** | `https://api-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Networking) |
+| **Env** | Kubero Backend | `api` | **B** | `https://api-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Networking) |
+| **Env** | Infisical | `cloud` | **B** | `https://cloud-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Networking) |
+| **Env** | SigNoz | `signoz` | **B** | `https://signoz-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Observability) |
+| **Env** | PostHog | `posthog` | **B** | `https://posthog-${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Observability) |
+| **App** | Frontend | (root) | **B***| `https://${DOMAIN_PREFIX}.${BASE_DOMAIN}` | L2 (Networking) |
+
+> *Frontend uses the prefix directly as the subdomain in the environment pattern.
