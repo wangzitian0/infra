@@ -58,6 +58,13 @@ variable "disable_components" {
   default     = ["traefik"]
 }
 
+# Shared Infrastructure Toggle
+variable "enable_infra" {
+  description = "Enable shared infrastructure modules (L1/L2). Set to false for app-only deployments (staging/prod)."
+  type        = bool
+  default     = true
+}
+
 # Environment & domain
 variable "environment" {
   description = "Environment name (staging, prod, etc.)"
