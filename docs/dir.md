@@ -12,47 +12,40 @@ This document serves as the navigation map for the `infra` repository.
 
 ```text
 root/
-├── .terrateam/              # [+] L0 Orchestration (Config)
-│   └── config.yml           # (!) Terrateam Config
-├── .github/workflows/       # [+] GitHub Runners
-│   └── terrateam.yml        # (!) Workflow Entry
-├── apps/                    # [+] Business Code
-│   └── tools/               # [+] Dev scripts
-├── docs/                    # [+] Architecture & Design
+├── 0.check_now.md          # (!) Current sprint context
+├── .github/                 # [+] CI/Bots
+│   ├── README.md            # CI/CD folder index
+│   └── workflows/           # [+] GitHub Runners
+│       ├── README.md        # Workflows index
+│       └── terrateam.yml    # (!) Workflow Entry
+├── AGENTS.md                # (!) AI Behavior Guidelines
+├── README.md                # (!) Project Index
+├── docs/
 │   ├── dir.md               # (!) This map & Namespace Registry
 │   ├── README.md            # (!) Design Concepts
-│   ├── project/             # [+] Project Mgmt (BRN-004)
-│   └── BRN-004.md           # (!) Full Architecture Spec
-├── terraform/               # [!] Infrastructure Code (The Truth)
-│   ├── envs/                # [+] Env Configs
-│   ├── output/              # [*] Generated files
-│   ├── main.tf              # (!) Layer Orchestration
-│   ├── variables.tf         # (!) Global Schema
-│   ├── 1.nodep/             # [+] L1: Bootstrap (ns: nodep)
-│   │   ├── 1.k3s.tf         # (!) Runtime Provisioning
-│   │   ├── 2.atlantis.tf    # (!) CI Automation
-│   │   └── README.md        # 📖 SSOT
-│   ├── 2.env_and_networking/# [+] L2: Foundation (ns: security)
-│   │   ├── 1.postgres.tf    # (!) Shared DB
-│   │   ├── 2.secret.tf      # (!) Infisical
-│   │   └── README.md        # 📖 SSOT
-│   ├── 3.computing/         # [+] L3: Runtime (ns: kubero/apps)
-│   │   ├── 3.dashboard.tf   # (!) K8s Dashboard
-│   │   ├── (kubero.tf)      # (!) PaaS (Planned)
-│   │   └── README.md        # 📖 SSOT
-│   ├── 4.storage/           # [+] L4: Data (ns: data)
-│   │   ├── (redis.tf)       # (!) Cache (Planned)
-│   │   ├── (neo4j.tf)       # (!) Graph (Planned)
-│   │   └── README.md        # 📖 SSOT
-│   └── 5.insight/           # [+] L5: Insight (ns: obs/ingestion)
-│       ├── (signoz.tf)      # (!) APM (Planned)
-│       ├── (posthog.tf)     # (!) Analytics (Planned)
-│       └── README.md        # 📖 SSOT
-├── tools/                   # [!] Meta / CI SSOT
-│   └── README.md            # (!) CI/CD & Mgmt SSOT
-├── .gitignore               # (!) Git Ignore Rules
-├── AGENTS.md                # (!) AI Behavior Guidelines
-└── README.md                # (!) Project Index
+│   ├── BRN-004.env_eaas_design.md # (!) Env & EaaS architecture
+│   ├── project/
+│   │   ├── README.md        # BRN status/index
+│   │   └── BRN-004.md       # BRN-004 integrated architecture
+│   ├── change_log/
+│   │   ├── README.md        # Change log index
+│   │   ├── 2025-12-04.k3s_bootstrap_reset.md    # History: k3s reset
+│   │   ├── 2025-12-05.staging_deployment_design.md # History: staging design
+│   │   └── 2025-12-06.checklist_merge.md        # History: checklist merge
+│   └── deep_dives/
+│       ├── README.md        # Deep dive index
+│       ├── DD-001.secret_and_ci_practices.md    # Decisions: secrets & CI
+│       └── DD-002.why_atlantis.md               # Decisions: Atlantis rationale
+├── terraform/
+│   ├── README.md            # (!) IaC entry & layer map
+│   ├── envs/README.md       # tfvars templates per environment
+│   ├── 1.nodep/README.md    # L1 bootstrap (k3s/Atlantis)
+│   ├── 2.env_and_networking/README.md # L2 foundation (secrets/ingress/db)
+│   ├── 3.computing/README.md # L3 runtime (PaaS/dashboard)
+│   ├── 4.storage/README.md  # L4 data stores
+│   └── 5.insight/README.md  # L5 observability/analytics
+└── tools/
+    └── README.md            # (!) CI/CD & Mgmt SSOT
 ```
 
 ## Key Layers (Defined in BRN-004)
