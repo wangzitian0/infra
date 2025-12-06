@@ -11,7 +11,8 @@ This document serves as the navigation map for the `infra` repository.
 
 ```text
 infra/
-├── .github/types/           # GitHub Action Workflows
+├── .terrateam/              # [!] L0 Orchestration (CI/CD Config)
+├── .github/workflows/       # GitHub Action Workflows (Legacy/Runner)
 ├── apps/                    # [Submodule] Business Code (See apps/README.md)
 │   └── tools/               # [Submodule] Dev scripts (dev.sh, init_db.sh)
 ├── docs/                    # Architecture & Design Concepts
@@ -49,7 +50,8 @@ infra/
 
 | Purpose | Directory | SSOT File |
 |---|---|---|
-| **Run Terraform** | `terraform/0.common` | `main.tf` |
+| **CI/CD Orchestration** | `.terrateam` | `config.yml` |
+| **Run Terraform** | `terraform/` | `main.tf` |
 | **Manage Secrets** | `terraform/2.env_and_networking` | `2.secret.tf` |
 | **Add New App** | `terraform/3.computing` | `*.tf` (Future) |
 | **Architecture** | `docs/` | `README.md` |
