@@ -71,12 +71,12 @@ jobs:
         env:
           # Inject Secrets as Terraform Variables directly
           TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
-          TF_VAR_vps_user: ${{ secrets.VPS_USER }}
+          TF_VAR_vps_user: ${{ secrets.VPS_USER || 'root' }}
           TF_VAR_ssh_private_key: ${{ secrets.VPS_SSH_KEY }}
-          TF_VAR_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          TF_VAR_cluster_name: ${{ vars.K3S_CLUSTER_NAME }}
+          TF_VAR_ssh_port: ${{ secrets.VPS_SSH_PORT || '22' }}
+          TF_VAR_cluster_name: ${{ vars.K3S_CLUSTER_NAME || 'truealpha-k3s' }}
           TF_VAR_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
-          TF_VAR_k3s_channel: ${{ secrets.K3S_CHANNEL }}
+          TF_VAR_k3s_channel: ${{ secrets.K3S_CHANNEL || 'stable' }}
           TF_VAR_k3s_version: ${{ secrets.K3S_VERSION }}
           # Passwords & Tokens
           TF_VAR_infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
