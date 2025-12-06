@@ -3,11 +3,22 @@ variable "vps_host" {
   type        = string
 }
 
-# Trigger Auto-Plan
+# L1 Bootstrap: R2 State Backend
 variable "r2_bucket" {
-  description = "SSH user on the VPS"
+  description = "Cloudflare R2 bucket name for Terraform state"
   type        = string
-  default     = "root"
+}
+
+variable "aws_access_key_id" {
+  description = "AWS Access Key ID for R2 (S3-compatible)"
+  type        = string
+  sensitive   = true
+}
+
+variable "aws_secret_access_key" {
+  description = "AWS Secret Access Key for R2 (S3-compatible)"
+  type        = string
+  sensitive   = true
 }
 
 variable "vps_user" {
