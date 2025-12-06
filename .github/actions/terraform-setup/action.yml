@@ -104,22 +104,32 @@ runs:
     - name: Render tfvars and SSH
       shell: bash
       env:
+        # L1 Bootstrap: R2 Backend
+        AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
+        R2_BUCKET: ${{ inputs.r2_bucket }}
+        R2_ACCOUNT_ID: ${{ inputs.r2_account_id }}
+        # L1 Bootstrap: VPS/SSH
         VPS_HOST: ${{ inputs.vps_host }}
         VPS_USER: ${{ inputs.vps_user }}
         VPS_SSH_PORT: ${{ inputs.vps_ssh_port }}
         VPS_SSH_KEY: ${{ inputs.vps_ssh_key }}
+        # L1 Bootstrap: K3s
         K3S_API_ENDPOINT: ${{ inputs.k3s_api_endpoint }}
         K3S_CHANNEL: ${{ inputs.k3s_channel }}
         K3S_VERSION: ${{ inputs.k3s_version }}
         K3S_CLUSTER_NAME: ${{ inputs.k3s_cluster_name }}
-        INFISICAL_POSTGRES_PASSWORD: ${{ inputs.infisical_postgres_password }}
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        ATLANTIS_WEBHOOK_SECRET: ${{ inputs.atlantis_webhook_secret }}
+        # L1 Bootstrap: Cloudflare
         CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
         CLOUDFLARE_ZONE_ID: ${{ inputs.cloudflare_zone_id }}
         BASE_DOMAIN: ${{ inputs.base_domain }}
+        # L1 Bootstrap: Atlantis/GitHub
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        ATLANTIS_WEBHOOK_SECRET: ${{ inputs.atlantis_webhook_secret }}
         GITHUB_APP_ID: ${{ inputs.github_app_id }}
         GITHUB_APP_KEY: ${{ inputs.github_app_key }}
+        # L2: Infisical
+        INFISICAL_POSTGRES_PASSWORD: ${{ inputs.infisical_postgres_password }}
       run: |
         set -euo pipefail
 
@@ -132,29 +142,38 @@ runs:
         PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
 
         # Create tfvars in terraform root
-        # Using separate heredocs for multiline values
         cat > terraform/terraform.tfvars << TFVARS_END
-        vps_host        = "${VPS_HOST}"
-        vps_user        = "${VPS_USER_VALUE}"
-        ssh_port        = ${SSH_PORT_VALUE}
-        cluster_name    = "${CLUSTER_NAME_VALUE}"
-        api_endpoint    = "${API_ENDPOINT_VALUE}"
-        k3s_channel     = "${CHANNEL_VALUE}"
-        k3s_version     = "${VERSION_VALUE}"
-        infisical_postgres_password = "${PG_PASSWORD}"
-        github_token    = "${GITHUB_TOKEN}"
+        # L1 Bootstrap: R2 Backend
+        aws_access_key_id     = "${AWS_ACCESS_KEY_ID}"
+        aws_secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
+        r2_bucket             = "${R2_BUCKET}"
+        r2_account_id         = "${R2_ACCOUNT_ID}"
+        # L1 Bootstrap: VPS/SSH
+        vps_host              = "${VPS_HOST}"
+        vps_user              = "${VPS_USER_VALUE}"
+        ssh_port              = ${SSH_PORT_VALUE}
+        # L1 Bootstrap: K3s
+        cluster_name          = "${CLUSTER_NAME_VALUE}"
+        api_endpoint          = "${API_ENDPOINT_VALUE}"
+        k3s_channel           = "${CHANNEL_VALUE}"
+        k3s_version           = "${VERSION_VALUE}"
+        # L1 Bootstrap: Cloudflare
+        cloudflare_api_token  = "${CLOUDFLARE_API_TOKEN}"
+        cloudflare_zone_id    = "${CLOUDFLARE_ZONE_ID}"
+        base_domain           = "${BASE_DOMAIN}"
+        # L1 Bootstrap: Atlantis/GitHub
+        github_token          = "${GITHUB_TOKEN}"
         atlantis_webhook_secret = "${ATLANTIS_WEBHOOK_SECRET}"
-        cloudflare_api_token = "${CLOUDFLARE_API_TOKEN}"
-        cloudflare_zone_id   = "${CLOUDFLARE_ZONE_ID}"
-        base_domain          = "${BASE_DOMAIN}"
-        github_app_id        = "${GITHUB_APP_ID}"
+        github_app_id         = "${GITHUB_APP_ID}"
+        # L2: Infisical
+        infisical_postgres_password = "${PG_PASSWORD}"
         TFVARS_END
-        
+
         # Append multiline values using separate heredocs
         echo 'ssh_private_key = <<-SSHKEY' >> terraform/terraform.tfvars
         echo "${VPS_SSH_KEY}" >> terraform/terraform.tfvars
         echo 'SSHKEY' >> terraform/terraform.tfvars
-        
+
         echo 'github_app_key = <<-APPKEY' >> terraform/terraform.tfvars
         echo "${GITHUB_APP_KEY}" >> terraform/terraform.tfvars
         echo 'APPKEY' >> terraform/terraform.tfvars

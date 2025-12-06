@@ -20,8 +20,8 @@ module "nodep" {
   atlantis_webhook_secret = var.atlantis_webhook_secret
   github_app_id           = var.github_app_id
   github_app_key          = var.github_app_key
-  aws_access_key_id       = "" # Set via env: AWS_ACCESS_KEY_ID
-  aws_secret_access_key   = "" # Set via env: AWS_SECRET_ACCESS_KEY  
+  aws_access_key_id       = var.aws_access_key_id
+  aws_secret_access_key   = var.aws_secret_access_key
   r2_bucket               = var.r2_bucket
   r2_account_id           = var.r2_account_id
   base_domain             = var.base_domain
@@ -49,7 +49,7 @@ module "env_and_networking" {
   # Checking L2 variables.tf update: I removed vps_host from L2 variables?
   # Wait, the previous replacement text for L2 variables.tf kept vps_host.
   # "variable "vps_host" {} # Needed for A record IF not managed by L1..."
-  vps_host             = var.vps_host
+  vps_host = var.vps_host
 
   # Infisical GitHub OAuth
   infisical_github_client_id     = var.infisical_github_client_id

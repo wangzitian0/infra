@@ -83,7 +83,7 @@ resource "helm_release" "infisical" {
 
       # Ingress
       ingress = {
-        enabled = true
+        enabled   = true
         className = "nginx"
         annotations = {
           "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
@@ -93,7 +93,7 @@ resource "helm_release" "infisical" {
             host = "i-secrets.${var.base_domain}"
             paths = [
               {
-                path = "/"
+                path     = "/"
                 pathType = "ImplementationSpecific"
               }
             ]

@@ -17,7 +17,10 @@ root/
 │   ├── README.md            # CI/CD folder index
 │   └── workflows/           # [+] GitHub Runners
 │       ├── README.md        # Workflows index
-│       └── terrateam.yml    # (!) Workflow Entry
+│       ├── terraform-plan.yml # (!) Terraform validation
+│       ├── deploy-k3s.yml   # (!) K3s deployment
+│       ├── docs-guard.yml   # (!) Documentation enforcement
+│       └── claude.yml       # (!) AI code review (Claude GitHub App)
 ├── AGENTS.md                # (!) AI Behavior Guidelines
 ├── README.md                # (!) Project Index
 ├── docs/
