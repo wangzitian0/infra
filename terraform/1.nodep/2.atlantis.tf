@@ -16,88 +16,92 @@ resource "helm_release" "atlantis" {
   version    = "4.25.0"
 
   values = [
-    yamlencode({
-      # GitHub Configuration - Use GitHub App (preferred)
-      orgAllowlist = "github.com/${var.github_org}/*"
-      
-      # GitHub App Auth (bot account, better than PAT)
-      githubApp = var.github_app_id != "" ? {
-        id     = var.github_app_id
-        key    = var.github_app_key
-        secret = var.atlantis_webhook_secret
-      } : null
-      
-      # Fallback to PAT if GitHub App not configured
-      github = var.github_app_id == "" ? {
-        user   = var.github_user
-        token  = var.github_token
-        secret = var.atlantis_webhook_secret
-      } : null
-
-      # Environment for R2 Backend
-      environment = {
-        AWS_ACCESS_KEY_ID     = var.aws_access_key_id
-        AWS_SECRET_ACCESS_KEY = var.aws_secret_access_key
-        R2_BUCKET             = var.r2_bucket
-        R2_ACCOUNT_ID         = var.r2_account_id
-        VPS_HOST              = var.vps_host
-        VPS_SSH_KEY           = var.ssh_private_key
-      }
-
-      # Server-side repo config (allows custom workflows)
-      repoConfig = yamlencode({
-        repos = [{
-          id                     = "github.com/${var.github_org}/infra"
-          allow_custom_workflows = true
-          allowed_overrides      = ["workflow", "apply_requirements"]
-        }]
-      })
-
-      # Ingress (TLS via Cert Manager + Cloudflare)
-      ingress = {
-        enabled = true
-        ingressClassName = "nginx"
-        annotations = {
-          "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+    yamlencode(merge(
+      {
+        # GitHub Configuration
+        orgAllowlist = "github.com/${var.github_org}/*"
+        
+        # Environment for R2 Backend
+        environment = {
+          AWS_ACCESS_KEY_ID     = var.aws_access_key_id
+          AWS_SECRET_ACCESS_KEY = var.aws_secret_access_key
+          R2_BUCKET             = var.r2_bucket
+          R2_ACCOUNT_ID         = var.r2_account_id
+          VPS_HOST              = var.vps_host
+          VPS_SSH_KEY           = var.ssh_private_key
         }
-        hosts = [
-          {
-            host = "i-atlantis.${var.base_domain}"
-            paths = ["/"]
+
+        # Server-side repo config (allows custom workflows)
+        repoConfig = yamlencode({
+          repos = [{
+            id                     = "github.com/${var.github_org}/infra"
+            allow_custom_workflows = true
+            allowed_overrides      = ["workflow", "apply_requirements"]
+          }]
+        })
+
+        # Ingress (TLS via Cert Manager + Cloudflare)
+        ingress = {
+          enabled = true
+          ingressClassName = "nginx"
+          annotations = {
+            "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
           }
-        ]
-        tls = [
-          {
-            secretName = "atlantis-tls"
-            hosts      = ["i-atlantis.${var.base_domain}"]
+          hosts = [
+            {
+              host = "i-atlantis.${var.base_domain}"
+              paths = ["/"]
+            }
+          ]
+          tls = [
+            {
+              secretName = "atlantis-tls"
+              hosts      = ["i-atlantis.${var.base_domain}"]
+            }
+          ]
+        }
+
+        service = {
+          type = "ClusterIP"
+          port = 4141
+        }
+
+        # Persistence for plan files and locks
+        volumeClaim = {
+          enabled          = true
+          dataStorage      = "5Gi"
+          storageClassName = "local-path"
+        }
+
+        # Resource limits
+        resources = {
+          limits = {
+            cpu    = "500m"
+            memory = "512Mi"
           }
-        ]
-      }
-
-      service = {
-        type = "ClusterIP"
-        port = 4141
-      }
-
-      # Persistence for plan files and locks
-      volumeClaim = {
-        enabled          = true
-        dataStorage      = "5Gi"
-        storageClassName = "local-path"
-      }
-
-      # Resource limits
-      resources = {
-        limits = {
-          cpu    = "500m"
-          memory = "512Mi"
+          requests = {
+            cpu    = "100m"
+            memory = "256Mi"
+          }
         }
-        requests = {
-          cpu    = "100m"
-          memory = "256Mi"
+      },
+      # GitHub App Auth (preferred when configured)
+      var.github_app_id != "" ? {
+        githubApp = {
+          id     = var.github_app_id
+          key    = var.github_app_key
+          secret = var.atlantis_webhook_secret
         }
-      }
-    })
+      } : {},
+      # PAT Auth (fallback when GitHub App not configured)
+      var.github_app_id == "" ? {
+        github = {
+          user   = var.github_user
+          token  = var.github_token
+          secret = var.atlantis_webhook_secret
+        }
+      } : {}
+    ))
   ]
   depends_on = [kubernetes_namespace.nodep]
 }
