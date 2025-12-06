@@ -18,9 +18,10 @@ locals {
   }
 
   namespaces = {
+    nodep         = "nodep"
+    security      = "security"
     apps          = "apps"
     data          = "data"
-    iac           = "iac"
     ingestion     = "ingestion"
     kubero        = "kubero"
     observability = "observability"
