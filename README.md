@@ -33,6 +33,12 @@
 
 Push 到 main 或手动触发 `Deploy k3s to VPS` 工作流（`.github/workflows/deploy-k3s.yml`）。
 
+**PR Workflow**:
+1. Open PR → CI runs `terraform plan`.
+2. On success → CI comments `atlantis plan`.
+3. Atlantis bot comments plan result.
+4. You comment `atlantis apply`.
+
 ### 3. 本地部署（可选）
 
 ```bash
