@@ -68,11 +68,11 @@ variable "environment" {
 variable "base_domain" {
   description = "Base domain (e.g., truealpha.club)"
   type        = string
-  default     = "truealpha.club"
+  default     = "example.com"
 }
 
-variable "domain_prefix" {
-  description = "Domain prefix (e.g., x-staging, x-test, empty for prod)"
+variable "env_prefix" {
+  description = "Environment prefix (e.g., x-staging, x-test, empty for prod)"
   type        = string
   default     = "x-staging"
 }
@@ -171,4 +171,15 @@ variable "r2_account_id" {
   description = "Cloudflare R2 account ID"
   type        = string
   default     = ""
+}
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for DNS and Certs"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare Zone ID for the domain"
+  type        = string
 }

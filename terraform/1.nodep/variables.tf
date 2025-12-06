@@ -30,3 +30,8 @@ variable "aws_secret_access_key" {
 }
 variable "r2_bucket" {}
 variable "r2_account_id" {}
+variable "base_domain" {}
+variable "cloudflare_api_token" {
+  sensitive = true
+}
+variable "cloudflare_zone_id" {}

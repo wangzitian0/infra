@@ -55,6 +55,8 @@ jobs:
           infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
           github_token: ${{ secrets.GH_PAT || github.token }}
           atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
       - name: Terraform plan
         working-directory: terraform
@@ -62,6 +64,7 @@ jobs:
 
       # Stage 1: Bootstrap L1 (Node/K3s) + Kubeconfig
       - name: Apply L1 (Bootstrap)
+        if: github.event_name == 'push'
         working-directory: terraform
         run: |
           # Apply only the bootstrap module to generate infrastructure
@@ -69,6 +72,7 @@ jobs:
 
       # Stage 2: Apply remaining layers (L2+) which need Kubeconfig
       - name: Apply L2+ (Platform)
+        if: github.event_name == 'push'
         working-directory: terraform
         run: terraform apply -auto-approve
 

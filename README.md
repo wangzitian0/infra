@@ -22,6 +22,8 @@
 | `R2_ACCOUNT_ID` | Cloudflare Account ID | ✅ |
 | `VPS_HOST` | VPS 公网 IP 或域名 | ✅ |
 | `VPS_SSH_KEY` | SSH 私钥内容 | ✅ |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API Token (DNS/Cert) | ✅ |
+| `CLOUDFLARE_ZONE_ID` | Cloudflare Zone ID | ✅ |
 | `VPS_USER` | SSH 用户（默认 root） | |
 | `VPS_SSH_PORT` | SSH 端口（默认 22） | |
 | `K3S_API_ENDPOINT` | API 地址（默认 VPS_HOST） | |

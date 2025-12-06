@@ -20,17 +20,7 @@ We use a layered approach:
 - **Infisical Backend**: Manages encryption keys.
 - **Infisical Agent**: (Future) Syncs secrets to K8s Secrets.
 
-### 2. Networking Scheme
-Cloudflare is used for DNS/WAF.
-**Staging Domain Prefixing**:
-- Kubero UI: `api-x-staging.truealpha.club`
-- Infisical: `cloud-x-staging.truealpha.club`
-- App Frontend: `x-staging.truealpha.club`
-- App Backend: `api-x-staging.truealpha.club`
 
-**Namespaces**:
-- `iac`: Infisical + Platform DB.
-- `cert-manager`: (If used).
 
 ### 3. Usage
 ```bash
