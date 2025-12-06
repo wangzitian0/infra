@@ -35,4 +35,8 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
     # ... other inputs
 ```
 
+## Implementation Note
+
+tfvars generation uses a placeholder + sed/awk approach to handle multiline secrets (like `github_app_key`). This avoids heredoc nesting issues.
+
 See [action.yml](./action.yml) for full implementation.
