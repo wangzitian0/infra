@@ -37,35 +37,39 @@ resource "helm_release" "cert_manager" {
 }
 
 # 4. ClusterIssuer (Let's Encrypt Production)
-resource "kubernetes_manifest" "cluster_issuer_letsencrypt_prod" {
-  manifest = {
-    apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
-    metadata = {
-      name = "letsencrypt-prod"
-    }
-    spec = {
-      acme = {
-        email  = "admin@${var.base_domain}"
-        server = "https://acme-v02.api.letsencrypt.org/directory"
-        privateKeySecretRef = {
-          name = "letsencrypt-prod"
-        }
-        solvers = [
-          {
-            dns01 = {
-              cloudflare = {
-                apiTokenSecretRef = {
-                  name = "cloudflare-api-token-secret"
-                  key  = "api-token"
-                }
-              }
-            }
-          }
-        ]
-      }
-    }
+# Note: Using null_resource + kubectl instead of kubernetes_manifest 
+# because kubernetes_manifest requires CRDs to exist during plan,
+# which fails in CI when CRDs haven't been installed yet.
+resource "null_resource" "cluster_issuer_letsencrypt_prod" {
+  triggers = {
+    # Re-run if these change
+    email       = "admin@${var.base_domain}"
+    secret_name = kubernetes_secret.cloudflare_api_token.metadata[0].name
   }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      kubectl --kubeconfig=${var.kubeconfig_path} apply -f - <<EOF
+      apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      metadata:
+        name: letsencrypt-prod
+      spec:
+        acme:
+          email: admin@${var.base_domain}
+          server: https://acme-v02.api.letsencrypt.org/directory
+          privateKeySecretRef:
+            name: letsencrypt-prod
+          solvers:
+          - dns01:
+              cloudflare:
+                apiTokenSecretRef:
+                  name: cloudflare-api-token-secret
+                  key: api-token
+      EOF
+    EOT
+  }
+
   depends_on = [helm_release.cert_manager, kubernetes_secret.cloudflare_api_token]
 }
 
