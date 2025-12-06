@@ -11,10 +11,12 @@
 ## 2. 命名模式 (Patterns)
 
 ### A. 内部服务 (Internal Service)
-*   **Pattern**: `x-{internal_service}.${BASE_DOMAIN}`
-*   **Example**: `x-atlantis.example.com`
+*   **Prefix**: `i-`
+*   **Pattern**: `i-{service}.${BASE_DOMAIN}`
+*   **Example**: `i-atlantis.example.com`
 
-### B. 环境服务 (Environment Service)
+### B. 环境服务 (Environmental Service)
+*   **Prefix**: `x-`
 *   **Pattern**: `x-{env}-{service}.${BASE_DOMAIN}` (equivalent to `${DOMAIN_PREFIX}-{service}.${BASE_DOMAIN}`)
 *   **Example** (Staging): `x-staging-api.example.com`
 
@@ -22,8 +24,8 @@
 
 | Category | Service | `{service}` Name | Pattern | Full Example URL | Managed By |
 |----------|---------|------------------|---------|------------------|------------|
-| **Global** | Atlantis | `atlantis` | **A** | `https://x-atlantis.${BASE_DOMAIN}` | L1 (Nodep) |
-| **Global** | K3s API | `k3s` | **A** | `https://x-k3s.${BASE_DOMAIN}` | L1 (Nodep) |
+| **Global** | Atlantis | `atlantis` | **A** | `https://i-atlantis.${BASE_DOMAIN}` | L1 (Nodep) |
+| **Global** | K3s API | `k3s` | **A** | `https://i-k3s.${BASE_DOMAIN}` | L1 (Nodep) |
 | **Env** | Kubero UI | `api` | **B** | `https://${DOMAIN_PREFIX}-api.${BASE_DOMAIN}` | L2 (Networking) |
 | **Env** | Kubero Backend | `api` | **B** | `https://${DOMAIN_PREFIX}-api.${BASE_DOMAIN}` | L2 (Networking) |
 | **Env** | Infisical | `cloud` | **B** | `https://${DOMAIN_PREFIX}-cloud.${BASE_DOMAIN}` | L2 (Networking) |

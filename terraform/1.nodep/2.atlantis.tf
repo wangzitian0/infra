@@ -53,14 +53,14 @@ resource "helm_release" "atlantis" {
         }
         hosts = [
           {
-            host = "x-atlantis.${var.base_domain}"
+            host = "i-atlantis.${var.base_domain}"
             paths = ["/"]
           }
         ]
         tls = [
           {
             secretName = "atlantis-tls"
-            hosts      = ["x-atlantis.${var.base_domain}"]
+            hosts      = ["i-atlantis.${var.base_domain}"]
           }
         ]
       }

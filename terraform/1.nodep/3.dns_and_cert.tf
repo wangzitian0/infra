@@ -70,20 +70,20 @@ resource "kubernetes_manifest" "cluster_issuer_letsencrypt_prod" {
 }
 
 # 5. Cloudflare DNS Records
-# Points 'x-atlantis' subdomain to the VPS IP (Ingress Controller)
+# Points 'i-atlantis' subdomain to the VPS IP (Ingress Controller)
 resource "cloudflare_record" "atlantis" {
   zone_id = var.cloudflare_zone_id
-  name    = "x-atlantis"
+  name    = "i-atlantis"
   value   = var.vps_host
   type    = "A"
   proxied = false
 }
 
-# Points 'x-k3s' subdomain to the VPS IP (API Server)
-# Note: K3s API is on port 6443, not standard 443. Access will be https://x-k3s.domain:6443
+# Points 'i-k3s' subdomain to the VPS IP (API Server)
+# Note: K3s API is on port 6443, not standard 443. Access will be https://i-k3s.domain:6443
 resource "cloudflare_record" "k3s" {
   zone_id = var.cloudflare_zone_id
-  name    = "x-k3s"
+  name    = "i-k3s"
   value   = var.vps_host
   type    = "A"
   proxied = false
