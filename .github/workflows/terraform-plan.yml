@@ -54,33 +54,42 @@ jobs:
       - name: Setup Terraform Environment
         uses: ./.github/actions/terraform-setup
         with:
-          # SSH Setup
+          # SSH setup needs these
           vps_host: ${{ secrets.VPS_HOST }}
           vps_user: ${{ secrets.VPS_USER }}
           vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
           vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          # Backend Init
+          # Backend init needs these
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           r2_bucket: ${{ secrets.R2_BUCKET }}
           r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          # Infrastructure Variables
-          k3s_cluster_name: ${{ vars.K3S_CLUSTER_NAME }}
-          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
-          k3s_channel: ${{ secrets.K3S_CHANNEL }}
-          k3s_version: ${{ secrets.K3S_VERSION }}
-          infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
-          github_token: ${{ secrets.GH_PAT }}
-          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          base_domain: ${{ secrets.BASE_DOMAIN }}
-          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          k3s_cluster_name: ${{ vars.K3S_CLUSTER_NAME || 'truealpha-k3s' }}
 
       - name: Terraform plan
         id: plan
         working-directory: terraform
+        env:
+          # Inject Secrets as Terraform Variables directly
+          TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+          TF_VAR_vps_user: ${{ secrets.VPS_USER || 'root' }}
+          TF_VAR_ssh_private_key: ${{ secrets.VPS_SSH_KEY }}
+          TF_VAR_ssh_port: ${{ secrets.VPS_SSH_PORT || '22' }}
+          TF_VAR_r2_bucket: ${{ secrets.R2_BUCKET }}
+          TF_VAR_r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          TF_VAR_cluster_name: ${{ vars.K3S_CLUSTER_NAME || 'truealpha-k3s' }}
+          TF_VAR_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
+          TF_VAR_k3s_channel: ${{ secrets.K3S_CHANNEL || 'stable' }}
+          TF_VAR_k3s_version: ${{ secrets.K3S_VERSION }}
+          # Passwords & Tokens
+          TF_VAR_infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
+          TF_VAR_github_token: ${{ secrets.GH_PAT }}
+          TF_VAR_atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+          TF_VAR_github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          TF_VAR_github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
         run: terraform plan -no-color -out=tfplan
         continue-on-error: true
 
