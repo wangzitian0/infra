@@ -62,6 +62,7 @@ jobs:
 
       # Stage 1: Bootstrap L1 (Node/K3s) + Kubeconfig
       - name: Apply L1 (Bootstrap)
+        if: github.event_name == 'push'
         working-directory: terraform
         run: |
           # Apply only the bootstrap module to generate infrastructure
@@ -69,6 +70,7 @@ jobs:
 
       # Stage 2: Apply remaining layers (L2+) which need Kubeconfig
       - name: Apply L2+ (Platform)
+        if: github.event_name == 'push'
         working-directory: terraform
         run: terraform apply -auto-approve
 
