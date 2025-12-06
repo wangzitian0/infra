@@ -62,11 +62,12 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           script: |
+            const outcome = '${{ steps.plan.outcome }}';
             const body = `#### Terraform CI Validation ✅
 
-            **Status**: \`${{ steps.plan.outcome }}\`
+            **Status**: \`${outcome}\`
 
-            ${steps.plan.outcome === 'success' ? '🚀 Triggering Atlantis plan...' : '❌ Fix CI errors before Atlantis plan.'}
+            ${outcome === 'success' ? '🚀 Triggering Atlantis plan...' : '❌ Fix CI errors before Atlantis plan.'}
 
             > Full plan output available in the workflow logs.
             `;
