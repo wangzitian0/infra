@@ -31,13 +31,9 @@ inputs:
     description: "VPS SSH Port"
     required: false
     default: "22"
-  k3s_cluster_name:
+  k3s_cluster_name: # Still used for fetching kubeconfig
     description: "Cluster Name"
     required: false
-  tf_vars:
-    description: "JSON Object containing Terraform variables (tfvars)"
-    required: false
-    default: "{}"
 
 runs:
   using: "composite"
@@ -46,23 +42,6 @@ runs:
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ inputs.terraform_version }}
-
-    - name: Render Terraform Variables
-      shell: bash
-      working-directory: terraform
-      env:
-        TF_VARS_JSON: ${{ inputs.tf_vars }}
-      run: |
-        # Write the JSON input directly to a tfvars file
-        # This allows passing a structured object from workflows
-        echo "$TF_VARS_JSON" > terraform.tfvars.json
-        
-        # Verify valid JSON (optional check)
-        if ! jq . terraform.tfvars.json >/dev/null 2>&1; then
-           echo "Error: inputs.tf_vars is not valid JSON"
-           cat terraform.tfvars.json
-           exit 1
-        fi
 
     - name: Validate secrets
       shell: bash
