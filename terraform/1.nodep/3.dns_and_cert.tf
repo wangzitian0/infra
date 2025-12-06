@@ -115,30 +115,33 @@ resource "null_resource" "wildcard_certificate" {
 # Wildcard: default to DNS-only (grey cloud) for internal services
 # This covers all i-* subdomains automatically
 resource "cloudflare_record" "wildcard" {
-  zone_id = var.cloudflare_zone_id
-  name    = "*"
-  value   = var.vps_host
-  type    = "A"
-  proxied = false  # Internal services: no proxy
+  zone_id         = var.cloudflare_zone_id
+  name            = "*"
+  value           = var.vps_host
+  type            = "A"
+  proxied         = false  # Internal services: no proxy
+  allow_overwrite = true
 }
 
 # Root domain: proxied for public access
 resource "cloudflare_record" "root" {
-  zone_id = var.cloudflare_zone_id
-  name    = "@"
-  value   = var.vps_host
-  type    = "A"
-  proxied = true
+  zone_id         = var.cloudflare_zone_id
+  name            = "@"
+  value           = var.vps_host
+  type            = "A"
+  proxied         = true
+  allow_overwrite = true
 }
 
 # x-staging: environment services (proxied)
 # Add more x-{env} records as needed
 resource "cloudflare_record" "x_staging" {
-  zone_id = var.cloudflare_zone_id
-  name    = "x-staging"
-  value   = var.vps_host
-  type    = "A"
-  proxied = true
+  zone_id         = var.cloudflare_zone_id
+  name            = "x-staging"
+  value           = var.vps_host
+  type            = "A"
+  proxied         = true
+  allow_overwrite = true
 }
 
 # x-staging-* pattern: need explicit records for each service
