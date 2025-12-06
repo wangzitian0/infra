@@ -27,3 +27,7 @@ dirs:
   terraform:
     tags:
       - infra
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2adcd99 (fix(terrateam): workflow schema must be list with tag_query)
