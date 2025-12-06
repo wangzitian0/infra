@@ -20,7 +20,8 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 
 | Layer | Directory (Docs) | Responsibility |
 |---|---|---|
-| **L0 Config** | [`0.common`](terraform/0.common/README.md) | Orchestration, Global Vars, Envs (`*.tfvars`) |
+| **Meta / CI** | [`tools`](tools/README.md) | Terraform Automation, Plan/Apply Locking, CI/CD |
+| **L0 Root** | [`terraform`](terraform/README.md) | Root Module, Global Vars, Envs (`*.tfvars`) |
 | **L1 Bootstrap** | [`1.nodep`](terraform/1.nodep/README.md) | Raw VPS provisioning, k3s installation |
 | **L2 Foundation** | [`2.env_and_networking`](terraform/2.env_and_networking/README.md) | Secrets (Infisical), Ingress Domains, Base DB |
 | **L3 Runtime** | [`3.computing`](terraform/3.computing/README.md) | PaaS (Kubero), Dashboard, Workload Controllers |
