@@ -1,8 +1,5 @@
 # Terrateam Configuration
-# Replaces manual GitHub Actions for Terraform Plan/Apply
-# Provides: PR-based workflow, locking, plan consistency
-
-version: 1
+version: "1"
 
 when_modified:
   file_patterns:
@@ -12,7 +9,7 @@ when_modified:
   autoplan: true
 
 workflows:
-  default:
+  - tag_query: "tag:infra"
     plan:
       - type: init
         extra_args:
@@ -26,8 +23,7 @@ workflows:
           - "-backend-config=endpoints={s3=\"https://${{ env.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com\"}"
       - type: apply
 
-
 dirs:
   terraform:
-    workflow: default
-
+    tags:
+      - infra
