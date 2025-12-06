@@ -59,30 +59,24 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           script: |
-              const output = `#### Terraform Helper 🤖
-  
-              Welcome! Please review the [CI/CD Workflow Documentation](https://github.com/${{ github.repository }}/tree/${{ github.head_ref }}/.github/README.md).
-              
-              **Quick Reference:**
-              - \`atlantis plan\` - to plan changes
-              - \`atlantis apply\` - to apply changes (before merge)
-              
-              <details><summary>Validation Plan Output</summary>
-  
-              \`\`\`terraform
-              ${{ steps.plan.outputs.stdout }}
-              \`\`\`
-  
-              </details>
-              
-              *Validation Status: \`${{ steps.plan.outcome }}\`*`;
-  
-              github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: output
-              })
+            const body = `#### Terraform Helper 🤖
+
+            Welcome! Please review the [CI/CD Workflow Documentation](https://github.com/${{ github.repository }}/tree/${{ github.head_ref }}/.github/README.md).
+
+            **Quick Reference:**
+            - \`atlantis plan\` - to plan changes
+            - \`atlantis apply\` - to apply changes (before merge)
+
+            *Validation Status: \`${{ steps.plan.outcome }}\`*
+
+            > Full plan output available in the workflow logs.
+            `;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
 
       - name: Plan Status
         if: steps.plan.outcome == 'failure'
