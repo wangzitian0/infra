@@ -28,6 +28,8 @@ These secrets are passed as Terraform variables and injected into Atlantis at ru
 | `r2_account_id` | R2 endpoint | `R2_ACCOUNT_ID` |
 | `github_token` | GitHub PAT | (Helm github.token) |
 | `atlantis_webhook_secret` | Webhook verify | (Helm github.secret) |
+| `cloudflare_api_token` | DNS & Certs | `CLOUDFLARE_API_TOKEN` |
+| `cloudflare_zone_id` | DNS Zone | `CLOUDFLARE_ZONE_ID` |
 
 > **注意**: 所有密钥通过 `terraform.tfvars` 或 `-var` 传入，Atlantis 容器启动时注入为环境变量。
 

@@ -9,6 +9,5 @@ variable "namespaces" {
   type = map(string)
 }
 
-variable "cloudflare_api_token" {}
-variable "cloudflare_zone_id" {}
-variable "vps_host" {} # Needed for A record
+variable "vps_host" {} # Needed for A record IF not managed by L1 (Wait, L1 now manages Atlantis DNS)
+# Actually, L2 might still need vps_host for other things, but Cloudflare secrets are moving to L1.
