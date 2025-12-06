@@ -123,41 +123,8 @@ runs:
       run: |
         set -euo pipefail
 
-        VPS_USER_VALUE="${VPS_USER:-root}"
-        SSH_PORT_VALUE="${VPS_SSH_PORT:-22}"
-        CLUSTER_NAME_VALUE="${K3S_CLUSTER_NAME:-truealpha-k3s}"
-        API_ENDPOINT_VALUE="${K3S_API_ENDPOINT:-$VPS_HOST}"
-        CHANNEL_VALUE="${K3S_CHANNEL:-stable}"
-        VERSION_VALUE="${K3S_VERSION:-}"
-        PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
-
-        # Create tfvars in terraform root
-        # Using separate heredocs for multiline values
-        cat > terraform/terraform.tfvars << TFVARS_END
-        vps_host        = "${VPS_HOST}"
-        vps_user        = "${VPS_USER_VALUE}"
-        ssh_port        = ${SSH_PORT_VALUE}
-        cluster_name    = "${CLUSTER_NAME_VALUE}"
-        api_endpoint    = "${API_ENDPOINT_VALUE}"
-        k3s_channel     = "${CHANNEL_VALUE}"
-        k3s_version     = "${VERSION_VALUE}"
-        infisical_postgres_password = "${PG_PASSWORD}"
-        github_token    = "${GITHUB_TOKEN}"
-        atlantis_webhook_secret = "${ATLANTIS_WEBHOOK_SECRET}"
-        cloudflare_api_token = "${CLOUDFLARE_API_TOKEN}"
-        cloudflare_zone_id   = "${CLOUDFLARE_ZONE_ID}"
-        base_domain          = "${BASE_DOMAIN}"
-        github_app_id        = "${GITHUB_APP_ID}"
-        TFVARS_END
-        
-        # Append multiline values using separate heredocs
-        echo 'ssh_private_key = <<-SSHKEY' >> terraform/terraform.tfvars
-        echo "${VPS_SSH_KEY}" >> terraform/terraform.tfvars
-        echo 'SSHKEY' >> terraform/terraform.tfvars
-        
-        echo 'github_app_key = <<-APPKEY' >> terraform/terraform.tfvars
-        echo "${GITHUB_APP_KEY}" >> terraform/terraform.tfvars
-        echo 'APPKEY' >> terraform/terraform.tfvars
+        vps_user_value="${VPS_USER:-root}"
+        ssh_port_value="${VPS_SSH_PORT:-22}"
 
         # Setup SSH for fetching kubeconfig
         mkdir -p ~/.ssh
