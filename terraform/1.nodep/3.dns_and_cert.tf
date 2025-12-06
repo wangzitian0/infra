@@ -105,23 +105,24 @@ resource "null_resource" "wildcard_certificate" {
 
 # 6. Cloudflare DNS Records
 # =============================================================================
-# Architecture: Wildcard DNS + Ingress-based routing
-# - All HTTP/HTTPS services (80/443) route through Ingress Controller
-# - Cloudflare proxy (orange cloud) enabled for CDN & DDoS protection
-# - Special ports (e.g., 6443) use DNS-only (grey cloud)
+# Architecture: 
+# - i-* (internal): DNS-only (grey cloud) - may use non-standard ports
+# - x-* (external): Proxied (orange cloud) - CDN & DDoS protection
+# - Wildcard: DNS-only by default (internal fallback)
+# - Specific x-* records override wildcard with proxy enabled
 # =============================================================================
 
-# Wildcard record: routes all subdomains to Ingress Controller
-# Individual services are differentiated by Ingress Host rules
+# Wildcard: default to DNS-only (grey cloud) for internal services
+# This covers all i-* subdomains automatically
 resource "cloudflare_record" "wildcard" {
   zone_id = var.cloudflare_zone_id
   name    = "*"
   value   = var.vps_host
   type    = "A"
-  proxied = true
+  proxied = false  # Internal services: no proxy
 }
 
-# Root domain (optional): direct access to frontend/default service
+# Root domain: proxied for public access
 resource "cloudflare_record" "root" {
   zone_id = var.cloudflare_zone_id
   name    = "@"
@@ -130,12 +131,16 @@ resource "cloudflare_record" "root" {
   proxied = true
 }
 
-# K3s API (port 6443) - MUST be DNS-only (grey cloud)
-# Cloudflare proxy doesn't support non-standard ports
-resource "cloudflare_record" "k3s" {
+# x-staging: environment services (proxied)
+# Add more x-{env} records as needed
+resource "cloudflare_record" "x_staging" {
   zone_id = var.cloudflare_zone_id
-  name    = "i-k3s"
+  name    = "x-staging"
   value   = var.vps_host
   type    = "A"
-  proxied = false
+  proxied = true
 }
+
+# x-staging-* pattern: need explicit records for each service
+# Example: x-staging-api, x-staging-posthog, etc.
+# These will be added in L2 module as services are deployed
