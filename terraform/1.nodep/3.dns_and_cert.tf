@@ -75,12 +75,13 @@ resource "null_resource" "cluster_issuer_letsencrypt_prod" {
 
 # 5. Cloudflare DNS Records
 # Points 'i-atlantis' subdomain to the VPS IP (Ingress Controller)
+# Proxied = true enables Cloudflare's CDN and DDoS protection
 resource "cloudflare_record" "atlantis" {
   zone_id = var.cloudflare_zone_id
   name    = "i-atlantis"
   value   = var.vps_host
   type    = "A"
-  proxied = false
+  proxied = true
 }
 
 # Points 'i-k3s' subdomain to the VPS IP (API Server)
