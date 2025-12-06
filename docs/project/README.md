@@ -7,7 +7,7 @@
 
 - [BRN-004: Staging Deployment](./BRN-004.md) - **Active**
   - **Goal**: Deploy k3s + Infisical + Core Platform on Staging VPS.
-  - **Status**: Phase 0.x (Bootstrap) Complete. Phase 1.x (PaaS) Pending.
+  - **Status**: Phase 0.x (Bootstrap) Complete. Cloudflare integration in progress (PR #56).
 
 ## Archived Projects
 
