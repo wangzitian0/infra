@@ -2,6 +2,15 @@
 
 CI/CD and bot configuration live here. Workflows under `workflows/` drive Terraform checks and other automation.
 
-Documentation guard: `docs-guard.yml` enforces updating `0.check_now.md` and directory `README.md` files whenever code changes land.
+## Workflows Overview
+
+| Workflow | Purpose |
+| :--- | :--- |
+| `terraform-plan.yml` | Validates Terraform and triggers Atlantis |
+| `deploy-k3s.yml` | Deploys infrastructure on push to main |
+| `docs-guard.yml` | Enforces `0.check_now.md` and README updates |
+| `claude.yml` | AI code review via Claude GitHub App |
+
+Documentation guard enforces updating `0.check_now.md` and directory `README.md` files whenever code changes land.
 
 For detailed CI/CD design philosophy, plan/apply/revert workflows, see [workflows/README.md](./workflows/README.md).

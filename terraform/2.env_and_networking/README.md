@@ -30,3 +30,6 @@ terraform apply -target="module.env_and_networking"
 ### 4. Disaster Recovery
 - **Lost Infisical Data**: Re-apply helm chart. MongoDB/PG data persists in PVC.
 - **Lost Admin Access**: Use Terraform to rotate `random_password` in state.
+
+---
+*Last updated: 2025-12-07*

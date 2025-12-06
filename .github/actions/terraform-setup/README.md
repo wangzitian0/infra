@@ -4,26 +4,42 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 
 ## Responsibilities
 
-1.  **SSH Setup**: Configures SSH keys for VPS access.
-2.  **tfvars Rendering**: Generates `terraform.tfvars` from GitHub Secrets.
-3.  **Terraform Init**: Initializes Terraform with R2 backend configuration.
+1. **SSH Setup**: Configures SSH keys for VPS access.
+2. **tfvars Rendering**: Generates `terraform.tfvars` from GitHub Secrets.
+3. **Terraform Init**: Initializes Terraform with R2 backend configuration.
+4. **Kubeconfig Fetch**: Retrieves kubeconfig from VPS for Helm provider.
 
 ## Inputs
 
+### L1 Bootstrap: R2 Backend
+| Input | Required | Description |
+|-------|----------|-------------|
+| `aws_access_key_id` | ✓ | AWS Access Key ID for R2 |
+| `aws_secret_access_key` | ✓ | AWS Secret Access Key for R2 |
+| `r2_bucket` | ✓ | Cloudflare R2 bucket for state |
+| `r2_account_id` | ✓ | Cloudflare R2 account ID |
+
+### L1 Bootstrap: VPS/SSH
 | Input | Required | Description |
 |-------|----------|-------------|
 | `vps_host` | ✓ | VPS host IP or DNS |
-| `vps_user` | ✓ | SSH user |
-| `ssh_private_key` | ✓ | SSH private key content |
-| `ssh_port` | ✓ | SSH port |
-| `cluster_name` | ✓ | K3s cluster name |
-| `r2_bucket` | ✓ | Cloudflare R2 bucket for state |
-| `r2_account_id` | ✓ | Cloudflare R2 account ID |
-| `github_token` | ✓ | GitHub PAT for Atlantis |
-| `atlantis_webhook_secret` | ✓ | Atlantis webhook secret |
+| `vps_user` | ✗ | SSH user (default: root) |
+| `vps_ssh_key` | ✓ | SSH private key content |
+| `vps_ssh_port` | ✗ | SSH port (default: 22) |
+
+### L1 Bootstrap: Cloudflare
+| Input | Required | Description |
+|-------|----------|-------------|
 | `cloudflare_api_token` | ✓ | Cloudflare API token |
 | `cloudflare_zone_id` | ✓ | Cloudflare Zone ID |
-| `github_app_id` | ✗ | GitHub App ID (optional, preferred over PAT) |
+| `base_domain` | ✓ | Base domain for services |
+
+### L1 Bootstrap: Atlantis/GitHub
+| Input | Required | Description |
+|-------|----------|-------------|
+| `github_token` | ✓ | GitHub PAT for Atlantis |
+| `atlantis_webhook_secret` | ✓ | Atlantis webhook secret |
+| `github_app_id` | ✗ | GitHub App ID (preferred over PAT) |
 | `github_app_key` | ✗ | GitHub App Private Key PEM |
 
 ## Usage
@@ -31,12 +47,22 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 ```yaml
 - uses: ./.github/actions/terraform-setup
   with:
+    aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    r2_bucket: ${{ secrets.R2_BUCKET }}
+    r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
     vps_host: ${{ secrets.VPS_HOST }}
+    vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
     # ... other inputs
 ```
 
-## Implementation Note
+## Variable Chain
 
-tfvars generation uses a placeholder + sed/awk approach to handle multiline secrets (like `github_app_key`). This avoids heredoc nesting issues.
+```
+GitHub Secrets → action inputs → env vars → tfvars file → Terraform variables
+```
 
 See [action.yml](./action.yml) for full implementation.
+
+---
+*Last updated: 2025-12-07*
