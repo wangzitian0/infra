@@ -30,3 +30,8 @@ variable "aws_secret_access_key" {
 }
 variable "r2_bucket" {}
 variable "r2_account_id" {}
+
+# IAC namespace (created by L2 postgres, use default for CI)
+variable "iac_namespace" {
+  default = "iac"
+}

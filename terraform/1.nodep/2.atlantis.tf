@@ -1,17 +1,10 @@
 # L1.2: Atlantis (Terraform CI/CD) - Foundation Layer
 # Purpose: Self-hosted Terraform PR automation
-# Note: Deployed in L1 because it manages the infra repo itself
-
-# Atlantis namespace (iac = Infrastructure as Code)
-resource "kubernetes_namespace" "iac" {
-  metadata {
-    name = "iac"
-  }
-}
+# Note: Uses "iac" namespace (created by L2, passed via var.iac_namespace)
 
 resource "helm_release" "atlantis" {
   name       = "atlantis"
-  namespace  = kubernetes_namespace.iac.metadata[0].name
+  namespace  = var.iac_namespace
   repository = "https://runatlantis.github.io/helm-charts"
   chart      = "atlantis"
   version    = "4.25.0"
@@ -72,13 +65,13 @@ resource "helm_release" "atlantis" {
     })
   ]
 
-  depends_on = [kubernetes_namespace.iac]
+  # No depends_on needed - namespace exists before this runs
 }
 
 output "atlantis_service" {
-  value = "atlantis.${kubernetes_namespace.iac.metadata[0].name}.svc.cluster.local:4141"
+  value = "atlantis.${var.iac_namespace}.svc.cluster.local:4141"
 }
 
 output "iac_namespace" {
-  value = kubernetes_namespace.iac.metadata[0].name
+  value = var.iac_namespace
 }
