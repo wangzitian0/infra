@@ -68,6 +68,7 @@ jobs:
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           r2_bucket: ${{ secrets.R2_BUCKET }}
           r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          k3s_cluster_name: ${{ vars.K3S_CLUSTER_NAME || 'truealpha-k3s' }}
 
       - name: Terraform plan
         working-directory: terraform

@@ -1,5 +1,5 @@
 name: "Terraform Setup"
-description: "Sets up Terraform, renders tfvars, configures SSH, and fetches kubeconfig"
+description: "Sets up Terraform, configures SSH, and fetches kubeconfig"
 inputs:
   terraform_version:
     description: "Terraform version to use"
