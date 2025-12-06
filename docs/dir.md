@@ -2,13 +2,12 @@
 
 This document serves as the navigation map for the `infra` repository.
 
-## Navigation (start from `AGENTS.md`)
-- **Context & status**: [AGENTS.md](../AGENTS.md) → [README.md](../README.md) → [0.check_now.md](../0.check_now.md)
-- **Architecture & decisions**: [docs/README.md](./README.md), [BRN-004.env_eaas_design.md](./BRN-004.env_eaas_design.md), deep dives [DD-001](./deep_dives/DD-001.secret_and_ci_practices.md) / [DD-002](./deep_dives/DD-002.why_atlantis.md)
-- **Execution & history**: [docs/project/README.md](./project/README.md) ([BRN-004](./project/BRN-004.md)), change log [2025-12-04](./change_log/2025-12-04.k3s_bootstrap_reset.md) · [2025-12-05](./change_log/2025-12-05.staging_deployment_design.md) · [2025-12-06](./change_log/2025-12-06.checklist_merge.md)
-- **Terraform SSOT**: [terraform/README.md](../terraform/README.md), layers [1.nodep](../terraform/1.nodep/README.md) · [2.env_and_networking](../terraform/2.env_and_networking/README.md) · [3.computing](../terraform/3.computing/README.md) · [4.storage](../terraform/4.storage/README.md) · [5.insight](../terraform/5.insight/README.md)
-- **Tooling**: [tools/README.md](../tools/README.md)
-- **Apps knowledge base**: [apps/AGENTS.md](../apps/AGENTS.md), [apps/README.md](../apps/README.md), [apps/docs/README.md](../apps/docs/README.md) → [index.md](../apps/docs/index.md); workspace indices [apps/apps/README.md](../apps/apps/README.md) (apps: [backend](../apps/apps/backend/README.md) · [cms](../apps/apps/cms/README.md) · [mobile](../apps/apps/mobile/README.md) · [regression](../apps/apps/regression/README.md)), [apps/libs/README.md](../apps/libs/README.md) (libs: [neo4j_repo](../apps/libs/neo4j_repo/README.md) · [schema](../apps/libs/schema/README.md) · [neo4j_db](../apps/libs/neo4j_db/README.md)), [apps/tools/README.md](../apps/tools/README.md), [apps/x-data/README.md](../apps/x-data/README.md), [apps/x-log/README.md](../apps/x-log/README.md)
+## How to walk the docs (start from `AGENTS.md`)
+- Begin with [AGENTS.md](../AGENTS.md) → [README.md](../README.md) → [0.check_now.md](../0.check_now.md) for guardrails, current focus, and sprint context.
+- When a concept appears, jump to its SSOT: architecture in [docs/README.md](./README.md) and [BRN-004.env_eaas_design.md](./BRN-004.env_eaas_design.md); decisions in deep dives ([DD-001](./deep_dives/DD-001.secret_and_ci_practices.md), [DD-002](./deep_dives/DD-002.why_atlantis.md)).
+- For execution/state, read [docs/project/README.md](./project/README.md) (per-BRN status) and the latest entries under `docs/change_log/`.
+- Infrastructure truth lives in [terraform/README.md](../terraform/README.md) and each layer README (`1.nodep`…`5.insight`). Tooling lives in [tools/README.md](../tools/README.md).
+- Application work starts at [apps/README.md](../apps/README.md) and [apps/docs/index.md](../apps/docs/index.md); each subfolder (apps/, libs/, tools/, x-*) has its own README as SSOT.
 
 ## Legend
 - `[+]` : Directory
