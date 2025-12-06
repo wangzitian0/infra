@@ -10,21 +10,16 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 
 ## Inputs
 
-| Input | Required | Description |
-|-------|----------|-------------|
-| `vps_host` | ✓ | VPS host IP or DNS |
-| `vps_user` | ✓ | SSH user |
-| `ssh_private_key` | ✓ | SSH private key content |
-| `ssh_port` | ✓ | SSH port |
-| `cluster_name` | ✓ | K3s cluster name |
-| `r2_bucket` | ✓ | Cloudflare R2 bucket for state |
-| `r2_account_id` | ✓ | Cloudflare R2 account ID |
-| `github_token` | ✓ | GitHub PAT for Atlantis |
-| `atlantis_webhook_secret` | ✓ | Atlantis webhook secret |
-| `cloudflare_api_token` | ✓ | Cloudflare API token |
-| `cloudflare_zone_id` | ✓ | Cloudflare Zone ID |
-| `github_app_id` | ✗ | GitHub App ID (optional, preferred over PAT) |
-| `github_app_key` | ✗ | GitHub App Private Key PEM |
+- `terraform_version` (default: 1.6.6)
+- `aws_access_key_id` (R2)
+- `aws_secret_access_key` (R2)
+- `r2_bucket`
+- `r2_account_id`
+- `vps_host`
+- `vps_user` (default: root)
+- `vps_ssh_key`
+- `vps_ssh_port` (default: 22)
+- `k3s_cluster_name` (optional, for kubeconfig fetch)
 
 ## Usage
 
