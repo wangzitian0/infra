@@ -11,8 +11,7 @@
 
 terraform {
   backend "s3" {
-    # bucket 和 endpoints 通过 -backend-config 传入（本地和 CI 一致）
-    key                         = "k3s/terraform.tfstate"
+    # Partial configuration: bucket, endpoints, key passed via CLI
     region                      = "auto"
     skip_credentials_validation = true
     skip_region_validation      = true
