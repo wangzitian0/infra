@@ -72,6 +72,8 @@ runs:
         [ -z "${R2_ACCOUNT_ID}" ] && echo "Missing R2_ACCOUNT_ID" && exit 1
         [ -z "${VPS_HOST}" ] && echo "Missing VPS_HOST" && exit 1
         [ -z "${VPS_SSH_KEY}" ] && echo "Missing VPS_SSH_KEY" && exit 1
+        [ -z "${{ inputs.github_token }}" ] && echo "Missing github_token" && exit 1
+        [ -z "${{ inputs.atlantis_webhook_secret }}" ] && echo "Missing atlantis_webhook_secret" && exit 1
         echo "All required secrets present"
 
     - name: Render tfvars and SSH
