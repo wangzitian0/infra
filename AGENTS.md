@@ -22,8 +22,7 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 
 | Layer | Directory (Docs) | Responsibility |
 |---|---|---|
-| **Meta / CI** | [`tools`](tools/README.md) | Terraform Automation, Plan/Apply Locking, CI/CD |
-| **L0 Root** | [`terraform`](terraform/README.md) | Root Module, Global Vars, Envs (`*.tfvars`) |
+| **L0 Root** | [`terraform`](terraform/README.md) / [`tools`](tools/README.md) | Root Module, Global Vars, CI Automation |
 | **L1 Bootstrap** | [`1.nodep`](terraform/1.nodep/README.md) | Raw VPS provisioning, k3s installation |
 | **L2 Foundation** | [`2.env_and_networking`](terraform/2.env_and_networking/README.md) | Secrets (Infisical), Ingress Domains, Base DB |
 | **L3 Runtime** | [`3.computing`](terraform/3.computing/README.md) | PaaS (Kubero), Dashboard, Workload Controllers |
@@ -43,8 +42,8 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 ## 2. Security & State
 - **Backend**: Cloudflare R2 (S3-compatible). defined in `0.common/backend.tf`.
 - **Secrets Strategy**:
-    - **Bootstrap**: Github Secrets (`VPS_SSH_KEY`, `R2_*`).
-    - **Runtime**: Infisical (deployed in L2).
+    - **L0/L1 (Bootstrap)**: Local Env Vars / GitHub Secrets (`VPS_SSH_KEY`, `R2_*`).
+    - **L2+ (Runtime)**: Infisical (deployed in L2).
 - **Prohibited**:
     - NEVER commit `*.tfvars`, `*.pem`, `*.key`.
     - NEVER hardcode secrets in `.tf` (use `random_password` or vars).
