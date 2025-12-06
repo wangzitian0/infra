@@ -31,8 +31,42 @@ inputs:
     description: "VPS SSH Port"
     required: false
     default: "22"
-  k3s_cluster_name: # Still used for fetching kubeconfig
+  k3s_cluster_name:
     description: "Cluster Name"
+    required: false
+  k3s_api_endpoint:
+    description: "K3s API Endpoint"
+    required: false
+  k3s_channel:
+    description: "K3s Channel"
+    required: false
+    default: "stable"
+  k3s_version:
+    description: "K3s Version"
+    required: false
+  infisical_postgres_password:
+    description: "Infisical DB Password"
+    required: false
+  github_token:
+    description: "GitHub Token"
+    required: false
+  atlantis_webhook_secret:
+    description: "Atlantis Webhook Secret"
+    required: false
+  cloudflare_api_token:
+    description: "Cloudflare API Token"
+    required: false
+  cloudflare_zone_id:
+    description: "Cloudflare Zone ID"
+    required: false
+  base_domain:
+    description: "Base Domain"
+    required: false
+  github_app_id:
+    description: "GitHub App ID"
+    required: false
+  github_app_key:
+    description: "GitHub App Key"
     required: false
 
 runs:
@@ -42,6 +76,60 @@ runs:
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ inputs.terraform_version }}
+
+    - name: Export Terraform Variables
+      shell: bash
+      env:
+        # Mapping Inputs to TF_VAR
+        INPUT_VPS_HOST: ${{ inputs.vps_host }}
+        INPUT_VPS_USER: ${{ inputs.vps_user }}
+        INPUT_VPS_SSH_KEY: ${{ inputs.vps_ssh_key }}
+        INPUT_VPS_SSH_PORT: ${{ inputs.vps_ssh_port }}
+        INPUT_R2_BUCKET: ${{ inputs.r2_bucket }}
+        INPUT_R2_ACCOUNT_ID: ${{ inputs.r2_account_id }}
+        INPUT_CLUSTER_NAME: ${{ inputs.k3s_cluster_name }}
+        INPUT_API_ENDPOINT: ${{ inputs.k3s_api_endpoint }}
+        INPUT_K3S_CHANNEL: ${{ inputs.k3s_channel }}
+        INPUT_K3S_VERSION: ${{ inputs.k3s_version }}
+        INPUT_INFISICAL_PW: ${{ inputs.infisical_postgres_password }}
+        INPUT_GH_TOKEN: ${{ inputs.github_token }}
+        INPUT_WEBHOOK: ${{ inputs.atlantis_webhook_secret }}
+        INPUT_CF_TOKEN: ${{ inputs.cloudflare_api_token }}
+        INPUT_CF_ZONE: ${{ inputs.cloudflare_zone_id }}
+        INPUT_DOMAIN: ${{ inputs.base_domain }}
+        INPUT_APP_ID: ${{ inputs.github_app_id }}
+        INPUT_APP_KEY: ${{ inputs.github_app_key }}
+      run: |
+        # Export as TF_VAR_ environment variables
+        echo "TF_VAR_vps_host=${INPUT_VPS_HOST}" >> "$GITHUB_ENV"
+        echo "TF_VAR_vps_user=${INPUT_VPS_USER:-root}" >> "$GITHUB_ENV"
+        echo "TF_VAR_ssh_private_key=${INPUT_VPS_SSH_KEY}" >> "$GITHUB_ENV"
+        echo "TF_VAR_ssh_port=${INPUT_VPS_SSH_PORT:-22}" >> "$GITHUB_ENV"
+        echo "TF_VAR_r2_bucket=${INPUT_R2_BUCKET}" >> "$GITHUB_ENV"
+        echo "TF_VAR_r2_account_id=${INPUT_R2_ACCOUNT_ID}" >> "$GITHUB_ENV"
+        
+        # Optional with defaults logic
+        echo "TF_VAR_cluster_name=${INPUT_CLUSTER_NAME:-truealpha-k3s}" >> "$GITHUB_ENV"
+        
+        # Optional / Nullable
+        [ -n "$INPUT_API_ENDPOINT" ] && echo "TF_VAR_api_endpoint=${INPUT_API_ENDPOINT}" >> "$GITHUB_ENV"
+        
+        echo "TF_VAR_k3s_channel=${INPUT_K3S_CHANNEL:-stable}" >> "$GITHUB_ENV"
+        echo "TF_VAR_k3s_version=${INPUT_K3S_VERSION}" >> "$GITHUB_ENV"
+        
+        # Secrets
+        echo "TF_VAR_infisical_postgres_password=${INPUT_INFISICAL_PW}" >> "$GITHUB_ENV"
+        echo "TF_VAR_github_token=${INPUT_GH_TOKEN}" >> "$GITHUB_ENV"
+        echo "TF_VAR_atlantis_webhook_secret=${INPUT_WEBHOOK}" >> "$GITHUB_ENV"
+        echo "TF_VAR_cloudflare_api_token=${INPUT_CF_TOKEN}" >> "$GITHUB_ENV"
+        echo "TF_VAR_cloudflare_zone_id=${INPUT_CF_ZONE}" >> "$GITHUB_ENV"
+        echo "TF_VAR_base_domain=${INPUT_DOMAIN:-example.com}" >> "$GITHUB_ENV"
+        echo "TF_VAR_github_app_id=${INPUT_APP_ID}" >> "$GITHUB_ENV"
+        
+        # Multiline Secret Handling (Preserve lines)
+        echo "TF_VAR_github_app_key<<EOF" >> "$GITHUB_ENV"
+        echo "${INPUT_APP_KEY}" >> "$GITHUB_ENV"
+        echo "EOF" >> "$GITHUB_ENV"
 
     - name: Validate secrets
       shell: bash
