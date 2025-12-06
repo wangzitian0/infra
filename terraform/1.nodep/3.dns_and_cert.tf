@@ -73,7 +73,37 @@ resource "null_resource" "cluster_issuer_letsencrypt_prod" {
   depends_on = [helm_release.cert_manager, kubernetes_secret.cloudflare_api_token]
 }
 
-# 5. Cloudflare DNS Records
+# 5. Wildcard Certificate (covers *.domain and domain)
+# Using DNS-01 challenge via Cloudflare for wildcard cert
+resource "null_resource" "wildcard_certificate" {
+  triggers = {
+    domain = var.base_domain
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      kubectl --kubeconfig=${var.kubeconfig_path} apply -f - <<EOF
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: wildcard-tls
+        namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
+      spec:
+        secretName: wildcard-tls-secret
+        issuerRef:
+          name: letsencrypt-prod
+          kind: ClusterIssuer
+        dnsNames:
+        - "${var.base_domain}"
+        - "*.${var.base_domain}"
+      EOF
+    EOT
+  }
+
+  depends_on = [null_resource.cluster_issuer_letsencrypt_prod]
+}
+
+# 6. Cloudflare DNS Records
 # =============================================================================
 # Architecture: Wildcard DNS + Ingress-based routing
 # - All HTTP/HTTPS services (80/443) route through Ingress Controller
