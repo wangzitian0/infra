@@ -12,8 +12,14 @@
 |------|---------|
 | `1.k3s.tf` | K3s single-node cluster bootstrap |
 | `2.atlantis.tf` | Atlantis Helm release for Terraform CI/CD |
-| `3.dns_and_cert.tf` | Cloudflare DNS, Cert Manager, ClusterIssuer |
+| `3.dns_and_cert.tf` | Cloudflare DNS (wildcard + x-*), Cert Manager, wildcard TLS cert |
 | `network.md` | Domain naming conventions (SSOT) |
+
+## DNS Architecture
+
+- **`*` (wildcard)**: Grey cloud → internal services (`i-*`)
+- **`@` (root)**: Orange cloud → public access
+- **`x-*`**: Orange cloud → external services (added per env)
 
 ## Deployment
 
