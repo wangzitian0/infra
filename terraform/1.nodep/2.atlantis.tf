@@ -20,7 +20,7 @@ resource "helm_release" "atlantis" {
       {
         # GitHub Configuration
         orgAllowlist = "github.com/${var.github_org}/*"
-        
+
         # Environment for R2 Backend
         environment = {
           AWS_ACCESS_KEY_ID     = var.aws_access_key_id
@@ -42,14 +42,14 @@ resource "helm_release" "atlantis" {
 
         # Ingress (TLS via Cert Manager + Cloudflare)
         ingress = {
-          enabled = true
+          enabled          = true
           ingressClassName = "nginx"
           annotations = {
             "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
           }
           hosts = [
             {
-              host = "i-atlantis.${var.base_domain}"
+              host  = "i-atlantis.${var.base_domain}"
               paths = ["/"]
             }
           ]
