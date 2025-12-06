@@ -6,7 +6,13 @@ on:
     paths:
       - "terraform/**"
       - ".github/workflows/deploy-k3s.yml"
-  workflow_dispatch:
+      - ".github/actions/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/deploy-k3s.yml"
+      - ".github/actions/**"
 
 env:
   TF_IN_AUTOMATION: "true"
