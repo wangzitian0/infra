@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      # Restore Logic: Setup SSH and Fetch Kubeconfig (Critical for Helm Provider)
+      # Setup SSH and Fetch Kubeconfig (Critical for Helm Provider)
       - name: Setup SSH & Fetch Kubeconfig
         shell: bash
         env:
@@ -60,7 +60,6 @@ jobs:
           
           if ssh -i ~/.ssh/id_rsa -p "${VPS_SSH_PORT:-22}" -o StrictHostKeyChecking=no "root@$VPS_HOST" "sudo cat /etc/rancher/k3s/k3s.yaml" > "$KUBECONFIG_PATH"; then
              echo "Kubeconfig fetched."
-             # Replace localhost with VPS IP
              sed -i "s/127.0.0.1/$VPS_HOST/g" "$KUBECONFIG_PATH"
              chmod 600 "$KUBECONFIG_PATH"
           else
