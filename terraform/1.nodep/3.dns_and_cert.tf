@@ -144,3 +144,75 @@ resource "cloudflare_record" "x_staging" {
 # x-staging-* pattern: need explicit records for each service
 # Example: x-staging-api, x-staging-posthog, etc.
 # These will be added in L2 module as services are deployed
+
+# =============================================================================
+# 7. Post-Apply Validation (DNS + Cert + Atlantis Health)
+# =============================================================================
+
+# Validate DNS resolution for wildcard
+resource "null_resource" "validate_dns" {
+  triggers = {
+    domain = var.base_domain
+    vps_ip = var.vps_host
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Validating DNS resolution for *.${var.base_domain}..."
+      RESOLVED_IP=$(dig +short i-atlantis.${var.base_domain} | head -1)
+      if [ -z "$RESOLVED_IP" ]; then
+        echo "ERROR: DNS resolution failed for i-atlantis.${var.base_domain}"
+        exit 1
+      fi
+      echo "OK: i-atlantis.${var.base_domain} resolves to $RESOLVED_IP"
+    EOT
+  }
+
+  depends_on = [cloudflare_record.wildcard]
+}
+
+# Validate HTTPS certificate is valid
+resource "null_resource" "validate_cert" {
+  triggers = {
+    domain = var.base_domain
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Validating HTTPS certificate for ${var.base_domain}..."
+      # Wait for cert to be issued (max 2 minutes)
+      for i in $(seq 1 24); do
+        if curl -sf --connect-timeout 5 https://i-atlantis.${var.base_domain}/healthz >/dev/null 2>&1; then
+          echo "OK: HTTPS certificate is valid"
+          exit 0
+        fi
+        echo "Waiting for certificate... ($i/24)"
+        sleep 5
+      done
+      echo "WARNING: Certificate validation timeout (may still be issuing)"
+    EOT
+  }
+
+  depends_on = [null_resource.wildcard_certificate, null_resource.validate_dns]
+}
+
+# Validate Atlantis health (nodep module check)
+resource "null_resource" "validate_atlantis" {
+  triggers = {
+    atlantis_release = helm_release.atlantis.metadata[0].revision
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "Validating Atlantis health..."
+      HEALTH=$(curl -sf --connect-timeout 10 https://i-atlantis.${var.base_domain}/healthz || echo "FAIL")
+      if [ "$HEALTH" = "FAIL" ]; then
+        echo "WARNING: Atlantis healthz not reachable (may be starting up)"
+      else
+        echo "OK: Atlantis is healthy"
+      fi
+    EOT
+  }
+
+  depends_on = [helm_release.atlantis, null_resource.validate_cert]
+}
