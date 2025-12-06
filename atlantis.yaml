@@ -6,6 +6,7 @@ version: 3
 projects:
   - dir: terraform
     workflow: custom
+    terraform_version: v1.6.6
     autoplan:
       when_modified:
         - "**/*.tf"
