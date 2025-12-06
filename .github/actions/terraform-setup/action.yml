@@ -132,28 +132,54 @@ runs:
         PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
 
         # Create tfvars in terraform root
-        cat > terraform/terraform.tfvars <<EOFVARS
-        vps_host        = "${VPS_HOST}"
-        vps_user        = "${VPS_USER_VALUE}"
-        ssh_port        = ${SSH_PORT_VALUE}
+        cat > terraform/terraform.tfvars <<'EOFVARS'
+        vps_host        = "VPS_HOST_PLACEHOLDER"
+        vps_user        = "VPS_USER_PLACEHOLDER"
+        ssh_port        = SSH_PORT_PLACEHOLDER
         ssh_private_key = <<-EOF
-        ${VPS_SSH_KEY}
+        SSH_KEY_PLACEHOLDER
         EOF
-        cluster_name    = "${CLUSTER_NAME_VALUE}"
-        api_endpoint    = "${API_ENDPOINT_VALUE}"
-        k3s_channel     = "${CHANNEL_VALUE}"
-        k3s_version     = "${VERSION_VALUE}"
-        infisical_postgres_password = "${PG_PASSWORD}"
-        github_token    = "${GITHUB_TOKEN}"
-        atlantis_webhook_secret = "${ATLANTIS_WEBHOOK_SECRET}"
-        cloudflare_api_token = "${CLOUDFLARE_API_TOKEN}"
-        cloudflare_zone_id   = "${CLOUDFLARE_ZONE_ID}"
-        base_domain          = "${BASE_DOMAIN}"
-        github_app_id        = "${GITHUB_APP_ID}"
+        cluster_name    = "CLUSTER_NAME_PLACEHOLDER"
+        api_endpoint    = "API_ENDPOINT_PLACEHOLDER"
+        k3s_channel     = "CHANNEL_PLACEHOLDER"
+        k3s_version     = "VERSION_PLACEHOLDER"
+        infisical_postgres_password = "PG_PASSWORD_PLACEHOLDER"
+        github_token    = "GITHUB_TOKEN_PLACEHOLDER"
+        atlantis_webhook_secret = "ATLANTIS_WEBHOOK_SECRET_PLACEHOLDER"
+        cloudflare_api_token = "CLOUDFLARE_API_TOKEN_PLACEHOLDER"
+        cloudflare_zone_id   = "CLOUDFLARE_ZONE_ID_PLACEHOLDER"
+        base_domain          = "BASE_DOMAIN_PLACEHOLDER"
+        github_app_id        = "GITHUB_APP_ID_PLACEHOLDER"
         github_app_key       = <<-EOF
-        ${GITHUB_APP_KEY}
+        GITHUB_APP_KEY_PLACEHOLDER
         EOF
         EOFVARS
+
+        # Replace placeholders with actual values
+        sed -i "s|VPS_HOST_PLACEHOLDER|${VPS_HOST}|g" terraform/terraform.tfvars
+        sed -i "s|VPS_USER_PLACEHOLDER|${VPS_USER_VALUE}|g" terraform/terraform.tfvars
+        sed -i "s|SSH_PORT_PLACEHOLDER|${SSH_PORT_VALUE}|g" terraform/terraform.tfvars
+        sed -i "s|SSH_KEY_PLACEHOLDER|${VPS_SSH_KEY}|g" terraform/terraform.tfvars
+        sed -i "s|CLUSTER_NAME_PLACEHOLDER|${CLUSTER_NAME_VALUE}|g" terraform/terraform.tfvars
+        sed -i "s|API_ENDPOINT_PLACEHOLDER|${API_ENDPOINT_VALUE}|g" terraform/terraform.tfvars
+        sed -i "s|CHANNEL_PLACEHOLDER|${CHANNEL_VALUE}|g" terraform/terraform.tfvars
+        sed -i "s|VERSION_PLACEHOLDER|${VERSION_VALUE}|g" terraform/terraform.tfvars
+        sed -i "s|PG_PASSWORD_PLACEHOLDER|${PG_PASSWORD}|g" terraform/terraform.tfvars
+        sed -i "s|GITHUB_TOKEN_PLACEHOLDER|${GITHUB_TOKEN}|g" terraform/terraform.tfvars
+        sed -i "s|ATLANTIS_WEBHOOK_SECRET_PLACEHOLDER|${ATLANTIS_WEBHOOK_SECRET}|g" terraform/terraform.tfvars
+        sed -i "s|CLOUDFLARE_API_TOKEN_PLACEHOLDER|${CLOUDFLARE_API_TOKEN}|g" terraform/terraform.tfvars
+        sed -i "s|CLOUDFLARE_ZONE_ID_PLACEHOLDER|${CLOUDFLARE_ZONE_ID}|g" terraform/terraform.tfvars
+        sed -i "s|BASE_DOMAIN_PLACEHOLDER|${BASE_DOMAIN}|g" terraform/terraform.tfvars
+        sed -i "s|GITHUB_APP_ID_PLACEHOLDER|${GITHUB_APP_ID}|g" terraform/terraform.tfvars
+        
+        # Handle multiline GitHub App key separately
+        if [ -n "${GITHUB_APP_KEY}" ]; then
+          # Write key to temp file, then use awk to replace
+          echo "${GITHUB_APP_KEY}" > /tmp/github_app_key.tmp
+          awk '/GITHUB_APP_KEY_PLACEHOLDER/{system("cat /tmp/github_app_key.tmp"); next}1' terraform/terraform.tfvars > terraform/terraform.tfvars.tmp
+          mv terraform/terraform.tfvars.tmp terraform/terraform.tfvars
+          rm -f /tmp/github_app_key.tmp
+        fi
 
         # Setup SSH for fetching kubeconfig
         mkdir -p ~/.ssh
