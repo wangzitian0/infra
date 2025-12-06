@@ -1,5 +1,5 @@
 # Terrateam Configuration
-# Step 1: Basic R2 Backend Configuration
+# R2 Backend with explicit directory targeting
 version: "1"
 
 when_modified:
@@ -9,9 +9,19 @@ when_modified:
     - ".terrateam/config.yml"
   autoplan: true
 
+# Only run Terraform in the terraform/ directory
+dirs:
+  terraform:
+    tags:
+      - infra
+    when_modified:
+      file_patterns:
+        - "**/*.tf"
+        - "**/*.tfvars"
+
 # Workflow with R2 backend configuration
 workflows:
-  - tag_query: ""
+  - tag_query: "infra"
     plan:
       - type: init
         extra_args:
@@ -24,8 +34,3 @@ workflows:
           - "-backend-config=bucket=$R2_BUCKET"
           - "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"
       - type: apply
-
-dirs:
-  terraform:
-    tags:
-      - infra
