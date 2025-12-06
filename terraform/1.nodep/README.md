@@ -12,6 +12,9 @@
 |------|---------|
 | `1.k3s.tf` | K3s single-node cluster bootstrap |
 | `2.atlantis.tf` | Atlantis Helm release for Terraform CI/CD |
+| `3.dns_and_cert.tf` | Cloudflare DNS, Cert Manager, ClusterIssuer |
+| `network.md` | Domain naming conventions (SSOT) |
+
 ## Deployment
 
 ### 1. Requirements (Terraform Variables → Atlantis Runtime)
