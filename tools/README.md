@@ -20,3 +20,10 @@ It serves as the Single Source of Truth (SSOT) for *how* we manage operations, C
 ## Why is this separate?
 - `terraform/` defines **WHAT** we build.
 - `tools/` defines **HOW** we build/manage it.
+
+## Troubleshooting Terrateam
+If `Terrateam Plan` does not appear in PR checks:
+1.  **Check App Installation**: Ensure "Terrateam" GitHub App is installed on `wangzitian0/infra`.
+2.  **Check Workflow on Main**: Ensure `.github/workflows/terrateam.yml` exists on the `main` branch.
+3.  **Check Secrets**: Ensure repository secrets (AWS_*, R2_*, VPS_*) are active.
+4.  **Re-Trigger**: Comment `terrateam plan` in the PR.
