@@ -62,15 +62,11 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           script: |
-            const body = `#### Terraform Helper 🤖
+            const body = `#### Terraform CI Validation ✅
 
-            Welcome! Please review the [CI/CD Workflow Documentation](https://github.com/${{ github.repository }}/tree/${{ github.head_ref }}/.github/README.md).
+            **Status**: \`${{ steps.plan.outcome }}\`
 
-            **Quick Reference:**
-            - \`atlantis plan\` - to plan changes
-            - \`atlantis apply\` - to apply changes (before merge)
-
-            *Validation Status: \`${{ steps.plan.outcome }}\`*
+            ${steps.plan.outcome === 'success' ? '🚀 Triggering Atlantis plan...' : '❌ Fix CI errors before Atlantis plan.'}
 
             > Full plan output available in the workflow logs.
             `;
@@ -80,6 +76,13 @@ jobs:
               repo: context.repo.repo,
               body: body
             });
+
+      - name: Trigger Atlantis Plan
+        if: github.event_name == 'pull_request' && steps.plan.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "atlantis plan"
 
       - name: Plan Status
         if: steps.plan.outcome == 'failure'

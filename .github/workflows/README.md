@@ -43,8 +43,8 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | Workflow | Trigger | Description | Consistency Mechanism |
 | :--- | :--- | :--- | :--- |
 | **Deploy K3s** (`deploy-k3s.yml`) | `push: [main]` | **The Enforcer**. Applies `terraform/` to production. Bootsraps K3s, deploys Helm charts. | **SSOT Convergence**. Ensures `main` = `Live State`. Uses state locking. |
-| **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs `terraform plan` on PRs to verify syntax and logic. | **Dry Run**. Does not modify state. Checks code validity. |
-| **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
+| **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs `terraform plan` on PRs. **Triggers Atlantis** via comment on success. | **Dry Run** + **Atlantis Trigger**. |
+| **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
 
 ## Handling Multi-Environment & Modules
 
