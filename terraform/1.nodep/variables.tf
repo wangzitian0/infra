@@ -30,3 +30,4 @@ variable "aws_secret_access_key" {
 }
 variable "r2_bucket" {}
 variable "r2_account_id" {}
+variable "base_domain" {}

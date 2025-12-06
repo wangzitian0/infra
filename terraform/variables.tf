@@ -172,3 +172,14 @@ variable "r2_account_id" {
   type        = string
   default     = ""
 }
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for DNS and Certs"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare Zone ID for the domain"
+  type        = string
+}

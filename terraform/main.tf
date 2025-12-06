@@ -22,6 +22,7 @@ module "nodep" {
   aws_secret_access_key   = "" # Set via env: AWS_SECRET_ACCESS_KEY  
   r2_bucket               = var.r2_bucket
   r2_account_id           = var.r2_account_id
+  base_domain             = var.base_domain
 }
 
 
@@ -37,6 +38,10 @@ module "env_and_networking" {
   base_domain                 = var.base_domain
   namespaces                  = local.namespaces
   kubeconfig_path             = local.kubeconfig_path
+
+  cloudflare_api_token = var.cloudflare_api_token
+  cloudflare_zone_id   = var.cloudflare_zone_id
+  vps_host             = var.vps_host
 
   depends_on = [module.nodep]
 }

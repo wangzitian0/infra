@@ -8,3 +8,7 @@ variable "infisical_postgres_storage" {}
 variable "namespaces" {
   type = map(string)
 }
+
+variable "cloudflare_api_token" {}
+variable "cloudflare_zone_id" {}
+variable "vps_host" {} # Needed for A record

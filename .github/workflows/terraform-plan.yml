@@ -45,6 +45,8 @@ jobs:
           infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
           github_token: ${{ secrets.GH_PAT || github.token }}
           atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
       - name: Terraform plan
         id: plan

@@ -44,7 +44,27 @@ resource "helm_release" "atlantis" {
         }]
       })
 
-      # Ingress via Cloudflare Tunnel (Service only, Tunnel handles routing)
+      # Ingress (TLS via Cert Manager + Cloudflare)
+      ingress = {
+        enabled = true
+        ingressClassName = "nginx"
+        annotations = {
+          "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+        }
+        hosts = [
+          {
+            host = "atlantis.${var.base_domain}"
+            paths = ["/"]
+          }
+        ]
+        tls = [
+          {
+            secretName = "atlantis-tls"
+            hosts      = ["atlantis.${var.base_domain}"]
+          }
+        ]
+      }
+
       service = {
         type = "ClusterIP"
         port = 4141
