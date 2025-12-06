@@ -2,6 +2,14 @@
 
 This document serves as the navigation map for the `infra` repository.
 
+## Navigation (start from `AGENTS.md`)
+- **Context & status**: [AGENTS.md](../AGENTS.md) → [README.md](../README.md) → [0.check_now.md](../0.check_now.md)
+- **Architecture & decisions**: [docs/README.md](./README.md), [BRN-004.env_eaas_design.md](./BRN-004.env_eaas_design.md), deep dives [DD-001](./deep_dives/DD-001.secret_and_ci_practices.md) / [DD-002](./deep_dives/DD-002.why_atlantis.md)
+- **Execution & history**: [docs/project/README.md](./project/README.md) ([BRN-004](./project/BRN-004.md)), change log [2025-12-04](./change_log/2025-12-04.k3s_bootstrap_reset.md) · [2025-12-05](./change_log/2025-12-05.staging_deployment_design.md) · [2025-12-06](./change_log/2025-12-06.checklist_merge.md)
+- **Terraform SSOT**: [terraform/README.md](../terraform/README.md), layers [1.nodep](../terraform/1.nodep/README.md) · [2.env_and_networking](../terraform/2.env_and_networking/README.md) · [3.computing](../terraform/3.computing/README.md) · [4.storage](../terraform/4.storage/README.md) · [5.insight](../terraform/5.insight/README.md)
+- **Tooling**: [tools/README.md](../tools/README.md)
+- **Apps knowledge base**: [apps/AGENTS.md](../apps/AGENTS.md), [apps/README.md](../apps/README.md), [apps/docs/README.md](../apps/docs/README.md) → [index.md](../apps/docs/index.md); workspace indices [apps/apps/README.md](../apps/apps/README.md) (apps: [backend](../apps/apps/backend/README.md) · [cms](../apps/apps/cms/README.md) · [mobile](../apps/apps/mobile/README.md) · [regression](../apps/apps/regression/README.md)), [apps/libs/README.md](../apps/libs/README.md) (libs: [neo4j_repo](../apps/libs/neo4j_repo/README.md) · [schema](../apps/libs/schema/README.md) · [neo4j_db](../apps/libs/neo4j_db/README.md)), [apps/tools/README.md](../apps/tools/README.md), [apps/x-data/README.md](../apps/x-data/README.md), [apps/x-log/README.md](../apps/x-log/README.md)
+
 ## Legend
 - `[+]` : Directory
 - `[*]` : GitIgnored (Generated file)
@@ -12,16 +20,29 @@ This document serves as the navigation map for the `infra` repository.
 
 ```text
 root/
+├── 0.check_now.md          # (!) Current context (active sprint)
 ├── .terrateam/              # [+] L0 Orchestration (Config)
 │   └── config.yml           # (!) Terrateam Config
 ├── .github/workflows/       # [+] GitHub Runners
 │   └── terrateam.yml        # (!) Workflow Entry
+├── AGENTS.md                # (!) AI Behavior Guidelines (entrypoint)
+├── README.md                # (!) Project Index
 ├── apps/                    # [+] Business Code
-│   └── tools/               # [+] Dev scripts
+│   ├── AGENTS.md            # (!) App-specific guardrails
+│   ├── README.md            # (!) Nx workspace index
+│   ├── apps/                # [+] Runtime apps (backend, mobile, CMS, regression)
+│   ├── docs/                # [+] Product/tech docs (see index.md)
+│   ├── libs/                # [+] Shared libraries (schema, Neo4j repo)
+│   ├── tools/               # [+] Workspace tooling
+│   ├── x-data/              # [*] Generated data
+│   └── x-log/               # [*] Logs
 ├── docs/                    # [+] Architecture & Design
 │   ├── dir.md               # (!) This map & Namespace Registry
 │   ├── README.md            # (!) Design Concepts
+│   ├── BRN-004.env_eaas_design.md # (!) Env & EaaS architecture
 │   ├── project/             # [+] Project Mgmt (BRN-004)
+│   ├── change_log/          # [+] History (YYYY-MM-DD.*)
+│   ├── deep_dives/          # [+] Design decision write-ups
 │   └── BRN-004.md           # (!) Full Architecture Spec
 ├── terraform/               # [!] Infrastructure Code (The Truth)
 │   ├── envs/                # [+] Env Configs
@@ -50,9 +71,7 @@ root/
 │       └── README.md        # 📖 SSOT
 ├── tools/                   # [!] Meta / CI SSOT
 │   └── README.md            # (!) CI/CD & Mgmt SSOT
-├── .gitignore               # (!) Git Ignore Rules
-├── AGENTS.md                # (!) AI Behavior Guidelines
-└── README.md                # (!) Project Index
+└── .gitignore               # (!) Git Ignore Rules
 ```
 
 ## Key Layers (Defined in BRN-004)
