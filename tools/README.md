@@ -13,7 +13,7 @@ It serves as the Single Source of Truth (SSOT) for *how* we manage operations, C
 - **Secrets**: Managed via GitHub Repository Settings.
 
 ## 3. Local Scripts
-*(Future home for dev scripts, e.g., setup, verify)*
+- `./tools/docs-guard.sh <base-ref> [head-ref]`: Run the documentation guard locally; CI calls it to ensure `0.check_now.md` and touched directories' `README.md` files are updated together.
 
 ---
 
