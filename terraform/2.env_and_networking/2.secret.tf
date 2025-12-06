@@ -90,7 +90,7 @@ resource "helm_release" "infisical" {
         }
         hosts = [
           {
-            host = "${var.domain_prefix}-cloud.${var.base_domain}"
+            host = "i-secrets.${var.base_domain}"
             paths = [
               {
                 path = "/"
@@ -102,7 +102,7 @@ resource "helm_release" "infisical" {
         tls = [
           {
             secretName = "infisical-tls"
-            hosts      = ["${var.domain_prefix}-cloud.${var.base_domain}"]
+            hosts      = ["i-secrets.${var.base_domain}"]
           }
         ]
       }

@@ -71,8 +71,8 @@ variable "base_domain" {
   default     = "example.com"
 }
 
-variable "domain_prefix" {
-  description = "Domain prefix (e.g., x-staging, x-test, empty for prod)"
+variable "env_prefix" {
+  description = "Environment prefix (e.g., x-staging, x-test, empty for prod)"
   type        = string
   default     = "x-staging"
 }

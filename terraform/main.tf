@@ -36,7 +36,7 @@ module "env_and_networking" {
   infisical_image_tag         = var.infisical_image_tag
   infisical_postgres_password = var.infisical_postgres_password
   infisical_postgres_storage  = var.infisical_postgres_storage
-  domain_prefix               = var.domain_prefix
+  env_prefix                  = var.env_prefix
   base_domain                 = var.base_domain
   namespaces                  = local.namespaces
   kubeconfig_path             = local.kubeconfig_path
