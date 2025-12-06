@@ -51,6 +51,10 @@ module "env_and_networking" {
   # "variable "vps_host" {} # Needed for A record IF not managed by L1..."
   vps_host             = var.vps_host
 
+  # Infisical GitHub OAuth
+  infisical_github_client_id     = var.infisical_github_client_id
+  infisical_github_client_secret = var.infisical_github_client_secret
+
   depends_on = [module.nodep]
 }
 
