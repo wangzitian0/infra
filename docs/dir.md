@@ -1,6 +1,6 @@
 # Directory Structure (SSOT)
 
-This map lists every Markdown file in the infra repo with a one-line purpose so each concept can jump to its SSOT (architecture/decisions in `docs/`, state in `docs/project` + `docs/change_log`, infra truth in `terraform/`, tooling in `tools/`, current focus in `0.check_now.md`).
+This document serves as the navigation map for the `infra` repository.
 
 ## Legend
 - `[+]` : Directory
@@ -12,32 +12,36 @@ This map lists every Markdown file in the infra repo with a one-line purpose so 
 
 ```text
 root/
-├── 0.check_now.md - Current sprint context & checklist
-├── AGENTS.md - Agent guardrails
-├── README.md - Repo entry overview
+├── 0.check_now.md          # (!) Current sprint context
+├── .terrateam/              # [+] L0 Orchestration (Config)
+│   └── config.yml           # (!) Terrateam Config
+├── .github/workflows/       # [+] GitHub Runners
+│   └── terrateam.yml        # (!) Workflow Entry
+├── AGENTS.md                # (!) AI Behavior Guidelines
+├── README.md                # (!) Project Index
 ├── docs/
-│   ├── README.md - Architecture/doc center
-│   ├── dir.md - Repo map (this file)
-│   ├── BRN-004.env_eaas_design.md - Env & EaaS architecture spec
+│   ├── dir.md               # (!) This map & Namespace Registry
+│   ├── README.md            # (!) Design Concepts
+│   ├── BRN-004.env_eaas_design.md # (!) Env & EaaS architecture
 │   ├── project/
-│   │   ├── README.md - BRN status/index
-│   │   └── BRN-004.md - BRN-004 full architecture/selection
+│   │   ├── README.md        # BRN status/index
+│   │   └── BRN-004.md       # BRN-004 integrated architecture
 │   ├── change_log/
-│   │   ├── 2025-12-04.k3s_bootstrap_reset.md - History: k3s reset
-│   │   ├── 2025-12-05.staging_deployment_design.md - History: staging design
-│   │   └── 2025-12-06.checklist_merge.md - History: checklist merge
+│   │   ├── 2025-12-04.k3s_bootstrap_reset.md    # History: k3s reset
+│   │   ├── 2025-12-05.staging_deployment_design.md # History: staging design
+│   │   └── 2025-12-06.checklist_merge.md        # History: checklist merge
 │   └── deep_dives/
-│       ├── DD-001.secret_and_ci_practices.md - Decisions: secrets & CI
-│       └── DD-002.why_atlantis.md - Decisions: Atlantis rationale
+│       ├── DD-001.secret_and_ci_practices.md    # Decisions: secrets & CI
+│       └── DD-002.why_atlantis.md               # Decisions: Atlantis rationale
 ├── terraform/
-│   ├── README.md - IaC entry & layer map
-│   ├── 1.nodep/README.md - L1 bootstrap (k3s/Atlantis)
-│   ├── 2.env_and_networking/README.md - L2 foundation (secrets/ingress/db)
-│   ├── 3.computing/README.md - L3 runtime (PaaS/dashboard)
-│   ├── 4.storage/README.md - L4 data stores
-│   └── 5.insight/README.md - L5 observability/analytics
+│   ├── README.md            # (!) IaC entry & layer map
+│   ├── 1.nodep/README.md    # L1 bootstrap (k3s/Atlantis)
+│   ├── 2.env_and_networking/README.md # L2 foundation (secrets/ingress/db)
+│   ├── 3.computing/README.md # L3 runtime (PaaS/dashboard)
+│   ├── 4.storage/README.md  # L4 data stores
+│   └── 5.insight/README.md  # L5 observability/analytics
 └── tools/
-    └── README.md - CI/CD tooling & mgmt
+    └── README.md            # (!) CI/CD & Mgmt SSOT
 ```
 
 ## Key Layers (Defined in BRN-004)
