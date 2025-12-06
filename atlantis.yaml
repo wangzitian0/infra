@@ -25,36 +25,28 @@ workflows:
               chmod 600 ~/.ssh/id_rsa
               ssh-keyscan -p 22 "$VPS_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
             fi
-        # Terraform init with R2 backend when credentials are available; otherwise fall back to local backend for plan
+        # Require all deployment secrets; fail fast if any missing
         - run: |
             set -euo pipefail
-            if [ -n "${R2_BUCKET:-}" ] && [ -n "${R2_ACCOUNT_ID:-}" ] && [ -n "${AWS_ACCESS_KEY_ID:-}" ] && [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-              if [ -f backend.tf.disabled ]; then mv backend.tf.disabled backend.tf; fi
-              terraform init -input=false -upgrade \
-                -backend-config="bucket=${R2_BUCKET}" \
-                -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
-            else
-              echo "Warning: R2 backend credentials missing; using local backend for plan (state will not be read)."
-              if [ -f backend.tf ]; then mv backend.tf backend.tf.disabled; fi
-              terraform init -input=false -upgrade -backend=false
-            fi
-        - run: |
-            set -euo pipefail
-            PLANFILE="${PLANFILE:-default.tfplan}"
             required="VPS_HOST VPS_SSH_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID R2_BUCKET R2_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY"
-            missing=""
+            missing=0
             for var in $required; do
               eval "val=\${$var:-}"
               if [ -z "${val}" ]; then
-                missing="${missing} ${var}"
+                echo "Missing env: ${var}" >&2
+                missing=1
               fi
             done
-            if [ -n "${missing}" ]; then
-              echo "Skipping terraform plan: missing env vars${missing} (configure Atlantis env)."
-              touch "${PLANFILE}"
-              exit 0
+            if [ "$missing" -ne 0 ]; then
+              echo "Aborting: required env vars missing."
+              exit 1
             fi
-            terraform plan -input=false -refresh -out "${PLANFILE}"
+        # Terraform init with R2 backend (fail if creds missing)
+        - init:
+            extra_args:
+              - "-backend-config=bucket=$R2_BUCKET"
+              - "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"
+        - plan
     apply:
       steps:
         - run: |
@@ -65,8 +57,17 @@ workflows:
             fi
         - run: |
             set -euo pipefail
-            if [ -z "${R2_BUCKET:-}" ] || [ -z "${R2_ACCOUNT_ID:-}" ] || [ -z "${AWS_ACCESS_KEY_ID:-}" ] || [ -z "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-              echo "Error: R2 backend credentials are required for apply. Set R2_BUCKET, R2_ACCOUNT_ID, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY."
+            required="VPS_HOST VPS_SSH_KEY CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID R2_BUCKET R2_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY"
+            missing=0
+            for var in $required; do
+              eval "val=\${$var:-}"
+              if [ -z "${val}" ]; then
+                echo "Missing env: ${var}" >&2
+                missing=1
+              fi
+            done
+            if [ "$missing" -ne 0 ]; then
+              echo "Aborting: required env vars missing."
               exit 1
             fi
         - init:
