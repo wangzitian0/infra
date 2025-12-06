@@ -45,13 +45,13 @@ workflows:
         - init:
             extra_args: ["-backend-config=bucket=$R2_BUCKET", "-backend-config=key=k3s/staging.tfstate", "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"]
         - plan:
-            extra_args: ["-var=enable_infra=false"]
+            extra_args: ["-var-file=envs/staging.tfvars"]
     apply:
       steps:
         - init:
             extra_args: ["-backend-config=bucket=$R2_BUCKET", "-backend-config=key=k3s/staging.tfstate", "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"]
         - apply:
-            extra_args: ["-var=enable_infra=false"]
+            extra_args: ["-var-file=envs/staging.tfvars"]
 
   prod:
     plan:
@@ -59,13 +59,13 @@ workflows:
         - init:
             extra_args: ["-backend-config=bucket=$R2_BUCKET", "-backend-config=key=k3s/prod.tfstate", "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"]
         - plan:
-            extra_args: ["-var=enable_infra=false"]
+            extra_args: ["-var-file=envs/prod.tfvars"]
     apply:
       steps:
         - init:
             extra_args: ["-backend-config=bucket=$R2_BUCKET", "-backend-config=key=k3s/prod.tfstate", "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"]
         - apply:
-            extra_args: ["-var=enable_infra=false"]
+            extra_args: ["-var-file=envs/prod.tfvars"]
 
   test:
     plan:
@@ -73,13 +73,13 @@ workflows:
         - init:
             extra_args: ["-backend-config=bucket=$R2_BUCKET", "-backend-config=key=k3s/test.tfstate", "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"]
         - plan:
-            extra_args: ["-var=enable_infra=false"]
+            extra_args: ["-var-file=envs/test.tfvars"]
     apply:
       steps:
         - init:
             extra_args: ["-backend-config=bucket=$R2_BUCKET", "-backend-config=key=k3s/test.tfstate", "-backend-config=endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"]
         - apply:
-            extra_args: ["-var=enable_infra=false"]
+            extra_args: ["-var-file=envs/test.tfvars"]
 
   infra:
     plan:

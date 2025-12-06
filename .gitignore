@@ -3,6 +3,7 @@
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+!terraform/envs/*.tfvars
 .terraform/
 .terraform.lock.hcl
 terraform/**/output/
