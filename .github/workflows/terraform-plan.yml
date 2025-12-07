@@ -64,13 +64,26 @@ jobs:
         with:
           script: |
             const outcome = '${{ steps.plan.outcome }}';
-            const body = `#### Terraform CI Validation ✅
+            const body = `#### Terraform CI Validation ${outcome === 'success' ? '✅' : '❌'}
 
             **Status**: \`${outcome}\`
 
             ${outcome === 'success' ? '🚀 Triggering Atlantis plan...' : '❌ Fix CI errors before Atlantis plan.'}
 
             > Full plan output available in the workflow logs.
+
+            ---
+            <details>
+            <summary>📋 <b>Available Commands</b></summary>
+
+            | Command | Description |
+            |:---|:---|
+            | \`/review\` | Request AI code review |
+            | \`/ask <question>\` | Ask Claude a question about this PR |
+            | \`atlantis plan\` | Re-run terraform plan |
+            | \`atlantis apply\` | Apply terraform changes |
+
+            </details>
             `;
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
