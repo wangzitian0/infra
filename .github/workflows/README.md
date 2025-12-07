@@ -51,9 +51,10 @@ This workflow ensures that the `main` branch is always consistent with the live 
 
 The project uses a **Layered Architecture** within a single Repository (Monorepo-style logic):
 
-*   **Layer 1 (NoDep)**: Bootstrap (VPS, K3s, Atlantis itself).
-*   **Layer 2 (Foundation)**: Namespaces, Secrets (Infisical), Networking.
-*   **Layer 3+ (Apps)**: Application workloads.
+*   **Layer 1 (NoDep)**: Bootstrap (VPS, K3s, Atlantis, DNS/Cert).
+*   **Layer 2 (Platform)**: Secrets (Infisical), K8s Dashboard, Kubero.
+*   **Layer 3 (Data)**: Business databases (Postgres, Redis, Neo4j).
+*   **Layer 4 (Insight)**: Observability (SigNoz), Analytics (PostHog).
 
 ### Consistency Strategy
 1.  **State Locking**: Terraform Backend (R2) locks state files during any write operation.
@@ -98,7 +99,7 @@ claude
 
 ### What It Reviews
 
-- **Structure**: Correct layer (L1-L5), clean module boundaries
+- **Structure**: Correct layer (L1-L4), clean module boundaries
 - **Maintainability**: Abstraction, naming, DRY
 - **Code-Doc Consistency**: README.md / `0.check_now.md` sync
 - **SSOT Compliance**: No duplicate config, proper secrets
