@@ -66,16 +66,9 @@ jobs:
         working-directory: terraform
         run: terraform plan -input=false
 
-      # Stage 1: Bootstrap L1 (Node/K3s) + Kubeconfig
-      - name: Apply L1 (Bootstrap)
-        if: github.event_name == 'push'
-        working-directory: terraform
-        run: |
-          # Apply only the bootstrap module to generate infrastructure
-          terraform apply -auto-approve -target="module.nodep"
-
-      # Stage 2: Apply remaining layers (L2+) which need Kubeconfig
-      - name: Apply L2+ (Platform)
+      # Apply all infrastructure (moved blocks require full apply, not targeted)
+      # Note: -target=module.nodep fails when moved.tf has pending resource moves
+      - name: Apply Infrastructure
         if: github.event_name == 'push'
         working-directory: terraform
         run: terraform apply -auto-approve
