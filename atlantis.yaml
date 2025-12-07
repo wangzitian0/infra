@@ -41,7 +41,7 @@ projects:
       enabled: false
 
 workflows:
-  # Create backend config file dynamically to avoid shell quoting issues with endpoints={}
+  # Use pure 'run' steps to avoid Atlantis auto-init in plan/apply steps
   staging:
     plan:
       steps:
@@ -53,8 +53,7 @@ workflows:
             EOF
         - run: terraform init -input=false -reconfigure -backend-config=backend.hcl
         - run: terraform workspace select staging || terraform workspace new staging
-        - plan:
-            extra_args: ["-var-file=envs/staging.tfvars"]
+        - run: terraform plan -input=false -refresh -var-file=envs/staging.tfvars -out=$PLANFILE
     apply:
       steps:
         - run: |
@@ -64,9 +63,8 @@ workflows:
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
         - run: terraform init -input=false -reconfigure -backend-config=backend.hcl
-        - run: terraform workspace select staging || terraform workspace new staging
-        - apply:
-            extra_args: ["-var-file=envs/staging.tfvars"]
+        - run: terraform workspace select staging
+        - run: terraform apply -input=false $PLANFILE
 
   prod:
     plan:
@@ -79,8 +77,7 @@ workflows:
             EOF
         - run: terraform init -input=false -reconfigure -backend-config=backend.hcl
         - run: terraform workspace select prod || terraform workspace new prod
-        - plan:
-            extra_args: ["-var-file=envs/prod.tfvars"]
+        - run: terraform plan -input=false -refresh -var-file=envs/prod.tfvars -out=$PLANFILE
     apply:
       steps:
         - run: |
@@ -90,9 +87,8 @@ workflows:
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
         - run: terraform init -input=false -reconfigure -backend-config=backend.hcl
-        - run: terraform workspace select prod || terraform workspace new prod
-        - apply:
-            extra_args: ["-var-file=envs/prod.tfvars"]
+        - run: terraform workspace select prod
+        - run: terraform apply -input=false $PLANFILE
 
   test:
     plan:
@@ -105,8 +101,7 @@ workflows:
             EOF
         - run: terraform init -input=false -reconfigure -backend-config=backend.hcl
         - run: terraform workspace select test || terraform workspace new test
-        - plan:
-            extra_args: ["-var-file=envs/test.tfvars"]
+        - run: terraform plan -input=false -refresh -var-file=envs/test.tfvars -out=$PLANFILE
     apply:
       steps:
         - run: |
@@ -116,9 +111,8 @@ workflows:
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
         - run: terraform init -input=false -reconfigure -backend-config=backend.hcl
-        - run: terraform workspace select test || terraform workspace new test
-        - apply:
-            extra_args: ["-var-file=envs/test.tfvars"]
+        - run: terraform workspace select test
+        - run: terraform apply -input=false $PLANFILE
 
   infra:
     plan:
@@ -130,8 +124,7 @@ workflows:
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
         - run: terraform init -input=false -reconfigure -backend-config=backend.hcl
-        - plan:
-            extra_args: ["-var=enable_infra=true"]
+        - run: terraform plan -input=false -refresh -var=enable_infra=true -out=$PLANFILE
     apply:
       steps:
         - run: |
@@ -141,5 +134,4 @@ workflows:
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
         - run: terraform init -input=false -reconfigure -backend-config=backend.hcl
-        - apply:
-            extra_args: ["-var=enable_infra=true"]
+        - run: terraform apply -input=false $PLANFILE
