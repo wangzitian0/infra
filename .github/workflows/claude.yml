@@ -28,7 +28,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
-            This is a Terraform IaC project with layered architecture (L1-L5).
+            This is a Terraform IaC project with layered architecture (L1-L4).
 
             Behavior:
             - If comment contains "PTAL": Do a full code review.

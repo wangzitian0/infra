@@ -16,16 +16,17 @@ For a detailed map of where everything lives, refer to:
 
 Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 
-## Module Quick Reference (L1-L5)
+## Module Quick Reference (L1-L4)
 
 | Layer | Directory (Docs) | Responsibility |
 |---|---|---|
 | **L0 Root** | [`terraform`](terraform/README.md) / [`tools`](tools/README.md) | Root Module, Global Vars, CI Automation |
-| **L1 Bootstrap** | [`1.nodep`](terraform/1.nodep/README.md) | Raw VPS provisioning, k3s installation |
-| **L2 Foundation** | [`2.env_and_networking`](terraform/2.env_and_networking/README.md) | Secrets (Infisical), Ingress Domains, Base DB |
-| **L3 Runtime** | [`3.computing`](terraform/3.computing/README.md) | PaaS (Kubero), Dashboard, Workload Controllers |
-| **L4 Data** | [`4.storage`](terraform/4.storage/README.md) | Business Logic DBs (Postgres, Redis, Neo4j) |
-| **L5 Insight** | [`5.insight`](terraform/5.insight/README.md) | Observability (SigNoz), Analytics (PostHog)# Standard Operating Procedure (SOP)
+| **L1 Bootstrap** | [`1.nodep`](terraform/1.nodep/README.md) | Raw VPS provisioning, k3s installation, DNS/Cert, Atlantis |
+| **L2 Platform** | [`2.platform`](terraform/2.platform/README.md) | Secrets (Infisical), K8s Dashboard, Kubero, Platform DB |
+| **L3 Data** | [`3.data`](terraform/3.data/README.md) | Business DBs (Postgres, Redis, Neo4j, ClickHouse) |
+| **L4 Insight** | [`4.insight`](terraform/4.insight/README.md) | Observability (SigNoz), Analytics (PostHog), Alerting |
+
+# Standard Operating Procedure (SOP)
 
 ## 1. Development Workflow
 - **Read First**: Before modifying any layer, read its `README.md`.
