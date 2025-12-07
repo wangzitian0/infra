@@ -44,3 +44,7 @@ variable "cloudflare_api_token" {
   sensitive = true
 }
 variable "cloudflare_zone_id" {}
+variable "infisical_postgres_password" {
+  sensitive = true
+}
+
