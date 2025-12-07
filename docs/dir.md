@@ -42,23 +42,21 @@ root/
 ├── terraform/
 │   ├── README.md            # (!) IaC entry & layer map
 │   ├── envs/README.md       # tfvars templates per environment
-│   ├── 1.nodep/README.md    # L1 bootstrap (k3s/Atlantis)
-│   ├── 2.env_and_networking/README.md # L2 foundation (secrets/ingress/db)
-│   ├── 3.computing/README.md # L3 runtime (PaaS/dashboard)
-│   ├── 4.storage/README.md  # L4 data stores
-│   └── 5.insight/README.md  # L5 observability/analytics
+│   ├── 1.nodep/README.md    # L1 bootstrap (k3s/Atlantis/DNS/Cert)
+│   ├── 2.platform/README.md # L2 platform (secrets/dashboard/kubero)
+│   ├── 3.data/README.md     # L3 data (business databases)
+│   └── 4.insight/README.md  # L4 observability/analytics
 └── tools/
     └── README.md            # (!) CI/CD & Mgmt SSOT
 ```
 
-## Key Layers (Defined in BRN-004)
+## Key Layers (L1-L4 Simplified Architecture)
 
 | Layer | Name | Definition | Modules (Path :: Function) | k3s Namespace | SSOT |
 |---|---|---|---|---|---|
 | **L0** | **Tools Chain** | Project Roots | `tools/` :: CI/CD <br> `docs/` :: Architecture <br> `terraform/` :: Orchestration | - | `README.md` |
-| **L1** | **Bootstrap** | Infrastructure Logic | `1.nodep/` :: Runtime (k3s), CI (Atlantis) | `nodep` | `1.nodep/README.md` |
-| **L2** | **Foundation** | Security & Networking | `2.env_and_networking/` :: Secrets (Infisical, Postgres_env) | `security` | `2.env.../README.md` |
-| **L3** | **Runtime** | App Runtime & PaaS | `3.computing/` :: PaaS (Kubero), Dashboard, Apps | `kubero`, `apps` | `3.comp.../README.md` |
-| **L4** | **Data** | Data Stores | `4.storage/` :: Cache (Redis), Graph (Neo4j), DB (Postgres_app) | `data` | `4.storage/README.md` |
-| **L5** | **Insight** | Observability | `5.insight/` :: Obs. (SigNoz), Analytics (PostHog) | `observability`, `ingestion` | `5.insight/README.md` |
+| **L1** | **Bootstrap** | Zero-Dependency Infra | `1.nodep/` :: Runtime (k3s), CI (Atlantis), DNS/Cert | `kube-system` | `1.nodep/README.md` |
+| **L2** | **Platform** | Platform Components | `2.platform/` :: Secrets (Infisical), Dashboard, Kubero, Platform DB | `iac`, `kubernetes-dashboard` | `2.platform/README.md` |
+| **L3** | **Data** | Business Data Stores | `3.data/` :: Cache (Redis), Graph (Neo4j), DB (Postgres), OLAP (ClickHouse) | `data` | `3.data/README.md` |
+| **L4** | **Insight** | Observability & Analytics | `4.insight/` :: APM (SigNoz), Analytics (PostHog), Alerting | `monitoring` | `4.insight/README.md` |
 | **L99** | **Apps** | Business Logic | `apps/` :: Business Services | `apps` | `apps/README.md` |
