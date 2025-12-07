@@ -28,6 +28,7 @@ module "nodep" {
   base_domain             = var.base_domain
   cloudflare_api_token    = var.cloudflare_api_token
   cloudflare_zone_id      = var.cloudflare_zone_id
+  infisical_postgres_password = var.infisical_postgres_password
 }
 
 
