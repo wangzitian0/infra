@@ -1,0 +1,3 @@
+# Backend config for prod environment
+bucket = "PLACEHOLDER_BUCKET"
+key    = "k3s/prod.tfstate"

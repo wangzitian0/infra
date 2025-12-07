@@ -1,0 +1,3 @@
+# Backend config for infra (shared L1/L2)
+bucket = "PLACEHOLDER_BUCKET"
+key    = "k3s/terraform.tfstate"
