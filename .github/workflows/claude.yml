@@ -9,30 +9,39 @@ on:
 jobs:
   claude:
     runs-on: ubuntu-latest
-    # Only trigger on PTAL comments, skip bot comments
+    # Trigger on /review, /ask, @claude, or PTAL (legacy)
     if: |
-      contains(github.event.comment.body, 'PTAL') ||
-      contains(github.event.comment.body, '@claude')
+      (
+        contains(github.event.comment.body, '/review') ||
+        contains(github.event.comment.body, '/ask') ||
+        contains(github.event.comment.body, '@claude') ||
+        contains(github.event.comment.body, 'PTAL')
+      ) &&
+      !contains(github.event.comment.user.login, '[bot]')
 
     permissions:
       contents: read
       pull-requests: write
       issues: write
+      id-token: write
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: anthropics/claude-code-action@v1
+      - name: Run Claude Review
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        continue-on-error: true
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
             This is a Terraform IaC project with layered architecture (L1-L4).
 
             Behavior:
-            - If comment contains "PTAL": Do a full code review.
-            - If comment contains "@claude": Answer the question asked. If no question, do a full code review.
+            - If comment contains "/review" or "PTAL": Do a full code review.
+            - If comment contains "/ask" or "@claude": Answer the question asked. If no question, do a full code review.
 
             Review criteria (when reviewing):
             1. Structure: Is code in correct layer? Are module boundaries clean?
@@ -41,3 +50,22 @@ jobs:
             4. SSOT: No duplicate config? Secrets handled properly?
 
             Be concise. Reference file:line for specific issues.
+
+      - name: Report Failure
+        if: steps.claude.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `❌ **Claude review failed**
+
+            Possible causes:
+            - \`ANTHROPIC_API_KEY\` secret not configured
+            - API rate limit exceeded
+            - Network error
+
+            Check [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`
+            });
