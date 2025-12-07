@@ -1,6 +1,6 @@
 # Phase 1.3: Kubernetes Dashboard (Web UI for Cluster Management)
-# Namespace: kube-system (standard namespace for cluster-level components)
-# Access: NodePort on port 30443
+# Namespace: kubernetes-dashboard
+# Access: Ingress via i-kdashboard.{base_domain}
 
 # Create namespace for Dashboard
 resource "kubernetes_namespace" "dashboard" {
@@ -33,7 +33,7 @@ resource "helm_release" "kubernetes_dashboard" {
         }
       }
 
-      # Expose via NodePort for easy access
+      # Kong as internal gateway (no NodePort)
       kong = {
         proxy = {
           http = {
@@ -42,10 +42,7 @@ resource "helm_release" "kubernetes_dashboard" {
           }
         }
         service = {
-          type = "NodePort"
-          nodePorts = {
-            http = 30443
-          }
+          type = "ClusterIP"
         }
       }
 
@@ -85,6 +82,47 @@ resource "helm_release" "kubernetes_dashboard" {
   depends_on = [
     kubernetes_namespace.dashboard
   ]
+}
+
+# Ingress for Dashboard (via nginx ingress controller)
+resource "kubernetes_ingress_v1" "dashboard" {
+  metadata {
+    name      = "kubernetes-dashboard"
+    namespace = kubernetes_namespace.dashboard.metadata[0].name
+    annotations = {
+      "kubernetes.io/ingress.class"                = "nginx"
+      "cert-manager.io/cluster-issuer"             = "letsencrypt-prod"
+      "nginx.ingress.kubernetes.io/backend-protocol" = "HTTPS"
+      "nginx.ingress.kubernetes.io/ssl-passthrough"  = "false"
+    }
+  }
+
+  spec {
+    tls {
+      hosts       = ["i-kdashboard.${var.base_domain}"]
+      secret_name = "dashboard-tls"
+    }
+
+    rule {
+      host = "i-kdashboard.${var.base_domain}"
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "kubernetes-dashboard-kong-proxy"
+              port {
+                number = 443
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.kubernetes_dashboard]
 }
 
 # Admin ServiceAccount for full cluster access
@@ -135,8 +173,8 @@ resource "kubernetes_secret" "dashboard_admin_token" {
 
 # Outputs
 output "dashboard_url" {
-  value       = "https://<VPS_IP>:30443"
-  description = "Kubernetes Dashboard URL (replace <VPS_IP> with your server IP)"
+  value       = "https://i-kdashboard.${var.base_domain}"
+  description = "Kubernetes Dashboard URL"
 }
 
 output "dashboard_token_command" {

@@ -16,8 +16,9 @@ locals {
 
   domains = {
     # Global/Internal
-    atlantis = "i-atlantis.${var.base_domain}"
-    k3s      = "i-k3s.${var.base_domain}"
+    atlantis  = "i-atlantis.${var.base_domain}"
+    k3s       = "i-k3s.${var.base_domain}"
+    dashboard = "i-kdashboard.${var.base_domain}"
 
     # Env/Internal-ish (Fixed names per User Request)
     kubero_ui      = "i-kcloud.${var.base_domain}"
