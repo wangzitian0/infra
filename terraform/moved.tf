@@ -121,6 +121,11 @@ moved {
 }
 
 moved {
+  from = module.env_and_networking.kubernetes_namespace.security
+  to   = module.platform.kubernetes_namespace.security
+}
+
+moved {
   from = module.env_and_networking.helm_release.postgresql
   to   = module.platform.helm_release.postgresql
 }
