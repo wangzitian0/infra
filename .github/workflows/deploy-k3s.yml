@@ -66,6 +66,15 @@ jobs:
         working-directory: terraform
         run: terraform plan -input=false
 
+      # Emergency Fix: Delete broken webhook that blocks Ingress updates
+      # When Ingress Controller pod is gone but WebhookConfig remains, all Ingress updates fail.
+      - name: Cleanup Broken Webhooks
+        if: github.event_name == 'push'
+        run: |
+          kubectl delete validatingwebhookconfiguration infisical-ingress-nginx-admission --ignore-not-found=true
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+
       # Apply all infrastructure (moved blocks require full apply, not targeted)
       # Note: -target=module.nodep fails when moved.tf has pending resource moves
       - name: Apply Infrastructure
