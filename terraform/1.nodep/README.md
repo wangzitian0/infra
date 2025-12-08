@@ -17,9 +17,19 @@
 
 ## DNS Architecture
 
-- **`*` (wildcard)**: Grey cloud → internal services (`i-*`)
-- **`@` (root)**: Orange cloud → public access
-- **`x-*`**: Orange cloud → external services (added per env)
+See [network.md](network.md) for full domain design.
+
+| Pattern | Cloudflare | Purpose | Example |
+|---------|------------|---------|---------|
+| `i-*` | Grey cloud (DNS-only) | Internal/infra services | `i-atlantis`, `i-secrets` |
+| `x-*` | Orange cloud (proxied) | External user-facing | `x-staging-app`, `x-prod-api` |
+| `@` | Orange cloud (proxied) | Public landing page | `truealpha.club` |
+
+**DNS Records managed here**:
+- `*` (wildcard) → VPS IP (grey cloud)
+- `@` (root) → VPS IP (orange cloud)
+- `x-staging` → VPS IP (orange cloud)
+- `x-prod` → VPS IP (orange cloud)
 
 ## Deployment
 
@@ -80,4 +90,4 @@ After `terraform apply`, these checks run automatically:
 3. **Atlantis**: Checks `/healthz` endpoint is reachable.
 
 ---
-*Last updated: 2025-12-07*
+*Last updated: 2025-12-08*

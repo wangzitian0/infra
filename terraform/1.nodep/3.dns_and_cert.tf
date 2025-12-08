@@ -133,8 +133,12 @@ resource "cloudflare_record" "root" {
   allow_overwrite = true
 }
 
-# x-staging: environment services (proxied)
-# Add more x-{env} records as needed
+# =============================================================================
+# External Environment DNS Records (x-* pattern, Orange Cloud / Proxied)
+# These provide CDN caching and DDoS protection for user-facing services
+# =============================================================================
+
+# x-staging: Staging environment services
 resource "cloudflare_record" "x_staging" {
   zone_id         = var.cloudflare_zone_id
   name            = "x-staging"
@@ -144,9 +148,18 @@ resource "cloudflare_record" "x_staging" {
   allow_overwrite = true
 }
 
-# x-staging-* pattern: need explicit records for each service
-# Example: x-staging-api, x-staging-posthog, etc.
-# These will be added in L2 module as services are deployed
+# x-prod: Production environment services
+resource "cloudflare_record" "x_prod" {
+  zone_id         = var.cloudflare_zone_id
+  name            = "x-prod"
+  value           = var.vps_host
+  type            = "A"
+  proxied         = true
+  allow_overwrite = true
+}
+
+# Note: x-test-* records for ephemeral environments (PR/commit previews)
+# are created dynamically by CI/CD workflows, not managed here
 
 # =============================================================================
 # 7. Post-Apply Validation (DNS + Cert + Atlantis Health)
