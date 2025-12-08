@@ -26,9 +26,7 @@ resource "kubernetes_manifest" "local_path_config" {
     }
   }
 
-  field_manager   = "terraform"
-  force_conflicts = true
-  depends_on      = [null_resource.kubeconfig]
+  depends_on = [null_resource.kubeconfig]
 }
 
 # New StorageClass that keeps PVs after PVC deletion (manual cleanup required)
