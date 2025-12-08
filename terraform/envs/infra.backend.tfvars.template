@@ -1,3 +1,4 @@
 # Backend config for infra (shared L1/L2)
 bucket = "PLACEHOLDER_BUCKET"
 key    = "k3s/terraform.tfstate"
+endpoints = { s3 = "https://PLACEHOLDER_ACCOUNT_ID.r2.cloudflarestorage.com" }

@@ -21,6 +21,7 @@ if [ -n "${TEMPLATE_FILE}" ]; then
     echo "Generating backend.tfvars from ${TEMPLATE_FILE}..."
     sed -e "s|{{ENV}}|${WORKSPACE}|g" \
         -e "s|PLACEHOLDER_BUCKET|${R2_BUCKET}|g" \
+        -e "s|PLACEHOLDER_ACCOUNT_ID|${R2_ACCOUNT_ID}|g" \
         "${TEMPLATE_FILE}" > backend.tfvars
 else
     echo "No backend template found. Initializing without backend.tfvars (assuming default or pre-configured)."

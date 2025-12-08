@@ -1,3 +1,4 @@
 # Backend config for prod environment
 bucket = "PLACEHOLDER_BUCKET"
 key    = "k3s/prod.tfstate"
+endpoints = { s3 = "https://PLACEHOLDER_ACCOUNT_ID.r2.cloudflarestorage.com" }
