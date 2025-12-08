@@ -81,30 +81,10 @@ resource "helm_release" "infisical" {
         }
       }
 
-      # Ingress
+      # Disable Helm chart's ingress - it doesn't set host correctly
+      # We create our own ingress below
       ingress = {
-        enabled   = true
-        className = "nginx"
-        annotations = {
-          "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-        }
-        hosts = [
-          {
-            host = "i-secrets.${var.base_domain}"
-            paths = [
-              {
-                path     = "/"
-                pathType = "ImplementationSpecific"
-              }
-            ]
-          }
-        ]
-        tls = [
-          {
-            secretName = "infisical-tls"
-            hosts      = ["i-secrets.${var.base_domain}"]
-          }
-        ]
+        enabled = false
       }
     })
   ]
@@ -154,6 +134,46 @@ resource "kubernetes_secret" "infisical_secrets" {
   } # End of data block
 
 
+}
+
+# Ingress for Infisical (manually created because Helm chart doesn't set host correctly)
+resource "kubernetes_ingress_v1" "infisical" {
+  metadata {
+    name      = "infisical-ingress"
+    namespace = kubernetes_namespace.security.metadata[0].name
+    annotations = {
+      "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+    }
+  }
+
+  spec {
+    ingress_class_name = "nginx"
+
+    tls {
+      hosts       = ["i-secrets.${var.base_domain}"]
+      secret_name = "infisical-tls"
+    }
+
+    rule {
+      host = "i-secrets.${var.base_domain}"
+      http {
+        path {
+          path      = "/"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "infisical-infisical-standalone-infisical"
+              port {
+                number = 8080
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.infisical]
 }
 
 output "infisical_endpoint" {
