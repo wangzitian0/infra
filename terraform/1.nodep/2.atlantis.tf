@@ -90,15 +90,15 @@ resource "helm_release" "atlantis" {
           storageClassName = "local-path"
         }
 
-        # Resource limits
+        # Resource limits (increased memory to prevent OOM during terraform plan)
         resources = {
           limits = {
-            cpu    = "500m"
-            memory = "512Mi"
+            cpu    = "1000m"
+            memory = "1Gi"
           }
           requests = {
-            cpu    = "100m"
-            memory = "256Mi"
+            cpu    = "200m"
+            memory = "512Mi"
           }
         }
       },

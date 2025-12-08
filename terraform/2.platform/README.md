@@ -33,8 +33,12 @@ terraform apply -target="module.platform"
 
 ### Access
 
-- **Infisical**: `https://i-infisical.<base_domain>` (GitHub OAuth)
+- **Infisical**: `https://i-secrets.<base_domain>` (GitHub OAuth)
 - **Dashboard**: `https://i-kdashboard.<base_domain>` (token auth via Kong proxy)
+
+### Known Issues
+
+- **Infisical Helm chart ingress bug**: The `infisical-standalone` chart doesn't set `host` in ingress rules correctly, causing it to match all domains. We work around this by disabling the chart's ingress and creating our own `kubernetes_ingress_v1` resource.
 
 ### Disaster Recovery
 
