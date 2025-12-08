@@ -15,9 +15,10 @@ echo "=== Pre-flight Checks ==="
 echo ""
 echo "📦 Checking Helm repository URLs..."
 
-# Extract all repository URLs from .tf files
+# Extract all repository URLs from .tf files (excluding commented lines)
 HELM_URLS=$(grep -rh 'repository\s*=' "$TF_DIR" --include="*.tf" 2>/dev/null | \
-  grep -oP 'https?://[^"]+' | \
+  grep -v '^\s*#' | \
+  grep -oE 'https?://[^"]+' | \
   sort -u || true)
 
 if [ -z "$HELM_URLS" ]; then
