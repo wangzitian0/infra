@@ -1,13 +1,13 @@
 # Network & Domain Architecture
 
-> Aligned with [terraform/envs/README.md](../envs/README.md) 5-Layer Design.
+> Aligned with [AGENTS.md](../../AGENTS.md) 4-Layer Design (L1-L4).
 
 ## 1. DNS Architecture
 
 **Cloudflare Wildcard DNS + Ingress Routing**:
-- `*.truealpha.club` → VPS IP (proxied, orange cloud)
-- `@` (root) → VPS IP (proxied)
-- `i-k3s` → VPS IP (DNS-only, grey cloud, for port 6443)
+- `*` (wildcard) → VPS IP (grey cloud, DNS-only for internal `i-*` services)
+- `@` (root) → VPS IP (orange cloud, proxied)
+- `x-*` → VPS IP (orange cloud, external services per env)
 
 All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 
@@ -15,12 +15,12 @@ All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 
 | Pattern | Prefix | Template | Description |
 |---------|--------|----------|-------------|
-| **A** (Global) | `i-` | `i-{service}.${BASE_DOMAIN}` | Singleton/Shared services (L1/L2) |
-| **B** (Env) | `{env}-` | `{env}-{service}.${BASE_DOMAIN}` | Environment-isolated services (L3+) |
+| **A** (Singleton) | `i-` | `i-{service}.${BASE_DOMAIN}` | L1/L2 singleton services |
+| **B** (Per-Env) | `{env}-` | `{env}-{service}.${BASE_DOMAIN}` | L3/L4 environment-isolated services |
 
 **Examples**:
 - Pattern A: `i-atlantis.truealpha.club`, `i-secrets.truealpha.club`
-- Pattern B: `staging-app.truealpha.club`, `prod-signoz.truealpha.club`
+- Pattern B: `staging-signoz.truealpha.club`, `prod-posthog.truealpha.club`
 
 ## 3. Service Map by Layer
 
@@ -29,38 +29,32 @@ All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 | Service | Domain | Notes |
 |---------|--------|-------|
 | K3s API | `i-k3s.${BASE_DOMAIN}` | DNS-only (port 6443) |
-
-### L2: Networking (Singleton)
-
-| Service | Domain | Notes |
-|---------|--------|-------|
 | Atlantis | `i-atlantis.${BASE_DOMAIN}` | Terraform CI/CD |
-| Infisical | `i-secrets.${BASE_DOMAIN}` | Secrets Management |
 | Cert-Manager | N/A | Internal only |
 | Ingress-Nginx | N/A | Internal only |
 
-### L3: Platform (Per-Env)
+### L2: Platform (Singleton)
+
+| Service | Domain | Notes |
+|---------|--------|-------|
+| Infisical | `i-secrets.${BASE_DOMAIN}` | Secrets Management |
+| K8s Dashboard | `i-kdashboard.${BASE_DOMAIN}` | Cluster UI |
+| Kubero UI | `i-kcloud.${BASE_DOMAIN}` | PaaS (disabled - chart repo unreachable) |
+| Kubero API | `i-kapi.${BASE_DOMAIN}` | PaaS API (disabled) |
+
+### L3: Data (Per-Env)
 
 | Service | Domain | Environments |
 |---------|--------|--------------|
-| Kubero UI | `{env}-kcloud.${BASE_DOMAIN}` | staging, prod |
-| Kubero API | `{env}-kapi.${BASE_DOMAIN}` | staging, prod |
+| PostgreSQL | N/A (Internal) | staging, prod |
+| Redis | N/A (Internal) | staging, prod |
 
-### L4: Data (Per-Env)
-
-| Service | Domain | Environments |
-|---------|--------|--------------|
-| PostgreSQL | N/A (Internal) | staging, prod, temp-* |
-| Redis | N/A (Internal) | staging, prod, temp-* |
-
-### L5: Insight (Per-Env)
+### L4: Insight (Per-Env)
 
 | Service | Domain | Environments |
 |---------|--------|--------------|
 | SigNoz | `{env}-signoz.${BASE_DOMAIN}` | staging, prod |
 | PostHog | `{env}-posthog.${BASE_DOMAIN}` | staging, prod |
-| App Frontend | `{env}.${BASE_DOMAIN}` | staging, prod |
-| App Backend | `{env}-api.${BASE_DOMAIN}` | staging, prod |
 
 ## 4. Variables
 
@@ -68,4 +62,4 @@ All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 |----------|-------------|---------|
 | `${BASE_DOMAIN}` | Root domain | `truealpha.club` |
 | `${VPS_HOST}` | VPS IP | `103.214.23.41` |
-| `{env}` | Environment prefix | `staging`, `prod`, `temp-xyz` |
+| `{env}` | Environment prefix | `staging`, `prod` |
