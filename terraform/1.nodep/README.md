@@ -11,7 +11,7 @@
 | File | Purpose |
 |------|---------|
 | `1.k3s.tf` | K3s single-node cluster bootstrap |
-| `2.atlantis.tf` | Atlantis Helm release for Terraform CI/CD |
+| `2.atlantis.tf` | Atlantis Helm release for Terraform CI/CD (2Gi RAM) |
 | `3.dns_and_cert.tf` | Cloudflare DNS (wildcard + x-*), Cert Manager, wildcard TLS cert |
 | `network.md` | Domain naming conventions (SSOT) |
 
