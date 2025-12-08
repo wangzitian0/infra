@@ -18,7 +18,8 @@ Depends on L1 (nodep) for K8s cluster availability.
 |------|-----------|---------|
 | `1.postgres.tf` | Platform PostgreSQL | Database for Infisical (namespace: `iac`) |
 | `2.secret.tf` | Infisical | Secrets management with GitHub OAuth SSO |
-| `3.dashboard.tf` | K8s Dashboard | Cluster management web UI (NodePort 30443) |
+| `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
+| `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
 
 ### Secrets Strategy
 
