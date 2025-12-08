@@ -107,6 +107,12 @@ resource "kubectl_manifest" "kubero_instance" {
         type = "ClusterIP"
         port = 2000
       }
+      persistence = {
+        enabled          = true
+        storageClassName = "local-path"
+        accessModes      = ["ReadWriteOnce"]
+        size             = "1Gi"
+      }
       ingress = {
         enabled   = true
         className = "nginx"

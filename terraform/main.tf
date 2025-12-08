@@ -32,27 +32,9 @@ module "nodep" {
 }
 
 
-# L2: Platform (密钥管理 + 资源层组件)
-# Infisical, K8s Dashboard, Kubero 等平台组件
-module "platform" {
-  source = "./2.platform"
-
-  infisical_chart_version     = var.infisical_chart_version
-  infisical_image_tag         = var.infisical_image_tag
-  infisical_postgres_password = var.infisical_postgres_password
-  infisical_postgres_storage  = var.infisical_postgres_storage
-  env_prefix                  = var.env_prefix
-  base_domain                 = var.base_domain
-  namespaces                  = local.namespaces
-  kubeconfig_path             = local.kubeconfig_path
-  vps_host                    = var.vps_host
-
-  # Infisical GitHub OAuth
-  infisical_github_client_id     = var.infisical_github_client_id
-  infisical_github_client_secret = var.infisical_github_client_secret
-
-  depends_on = [module.nodep]
-}
+# L2: Platform (Moved to layer2-platform)
+# Use terraform/layer2-platform for Platform resources
+# Resources migrated via scripts/migrate-state.sh
 
 # L3: Data (数据面 - 业务数据库)
 # module "data" {
