@@ -5,28 +5,34 @@
 # Architecture:
 # 1. operator.yaml → CRDs + Operator Deployment (in kubero-operator-system namespace)
 # 2. Kubero CR → Kubero UI deployment (in kubero namespace)
-#
-# Note: We use kubectl provider (gavinbunney/kubectl) because it supports
-# server-side apply and doesn't require CRDs to exist at plan time.
+
+# ============================================================
+# Parse multi-document YAML file statically
+# ============================================================
+locals {
+  # Read and split the operator.yaml into individual documents
+  operator_yaml_raw = file("${path.module}/manifests/kubero/operator.yaml")
+
+  # Split by document separator and filter empty docs
+  operator_docs = [
+    for doc in split("\n---\n", local.operator_yaml_raw)
+    : trimspace(doc) if length(trimspace(doc)) > 0 && !startswith(trimspace(doc), "#")
+  ]
+}
 
 # ============================================================
 # Deploy Kubero Operator (CRDs + Controller) using kubectl_manifest
-# This handles multi-document YAML automatically
 # ============================================================
-data "kubectl_file_documents" "kubero_operator" {
-  content = file("${path.module}/manifests/kubero/operator.yaml")
-}
-
 resource "kubectl_manifest" "kubero_operator" {
-  for_each  = data.kubectl_file_documents.kubero_operator.manifests
-  yaml_body = each.value
-
-  # Don't wait for rollout - CRDs don't have rollout status
-  wait_for_rollout = false
+  count     = length(local.operator_docs)
+  yaml_body = local.operator_docs[count.index]
 
   # Server-side apply handles large CRDs better
   server_side_apply = true
   force_conflicts   = true
+
+  # Don't wait for rollout - CRDs don't have rollout status
+  wait_for_rollout = false
 }
 
 # ============================================================
