@@ -34,7 +34,7 @@ terraform apply -target="module.platform"
 ### Access
 
 - **Infisical**: `https://i-infisical.<base_domain>` (GitHub OAuth)
-- **Dashboard**: `https://<VPS_IP>:30443` (token auth)
+- **Dashboard**: `https://i-kdashboard.<base_domain>` (token auth via Kong proxy)
 
 ### Disaster Recovery
 
