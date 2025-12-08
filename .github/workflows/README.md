@@ -43,7 +43,7 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | Workflow | Trigger | Description | Consistency Mechanism |
 | :--- | :--- | :--- | :--- |
 | **Deploy K3s** (`deploy-k3s.yml`) | `push: [main]` | **The Enforcer**. Applies `terraform/` to production. Bootstraps K3s, deploys Helm charts. | **SSOT Convergence**. Ensures `main` = `Live State`. Uses state locking. |
-| **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs `terraform plan` on PRs. **Triggers Atlantis** via comment on success. Shows available commands. | **Dry Run** + **Atlantis Trigger**. |
+| **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs static analysis (`terraform fmt`, `tflint`), **pre-flight URL check**, then `terraform plan` on PRs. **Triggers Atlantis** via comment on success. Shows available commands. | **Dry Run** + **Atlantis Trigger**. |
 | **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
 | **Claude** (`claude.yml`) | `/review`, `/ask`, `@claude` | **The Reviewer**. AI code review via Claude. Checks structure, maintainability, doc consistency, and SSOT. | **Quality Gate**. On-demand review via comments. |
 | **Docs Guard** (`docs-guard.yml`) | `pull_request` | **The Librarian**. Ensures documentation stays in sync with code changes. | **Doc Validation**. Fails if README not updated. |
