@@ -50,46 +50,51 @@ Production (No prefix, direct domain)
 
 ## 3. Service Map by Layer
 
+> Last verified: 2025-12-08
+
 ### L1: Bootstrap (Internal)
 
-| Service | Domain | Status | Notes |
-|---------|--------|--------|-------|
-| K3s API | `i-k3s.${BASE_DOMAIN}:6443` | ✅ Active | DNS-only, non-standard port |
-| Atlantis | `i-atlantis.${BASE_DOMAIN}` | ✅ Active | Terraform CI/CD |
-| Cert-Manager | N/A | ✅ Active | Internal only |
-| Ingress-Nginx | N/A | ✅ Active | Internal only |
+| Service | Domain | Curl | Status |
+|---------|--------|------|--------|
+| K3s API | `i-k3s.truealpha.club:6443` | 401 Unauthorized | ✅ Active |
+| Atlantis | `i-atlantis.truealpha.club` | `{"status":"ok"}` | ✅ Active |
+| Cert-Manager | N/A | - | ✅ Active (internal) |
+| Ingress-Nginx | N/A | - | ✅ Active (internal) |
 
 ### L2: Platform (Internal)
 
-| Service | Domain | Status | Notes |
-|---------|--------|--------|-------|
-| Infisical | `i-secrets.${BASE_DOMAIN}` | ✅ Active | Secrets Management |
-| K8s Dashboard | `i-kdashboard.${BASE_DOMAIN}` | ✅ Active | Cluster UI |
-| Kubero UI | `i-kcloud.${BASE_DOMAIN}` | ⏸️ Disabled | Chart repo unreachable |
-| Kubero API | `i-kapi.${BASE_DOMAIN}` | ⏸️ Disabled | Chart repo unreachable |
+| Service | Domain | Curl | Status |
+|---------|--------|------|--------|
+| Infisical | `i-secrets.truealpha.club` | 200 (Infisical UI) | ✅ Active |
+| K8s Dashboard | `i-kdashboard.truealpha.club` | 200 (Dashboard UI) | ✅ Active |
+| Kubero UI | `i-kcloud.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| Kubero API | `i-kapi.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
 
 ### L3: Data (Internal)
 
-| Service | Domain | Status | Notes |
-|---------|--------|--------|-------|
-| PostgreSQL | N/A (ClusterIP) | ⏸️ Planned | Internal only |
-| Redis | N/A (ClusterIP) | ⏸️ Planned | Internal only |
+| Service | Domain | Curl | Status |
+|---------|--------|------|--------|
+| PostgreSQL | N/A (ClusterIP) | - | ⏸️ Planned |
+| Redis | N/A (ClusterIP) | - | ⏸️ Planned |
 
 ### L4: Insight (Internal)
 
-| Service | Domain | Status | Notes |
-|---------|--------|--------|-------|
-| SigNoz | `i-signoz.${BASE_DOMAIN}` | ⏸️ Planned | Observability |
-| PostHog | `i-posthog.${BASE_DOMAIN}` | ⏸️ Planned | Analytics |
+| Service | Domain | Curl | Status |
+|---------|--------|------|--------|
+| SigNoz | `i-signoz.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| PostHog | `i-posthog.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
 
 ### External Services (User-facing)
 
-| Environment | Pattern | Example | Notes |
-|-------------|---------|---------|-------|
-| **Production** | `{service}.${BASE_DOMAIN}` | `api.truealpha.club` | Direct domain, no prefix |
-| Staging | `x-staging-{service}` | `x-staging-app`, `x-staging-api` | Stable test env |
-| Test (PR) | `x-testpr-{num}-{service}` | `x-testpr-123-app` | Ephemeral, CI-managed |
-| Test (Commit) | `x-testcommit-{hash}-{service}` | `x-testcommit-abc123-api` | Ephemeral, CI-managed |
+| Environment | Domain | Curl | Status |
+|-------------|--------|------|--------|
+| **Production** | `truealpha.club` | 526 (SSL error) | ⚠️ No ingress configured |
+| **Production** | `api.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| Staging | `x-staging-*.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| Test (PR) | `x-testpr-{num}-*.truealpha.club` | - | ⏸️ CI-managed |
+| Test (Commit) | `x-testcommit-{hash}-*.truealpha.club` | - | ⏸️ CI-managed |
+
+**Note**: Domains without dedicated ingress fall back to Infisical (default backend).
 
 ## 4. Variables
 
