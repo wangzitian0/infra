@@ -1,70 +1,141 @@
-# Phase 1.4: Kubero (GitOps PaaS Controller)
-# Namespace: kubero
-# Access: Ingress via i-kcloud.{base_domain} (UI) and i-kapi.{base_domain} (API)
+# Phase 2.4: Kubero (GitOps PaaS Controller)
+# Installation method: kubectl_manifest from local YAML files
+# Source: https://github.com/kubero-dev/kubero-operator
 #
-# TEMPORARILY DISABLED: charts.kubero.dev DNS is not resolving
-# TODO: Re-enable once Kubero chart repo is accessible or find alternative
+# Architecture:
+# 1. operator.yaml → CRDs + Operator Deployment (in kubero-operator-system namespace)
+# 2. Kubero CR → Kubero UI deployment (in kubero namespace)
 
-# Create namespace for Kubero (kept for future use)
+# ============================================================
+# Parse multi-document YAML file statically
+# ============================================================
+locals {
+  # Read and split the operator.yaml into individual documents
+  operator_yaml_raw = file("${path.module}/manifests/kubero/operator.yaml")
+
+  # Split by document separator and filter empty docs
+  operator_docs = [
+    for doc in split("\n---\n", local.operator_yaml_raw)
+    : trimspace(doc) if length(trimspace(doc)) > 0 && !startswith(trimspace(doc), "#")
+  ]
+}
+
+# ============================================================
+# Deploy Kubero Operator (CRDs + Controller) using kubectl_manifest
+# ============================================================
+resource "kubectl_manifest" "kubero_operator" {
+  count     = length(local.operator_docs)
+  yaml_body = local.operator_docs[count.index]
+
+  # Server-side apply handles large CRDs better
+  server_side_apply = true
+  force_conflicts   = true
+
+  # Don't wait for rollout - CRDs don't have rollout status
+  wait_for_rollout = false
+}
+
+# ============================================================
+# Kubero Namespace (for UI and applications)
+# ============================================================
 resource "kubernetes_namespace" "kubero" {
   metadata {
     name = "kubero"
   }
+
+  depends_on = [kubectl_manifest.kubero_operator]
 }
 
-# Generate secure session secret for Kubero (kept for future use)
+# ============================================================
+# Kubero Session Secret
+# ============================================================
 resource "random_id" "kubero_session_secret" {
   byte_length = 32
 }
 
-# Deploy Kubero Operator using Helm
-# DISABLED: charts.kubero.dev is currently unreachable
-# resource "helm_release" "kubero" {
-#   name       = "kubero"
-#   repository = "https://charts.kubero.dev/"
-#   chart      = "kubero-operator"
-#   version    = "0.2.2"
-#   namespace  = kubernetes_namespace.kubero.metadata[0].name
-#
-#   values = [
-#     yamlencode({
-#       kuberoUi = {
-#         enabled = true
-#         image = { tag = "v2.4.0" }
-#         ingress = {
-#           enabled   = true
-#           className = "nginx"
-#           annotations = { "cert-manager.io/cluster-issuer" = "letsencrypt-prod" }
-#           hosts = [{ host = "i-kcloud.${var.base_domain}", paths = [{ path = "/", pathType = "Prefix" }] }]
-#           tls = [{ secretName = "kubero-ui-tls", hosts = ["i-kcloud.${var.base_domain}"] }]
-#         }
-#         config = { kubero = { sessionKey = random_id.kubero_session_secret.hex } }
-#       }
-#       kuberoApi = {
-#         ingress = {
-#           enabled   = true
-#           className = "nginx"
-#           annotations = { "cert-manager.io/cluster-issuer" = "letsencrypt-prod" }
-#           hosts = [{ host = "i-kapi.${var.base_domain}", paths = [{ path = "/", pathType = "Prefix" }] }]
-#           tls = [{ secretName = "kubero-api-tls", hosts = ["i-kapi.${var.base_domain}"] }]
-#         }
-#       }
-#       resources = {
-#         requests = { cpu = "100m", memory = "128Mi" }
-#         limits = { cpu = "500m", memory = "512Mi" }
-#       }
-#     })
-#   ]
-#   depends_on = [kubernetes_namespace.kubero]
-# }
+# ============================================================
+# Kubero Custom Resource (deploys UI via operator)
+# ============================================================
+resource "kubectl_manifest" "kubero_instance" {
+  yaml_body = yamlencode({
+    apiVersion = "application.kubero.dev/v1alpha1"
+    kind       = "Kubero"
+    metadata = {
+      name      = "kubero"
+      namespace = kubernetes_namespace.kubero.metadata[0].name
+    }
+    spec = {
+      replicaCount = 1
+      image = {
+        repository = "ghcr.io/kubero-dev/kubero/kubero"
+        tag        = "latest"
+        pullPolicy = "Always"
+      }
+      service = {
+        type = "ClusterIP"
+        port = 2000
+      }
+      ingress = {
+        enabled   = true
+        className = "nginx"
+        annotations = {
+          "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+        }
+        hosts = [{
+          host = "i-kcloud.${var.base_domain}"
+          paths = [{
+            path     = "/"
+            pathType = "Prefix"
+          }]
+        }]
+        tls = [{
+          secretName = "kubero-ui-tls"
+          hosts      = ["i-kcloud.${var.base_domain}"]
+        }]
+      }
+      kubero = {
+        namespace  = "kubero"
+        context    = "inClusterContext"
+        sessionKey = random_id.kubero_session_secret.hex
+        auth = {
+          github = {
+            enabled = false
+          }
+        }
+        config = {
+          kubero = {
+            readonly = false
+            admin = {
+              disabled = false
+            }
+          }
+          clusterissuer = "letsencrypt-prod"
+        }
+      }
+    }
+  })
 
-# Outputs (placeholder URLs until Kubero is deployed)
-output "kubero_ui_url" {
-  value       = "https://i-kcloud.${var.base_domain}"
-  description = "Kubero UI URL (not deployed yet - charts.kubero.dev unreachable)"
+  # Wait for operator to be ready first
+  depends_on = [
+    kubectl_manifest.kubero_operator,
+    kubernetes_namespace.kubero
+  ]
+
+  # Use server-side apply for CRD instances
+  server_side_apply = true
+  force_conflicts   = true
 }
 
-output "kubero_api_url" {
-  value       = "https://i-kapi.${var.base_domain}"
-  description = "Kubero API URL (not deployed yet - charts.kubero.dev unreachable)"
+# ============================================================
+# Outputs
+# ============================================================
+output "kubero_ui_url" {
+  value       = "https://i-kcloud.${var.base_domain}"
+  description = "Kubero UI URL"
+}
+
+output "kubero_session_secret" {
+  value       = random_id.kubero_session_secret.hex
+  description = "Kubero session secret (for reference)"
+  sensitive   = true
 }

@@ -86,6 +86,18 @@ resource "helm_release" "infisical" {
       ingress = {
         enabled = false
       }
+
+      # Resource limits for Infisical (based on official recommendations)
+      resources = {
+        limits = {
+          cpu    = "1000m"
+          memory = "1Gi"
+        }
+        requests = {
+          cpu    = "500m"
+          memory = "512Mi"
+        }
+      }
     })
   ]
 

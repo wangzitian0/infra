@@ -35,11 +35,11 @@ resource "helm_release" "postgresql" {
         resources = {
           limits = {
             cpu    = "500m"
-            memory = "512Mi"
+            memory = "1Gi"
           }
           requests = {
-            cpu    = "100m"
-            memory = "256Mi"
+            cpu    = "250m"
+            memory = "512Mi"
           }
         }
       }
