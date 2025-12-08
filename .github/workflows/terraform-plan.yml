@@ -57,7 +57,9 @@ jobs:
       # ============================================================
       - name: Terraform Format Check
         working-directory: terraform
-        run: terraform fmt -check -recursive
+        run: |
+          # Only check files tracked by git (excludes terraform.tfvars which is gitignored)
+          git ls-files '*.tf' | xargs terraform fmt -check
 
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
