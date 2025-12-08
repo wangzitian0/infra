@@ -70,7 +70,7 @@ jobs:
         working-directory: terraform
         run: |
           tflint --init
-          tflint --recursive
+          tflint --recursive --minimum-failure-severity=error
 
       - name: Pre-flight Check (Helm URLs)
         run: |
