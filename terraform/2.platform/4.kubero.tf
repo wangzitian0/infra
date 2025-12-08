@@ -5,6 +5,10 @@
 # Architecture:
 # 1. operator.yaml → CRDs + Operator Deployment (in kubero-operator-system namespace)
 # 2. Kubero CR → Kubero UI deployment (in kubero namespace)
+#
+# NOTE: Two-phase deployment to avoid race condition:
+# - Phase 1: Create operator namespace (kubernetes_namespace)
+# - Phase 2: Apply operator manifests (kubectl_manifest with depends_on)
 
 # ============================================================
 # Parse multi-document YAML file statically
@@ -18,14 +22,39 @@ locals {
     for doc in split("\n---\n", local.operator_yaml_raw)
     : trimspace(doc) if length(trimspace(doc)) > 0 && !startswith(trimspace(doc), "#")
   ]
+
+  # Separate namespace manifest from other manifests
+  # The namespace is typically the first document (kind: Namespace)
+  operator_namespace_docs = [
+    for doc in local.operator_docs
+    : doc if can(regex("(?m)^kind:\\s*Namespace", doc))
+  ]
+
+  operator_other_docs = [
+    for doc in local.operator_docs
+    : doc if !can(regex("(?m)^kind:\\s*Namespace", doc))
+  ]
 }
 
 # ============================================================
-# Deploy Kubero Operator (CRDs + Controller) using kubectl_manifest
+# Phase 1: Create operator namespace first
+# ============================================================
+resource "kubernetes_namespace" "kubero_operator_system" {
+  metadata {
+    name = "kubero-operator-system"
+    labels = {
+      "control-plane" = "controller-manager"
+    }
+  }
+}
+
+# ============================================================
+# Phase 2: Deploy Kubero Operator (CRDs + Controller)
+# Now that namespace exists, apply all other operator manifests
 # ============================================================
 resource "kubectl_manifest" "kubero_operator" {
-  count     = length(local.operator_docs)
-  yaml_body = local.operator_docs[count.index]
+  count     = length(local.operator_other_docs)
+  yaml_body = local.operator_other_docs[count.index]
 
   # Server-side apply handles large CRDs better
   server_side_apply = true
@@ -33,6 +62,9 @@ resource "kubectl_manifest" "kubero_operator" {
 
   # Don't wait for rollout - CRDs don't have rollout status
   wait_for_rollout = false
+
+  # CRITICAL: Wait for namespace to be created first
+  depends_on = [kubernetes_namespace.kubero_operator_system]
 }
 
 # ============================================================
@@ -115,7 +147,7 @@ resource "kubectl_manifest" "kubero_instance" {
     }
   })
 
-  # Wait for operator to be ready first
+  # Wait for operator and namespace to be ready
   depends_on = [
     kubectl_manifest.kubero_operator,
     kubernetes_namespace.kubero
