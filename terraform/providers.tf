@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.0"
     }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.14"
+    }
     local = {
       source  = "hashicorp/local"
       version = "~> 2.4"
@@ -47,5 +51,10 @@ provider "helm" {
 
 # Kubernetes provider - only configure if kubeconfig exists (after k3s deployment)
 provider "kubernetes" {
+  config_path = fileexists(local.kubeconfig_path) ? local.kubeconfig_path : null
+}
+
+# Kubectl provider - for CRD-based deployments (supports delayed validation)
+provider "kubectl" {
   config_path = fileexists(local.kubeconfig_path) ? local.kubeconfig_path : null
 }

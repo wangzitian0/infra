@@ -1,40 +1,32 @@
 # Phase 2.4: Kubero (GitOps PaaS Controller)
-# Installation method: kubernetes_manifest from local YAML files
+# Installation method: kubectl_manifest from local YAML files
 # Source: https://github.com/kubero-dev/kubero-operator
 #
 # Architecture:
 # 1. operator.yaml → CRDs + Operator Deployment (in kubero-operator-system namespace)
 # 2. Kubero CR → Kubero UI deployment (in kubero namespace)
 #
-# Note: We don't use helm_release because Kubero doesn't publish to a Helm repo
+# Note: We use kubectl provider (gavinbunney/kubectl) because it supports
+# server-side apply and doesn't require CRDs to exist at plan time.
 
 # ============================================================
-# Parse multi-document YAML files into individual resources
+# Deploy Kubero Operator (CRDs + Controller) using kubectl_manifest
+# This handles multi-document YAML automatically
 # ============================================================
-locals {
-  # Split operator.yaml into individual resources
-  operator_raw_docs = [
-    for doc in split("\n---\n", file("${path.module}/manifests/kubero/operator.yaml"))
-    : trimspace(doc)
-  ]
-
-  # Filter out empty documents and parse YAML
-  operator_manifests = [
-    for doc in local.operator_raw_docs
-    : yamldecode(doc) if length(doc) > 0 && !startswith(doc, "#")
-  ]
+data "kubectl_file_documents" "kubero_operator" {
+  content = file("${path.module}/manifests/kubero/operator.yaml")
 }
 
-# ============================================================
-# Deploy Kubero Operator (CRDs + Controller)
-# ============================================================
-resource "kubernetes_manifest" "kubero_operator" {
-  for_each = { for idx, manifest in local.operator_manifests : "${manifest.kind}-${try(manifest.metadata.name, idx)}" => manifest }
+resource "kubectl_manifest" "kubero_operator" {
+  for_each  = data.kubectl_file_documents.kubero_operator.manifests
+  yaml_body = each.value
 
-  manifest = each.value
+  # Don't wait for rollout - CRDs don't have rollout status
+  wait_for_rollout = false
 
-  # Handle CRDs first, then other resources
-  depends_on = []
+  # Server-side apply handles large CRDs better
+  server_side_apply = true
+  force_conflicts   = true
 }
 
 # ============================================================
@@ -45,7 +37,7 @@ resource "kubernetes_namespace" "kubero" {
     name = "kubero"
   }
 
-  depends_on = [kubernetes_manifest.kubero_operator]
+  depends_on = [kubectl_manifest.kubero_operator]
 }
 
 # ============================================================
@@ -58,8 +50,8 @@ resource "random_id" "kubero_session_secret" {
 # ============================================================
 # Kubero Custom Resource (deploys UI via operator)
 # ============================================================
-resource "kubernetes_manifest" "kubero_instance" {
-  manifest = {
+resource "kubectl_manifest" "kubero_instance" {
+  yaml_body = yamlencode({
     apiVersion = "application.kubero.dev/v1alpha1"
     kind       = "Kubero"
     metadata = {
@@ -96,7 +88,7 @@ resource "kubernetes_manifest" "kubero_instance" {
         }]
       }
       kubero = {
-        namespace  = kubernetes_namespace.kubero.metadata[0].name
+        namespace  = "kubero"
         context    = "inClusterContext"
         sessionKey = random_id.kubero_session_secret.hex
         auth = {
@@ -115,12 +107,17 @@ resource "kubernetes_manifest" "kubero_instance" {
         }
       }
     }
-  }
+  })
 
+  # Wait for operator to be ready first
   depends_on = [
-    kubernetes_manifest.kubero_operator,
+    kubectl_manifest.kubero_operator,
     kubernetes_namespace.kubero
   ]
+
+  # Use server-side apply for CRD instances
+  server_side_apply = true
+  force_conflicts   = true
 }
 
 # ============================================================
