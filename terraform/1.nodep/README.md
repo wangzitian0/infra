@@ -13,6 +13,7 @@
 | `1.k3s.tf` | K3s single-node cluster bootstrap |
 | `2.atlantis.tf` | Atlantis Helm release for Terraform CI/CD (2Gi RAM) |
 | `3.dns_and_cert.tf` | Cloudflare DNS (wildcard + x-*), Cert Manager, wildcard TLS cert |
+| `4.storage.tf` | Harden local-path: /data storage path + Retain StorageClass |
 | `network.md` | Domain naming conventions (SSOT) |
 
 ## DNS Architecture
@@ -89,6 +90,10 @@ After `terraform apply`, these checks run automatically:
 1. **DNS**: Verifies wildcard DNS resolves correctly.
 2. **Cert**: Waits for TLS certificate to be issued (max 2 min).
 3. **Atlantis**: Checks `/healthz` endpoint is reachable.
+
+## Storage Notes
+- Local-path provisioner is patched to use `/data/local-path-provisioner` (keeps legacy `/opt/local-path-provisioner` as fallback).
+- New StorageClass `local-path-retain` has `ReclaimPolicy=Retain` to prevent accidental data deletion; cleanup of released PVs is manual.
 
 ---
 *Last updated: 2025-12-08*
