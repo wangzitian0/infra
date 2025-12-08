@@ -20,6 +20,7 @@ resource "helm_release" "atlantis" {
       {
         # GitHub Configuration
         orgAllowlist = "github.com/${var.github_org}/*"
+        atlantisUrl  = "https://i-atlantis.${var.base_domain}"
 
         # Environment for R2 Backend (AWS_* used by S3 backend)
         # AND TF_VAR_* for Terraform variables
