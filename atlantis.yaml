@@ -37,12 +37,21 @@ projects:
     autoplan:
       enabled: false
 
-  # Shared Infrastructure (L1/L2) - enable_infra=true via extra_args
+  # Shared Infrastructure (L1) - Bootstrap
   - name: infra
     dir: terraform
     terraform_version: 1.6.6
     workspace: default
     workflow: infra
+    autoplan:
+      enabled: false
+
+  # Platform (L2) - Managed by Atlantis
+  - name: platform
+    dir: terraform/layer2-platform
+    terraform_version: 1.6.6
+    workspace: default
+    workflow: platform
     autoplan:
       enabled: false
 
@@ -152,3 +161,22 @@ workflows:
             extra_args: ["-backend-config=backend.tfvars"]
         - apply:
             extra_args: ["-var=enable_infra=true"]
+
+  platform:
+    plan:
+      steps:
+        - run: rm -rf .terraform
+        - run: ../../scripts/atlantis-setup.sh ../../envs/platform.backend.tfvars.template
+        - init:
+            extra_args: ["-backend-config=backend.tfvars"]
+        - plan:
+            # Pass L1/L2 logic if needed, or module defaults handle it
+            extra_args: []
+    apply:
+      steps:
+        - run: rm -rf .terraform
+        - run: ../../scripts/atlantis-setup.sh ../../envs/platform.backend.tfvars.template
+        - init:
+            extra_args: ["-backend-config=backend.tfvars"]
+        - apply:
+            extra_args: []

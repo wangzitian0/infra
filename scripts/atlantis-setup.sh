@@ -10,7 +10,9 @@ set -euo pipefail
 TEMPLATE_FILE=""
 
 # Check if we are in a known workflow context or infer from file
-if [ -f "envs/${WORKSPACE}.backend.tfvars.template" ]; then
+if [ -n "${1:-}" ]; then
+    TEMPLATE_FILE="$1"
+elif [ -f "envs/${WORKSPACE}.backend.tfvars.template" ]; then
     TEMPLATE_FILE="envs/${WORKSPACE}.backend.tfvars.template"
 elif [ -f "envs/infra.backend.tfvars.template" ] && [ "${WORKFLOW:-infra}" == "infra" ]; then
     # Default fallback for infra workflow if not matched by workspace name (e.g. default)
