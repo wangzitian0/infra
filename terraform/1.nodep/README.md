@@ -42,7 +42,7 @@ These secrets are passed as Terraform variables and injected into Atlantis at ru
 | `cloudflare_api_token` | DNS & Certs | `CLOUDFLARE_API_TOKEN` |
 | `cloudflare_zone_id` | DNS Zone | `CLOUDFLARE_ZONE_ID` |
 
-> **注意**: 所有密钥通过 `terraform.tfvars` 或 `-var` 传入，Atlantis 容器启动时通过 Helm `environment` 块注入为环境变量。
+> **注意**: 所有密钥通过 `terraform.tfvars` 或 `-var` 传入，Atlantis 容器启动时通过 Helm `environment` 块注入为环境变量。Terraform 变量使用 `TF_VAR_` 前缀（如 `TF_VAR_vps_host`）。
 
 ### 2. Variable Chain (CI → Atlantis)
 

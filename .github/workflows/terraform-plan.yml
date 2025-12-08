@@ -52,6 +52,34 @@ jobs:
           github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
+      # ============================================================
+      # Static Analysis (runs before plan to catch issues early)
+      # ============================================================
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: |
+          # Only check files tracked by git (excludes terraform.tfvars which is gitignored)
+          git ls-files '*.tf' | xargs terraform fmt -check
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: TFLint
+        working-directory: terraform
+        run: |
+          tflint --init
+          tflint --recursive --minimum-failure-severity=error
+
+      - name: Pre-flight Check (Helm URLs)
+        run: |
+          chmod +x scripts/preflight-check.sh
+          scripts/preflight-check.sh
+
+      # ============================================================
+      # Terraform Plan
+      # ============================================================
       - name: Terraform plan
         id: plan
         working-directory: terraform

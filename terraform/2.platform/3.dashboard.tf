@@ -90,8 +90,8 @@ resource "kubernetes_ingress_v1" "dashboard" {
     name      = "kubernetes-dashboard"
     namespace = kubernetes_namespace.dashboard.metadata[0].name
     annotations = {
-      "kubernetes.io/ingress.class"                = "nginx"
-      "cert-manager.io/cluster-issuer"             = "letsencrypt-prod"
+      "kubernetes.io/ingress.class"                  = "nginx"
+      "cert-manager.io/cluster-issuer"               = "letsencrypt-prod"
       "nginx.ingress.kubernetes.io/backend-protocol" = "HTTPS"
       "nginx.ingress.kubernetes.io/ssl-passthrough"  = "false"
     }
