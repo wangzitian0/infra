@@ -1,66 +1,100 @@
 # Network & Domain Architecture
 
-> Aligned with [terraform/envs/README.md](../envs/README.md) 5-Layer Design.
+> Aligned with [AGENTS.md](../../AGENTS.md) 4-Layer Design (L1-L4).
 
 ## 1. DNS Architecture
 
-**Cloudflare Wildcard DNS + Ingress Routing**:
-- `*.truealpha.club` → VPS IP (proxied, orange cloud)
-- `@` (root) → VPS IP (proxied)
-- `i-k3s` → VPS IP (DNS-only, grey cloud, for port 6443)
+**Cloudflare DNS + Nginx Ingress Routing**:
+
+| Record | Cloudflare Mode | Purpose |
+|--------|-----------------|---------|
+| `*` (wildcard) | Grey cloud (DNS-only) | Internal services, may use non-standard ports |
+| `@` (root) | Orange cloud (proxied) | Public landing page |
+| `x-*` | Orange cloud (proxied) | External user-facing services with CDN/DDoS protection |
 
 All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 
 ## 2. Domain Patterns
 
-| Pattern | Prefix | Template | Description |
-|---------|--------|----------|-------------|
-| **A** (Global) | `i-` | `i-{service}.${BASE_DOMAIN}` | Singleton/Shared services (L1/L2) |
-| **B** (Env) | `{env}-` | `{env}-{service}.${BASE_DOMAIN}` | Environment-isolated services (L3+) |
+| Pattern | Prefix | Cloudflare | Description |
+|---------|--------|------------|-------------|
+| **i-** (Internal) | `i-{service}` | Grey cloud | Infrastructure/admin services (L1/L2) |
+| **x-** (External) | `x-{env}-{service}` | Orange cloud | User-facing services with CDN (L3/L4) |
 
-**Examples**:
-- Pattern A: `i-atlantis.truealpha.club`, `i-secrets.truealpha.club`
-- Pattern B: `staging-app.truealpha.club`, `prod-signoz.truealpha.club`
+### Pattern Details
+
+```
+i-* (Internal/Infrastructure)
+├── i-atlantis        # Terraform CI/CD
+├── i-secrets         # Infisical (Secrets Management)
+├── i-kdashboard      # K8s Dashboard
+├── i-k3s             # K3s API (port 6443)
+├── i-kcloud          # Kubero UI (disabled)
+├── i-kapi            # Kubero API (disabled)
+├── i-signoz          # SigNoz (Observability)
+└── i-posthog         # PostHog (Analytics)
+
+x-* (External/Test environments, Orange Cloud)
+├── x-staging-*           # Staging environment
+│   ├── x-staging-app
+│   └── x-staging-api
+└── x-test*               # Ephemeral test environments
+    ├── x-testpr-{num}-{service}      # PR previews
+    └── x-testcommit-{hash}-{service} # Commit previews
+
+Production (No prefix, direct domain)
+├── {base_domain}         # truealpha.club
+├── api.{base_domain}     # api.truealpha.club
+└── {service}.{base_domain}
+```
 
 ## 3. Service Map by Layer
 
-### L1: Bootstrap (Singleton)
+> Last verified: 2025-12-08
 
-| Service | Domain | Notes |
-|---------|--------|-------|
-| K3s API | `i-k3s.${BASE_DOMAIN}` | DNS-only (port 6443) |
+### L1: Bootstrap (Internal)
 
-### L2: Networking (Singleton)
+| Service | Domain | Curl | Status |
+|---------|--------|------|--------|
+| K3s API | `i-k3s.truealpha.club:6443` | 401 Unauthorized | ✅ Active |
+| Atlantis | `i-atlantis.truealpha.club` | `{"status":"ok"}` | ✅ Active |
+| Cert-Manager | N/A | - | ✅ Active (internal) |
+| Ingress-Nginx | N/A | - | ✅ Active (internal) |
 
-| Service | Domain | Notes |
-|---------|--------|-------|
-| Atlantis | `i-atlantis.${BASE_DOMAIN}` | Terraform CI/CD |
-| Infisical | `i-secrets.${BASE_DOMAIN}` | Secrets Management |
-| Cert-Manager | N/A | Internal only |
-| Ingress-Nginx | N/A | Internal only |
+### L2: Platform (Internal)
 
-### L3: Platform (Per-Env)
+| Service | Domain | Curl | Status |
+|---------|--------|------|--------|
+| Infisical | `i-secrets.truealpha.club` | 200 (Infisical UI) | ✅ Active |
+| K8s Dashboard | `i-kdashboard.truealpha.club` | 200 (Dashboard UI) | ✅ Active |
+| Kubero UI | `i-kcloud.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| Kubero API | `i-kapi.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
 
-| Service | Domain | Environments |
-|---------|--------|--------------|
-| Kubero UI | `{env}-kcloud.${BASE_DOMAIN}` | staging, prod |
-| Kubero API | `{env}-kapi.${BASE_DOMAIN}` | staging, prod |
+### L3: Data (Internal)
 
-### L4: Data (Per-Env)
+| Service | Domain | Curl | Status |
+|---------|--------|------|--------|
+| PostgreSQL | N/A (ClusterIP) | - | ⏸️ Planned |
+| Redis | N/A (ClusterIP) | - | ⏸️ Planned |
 
-| Service | Domain | Environments |
-|---------|--------|--------------|
-| PostgreSQL | N/A (Internal) | staging, prod, temp-* |
-| Redis | N/A (Internal) | staging, prod, temp-* |
+### L4: Insight (Internal)
 
-### L5: Insight (Per-Env)
+| Service | Domain | Curl | Status |
+|---------|--------|------|--------|
+| SigNoz | `i-signoz.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| PostHog | `i-posthog.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
 
-| Service | Domain | Environments |
-|---------|--------|--------------|
-| SigNoz | `{env}-signoz.${BASE_DOMAIN}` | staging, prod |
-| PostHog | `{env}-posthog.${BASE_DOMAIN}` | staging, prod |
-| App Frontend | `{env}.${BASE_DOMAIN}` | staging, prod |
-| App Backend | `{env}-api.${BASE_DOMAIN}` | staging, prod |
+### External Services (User-facing)
+
+| Environment | Domain | Curl | Status |
+|-------------|--------|------|--------|
+| **Production** | `truealpha.club` | 526 (SSL error) | ⚠️ No ingress configured |
+| **Production** | `api.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| Staging | `x-staging-*.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| Test (PR) | `x-testpr-{num}-*.truealpha.club` | - | ⏸️ CI-managed |
+| Test (Commit) | `x-testcommit-{hash}-*.truealpha.club` | - | ⏸️ CI-managed |
+
+**Note**: Domains without dedicated ingress fall back to Infisical (default backend).
 
 ## 4. Variables
 
@@ -68,4 +102,26 @@ All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 |----------|-------------|---------|
 | `${BASE_DOMAIN}` | Root domain | `truealpha.club` |
 | `${VPS_HOST}` | VPS IP | `1.2.3.4` |
-| `{env}` | Environment prefix | `staging`, `prod`, `temp-xyz` |
+| `{env}` | Environment | `staging`, `prod`, `test-pr-123` |
+| `{service}` | Service name | `app`, `api`, `signoz` |
+
+## 5. Cloudflare DNS Records (Terraform)
+
+Defined in `3.dns_and_cert.tf`:
+
+```hcl
+# Wildcard: DNS-only for i-* internal services
+cloudflare_record.wildcard: * → VPS_IP (grey cloud)
+
+# Root: proxied for production
+cloudflare_record.root: @ → VPS_IP (orange cloud)
+
+# Staging: proxied with CDN protection
+cloudflare_record.x_staging: x-staging → VPS_IP (orange cloud)
+
+# Production: uses root domain directly (api.base.com, etc.)
+# No x-prod prefix - handled by wildcard or explicit records
+
+# Ephemeral test envs: CI-managed DNS records
+# x-testpr-123, x-testcommit-abc123, etc.
+```
