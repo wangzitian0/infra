@@ -139,26 +139,16 @@ workflows:
     plan:
       steps:
         - run: rm -rf .terraform
-        - run: |
-            cat > envs/infra.backend.tfvars <<EOF
-            bucket    = "${R2_BUCKET}"
-            key       = "k3s/terraform.tfstate"
-            endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-            EOF
+        - run: ../scripts/atlantis-setup.sh
         - init:
-            extra_args: ["-backend-config=envs/infra.backend.tfvars"]
+            extra_args: ["-backend-config=backend.tfvars"]
         - plan:
             extra_args: ["-var=enable_infra=true"]
     apply:
       steps:
         - run: rm -rf .terraform
-        - run: |
-            cat > envs/infra.backend.tfvars <<EOF
-            bucket    = "${R2_BUCKET}"
-            key       = "k3s/terraform.tfstate"
-            endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-            EOF
+        - run: ../scripts/atlantis-setup.sh
         - init:
-            extra_args: ["-backend-config=envs/infra.backend.tfvars"]
+            extra_args: ["-backend-config=backend.tfvars"]
         - apply:
             extra_args: ["-var=enable_infra=true"]
