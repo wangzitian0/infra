@@ -46,4 +46,4 @@ Atlantis supports two auth modes:
 - **PAT** (fallback): `github_token`
 
 ---
-*Last updated: 2025-12-07*
+*Last updated: 2025-12-08*
