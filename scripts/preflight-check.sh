@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Pre-flight checks for Terraform deployment
 # Run before terraform apply to catch common issues early
+#
+# Note: terraform fmt and validate are handled by separate CI steps
 
 set -e
 
@@ -10,7 +12,7 @@ TF_DIR="${SCRIPT_DIR}/../terraform"
 echo "=== Pre-flight Checks ==="
 
 # ============================================================
-# Check 1: Validate Helm Repository URLs
+# Check: Validate Helm Repository URLs
 # ============================================================
 echo ""
 echo "📦 Checking Helm repository URLs..."
@@ -44,40 +46,5 @@ else
   fi
 fi
 
-# ============================================================
-# Check 2: Terraform Format
-# ============================================================
-echo ""
-echo "🎨 Checking Terraform formatting..."
-
-if terraform -chdir="$TF_DIR" fmt -check -recursive > /dev/null 2>&1; then
-  echo "   ✅ All files properly formatted"
-else
-  echo "   ❌ Some files need formatting. Run: terraform fmt -recursive"
-  exit 1
-fi
-
-# ============================================================
-# Check 3: Terraform Validate
-# ============================================================
-echo ""
-echo "✅ Checking Terraform syntax..."
-
-# Note: validate requires init, so we skip if not initialized
-if [ -d "$TF_DIR/.terraform" ]; then
-  if terraform -chdir="$TF_DIR" validate > /dev/null 2>&1; then
-    echo "   ✅ Terraform configuration is valid"
-  else
-    echo "   ❌ Terraform validation failed"
-    terraform -chdir="$TF_DIR" validate
-    exit 1
-  fi
-else
-  echo "   ⚠️  Skipped (terraform not initialized)"
-fi
-
-# ============================================================
-# Summary
-# ============================================================
 echo ""
 echo "=== Pre-flight Checks Passed ✅ ==="
