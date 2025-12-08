@@ -7,7 +7,7 @@ Root configuration and orchestration module.
 | Layer | Directory | Purpose |
 |-------|-----------|---------|
 | L1 | `1.nodep/` | K3s Bootstrap + Atlantis CI + DNS/Cert (零依赖) |
-| L2 | `2.platform/` | Secrets (Infisical) + K8s Dashboard + Kubero + Platform DB |
+| L2 | `2.platform/` | Secrets (Infisical) + K8s Dashboard + Kubero (kubectl) + Platform DB |
 | L3 | `3.data/` | Business DBs (Postgres, Redis, Neo4j, ClickHouse) |
 | L4 | `4.insight/` | Observability (SigNoz) + Analytics (PostHog) + Alerting |
 

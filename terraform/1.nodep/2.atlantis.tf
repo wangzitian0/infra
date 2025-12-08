@@ -90,14 +90,14 @@ resource "helm_release" "atlantis" {
           storageClassName = "local-path"
         }
 
-        # Resource limits (increased memory to prevent OOM during terraform plan)
+        # Resource limits (increased for production terraform operations)
         resources = {
           limits = {
             cpu    = "1000m"
-            memory = "1Gi"
+            memory = "2Gi"
           }
           requests = {
-            cpu    = "200m"
+            cpu    = "500m"
             memory = "512Mi"
           }
         }
@@ -129,4 +129,26 @@ output "atlantis_service" {
 
 output "nodep_namespace" {
   value = kubernetes_namespace.nodep.metadata[0].name
+}
+
+# ClusterRoleBinding for Atlantis to manage all Terraform resources
+# Required because Atlantis needs to create/manage namespaces, cluster-wide resources
+resource "kubernetes_cluster_role_binding" "atlantis_cluster_admin" {
+  metadata {
+    name = "atlantis-cluster-admin"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "cluster-admin"
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = "atlantis"
+    namespace = kubernetes_namespace.nodep.metadata[0].name
+  }
+
+  depends_on = [helm_release.atlantis]
 }
