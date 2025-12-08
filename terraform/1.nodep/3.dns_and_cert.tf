@@ -138,7 +138,7 @@ resource "cloudflare_record" "root" {
 # These provide CDN caching and DDoS protection for user-facing services
 # =============================================================================
 
-# x-staging: Staging environment services
+# x-staging: Staging environment services (x-staging-api, x-staging-app, etc.)
 resource "cloudflare_record" "x_staging" {
   zone_id         = var.cloudflare_zone_id
   name            = "x-staging"
@@ -148,18 +148,12 @@ resource "cloudflare_record" "x_staging" {
   allow_overwrite = true
 }
 
-# x-prod: Production environment services
-resource "cloudflare_record" "x_prod" {
-  zone_id         = var.cloudflare_zone_id
-  name            = "x-prod"
-  value           = var.vps_host
-  type            = "A"
-  proxied         = true
-  allow_overwrite = true
-}
+# Production uses root domain directly: api.base.com, base.com
+# No x-prod prefix needed
 
-# Note: x-test-* records for ephemeral environments (PR/commit previews)
-# are created dynamically by CI/CD workflows, not managed here
+# Note: x-test* records for ephemeral environments are CI-managed:
+# - x-testpr-123-api, x-testpr-456-app (PR previews)
+# - x-testcommit-abc123-api (commit previews)
 
 # =============================================================================
 # 7. Post-Apply Validation (DNS + Cert + Atlantis Health)

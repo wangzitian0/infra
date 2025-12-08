@@ -22,14 +22,15 @@ See [network.md](network.md) for full domain design.
 | Pattern | Cloudflare | Purpose | Example |
 |---------|------------|---------|---------|
 | `i-*` | Grey cloud (DNS-only) | Internal/infra services | `i-atlantis`, `i-secrets` |
-| `x-*` | Orange cloud (proxied) | External user-facing | `x-staging-app`, `x-prod-api` |
-| `@` | Orange cloud (proxied) | Public landing page | `truealpha.club` |
+| `x-*` | Orange cloud (proxied) | Test environments | `x-staging-api`, `x-testpr-123-app` |
+| `@` | Orange cloud (proxied) | Production | `truealpha.club`, `api.truealpha.club` |
 
 **DNS Records managed here**:
 - `*` (wildcard) → VPS IP (grey cloud)
 - `@` (root) → VPS IP (orange cloud)
 - `x-staging` → VPS IP (orange cloud)
-- `x-prod` → VPS IP (orange cloud)
+
+**Note**: Production uses direct domain (`api.base.com`), no `x-prod` prefix.
 
 ## Deployment
 

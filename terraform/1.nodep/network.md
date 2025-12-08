@@ -34,17 +34,18 @@ i-* (Internal/Infrastructure)
 ├── i-signoz          # SigNoz (Observability)
 └── i-posthog         # PostHog (Analytics)
 
-x-* (External/User-facing)
-├── x-staging-*       # Staging environment
+x-* (External/Test environments, Orange Cloud)
+├── x-staging-*           # Staging environment
 │   ├── x-staging-app
 │   └── x-staging-api
-├── x-prod-*          # Production environment
-│   ├── x-prod-app
-│   └── x-prod-api
-└── x-test-*          # Ephemeral test environments
-    ├── x-test-pr-{num}-{service}
-    ├── x-test-commit-{hash}-{service}
-    └── x-test-{id}-{service}
+└── x-test*               # Ephemeral test environments
+    ├── x-testpr-{num}-{service}      # PR previews
+    └── x-testcommit-{hash}-{service} # Commit previews
+
+Production (No prefix, direct domain)
+├── {base_domain}         # truealpha.club
+├── api.{base_domain}     # api.truealpha.club
+└── {service}.{base_domain}
 ```
 
 ## 3. Service Map by Layer
@@ -85,10 +86,10 @@ x-* (External/User-facing)
 
 | Environment | Pattern | Example | Notes |
 |-------------|---------|---------|-------|
+| **Production** | `{service}.${BASE_DOMAIN}` | `api.truealpha.club` | Direct domain, no prefix |
 | Staging | `x-staging-{service}` | `x-staging-app`, `x-staging-api` | Stable test env |
-| Production | `x-prod-{service}` | `x-prod-app`, `x-prod-api` | Live production |
-| Test (PR) | `x-test-pr-{num}-{service}` | `x-test-pr-123-app` | Ephemeral, auto-cleanup |
-| Test (Commit) | `x-test-commit-{hash}-{service}` | `x-test-commit-abc123-api` | Ephemeral, auto-cleanup |
+| Test (PR) | `x-testpr-{num}-{service}` | `x-testpr-123-app` | Ephemeral, CI-managed |
+| Test (Commit) | `x-testcommit-{hash}-{service}` | `x-testcommit-abc123-api` | Ephemeral, CI-managed |
 
 ## 4. Variables
 
@@ -107,11 +108,15 @@ Defined in `3.dns_and_cert.tf`:
 # Wildcard: DNS-only for i-* internal services
 cloudflare_record.wildcard: * → VPS_IP (grey cloud)
 
-# Root: proxied for public landing
+# Root: proxied for production
 cloudflare_record.root: @ → VPS_IP (orange cloud)
 
-# External envs: proxied with CDN protection
+# Staging: proxied with CDN protection
 cloudflare_record.x_staging: x-staging → VPS_IP (orange cloud)
-cloudflare_record.x_prod: x-prod → VPS_IP (orange cloud)
-# x-test-* records created dynamically by CI/CD
+
+# Production: uses root domain directly (api.base.com, etc.)
+# No x-prod prefix - handled by wildcard or explicit records
+
+# Ephemeral test envs: CI-managed DNS records
+# x-testpr-123, x-testcommit-abc123, etc.
 ```
