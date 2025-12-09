@@ -1,45 +1,40 @@
-# 4.insight (Insight Layer / Layer 4)
+# 4.apps (L4 Applications Layer)
 
-**Scope**:
-- **Observability**: SigNoz (Traces, Logs, Metrics)
-- **Analytics**: PostHog (Product Analytics)
-- **Alerting**: AlertManager / PagerDuty integration
-- **Namespace**: `monitoring`
+**Scope**: Application deployments for prod/staging environments.
+
+- **Environments**: `prod`, `staging` only
+- **Namespace**: `apps-prod`, `apps-staging`
 
 ## Architecture
 
-This layer provides observability and analytics for the entire stack.
+This layer deploys business applications. All non-production environments go to `staging`.
+
+### Deployment Strategy
+
+| Environment | Namespace | Purpose |
+|-------------|-----------|---------|
+| `staging` | `apps-staging` | All test/dev/preview environments |
+| `prod` | `apps-prod` | Production only |
 
 ### Components (Planned)
 
-| Component | Purpose | Notes |
-|-----------|---------|-------|
-| SigNoz | OpenTelemetry APM | Replaces Prometheus/Grafana for app teams |
-| PostHog | Product analytics | Self-hosted for privacy/cost control |
-| AlertManager | Alert routing | Integrated with SigNoz |
-
-### SigNoz
-
-- OpenTelemetry native
-- Unified traces, logs, metrics
-- Lower operational complexity than Prometheus + Grafana + Loki stack
-
-### PostHog
-
-- Product analytics (funnels, cohorts, feature flags)
-- Self-hosted instance for data sovereignty
-
-### Alerting Strategy
-
-- **Infrastructure**: SigNoz built-in alerts
-- **Business**: PostHog anomaly detection
-- **Escalation**: PagerDuty / Slack integration
+| Component | Purpose |
+|-----------|---------|
+| Frontend | User-facing web app |
+| Backend API | Business logic |
+| Workers | Background jobs |
 
 ### Usage
 
 ```bash
-terraform apply -target="module.insight"
+# Staging
+atlantis plan -p apps-staging
+atlantis apply -p apps-staging
+
+# Production
+atlantis plan -p apps-prod
+atlantis apply -p apps-prod
 ```
 
 ---
-*Last updated: 2025-12-08*
+*Last updated: 2025-12-09*

@@ -90,3 +90,5 @@ env/
 
 # Wrangler
 .wrangler/
+**/output/*.yaml
+**/output/*.yaml-e
