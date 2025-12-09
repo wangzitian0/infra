@@ -2,15 +2,15 @@
 
 **Scope**:
 - **Secrets**: Infisical (Self-hosted secrets management)
-- **Platform DB**: PostgreSQL (for Infisical, NOT business data)
+- **Platform DB**: PostgreSQL, Redis (for Infisical)
 - **Dashboard**: Kubernetes Dashboard (cluster web UI)
-- **PaaS**: Kubero (Heroku-like GitOps) [Planned]
-- **Namespaces**: `iac`, `kubernetes-dashboard`
+- **PaaS**: Kubero (Heroku-like GitOps)
+- **Namespaces**: `platform` (main), `kubero`, `kubero-operator-system`
 
 ## Architecture
 
 This layer provides platform-level components that support application deployment.
-Depends on L1 (nodep) for K8s cluster availability.
+Depends on L1 (bootstrap) for K8s cluster availability.
 
 ### Components
 

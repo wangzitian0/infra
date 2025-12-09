@@ -44,6 +44,7 @@ resource "kubernetes_namespace" "kubero_operator_system" {
     name = "kubero-operator-system"
     labels = {
       "control-plane" = "controller-manager"
+      "layer"         = "L2"
     }
   }
 }
@@ -73,6 +74,9 @@ resource "kubectl_manifest" "kubero_operator" {
 resource "kubernetes_namespace" "kubero" {
   metadata {
     name = "kubero"
+    labels = {
+      "layer" = "L2"
+    }
   }
 
   depends_on = [kubectl_manifest.kubero_operator]

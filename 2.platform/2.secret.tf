@@ -37,7 +37,7 @@ resource "random_id" "infisical_jwt_provider_secret" {
 # Helm release for Infisical with external PostgreSQL and embedded Redis
 resource "helm_release" "infisical" {
   name             = "infisical"
-  namespace        = kubernetes_namespace.security.metadata[0].name
+  namespace        = kubernetes_namespace.platform.metadata[0].name
   repository       = "https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/"
   chart            = "infisical-standalone"
   version          = var.infisical_chart_version
@@ -114,12 +114,12 @@ resource "helm_release" "infisical" {
 resource "kubernetes_secret" "infisical_secrets" {
   metadata {
     name      = "infisical-secrets"
-    namespace = kubernetes_namespace.security.metadata[0].name
+    namespace = kubernetes_namespace.platform.metadata[0].name
   }
 
   data = {
     # Database - using external PostgreSQL
-    DB_CONNECTION_URI = "postgresql://infisical:${var.infisical_postgres_password}@postgresql.${var.namespaces["security"]}.svc.cluster.local:5432/infisical"
+    DB_CONNECTION_URI = "postgresql://infisical:${var.infisical_postgres_password}@postgresql.platform.svc.cluster.local:5432/infisical"
 
     # Encryption keys
     ENCRYPTION_KEY           = random_id.infisical_encryption_key.hex
@@ -156,7 +156,7 @@ resource "kubernetes_secret" "infisical_secrets" {
 resource "kubernetes_ingress_v1" "infisical" {
   metadata {
     name      = "infisical-ingress"
-    namespace = kubernetes_namespace.security.metadata[0].name
+    namespace = kubernetes_namespace.platform.metadata[0].name
     annotations = {
       "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
     }
@@ -193,11 +193,11 @@ resource "kubernetes_ingress_v1" "infisical" {
 }
 
 output "infisical_endpoint" {
-  value       = "infisical-backend.${var.namespaces["security"]}.svc.cluster.local:8080"
+  value       = "infisical-backend.platform.svc.cluster.local:8080"
   description = "Internal endpoint for Infisical backend"
 }
 
 output "infisical_access_via_port_forward" {
-  value       = "kubectl -n ${var.namespaces["security"]} port-forward svc/infisical-backend 8080:8080"
+  value       = "kubectl -n platform port-forward svc/infisical-backend 8080:8080"
   description = "Command to access Infisical via port-forward"
 }
