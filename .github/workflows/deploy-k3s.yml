@@ -38,9 +38,10 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup Terraform Environment
+      - name: Setup Terraform Environment (L1)
         uses: ./.github/actions/terraform-setup
         with:
+          working_directory: "1.bootstrap"
           terraform_version: 1.6.6
           tf_state_key: "k3s/terraform.tfstate"
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -67,7 +68,7 @@ jobs:
           infisical_github_client_id: ${{ secrets.INFISICAL_GITHUB_CLIENT_ID }}
           infisical_github_client_secret: ${{ secrets.INFISICAL_GITHUB_CLIENT_SECRET }}
 
-      - name: Terraform plan
+      - name: Terraform plan (L1)
         working-directory: 1.bootstrap
         run: terraform plan -input=false
 
@@ -103,9 +104,56 @@ jobs:
 
       # Apply all infrastructure (moved blocks require full apply, not targeted)
       # Note: -target=module.nodep fails when moved.tf has pending resource moves
-      - name: Apply Infrastructure
+      - name: Apply Infrastructure (L1)
         if: github.event_name == 'push'
         working-directory: 1.bootstrap
+        run: terraform apply -auto-approve
+
+      # =============================================================================
+      # L2 Platform Deployment
+      # =============================================================================
+      
+      - name: Setup Terraform Environment (L2)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "2.platform"
+          terraform_version: 1.6.6
+          tf_state_key: "k3s/platform.tfstate"
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          r2_bucket: ${{ secrets.R2_BUCKET }}
+          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          vps_host: ${{ secrets.VPS_HOST }}
+          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+          vps_user: ${{ secrets.VPS_USER }}
+          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
+          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
+          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
+          k3s_channel: ${{ secrets.K3S_CHANNEL }}
+          k3s_version: ${{ secrets.K3S_VERSION }}
+          infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
+          github_token: ${{ secrets.GH_PAT || github.token }}
+          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          base_domain: ${{ secrets.BASE_DOMAIN }}
+          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
+          infisical_github_client_id: ${{ secrets.INFISICAL_GITHUB_CLIENT_ID }}
+          infisical_github_client_secret: ${{ secrets.INFISICAL_GITHUB_CLIENT_SECRET }}
+
+      - name: Terraform plan (L2)
+        working-directory: 2.platform
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: terraform plan -input=false
+
+      - name: Apply Infrastructure (L2)
+        if: github.event_name == 'push'
+        working-directory: 2.platform
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: terraform apply -auto-approve
 
       - name: Setup kubectl
