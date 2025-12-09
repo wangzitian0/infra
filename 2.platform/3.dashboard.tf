@@ -1,19 +1,13 @@
 # Phase 1.3: Kubernetes Dashboard (Web UI for Cluster Management)
-# Namespace: kubernetes-dashboard
+# Namespace: platform (L2 layer - shared with other platform services)
 # Access: Ingress via i-kdashboard.{base_domain}
-
-# Create namespace for Dashboard
-resource "kubernetes_namespace" "dashboard" {
-  metadata {
-    name = "kubernetes-dashboard"
-  }
-}
+# Note: Dashboard namespace merged into platform namespace
 
 # ServiceAccount for Dashboard
 resource "kubernetes_service_account" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
-    namespace = kubernetes_namespace.dashboard.metadata[0].name
+    namespace = kubernetes_namespace.platform.metadata[0].name
   }
 }
 
@@ -23,7 +17,7 @@ resource "helm_release" "kubernetes_dashboard" {
   repository = "https://kubernetes.github.io/dashboard/"
   chart      = "kubernetes-dashboard"
   version    = "7.10.0"
-  namespace  = kubernetes_namespace.dashboard.metadata[0].name
+  namespace  = kubernetes_namespace.platform.metadata[0].name
 
   values = [
     yamlencode({
@@ -80,7 +74,7 @@ resource "helm_release" "kubernetes_dashboard" {
   ]
 
   depends_on = [
-    kubernetes_namespace.dashboard
+    kubernetes_namespace.platform
   ]
 }
 
@@ -88,7 +82,7 @@ resource "helm_release" "kubernetes_dashboard" {
 resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
-    namespace = kubernetes_namespace.dashboard.metadata[0].name
+    namespace = kubernetes_namespace.platform.metadata[0].name
     annotations = {
       "cert-manager.io/cluster-issuer"                        = "letsencrypt-prod"
       "traefik.ingress.kubernetes.io/router.tls"              = "true"
@@ -130,7 +124,7 @@ resource "kubernetes_ingress_v1" "dashboard" {
 resource "kubernetes_service_account" "dashboard_admin" {
   metadata {
     name      = "dashboard-admin"
-    namespace = kubernetes_namespace.dashboard.metadata[0].name
+    namespace = kubernetes_namespace.platform.metadata[0].name
   }
 
   depends_on = [helm_release.kubernetes_dashboard]
@@ -161,7 +155,7 @@ resource "kubernetes_cluster_role_binding" "dashboard_admin" {
 resource "kubernetes_secret" "dashboard_admin_token" {
   metadata {
     name      = "dashboard-admin-token"
-    namespace = kubernetes_namespace.dashboard.metadata[0].name
+    namespace = kubernetes_namespace.platform.metadata[0].name
     annotations = {
       "kubernetes.io/service-account.name" = kubernetes_service_account.dashboard_admin.metadata[0].name
     }
