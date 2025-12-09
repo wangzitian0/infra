@@ -166,52 +166,55 @@ runs:
         WORKING_DIR="${{ inputs.working_directory }}"
         mkdir -p "${WORKING_DIR}"
 
-        # Create tfvars in specified working directory
-        cat > "${WORKING_DIR}/terraform.tfvars" << TFVARS_END
+        # Export variables as TF_VAR_ for Terraform (ignores undeclared ones)
         # L1 Bootstrap: R2 Backend
-        aws_access_key_id     = "${AWS_ACCESS_KEY_ID}"
-        aws_secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
-        r2_bucket             = "${R2_BUCKET}"
-        r2_account_id         = "${R2_ACCOUNT_ID}"
+        echo "TF_VAR_aws_access_key_id=${AWS_ACCESS_KEY_ID}" >> "$GITHUB_ENV"
+        echo "TF_VAR_aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}" >> "$GITHUB_ENV"
+        echo "TF_VAR_r2_bucket=${R2_BUCKET}" >> "$GITHUB_ENV"
+        echo "TF_VAR_r2_account_id=${R2_ACCOUNT_ID}" >> "$GITHUB_ENV"
+        
         # L1 Bootstrap: VPS/SSH
-        vps_host              = "${VPS_HOST}"
-        vps_user              = "${VPS_USER_VALUE}"
-        ssh_port              = ${SSH_PORT_VALUE}
+        echo "TF_VAR_vps_host=${VPS_HOST}" >> "$GITHUB_ENV"
+        echo "TF_VAR_vps_user=${VPS_USER_VALUE}" >> "$GITHUB_ENV"
+        echo "TF_VAR_ssh_port=${SSH_PORT_VALUE}" >> "$GITHUB_ENV"
+        
         # L1 Bootstrap: K3s
-        cluster_name          = "${CLUSTER_NAME_VALUE}"
-        api_endpoint          = "${API_ENDPOINT_VALUE}"
-        k3s_channel           = "${CHANNEL_VALUE}"
-        k3s_version           = "${VERSION_VALUE}"
+        echo "TF_VAR_cluster_name=${CLUSTER_NAME_VALUE}" >> "$GITHUB_ENV"
+        echo "TF_VAR_api_endpoint=${API_ENDPOINT_VALUE}" >> "$GITHUB_ENV"
+        echo "TF_VAR_k3s_channel=${CHANNEL_VALUE}" >> "$GITHUB_ENV"
+        echo "TF_VAR_k3s_version=${VERSION_VALUE}" >> "$GITHUB_ENV"
+        
         # L1 Bootstrap: Cloudflare
-        cloudflare_api_token  = "${CLOUDFLARE_API_TOKEN}"
-        cloudflare_zone_id    = "${CLOUDFLARE_ZONE_ID}"
-        base_domain           = "${BASE_DOMAIN}"
+        echo "TF_VAR_cloudflare_api_token=${CLOUDFLARE_API_TOKEN}" >> "$GITHUB_ENV"
+        echo "TF_VAR_cloudflare_zone_id=${CLOUDFLARE_ZONE_ID}" >> "$GITHUB_ENV"
+        echo "TF_VAR_base_domain=${BASE_DOMAIN}" >> "$GITHUB_ENV"
+        
         # L1 Bootstrap: Atlantis/GitHub
-        github_token          = "${GITHUB_TOKEN}"
-        atlantis_webhook_secret = "${ATLANTIS_WEBHOOK_SECRET}"
-        github_app_id         = "${GITHUB_APP_ID}"
+        echo "TF_VAR_github_token=${GITHUB_TOKEN}" >> "$GITHUB_ENV"
+        echo "TF_VAR_atlantis_webhook_secret=${ATLANTIS_WEBHOOK_SECRET}" >> "$GITHUB_ENV"
+        echo "TF_VAR_github_app_id=${GITHUB_APP_ID}" >> "$GITHUB_ENV"
+        
         # L2: Infisical
-        infisical_postgres_password = "${PG_PASSWORD}"
-        infisical_github_client_id = "${INFISICAL_GITHUB_CLIENT_ID}"
-        infisical_github_client_secret = "${INFISICAL_GITHUB_CLIENT_SECRET}"
+        echo "TF_VAR_infisical_postgres_password=${PG_PASSWORD}" >> "$GITHUB_ENV"
+        echo "TF_VAR_infisical_github_client_id=${INFISICAL_GITHUB_CLIENT_ID}" >> "$GITHUB_ENV"
+        echo "TF_VAR_infisical_github_client_secret=${INFISICAL_GITHUB_CLIENT_SECRET}" >> "$GITHUB_ENV"
+        
         # L1: Atlantis Web UI Auth
-        atlantis_web_password = "${ATLANTIS_WEB_PASSWORD}"
-        TFVARS_END
+        echo "TF_VAR_atlantis_web_password=${ATLANTIS_WEB_PASSWORD}" >> "$GITHUB_ENV"
 
-        echo 'ssh_private_key = <<-SSHKEY' >> "${WORKING_DIR}/terraform.tfvars"
-        echo "${VPS_SSH_KEY}" >> "${WORKING_DIR}/terraform.tfvars"
-        echo 'SSHKEY' >> "${WORKING_DIR}/terraform.tfvars"
+        # Multiline Secrets
+        {
+          echo "TF_VAR_ssh_private_key<<EOF"
+          echo "${VPS_SSH_KEY}"
+          echo "EOF"
+        } >> "$GITHUB_ENV"
 
-        echo 'github_app_key = <<-APPKEY' >> "${WORKING_DIR}/terraform.tfvars"
-        echo "${GITHUB_APP_KEY}" >> "${WORKING_DIR}/terraform.tfvars"
-        echo 'APPKEY' >> "${WORKING_DIR}/terraform.tfvars"
-
-        # Setup SSH for fetching kubeconfig
-        mkdir -p ~/.ssh
-        echo "${VPS_SSH_KEY}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -p "${SSH_PORT_VALUE}" "${VPS_HOST}" >> ~/.ssh/known_hosts
-
+        {
+          echo "TF_VAR_github_app_key<<EOF"
+          echo "${GITHUB_APP_KEY}"
+          echo "EOF"
+        } >> "$GITHUB_ENV"
+        
         echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
 
     - name: Terraform init
