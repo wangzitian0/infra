@@ -92,8 +92,9 @@ After `terraform apply`, these checks run automatically:
 3. **Atlantis**: Checks `/healthz` endpoint is reachable.
 
 ## Storage Notes
-- Local-path provisioner is patched to use `/data/local-path-provisioner` (keeps legacy `/opt/local-path-provisioner` as fallback).
+- Local-path provisioner is patched to use `/data/local-path-provisioner` as the sole storage path.
 - New StorageClass `local-path-retain` has `ReclaimPolicy=Retain` to prevent accidental data deletion; cleanup of released PVs is manual.
+- **Important**: `/data` directory must exist on VPS before apply (created manually or via cloud-init).
 
 ---
 *Last updated: 2025-12-08*
