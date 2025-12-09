@@ -45,7 +45,7 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | **Deploy K3s** (`deploy-k3s.yml`) | `push: [main]` | **The Enforcer**. Applies `terraform/` to production. Bootstraps K3s, deploys Helm charts. | **SSOT Convergence**. Ensures `main` = `Live State`. Uses state locking. |
 | **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs static analysis (`terraform fmt`, `tflint`), **pre-flight URL check**, then `terraform plan` on PRs. **Triggers Atlantis** via comment on success. Shows available commands. | **Dry Run** + **Atlantis Trigger**. |
 | **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
-| **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL` | **The Reviewer**. AI code review via Claude. Checks structure, doc consistency, and SSOT. Includes Documentation Guard. Auto-triggered by `terraform-plan.yml` on CI success. | **Quality Gate**. Triggered after CI passes. |
+| **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL`, `infra-flash[bot]` Atlantis success comment | **The Reviewer**. AI code review via Claude. Checks structure, doc consistency, and SSOT. Includes Documentation Guard. Auto-triggered when Atlantis (infra-flash[bot]) reports a successful plan (after `terraform-plan.yml` kicks Atlantis). | **Quality Gate**. Runs after CI + successful Atlantis plan. |
 
 ## Handling Multi-Environment & Modules
 
@@ -104,6 +104,8 @@ claude.yml detects bot's success comment
     ↓
 Claude review runs
 ```
+
+Auto-review fires whenever `infra-flash[bot]` posts a successful Atlantis plan comment (CI-triggered or manual re-runs).
 
 ### Manual Triggers
 
