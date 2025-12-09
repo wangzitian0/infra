@@ -18,6 +18,8 @@ resource "helm_release" "postgresql" {
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "postgresql"
   version    = "15.5.0"
+  # Allow StatefulSet spec replacements when auth/storage change
+  force_update = true
 
   values = [
     yamlencode({

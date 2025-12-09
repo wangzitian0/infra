@@ -49,7 +49,8 @@ terraform apply
 ### Known Issues
 
 - **Vault init/unseal**: Manual init/unseal required after deploy; store keys outside Terraform.
-- **PostgreSQL storage**: Uses StorageClass `local-path-retain`. PVC deletion leaves data on disk.
+- **PostgreSQL storage**: Uses `local-path-retain` StorageClass (reclaimPolicy=Retain) to keep PV data after PVC deletion.
+- **PostgreSQL upgrades**: `helm_release.postgresql` uses `force_update=true` to allow spec changes (e.g., auth tweaks). Expect pod recreation/downtime during upgrades.
 
 ### Disaster Recovery
 
