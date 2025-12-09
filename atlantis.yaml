@@ -54,6 +54,7 @@ projects:
 
 workflows:
   # L2: Platform
+  # NOTE: Platform is a singleton (no per-env tfvars). Config is read from L1 state.
   platform:
     plan:
       steps:

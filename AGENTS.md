@@ -40,7 +40,7 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
     5. Commit/PR (Triggers CI).
 
 ## 2. Security & State
-- **Backend**: Cloudflare R2 (S3-compatible). defined in `0.common/backend.tf`.
+- **Backend**: Cloudflare R2 (S3-compatible). Defined in `1.bootstrap/backend.tf`.
 - **Secrets Strategy**:
     - **L0/L1 (Bootstrap)**: Local Env Vars / GitHub Secrets (`VPS_SSH_KEY`, `R2_*`).
     - **L2+ (Runtime)**: Infisical (deployed in L2).
@@ -54,5 +54,5 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 |---|---|---|
 | **DONE (History)** | `docs/change_log/` | What was finished. (Symlinked by `0.check_now.md`) |
 | **TODO (Plan)** | `project/README.md` | **Mandatory** for all incomplete work/plans. |
-| **TRUTH (SSOT)** | `terraform/*/README.md` | Implementation details, Architecture, Usage. |
+| **TRUTH (SSOT)** | `{1.bootstrap,2.platform,3.data,4.apps}/README.md` | Implementation details, Architecture, Usage. |
 | **Concepts** | `docs/README.md` | Abstract design decisions only. |

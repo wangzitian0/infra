@@ -1,3 +1,18 @@
+# ============================================================
+# Centralized Variables for L1-L4
+# ============================================================
+# All variables are defined here because:
+# 1. L1 is the only layer with direct secret access (GitHub Secrets)
+# 2. L2+ layers read config from L1 state or Infisical
+# 3. Single source of truth for variable definitions
+# 4. Simplifies tfvars management in CI/CD
+#
+# Categories:
+# - L1 Bootstrap: VPS, K3s, DNS, Atlantis
+# - L2 Platform: Infisical, Dashboard, Kubero
+# - L3+ Runtime: Accessed via Infisical, not declared here
+# ============================================================
+
 variable "vps_host" {
   description = "Public IP or DNS name of the VPS where k3s will be installed"
   type        = string
