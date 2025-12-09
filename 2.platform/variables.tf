@@ -1,17 +1,16 @@
-# L2 Platform Variables
-# Variables are populated from Atlantis environment (TF_VAR_*) set in 1.bootstrap/2.atlantis.tf
-# Some have defaults for standalone testing.
+# L2 Platform Variables (Vault)
+# Populated via TF_VAR_* from 1.bootstrap/2.atlantis.tf
 
 variable "kubeconfig_path" {
   description = "Path to kubeconfig file (set via TF_VAR_kubeconfig_path in Atlantis)"
   type        = string
-  default     = "" # Set by Atlantis via TF_VAR_kubeconfig_path
+  default     = ""
 }
 
 variable "env_prefix" {
   description = "Environment prefix for domain names (e.g., 'staging', 'x-staging', or empty for prod)"
   type        = string
-  default     = "" # Empty means production
+  default     = ""
 }
 
 variable "base_domain" {
@@ -20,29 +19,29 @@ variable "base_domain" {
   default     = "truealpha.club"
 }
 
-variable "infisical_chart_version" {
-  description = "Infisical Helm chart version"
+variable "vault_chart_version" {
+  description = "Vault Helm chart version"
   type        = string
-  default     = "1.7.2"
+  default     = "0.31.0"
 }
 
-variable "infisical_image_tag" {
-  description = "Infisical Docker image tag"
+variable "vault_image_tag" {
+  description = "Vault image tag"
   type        = string
-  default     = "v0.92.0-postgres"
+  default     = "1.20.4"
 }
 
-variable "infisical_postgres_password" {
-  description = "PostgreSQL password for Infisical (sensitive, set via TF_VAR_*)"
+variable "vault_postgres_password" {
+  description = "PostgreSQL password for Vault (sensitive, set via TF_VAR_*)"
   type        = string
   sensitive   = true
-  default     = "" # Must be provided via TF_VAR_infisical_postgres_password
+  default     = ""
 }
 
-variable "infisical_postgres_storage" {
-  description = "Storage size for Infisical PostgreSQL PVC"
+variable "vault_postgres_storage" {
+  description = "Storage size for Vault PostgreSQL PVC"
   type        = string
-  default     = "8Gi"
+  default     = "10Gi"
 }
 
 variable "namespaces" {
@@ -56,25 +55,12 @@ variable "namespaces" {
     ingestion     = "ingestion"
     kubero        = "kubero"
     observability = "observability"
+    platform      = "platform"
   }
 }
 
 variable "vps_host" {
   description = "VPS host IP for DNS records (set via TF_VAR_vps_host in Atlantis)"
   type        = string
-  default     = "" # Set by Atlantis
-}
-
-variable "infisical_github_client_id" {
-  description = "GitHub OAuth App Client ID for Infisical SSO"
-  type        = string
   default     = ""
 }
-
-variable "infisical_github_client_secret" {
-  description = "GitHub OAuth App Client Secret for Infisical SSO"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-

@@ -19,11 +19,11 @@ locals {
     atlantis  = "i-atlantis.${var.base_domain}"
     k3s       = "i-k3s.${var.base_domain}"
     dashboard = "i-kdashboard.${var.base_domain}"
+    vault     = "i-secrets.${var.base_domain}"
 
     # Env/Internal-ish (Fixed names per User Request)
     kubero_ui      = "i-kcloud.${var.base_domain}"
     kubero_backend = "i-kapi.${var.base_domain}"
-    infisical      = "i-secrets.${var.base_domain}"
     signoz         = "i-signoz.${var.base_domain}"
 
     # Env/Variable (Pattern B)

@@ -45,7 +45,7 @@ jobs:
           k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
           k3s_channel: ${{ secrets.K3S_CHANNEL }}
           k3s_version: ${{ secrets.K3S_VERSION }}
-          infisical_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
+          vault_postgres_password: ${{ secrets.INFISICAL_POSTGRES_PASSWORD }}
           github_token: ${{ secrets.GH_PAT || github.token }}
           atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}

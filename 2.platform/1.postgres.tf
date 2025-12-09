@@ -1,12 +1,12 @@
-# Phase 1.1: PostgreSQL (Infisical DB)
-# Namespace: platform (L2 layer convention, previously "security")
-# Storage: local-path PVC
+# Platform PostgreSQL (Vault storage backend)
+# Namespace: platform (L2)
+# Storage: local-path PVC (Retain)
 
 resource "kubernetes_namespace" "platform" {
   metadata {
     name = "platform"
     labels = {
-      "layer" = "L2"
+      layer = "L2"
     }
   }
 }
@@ -25,14 +25,14 @@ resource "helm_release" "postgresql" {
         tag = "latest"
       }
       auth = {
-        username = "infisical"
-        password = var.infisical_postgres_password
-        database = "infisical"
+        username = "vault"
+        password = var.vault_postgres_password
+        database = "vault"
       }
       primary = {
         persistence = {
           enabled      = true
-          size         = var.infisical_postgres_storage
+          size         = var.vault_postgres_storage
           storageClass = "local-path-retain"
         }
         resources = {
@@ -60,9 +60,9 @@ output "postgresql_endpoint" {
 }
 
 output "postgresql_database" {
-  value = "infisical"
+  value = "vault"
 }
 
 output "postgresql_user" {
-  value = "infisical"
+  value = "vault"
 }

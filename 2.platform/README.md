@@ -1,8 +1,8 @@
 # 2.platform (Platform Layer / Layer 2)
 
 **Scope**:
-- **Secrets**: Infisical (Self-hosted secrets management)
-- **Platform DB**: PostgreSQL, Redis (for Infisical)
+- **Secrets**: Vault (PostgreSQL storage backend, Agent Injector)
+- **Platform DB**: PostgreSQL (for Vault)
 - **Dashboard**: Kubernetes Dashboard (cluster web UI)
 - **PaaS**: Kubero (Heroku-like GitOps)
 - **Namespaces**: `platform` (main), `kubero`, `kubero-operator-system`
@@ -16,15 +16,15 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 
 | File | Component | Purpose |
 |------|-----------|---------|
-| `1.postgres.tf` | Platform PostgreSQL | Database for Infisical (namespace: `iac`) |
-| `2.secret.tf` | Infisical | Secrets management with GitHub OAuth SSO |
+| `1.postgres.tf` | Platform PostgreSQL | Database for Vault (namespace: `platform`) |
+| `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
 
 ### Secrets Strategy
 
 - **Bootstrap (L1)**: GitHub Secrets → Terraform vars (VPS access, R2, Cloudflare)
-- **Runtime (L2+)**: Infisical → K8s Secrets (application credentials)
+- **Runtime (L2+)**: Vault Agent Injector (planned: map secrets to workloads)
 
 ### Deployment & Configuration
 
@@ -43,20 +43,18 @@ terraform apply
 
 ### Access
 
-- **Infisical**: `https://i-secrets.<base_domain>` (Chart v1.7.2, GitHub OAuth)
-  - *Note*: Requires manual DB migration on first install (see 0.check_now.md)
+- **Vault**: `https://i-secrets.<base_domain>` (manual init/unseal required)
 - **Dashboard**: `https://i-kdashboard.<base_domain>` (token auth via Kong proxy)
 
 ### Known Issues
 
-- **Infisical Helm chart ingress bug**: The `infisical-standalone` chart doesn't set `host` in ingress rules correctly. We use `kubernetes_ingress_v1` resource instead.
-- **Infisical Migration**: Chart v1.7.2 requires manual migration if auto-migration fails.
+- **Vault init/unseal**: Manual init/unseal required after deploy; store keys outside Terraform.
 - **PostgreSQL storage**: Uses StorageClass `local-path-retain`. PVC deletion leaves data on disk.
 
 ### Disaster Recovery
 
-- **Lost Infisical Data**: Re-apply helm chart. PG data persists in PVC (`/data/local-path-provisioner`).
-- **Lost Admin Access**: Rotate `random_password` in Terraform state.
+- **Lost Vault Pods**: Re-apply helm chart; PostgreSQL data persists in PVC (`/data/local-path-provisioner`). Re-unseal using stored keys.
+- **Lost Admin Access**: Recover using stored root token/unseal keys.
 
 ---
 *Last updated: 2025-12-09*
