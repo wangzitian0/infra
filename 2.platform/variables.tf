@@ -23,7 +23,7 @@ variable "base_domain" {
 variable "infisical_chart_version" {
   description = "Infisical Helm chart version"
   type        = string
-  default     = "0.8.18"
+  default     = "1.7.2"
 }
 
 variable "infisical_image_tag" {
