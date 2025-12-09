@@ -217,6 +217,12 @@ runs:
         
         echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
 
+        # Setup SSH for fetching kubeconfig
+        mkdir -p ~/.ssh
+        echo "${VPS_SSH_KEY}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -p "${SSH_PORT_VALUE}" "${VPS_HOST}" >> ~/.ssh/known_hosts
+
     - name: Terraform init
       working-directory: ${{ inputs.working_directory }}
       shell: bash
