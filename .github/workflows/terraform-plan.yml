@@ -4,7 +4,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "terraform/**"
+      - "1.bootstrap/**"
+      - "2.platform/**"
       - ".github/workflows/terraform-*.yml"
 
 env:
@@ -56,7 +57,7 @@ jobs:
       # Static Analysis (runs before plan to catch issues early)
       # ============================================================
       - name: Terraform Format Check
-        working-directory: terraform
+        working-directory: 1.bootstrap
         run: |
           # Only check files tracked by git (excludes terraform.tfvars which is gitignored)
           git ls-files '*.tf' | xargs terraform fmt -check
@@ -67,22 +68,22 @@ jobs:
           tflint_version: latest
 
       - name: TFLint
-        working-directory: terraform
+        working-directory: 1.bootstrap
         run: |
           tflint --init
           tflint --recursive --minimum-failure-severity=error
 
       - name: Pre-flight Check (Helm URLs)
         run: |
-          chmod +x scripts/preflight-check.sh
-          scripts/preflight-check.sh
+          chmod +x 0.tools/preflight-check.sh
+          0.tools/preflight-check.sh
 
       # ============================================================
       # Terraform Plan
       # ============================================================
       - name: Terraform plan
         id: plan
-        working-directory: terraform
+        working-directory: 1.bootstrap
         run: terraform plan -no-color -out=tfplan
         continue-on-error: true
 

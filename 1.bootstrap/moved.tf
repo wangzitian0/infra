@@ -9,17 +9,17 @@
 # L1: Bootstrap (K3s)
 moved {
   from = module.phases.null_resource.k3s_server
-  to   = module.nodep.null_resource.k3s_server
+  to   = null_resource.k3s_server
 }
 
 moved {
   from = module.phases.null_resource.kubeconfig
-  to   = module.nodep.null_resource.kubeconfig
+  to   = null_resource.kubeconfig
 }
 
 moved {
   from = module.phases.local_sensitive_file.ssh_key
-  to   = module.nodep.local_sensitive_file.ssh_key
+  to   = local_sensitive_file.ssh_key
 }
 
 # L2: Environment & Networking → Platform (Secrets/Infisical/Postgres)

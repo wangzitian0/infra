@@ -141,8 +141,8 @@ runs:
         VERSION_VALUE="${K3S_VERSION:-}"
         PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
 
-        # Create tfvars in terraform root
-        cat > terraform/terraform.tfvars << TFVARS_END
+        # Create tfvars in 1.bootstrap root
+        cat > 1.bootstrap/terraform.tfvars << TFVARS_END
         # L1 Bootstrap: R2 Backend
         aws_access_key_id     = "${AWS_ACCESS_KEY_ID}"
         aws_secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
@@ -169,14 +169,13 @@ runs:
         infisical_postgres_password = "${PG_PASSWORD}"
         TFVARS_END
 
-        # Append multiline values using separate heredocs
-        echo 'ssh_private_key = <<-SSHKEY' >> terraform/terraform.tfvars
-        echo "${VPS_SSH_KEY}" >> terraform/terraform.tfvars
-        echo 'SSHKEY' >> terraform/terraform.tfvars
+        echo 'ssh_private_key = <<-SSHKEY' >> 1.bootstrap/terraform.tfvars
+        echo "${VPS_SSH_KEY}" >> 1.bootstrap/terraform.tfvars
+        echo 'SSHKEY' >> 1.bootstrap/terraform.tfvars
 
-        echo 'github_app_key = <<-APPKEY' >> terraform/terraform.tfvars
-        echo "${GITHUB_APP_KEY}" >> terraform/terraform.tfvars
-        echo 'APPKEY' >> terraform/terraform.tfvars
+        echo 'github_app_key = <<-APPKEY' >> 1.bootstrap/terraform.tfvars
+        echo "${GITHUB_APP_KEY}" >> 1.bootstrap/terraform.tfvars
+        echo 'APPKEY' >> 1.bootstrap/terraform.tfvars
 
         # Setup SSH for fetching kubeconfig
         mkdir -p ~/.ssh
@@ -187,7 +186,7 @@ runs:
         echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
 
     - name: Terraform init
-      working-directory: terraform
+      working-directory: 1.bootstrap
       shell: bash
       env:
         AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
@@ -220,7 +219,7 @@ runs:
         CLUSTER_NAME_VALUE="${{ inputs.k3s_cluster_name }}"
         if [ -z "${CLUSTER_NAME_VALUE}" ]; then CLUSTER_NAME_VALUE="truealpha-k3s"; fi
 
-        KUBECONFIG_PATH="${GITHUB_WORKSPACE}/terraform/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
+        KUBECONFIG_PATH="${GITHUB_WORKSPACE}/1.bootstrap/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
         mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
         
         echo "Attempting to fetch kubeconfig from VPS..."
