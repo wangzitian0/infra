@@ -11,7 +11,7 @@ CI/CD and bot configuration live here. Workflows under `workflows/` drive Terraf
 | `terraform-plan.yml` | Validates Terraform and triggers Atlantis |
 | `deploy-k3s.yml` | Deploys infrastructure on push to main |
 | `docs-guard.yml` | Enforces `0.check_now.md` and README updates |
-| `claude.yml` | AI code review via Claude GitHub App |
+| `claude.yml` | AI code review via Claude GitHub App (auto after Atlantis success comment, or manual `/review`/`@claude`/`PTAL`) |
 
 Documentation guard enforces updating `0.check_now.md` and directory `README.md` files whenever code changes land.
 
