@@ -107,7 +107,7 @@ jobs:
             | Command | Description |
             |:---|:---|
             | \`/review\` | Request AI code review |
-            | \`/ask <question>\` | Ask Claude a question about this PR |
+            | \`@claude <question>\` | Ask Claude a question about this PR |
             | \`atlantis plan\` | Re-run terraform plan |
             | \`atlantis apply\` | Apply terraform changes |
 

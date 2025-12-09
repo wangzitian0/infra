@@ -40,6 +40,7 @@ terraform apply -target="module.platform"
 ### Known Issues
 
 - **Infisical Helm chart ingress bug**: The `infisical-standalone` chart doesn't set `host` in ingress rules correctly, causing it to match all domains. We work around this by disabling the chart's ingress and creating our own `kubernetes_ingress_v1` resource.
+- **PostgreSQL storage**: Uses StorageClass `local-path-retain` (path `/data/local-path-provisioner`, `ReclaimPolicy=Retain`). PVC deletion will leave PV/data behind; manual cleanup required.
 
 ### Disaster Recovery
 
@@ -47,4 +48,4 @@ terraform apply -target="module.platform"
 - **Lost Admin Access**: Rotate `random_password` in Terraform state.
 
 ---
-*Last updated: 2025-12-08*
+*Last updated: 2025-12-09*

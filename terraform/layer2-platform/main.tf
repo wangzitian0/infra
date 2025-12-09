@@ -53,27 +53,27 @@ data "terraform_remote_state" "l1" {
 
 # Configure Providers using L1 Output
 provider "kubernetes" {
-  host                   = data.terraform_remote_state.l1.outputs.api_endpoint
-  
+  host = data.terraform_remote_state.l1.outputs.api_endpoint
+
   # Kubeconfig content from L1 state
   # Note: L1 output is "content" (string). Kubernetes provider can take config_path or raw config.
   # But providers block handles `config_path`. For raw content we use client_certificate etc.
   # Since fetched kubeconfig is a single file, we can write it to disk?
   # Or use `config_path` if we write it.
   # Or parse it.
-  
+
   # Simplest: Write to file in CI/Atlantis setup?
   # The goal is to AVOID ssh.
   # If we have the content in state, we can use `local_file` resource to materialize it?
   # But provider init happens before graph?
   # Using `helm` provider with `config_path` requires file existence.
-  
+
   # Alternative: YAML Decode
 }
 
 locals {
   kubeconfig = yamldecode(data.terraform_remote_state.l1.outputs.kubeconfig)
-  
+
   host                   = local.kubeconfig.clusters[0].cluster.server
   client_certificate     = base64decode(local.kubeconfig.users[0].user["client-certificate-data"])
   client_key             = base64decode(local.kubeconfig.users[0].user["client-key-data"])
@@ -129,16 +129,16 @@ module "platform" {
   infisical_image_tag         = var.infisical_image_tag
   infisical_postgres_password = var.infisical_postgres_password
   infisical_postgres_storage  = var.infisical_postgres_storage
-  
-  env_prefix                  = var.env_prefix
-  base_domain                 = var.base_domain
-  namespaces                  = local.namespaces
-  
+
+  env_prefix  = var.env_prefix
+  base_domain = var.base_domain
+  namespaces  = local.namespaces
+
   # kubeconfig_path is required by variable definition but not used.
   # We pass empty string or dummy path.
-  kubeconfig_path             = "/dev/null"
-  
-  vps_host                    = var.vps_host
+  kubeconfig_path = "/dev/null"
+
+  vps_host = var.vps_host
 
   # Infisical GitHub OAuth
   infisical_github_client_id     = var.infisical_github_client_id

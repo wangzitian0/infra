@@ -9,7 +9,7 @@ output "kubeconfig_path" {
 }
 
 data "local_file" "kubeconfig" {
-  filename = local.kubeconfig_path
+  filename   = local.kubeconfig_path
   depends_on = [module.nodep]
 }
 

@@ -12,39 +12,67 @@ on:
 
 jobs:
   claude:
-    if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
+    # Trigger on /review, @claude, or PTAL
+    if: |
+      (github.event_name == 'issue_comment' && (contains(github.event.comment.body, '@claude') || contains(github.event.comment.body, '/review') || contains(github.event.comment.body, 'PTAL'))) ||
+      (github.event_name == 'pull_request_review_comment' && (contains(github.event.comment.body, '@claude') || contains(github.event.comment.body, '/review') || contains(github.event.comment.body, 'PTAL'))) ||
+      (github.event_name == 'pull_request_review' && (contains(github.event.review.body, '@claude') || contains(github.event.review.body, '/review') || contains(github.event.review.body, 'PTAL'))) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+
     permissions:
       contents: read
       pull-requests: read
       issues: read
       id-token: write
-      actions: read # Required for Claude to read CI results on PRs
+      actions: read
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Run Claude Code
+      - name: Run Claude
         id: claude
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
           additional_permissions: |
             actions: read
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR/ISSUE: ${{ github.event.issue.number }}
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+            This is a Terraform IaC project with layered architecture (L1-L4).
 
-          # Optional: Add claude_args to customize behavior and configuration
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # claude_args: '--allowed-tools Bash(gh pr:*)'
+            Behavior:
+            - If triggered by "/review" or "PTAL": Do a full code review using criteria below.
+            - If triggered by "@claude" with a question: Answer the question. If no question, do a full code review.
 
+            ## Documentation Guard (REQUIRED - treat violations as errors)
+            For every changed file, check:
+            1. `0.check_now.md` MUST be updated in this PR
+            2. Each changed directory MUST have its `README.md` updated
+               - Example: changes in `terraform/1.nodep/` require `terraform/1.nodep/README.md` to be updated
+               - Example: changes in `.github/workflows/` require `.github/workflows/README.md` to be updated
+
+            If documentation is missing, list the specific files that need updates.
+
+            ## Code Review Criteria
+
+            Primary (project specific):
+            1. Structure: Is code in correct layer (L1-nodep/L2-platform/L3-data/L4-insight)? Are module boundaries clean?
+            2. SSOT: No duplicate config? Secrets handled properly (no hardcoded values)?
+            3. Terraform: `terraform fmt` compliant? Proper resource naming?
+
+            Secondary (general):
+            4. Code quality and best practices
+            5. Potential bugs or security concerns
+            6. Performance considerations
+
+            Use the repository's CLAUDE.md (AGENTS.md) for detailed project conventions.
+            Be concise. Reference file:line for specific issues.
+            Use `gh pr comment` to post your review.
+
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'

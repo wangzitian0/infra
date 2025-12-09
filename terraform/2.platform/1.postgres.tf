@@ -30,7 +30,7 @@ resource "helm_release" "postgresql" {
         persistence = {
           enabled      = true
           size         = var.infisical_postgres_storage
-          storageClass = "local-path"
+          storageClass = "local-path-retain"
         }
         resources = {
           limits = {
