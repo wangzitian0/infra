@@ -20,22 +20,21 @@ disable_components  = ["traefik"]
 # 环境标识
 environment         = "staging"
 base_domain         = "example.com"
-env_prefix          = "x-staging"  # Kubero/Infisical 域名前缀
+env_prefix          = "x-staging"  # Kubero/Vault 域名前缀
 enable_ssl          = true
 
-# Infisical 密钥
-infisical_postgres_password = "CHANGE_ME"
-infisical_api_token         = ""
+# Vault 密钥
+vault_postgres_password = "CHANGE_ME"
 
-# 其他服务密钥（后续放入 Infisical 管理）
+# 其他服务密钥（后续放入 Vault/Secrets 管理）
 redis_password              = "CHANGE_ME"
 neo4j_password              = "CHANGE_ME"
 
 # 存储
-infisical_postgres_storage  = "10Gi"
+vault_postgres_storage  = "10Gi"
 redis_storage               = "20Gi"
 neo4j_storage               = "100Gi"
 
-# Infisical 配置
-infisical_chart_version = "1.7.2"
-infisical_image_tag     = "v0.154.0"
+# Vault 配置
+vault_chart_version = "0.31.0"
+vault_image_tag     = "1.20.4"

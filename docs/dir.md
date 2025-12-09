@@ -60,8 +60,14 @@ root/
 
 | Layer | Name | Definition | Modules (Path :: Function) | k3s Namespace | SSOT |
 |---|---|---|---|---|---|
+<<<<<<< HEAD
 | **L0** | **Tools Chain** | Project Roots | `0.tools/` :: Scripts <br> `docs/` :: Architecture | - | `README.md` |
 | **L1** | **Bootstrap** | Zero-Dependency Infra | `1.bootstrap/` :: Runtime (k3s), CI (Atlantis), DNS/Cert | `kube-system`, `nodep` | `1.bootstrap/README.md` |
 | **L2** | **Platform** | Platform Components | `2.platform/` :: Secrets (Infisical), Dashboard, Kubero, Platform DB | `iac`, `kubernetes-dashboard` | `2.platform/README.md` |
+=======
+| **L0** | **Tools Chain** | Project Roots | `tools/` :: CI/CD <br> `docs/` :: Architecture <br> `terraform/` :: Orchestration | - | `README.md` |
+| **L1** | **Bootstrap** | Zero-Dependency Infra | `1.nodep/` :: Runtime (k3s), CI (Atlantis), DNS/Cert | `kube-system` | `1.nodep/README.md` |
+| **L2** | **Platform** | Platform Components | `2.platform/` :: Secrets (Vault), Dashboard, Kubero, Platform DB | `platform` | `2.platform/README.md` |
+>>>>>>> 8cf4d25 (platform: replace infisical with vault)
 | **L3** | **Data** | Business Data Stores | `3.data/` :: Cache (Redis), Graph (Neo4j), DB (Postgres), OLAP (ClickHouse) | `data` | `3.data/README.md` |
 | **L4** | **Apps** | Applications | `4.apps/` :: Business Services (prod/staging) | `apps` | `4.apps/README.md` |

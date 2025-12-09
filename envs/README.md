@@ -7,7 +7,7 @@ This infrastructure follows a **4-Layer Design**, mixing Singleton (Shared) and 
 | Layer | Name | Scope | Managed By | Description |
 |-------|------|-------|------------|-------------|
 | **L1** | **Bootstrap** | **Shared** (Singleton) | `infra` | K3s Cluster, Atlantis CI, DNS/Cert (`kube-system`) |
-| **L2** | **Platform** | **Shared** (Singleton) | `infra` | Secrets (Infisical), K8s Dashboard, Kubero, Platform DB |
+| **L2** | **Platform** | **Shared** (Singleton) | `infra` | Secrets (Vault), K8s Dashboard, Kubero, Platform DB |
 | **L3** | **Data** | **Isolated** (Namespace) | `staging`/`prod` | Stateful Services (Redis, Postgres) in `data-<env>` |
 | **L4** | **Insight** | **Isolated** (Namespace) | `staging`/`prod` | Observability (SigNoz), Analytics (PostHog) |
 
@@ -49,4 +49,4 @@ Use these files to configure non-sensitive environment variables:
 - `prod.tfvars`: `env_prefix=""`, `environment="prod"`
 
 ---
-*Last updated: 2025-12-08*
+*Last updated: 2025-12-09*

@@ -1,161 +1,76 @@
-# Phase 0.1: Infisical (Secrets Management)
-# Namespace: iac
-# Dependencies: Phase 1.1 (PostgreSQL)
-# External: PostgreSQL (from 1_1_postgresql.tf)
-# Embedded: Redis (managed by Infisical Helm chart)
-# Helm chart: https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/
+# Vault (Secrets Management)
+# Namespace: platform
+# Dependencies: Platform PostgreSQL (same namespace)
+# Features: Agent Injector enabled, PostgreSQL storage backend (HA via advisory locks)
 
-# Generate secure random keys for Infisical
-resource "random_id" "infisical_encryption_key" {
-  byte_length = 16
+locals {
+  vault_storage_conn = "postgresql://vault:${var.vault_postgres_password}@postgresql.platform.svc.cluster.local:5432/vault?sslmode=disable"
+  vault_config       = <<-EOT
+    ui = true
+
+    listener "tcp" {
+      address     = "0.0.0.0:8200"
+      tls_disable = "true"
+    }
+
+    storage "postgresql" {
+      connection_url = "${local.vault_storage_conn}"
+      ha_enabled     = "true"
+    }
+  EOT
 }
 
-resource "random_id" "infisical_jwt_signup_secret" {
-  byte_length = 16
-}
-
-resource "random_id" "infisical_jwt_refresh_secret" {
-  byte_length = 16
-}
-
-resource "random_id" "infisical_jwt_auth_secret" {
-  byte_length = 16
-}
-
-resource "random_id" "infisical_jwt_service_secret" {
-  byte_length = 16
-}
-
-resource "random_id" "infisical_jwt_mfa_secret" {
-  byte_length = 16
-}
-
-resource "random_id" "infisical_jwt_provider_secret" {
-  byte_length = 16
-}
-
-# Helm release for Infisical with external PostgreSQL and embedded Redis
-resource "helm_release" "infisical" {
-  name             = "infisical"
+# Helm release for Vault with PostgreSQL backend and Agent Injector
+resource "helm_release" "vault" {
+  name             = "vault"
   namespace        = kubernetes_namespace.platform.metadata[0].name
-  repository       = "https://dl.cloudsmith.io/public/infisical/helm-charts/helm/charts/"
-  chart            = "infisical-standalone"
-  version          = var.infisical_chart_version
+  repository       = "https://helm.releases.hashicorp.com"
+  chart            = "vault"
+  version          = var.vault_chart_version
   create_namespace = false
   timeout          = 900
 
   values = [
     yamlencode({
-      # Configuration for Infisical Standalone Chart
-      infisical = {
+      global = {
+        tlsDisable = true
+      }
+      server = {
         image = {
-          repository = "infisical/infisical"
-          tag        = var.infisical_image_tag
+          repository = "hashicorp/vault"
+          tag        = var.vault_image_tag
         }
-      }
-
-      # Root level image config (fallback/alternative pattern)
-      image = {
-        repository = "infisical/infisical"
-        tag        = var.infisical_image_tag
-      }
-
-      # Controller/Replica config (common standalone pattern)
-      controller = {
-        replicas = 1
-      }
-
-      # Explicitly point to existing secret (if supported by chart schema variations)
-      kubeSecretRef = "infisical-secrets"
-
-      # Disable embedded PostgreSQL
-      postgresql = {
-        enabled = false
-      }
-
-      # Embedded Redis
-      redis = {
-        enabled      = true
-        architecture = "standalone"
-        auth = {
+        ha = {
+          enabled  = true
+          replicas = 1
+          raft = {
+            enabled = false
+          }
+          config = local.vault_config
+        }
+        dataStorage = {
           enabled = false
         }
-      }
-
-      # Disable Helm chart's ingress - it doesn't set host correctly
-      # We create our own ingress below
-      ingress = {
-        enabled = false
-        nginx = {
+        auditStorage = {
           enabled = false
         }
+        service = {
+          type = "ClusterIP"
+        }
       }
-
-      # Resource limits for Infisical (based on official recommendations)
-      resources = {
-        limits = {
-          cpu    = "1000m"
-          memory = "1Gi"
-        }
-        requests = {
-          cpu    = "500m"
-          memory = "512Mi"
-        }
+      injector = {
+        enabled = true
       }
     })
   ]
 
-  depends_on = [
-    helm_release.postgresql,
-    kubernetes_secret.infisical_secrets
-  ]
+  depends_on = [helm_release.postgresql]
 }
 
-resource "kubernetes_secret" "infisical_secrets" {
+# Ingress for Vault UI/API
+resource "kubernetes_ingress_v1" "vault" {
   metadata {
-    name      = "infisical-secrets"
-    namespace = kubernetes_namespace.platform.metadata[0].name
-  }
-
-  data = {
-    # Database - using external PostgreSQL
-    DB_CONNECTION_URI = "postgresql://infisical:${var.infisical_postgres_password}@postgresql.platform.svc.cluster.local:5432/infisical"
-
-    # Encryption keys
-    ENCRYPTION_KEY           = random_id.infisical_encryption_key.hex
-    AUTH_SECRET              = random_id.infisical_jwt_auth_secret.hex
-    JWT_SIGNUP_SECRET        = random_id.infisical_jwt_signup_secret.hex
-    JWT_REFRESH_SECRET       = random_id.infisical_jwt_refresh_secret.hex
-    JWT_AUTH_SECRET          = random_id.infisical_jwt_auth_secret.hex
-    JWT_SERVICE_SECRET       = random_id.infisical_jwt_service_secret.hex
-    JWT_MFA_SECRET           = random_id.infisical_jwt_mfa_secret.hex
-    JWT_PROVIDER_AUTH_SECRET = random_id.infisical_jwt_provider_secret.hex
-
-    # Site configuration
-    SITE_URL           = "https://i-secrets.${var.base_domain}"
-    INVITE_ONLY_SIGNUP = "false"
-
-    # GitHub OAuth SSO
-    CLIENT_ID_GITHUB_LOGIN     = var.infisical_github_client_id
-    CLIENT_SECRET_GITHUB_LOGIN = var.infisical_github_client_secret
-
-    # SMTP configuration
-    SMTP_HOST         = "mailhog"
-    SMTP_PORT         = "1025"
-    SMTP_SECURE       = "false"
-    SMTP_FROM_NAME    = "Infisical"
-    SMTP_FROM_ADDRESS = "noreply@infisical.local"
-    SMTP_USERNAME     = "noreply@infisical.local"
-    SMTP_PASSWORD     = ""
-  } # End of data block
-
-
-}
-
-# Ingress for Infisical (manually created because Helm chart doesn't set host correctly)
-resource "kubernetes_ingress_v1" "infisical" {
-  metadata {
-    name      = "infisical-ingress"
+    name      = "vault-ingress"
     namespace = kubernetes_namespace.platform.metadata[0].name
     annotations = {
       "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
@@ -167,7 +82,7 @@ resource "kubernetes_ingress_v1" "infisical" {
 
     tls {
       hosts       = ["i-secrets.${var.base_domain}"]
-      secret_name = "infisical-tls"
+      secret_name = "vault-tls"
     }
 
     rule {
@@ -178,9 +93,9 @@ resource "kubernetes_ingress_v1" "infisical" {
           path_type = "Prefix"
           backend {
             service {
-              name = "infisical-infisical-standalone-infisical"
+              name = "vault"
               port {
-                number = 8080
+                number = 8200
               }
             }
           }
@@ -189,15 +104,15 @@ resource "kubernetes_ingress_v1" "infisical" {
     }
   }
 
-  depends_on = [helm_release.infisical]
+  depends_on = [helm_release.vault]
 }
 
-output "infisical_endpoint" {
-  value       = "infisical-backend.platform.svc.cluster.local:8080"
-  description = "Internal endpoint for Infisical backend"
+output "vault_ui" {
+  value       = "https://i-secrets.${var.base_domain}"
+  description = "Vault UI/HTTP endpoint"
 }
 
-output "infisical_access_via_port_forward" {
-  value       = "kubectl -n platform port-forward svc/infisical-backend 8080:8080"
-  description = "Command to access Infisical via port-forward"
+output "vault_internal_endpoint" {
+  value       = "vault.platform.svc.cluster.local:8200"
+  description = "Cluster-internal Vault service endpoint"
 }
