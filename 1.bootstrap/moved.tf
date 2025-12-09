@@ -1,6 +1,13 @@
-# Migration History
+# Migration History (DO NOT DELETE)
+# ============================================================
+# This file contains `moved` blocks that track Terraform state migrations.
+# These blocks are REQUIRED to maintain state continuity across refactoring.
+# Removing them may cause Terraform to treat resources as new (data loss risk).
+#
 # Phase 1: monolithic 'module.phases' → layered architecture (L1-L5)
 # Phase 2: L1-L5 → L1-L4 (simplified 4-layer architecture)
+# Phase 3: module.nodep → flat resources (directory flattening)
+# ============================================================
 
 # ============================================================
 # Phase 1: module.phases → L1-L5 (historical, keep for state)
@@ -9,17 +16,17 @@
 # L1: Bootstrap (K3s)
 moved {
   from = module.phases.null_resource.k3s_server
-  to   = module.nodep.null_resource.k3s_server
+  to   = null_resource.k3s_server
 }
 
 moved {
   from = module.phases.null_resource.kubeconfig
-  to   = module.nodep.null_resource.kubeconfig
+  to   = null_resource.kubeconfig
 }
 
 moved {
   from = module.phases.local_sensitive_file.ssh_key
-  to   = module.nodep.local_sensitive_file.ssh_key
+  to   = local_sensitive_file.ssh_key
 }
 
 # L2: Environment & Networking → Platform (Secrets/Infisical/Postgres)

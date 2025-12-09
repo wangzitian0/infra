@@ -84,20 +84,21 @@ resource "helm_release" "kubernetes_dashboard" {
   ]
 }
 
-# Ingress for Dashboard (via nginx ingress controller)
+# Ingress for Dashboard (via Traefik ingress controller)
 resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
     namespace = kubernetes_namespace.dashboard.metadata[0].name
     annotations = {
-      "kubernetes.io/ingress.class"                  = "nginx"
-      "cert-manager.io/cluster-issuer"               = "letsencrypt-prod"
-      "nginx.ingress.kubernetes.io/backend-protocol" = "HTTPS"
-      "nginx.ingress.kubernetes.io/ssl-passthrough"  = "false"
+      "cert-manager.io/cluster-issuer"                        = "letsencrypt-prod"
+      "traefik.ingress.kubernetes.io/router.tls"              = "true"
+      "traefik.ingress.kubernetes.io/service.serversscheme"   = "https"
     }
   }
 
   spec {
+    ingress_class_name = "traefik"
+
     tls {
       hosts       = ["i-kdashboard.${var.base_domain}"]
       secret_name = "dashboard-tls"

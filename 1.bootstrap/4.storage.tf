@@ -87,7 +87,7 @@ resource "null_resource" "restart_local_path_provisioner" {
     interpreter = ["/bin/bash", "-c"]
     command     = <<-EOT
       set -euo pipefail
-      export KUBECONFIG="${var.kubeconfig_path}"
+      export KUBECONFIG="${local.kubeconfig_path}"
       kubectl rollout restart deployment/local-path-provisioner -n kube-system
       kubectl rollout status deployment/local-path-provisioner -n kube-system --timeout=2m
     EOT

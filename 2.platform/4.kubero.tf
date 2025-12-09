@@ -115,7 +115,7 @@ resource "kubectl_manifest" "kubero_instance" {
       }
       ingress = {
         enabled   = true
-        className = "nginx"
+        className = "traefik"
         annotations = {
           "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
         }
