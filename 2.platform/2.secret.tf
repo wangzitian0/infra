@@ -42,6 +42,7 @@ resource "helm_release" "infisical" {
   chart            = "infisical-standalone"
   version          = var.infisical_chart_version
   create_namespace = false
+  timeout          = 900
 
   values = [
     yamlencode({
@@ -85,6 +86,9 @@ resource "helm_release" "infisical" {
       # We create our own ingress below
       ingress = {
         enabled = false
+        nginx = {
+          enabled = false
+        }
       }
 
       # Resource limits for Infisical (based on official recommendations)
@@ -159,7 +163,7 @@ resource "kubernetes_ingress_v1" "infisical" {
   }
 
   spec {
-    ingress_class_name = "nginx"
+    ingress_class_name = "traefik"
 
     tls {
       hosts       = ["i-secrets.${var.base_domain}"]

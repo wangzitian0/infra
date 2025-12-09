@@ -49,7 +49,7 @@ resource "null_resource" "cluster_issuer_letsencrypt_prod" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      kubectl --kubeconfig=${var.kubeconfig_path} apply -f - <<EOF
+      kubectl --kubeconfig=${local.kubeconfig_path} apply -f - <<EOF
       apiVersion: cert-manager.io/v1
       kind: ClusterIssuer
       metadata:
@@ -82,7 +82,7 @@ resource "null_resource" "wildcard_certificate" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      kubectl --kubeconfig=${var.kubeconfig_path} apply -f - <<EOF
+      kubectl --kubeconfig=${local.kubeconfig_path} apply -f - <<EOF
       apiVersion: cert-manager.io/v1
       kind: Certificate
       metadata:
