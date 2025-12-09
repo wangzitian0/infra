@@ -69,6 +69,10 @@ inputs:
     description: "GitHub App Private Key (PEM) for Atlantis"
     required: false
     default: ""
+  tf_state_key:
+    description: "Terraform state file key in R2 bucket"
+    required: false
+    default: "terraform.tfstate"
 
 runs:
   using: "composite"

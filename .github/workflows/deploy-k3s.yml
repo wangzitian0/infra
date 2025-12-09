@@ -81,6 +81,20 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
 
+      # Import existing k8s resources that Terraform wants to manage
+      # This prevents "already exists" errors when adopting existing resources
+      - name: Import Existing Resources
+        if: github.event_name == 'push'
+        working-directory: terraform
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          # Import local-path-config ConfigMap if not in state
+          if ! terraform state show module.nodep.kubernetes_config_map_v1.local_path_config 2>/dev/null; then
+            echo "Importing local-path-config ConfigMap..."
+            terraform import module.nodep.kubernetes_config_map_v1.local_path_config kube-system/local-path-config || true
+          fi
+
       # Apply all infrastructure (moved blocks require full apply, not targeted)
       # Note: -target=module.nodep fails when moved.tf has pending resource moves
       - name: Apply Infrastructure

@@ -18,6 +18,7 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 | `aws_secret_access_key` | ✓ | AWS Secret Access Key for R2 |
 | `r2_bucket` | ✓ | Cloudflare R2 bucket for state |
 | `r2_account_id` | ✓ | Cloudflare R2 account ID |
+| `tf_state_key` | ✗ | State file key in bucket (default: terraform.tfstate) |
 
 ### L1 Bootstrap: VPS/SSH
 | Input | Required | Description |
@@ -65,4 +66,4 @@ GitHub Secrets → action inputs → env vars → tfvars file → Terraform vari
 See [action.yml](./action.yml) for full implementation.
 
 ---
-*Last updated: 2025-12-07*
+*Last updated: 2025-12-09*
