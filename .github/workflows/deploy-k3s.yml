@@ -63,6 +63,8 @@ jobs:
           base_domain: ${{ secrets.BASE_DOMAIN }}
           github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          infisical_github_client_id: ${{ secrets.INFISICAL_GITHUB_CLIENT_ID }}
+          infisical_github_client_secret: ${{ secrets.INFISICAL_GITHUB_CLIENT_SECRET }}
 
       - name: Terraform plan
         working-directory: 1.bootstrap
