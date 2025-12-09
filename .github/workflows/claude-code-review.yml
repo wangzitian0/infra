@@ -39,16 +39,26 @@ jobs:
 
             This is a Terraform IaC project with layered architecture (L1-L4).
 
-            Review criteria (primary - project specific):
-            1. Structure: Is code in correct layer (L1-nodep/L2-platform/L3-data/L4-insight)? Are module boundaries clean?
-            2. Code-Doc consistency: README.md updated for changed files? 0.check_now.md reflects current work?
-            3. SSOT: No duplicate config? Secrets handled properly (no hardcoded values)?
-            4. Terraform: `terraform fmt` compliant? Proper resource naming?
+            ## Documentation Guard (REQUIRED - treat violations as errors)
+            For every changed file, check:
+            1. `0.check_now.md` MUST be updated in this PR
+            2. Each changed directory MUST have its `README.md` updated
+               - Example: changes in `terraform/1.nodep/` require `terraform/1.nodep/README.md` to be updated
+               - Example: changes in `.github/workflows/` require `.github/workflows/README.md` to be updated
 
-            Review criteria (secondary - general):
-            5. Code quality and best practices
-            6. Potential bugs or security concerns
-            7. Performance considerations
+            If documentation is missing, list the specific files that need updates.
+
+            ## Code Review Criteria
+
+            Primary (project specific):
+            1. Structure: Is code in correct layer (L1-nodep/L2-platform/L3-data/L4-insight)? Are module boundaries clean?
+            2. SSOT: No duplicate config? Secrets handled properly (no hardcoded values)?
+            3. Terraform: `terraform fmt` compliant? Proper resource naming?
+
+            Secondary (general):
+            4. Code quality and best practices
+            5. Potential bugs or security concerns
+            6. Performance considerations
 
             Use the repository's CLAUDE.md (AGENTS.md) for detailed project conventions.
             Be concise. Reference file:line for specific issues.

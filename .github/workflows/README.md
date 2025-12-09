@@ -45,9 +45,8 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | **Deploy K3s** (`deploy-k3s.yml`) | `push: [main]` | **The Enforcer**. Applies `terraform/` to production. Bootstraps K3s, deploys Helm charts. | **SSOT Convergence**. Ensures `main` = `Live State`. Uses state locking. |
 | **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs static analysis (`terraform fmt`, `tflint`), **pre-flight URL check**, then `terraform plan` on PRs. **Triggers Atlantis** via comment on success. Shows available commands. | **Dry Run** + **Atlantis Trigger**. |
 | **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
-| **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL` | **The Reviewer**. AI code review via Claude. Checks structure, maintainability, doc consistency, and SSOT. | **Quality Gate**. On-demand review via comments. |
-| **Claude Auto-Review** (`claude-code-review.yml`) | `pull_request` | **The Auto-Reviewer**. Automatic code review on PR open/sync. Same criteria as manual review. | **Quality Gate**. Proactive review. |
-| **Docs Guard** (`docs-guard.yml`) | `pull_request` | **The Librarian**. Ensures documentation stays in sync with code changes. | **Doc Validation**. Fails if README not updated. |
+| **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL` | **The Reviewer**. AI code review via Claude. Checks structure, doc consistency, and SSOT. Includes Documentation Guard. | **Quality Gate**. On-demand review via comments. |
+| **Claude Auto-Review** (`claude-code-review.yml`) | `pull_request` | **The Auto-Reviewer**. Automatic code review on PR open/sync. Includes Documentation Guard (replaces `docs-guard.yml`). | **Quality Gate**. Proactive review + doc validation. |
 
 ## Handling Multi-Environment & Modules
 
