@@ -21,11 +21,11 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 
 | Layer | Directory (Docs) | Responsibility |
 |---|---|---|
-| **L0 Root** | [`terraform`](terraform/README.md) / [`tools`](tools/README.md) | Root Module, Global Vars, CI Automation |
-| **L1 Bootstrap** | [`1.nodep`](terraform/1.nodep/README.md) | Raw VPS provisioning, k3s installation, DNS/Cert, Atlantis |
-| **L2 Platform** | [`2.platform`](terraform/2.platform/README.md) | Secrets (Infisical), K8s Dashboard, Kubero, Platform DB |
-| **L3 Data** | [`3.data`](terraform/3.data/README.md) | Business DBs (Postgres, Redis, Neo4j, ClickHouse) |
-| **L4 Insight** | [`4.insight`](terraform/4.insight/README.md) | Observability (SigNoz), Analytics (PostHog), Alerting |
+| **L0 Root** | [`0.tools`](0.tools/README.md) / [`docs`](docs/README.md) | Scripts, CI Automation, Documentation |
+| **L1 Bootstrap** | [`1.bootstrap`](1.bootstrap/README.md) | Raw VPS provisioning, k3s installation, DNS/Cert, Atlantis |
+| **L2 Platform** | [`2.platform`](2.platform/README.md) | Secrets (Infisical), K8s Dashboard, Kubero, Platform DB |
+| **L3 Data** | [`3.data`](3.data/README.md) | Business DBs (Postgres, Redis, Neo4j, ClickHouse) |
+| **L4 Apps** | [`4.apps`](4.apps/README.md) | Applications (prod/staging) |
 
 # Standard Operating Procedure (SOP)
 

@@ -1,49 +1,50 @@
-# Terraform Root (L0)
+# 1.bootstrap (L1 Bootstrap Layer)
 
-Root configuration and orchestration module.
+**Scope**: Zero-dependency infrastructure bootstrap.
 
-## Layer Structure (L1-L4)
+- **K3s Cluster**: VPS provisioning via SSH
+- **Atlantis CI**: GitOps workflow engine
+- **DNS/Cert**: Cloudflare DNS + Let's Encrypt
+- **Namespace**: `kube-system`, `nodep`
 
-| Layer | Directory | Purpose |
-|-------|-----------|---------|
-| L1 | `1.nodep/` | K3s Bootstrap + Atlantis CI + DNS/Cert (零依赖) |
-| L2 | `2.platform/` | Secrets (Infisical) + K8s Dashboard + Kubero (kubectl) + Platform DB |
-| L3 | `3.data/` | Business DBs (Postgres, Redis, Neo4j, ClickHouse) |
-| L4 | `4.insight/` | Observability (SigNoz) + Analytics (PostHog) + Alerting |
+## Architecture
+
+This layer runs **first** and has no dependencies on other layers.
+Managed by **GitHub Actions only** (not Atlantis).
+
+### Components
+
+| File | Component | Purpose |
+|------|-----------|---------|
+| `1.k3s.tf` | K3s Cluster | SSH-based VPS bootstrap |
+| `2.atlantis.tf` | Atlantis | GitOps CI/CD for L2-L4 |
+| `3.dns_and_cert.tf` | DNS + Certs | Cloudflare + cert-manager |
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `main.tf` | Module orchestration |
-| `variables.tf` | Root variables (L1 bootstrap + L2+ config) |
-| `locals.tf` | Domain mappings per `network.md` convention |
-| `atlantis.yaml` | (repo root) Atlantis workflow config |
+| `backend.tf` | R2/S3 state backend config |
+| `providers.tf` | Provider definitions |
+| `variables.tf` | All L1 variables |
+| `outputs.tf` | Kubeconfig + R2 credentials for L2 |
 
-## Variable Categories
+## Bootstrap Command
 
-### L1 Bootstrap (Required for CI/Atlantis)
-| Variable | Purpose |
-|----------|---------|
-| `aws_access_key_id` | R2 state backend |
-| `aws_secret_access_key` | R2 state backend |
+```bash
+# First-time setup (run locally with credentials)
+cd 1.bootstrap
+terraform init
+terraform apply
+```
+
+## Outputs for L2
+
+| Output | Description |
+|--------|-------------|
+| `kubeconfig` | Cluster access (sensitive) |
 | `r2_bucket` | State bucket name |
 | `r2_account_id` | R2 endpoint |
-| `vps_host`, `ssh_private_key` | VPS access |
-| `cloudflare_api_token`, `cloudflare_zone_id` | DNS |
-| `github_app_id`, `github_app_key` | Atlantis auth |
-
-### L2+ Runtime (Managed by Infisical later)
-| Variable | Purpose |
-|----------|---------|
-| `infisical_postgres_password` | Infisical DB |
-| `env_prefix`, `base_domain` | Environment config |
-
-## Authentication
-
-Atlantis supports two auth modes:
-- **GitHub App** (preferred): `github_app_id` + `github_app_key`
-- **PAT** (fallback): `github_token`
 
 ---
-*Last updated: 2025-12-08*
+*Last updated: 2025-12-09*
