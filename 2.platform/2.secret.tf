@@ -159,7 +159,7 @@ resource "kubernetes_ingress_v1" "infisical" {
   }
 
   spec {
-    ingress_class_name = "nginx"
+    ingress_class_name = "traefik"
 
     tls {
       hosts       = ["i-secrets.${var.base_domain}"]

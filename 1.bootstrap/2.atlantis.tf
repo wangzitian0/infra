@@ -60,7 +60,7 @@ resource "helm_release" "atlantis" {
         # Ingress (TLS via Cert Manager + Cloudflare)
         ingress = {
           enabled          = true
-          ingressClassName = "nginx"
+          ingressClassName = "traefik"
           annotations = {
             "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
           }

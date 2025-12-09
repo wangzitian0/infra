@@ -81,7 +81,7 @@ variable "k3s_version" {
 variable "disable_components" {
   description = "Components to disable in k3s (passed as --disable flags)"
   type        = list(string)
-  default     = ["traefik"]
+  default     = []
 }
 
 # Shared Infrastructure Toggle
