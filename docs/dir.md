@@ -23,7 +23,6 @@ root/
 │       ├── README.md        # Workflows index
 │       ├── terraform-plan.yml # (!) Terraform validation
 │       ├── deploy-k3s.yml   # (!) K3s deployment
-│       ├── docs-guard.yml   # (!) Documentation enforcement
 │       └── claude.yml       # (!) AI code review (Claude GitHub App)
 ├── AGENTS.md                # (!) AI Behavior Guidelines
 ├── README.md                # (!) Project Index
@@ -52,11 +51,9 @@ root/
 │   └── README.md            # L3 data layer docs
 ├── 4.apps/                  # [+] L4: Applications (Atlantis)
 │   └── README.md            # L4 apps docs
-├── envs/                    # [+] Environment config
-│   ├── README.md            # tfvars templates per environment
-│   └── *.tfvars.template    # Backend config templates
-└── tools/                   # [+] Legacy tools (to be merged)
-    └── README.md            # (!) CI/CD & Mgmt SSOT
+└── envs/                    # [+] Environment config
+    ├── README.md            # tfvars templates per environment
+    └── *.tfvars.template    # Backend config templates
 ```
 
 ## Key Layers (L1-L4 Simplified Architecture)

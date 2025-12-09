@@ -52,6 +52,7 @@ jobs:
           base_domain: ${{ secrets.BASE_DOMAIN }}
           github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
 
       # ============================================================
       # Static Analysis (runs before plan to catch issues early)

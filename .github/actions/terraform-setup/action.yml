@@ -69,6 +69,9 @@ inputs:
     description: "GitHub App Private Key (PEM) for Atlantis"
     required: false
     default: ""
+  atlantis_web_password:
+    description: "Password for Atlantis Web UI Basic Auth"
+    required: true
   infisical_github_client_id:
     description: "GitHub OAuth App Client ID for Infisical SSO"
     required: false
@@ -140,6 +143,7 @@ runs:
         ATLANTIS_WEBHOOK_SECRET: ${{ inputs.atlantis_webhook_secret }}
         GITHUB_APP_ID: ${{ inputs.github_app_id }}
         GITHUB_APP_KEY: ${{ inputs.github_app_key }}
+        ATLANTIS_WEB_PASSWORD: ${{ inputs.atlantis_web_password }}
         # L2: Infisical
         INFISICAL_POSTGRES_PASSWORD: ${{ inputs.infisical_postgres_password }}
         INFISICAL_GITHUB_CLIENT_ID: ${{ inputs.infisical_github_client_id }}
@@ -183,6 +187,8 @@ runs:
         infisical_postgres_password = "${PG_PASSWORD}"
         infisical_github_client_id = "${INFISICAL_GITHUB_CLIENT_ID}"
         infisical_github_client_secret = "${INFISICAL_GITHUB_CLIENT_SECRET}"
+        # L1: Atlantis Web UI Auth
+        atlantis_web_password = "${ATLANTIS_WEB_PASSWORD}"
         TFVARS_END
 
         echo 'ssh_private_key = <<-SSHKEY' >> 1.bootstrap/terraform.tfvars
