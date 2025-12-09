@@ -258,6 +258,7 @@ runs:
           sed -i "s/127.0.0.1/${VPS_HOST}/g" "${KUBECONFIG_PATH}"
           chmod 600 "${KUBECONFIG_PATH}"
           echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
+          echo "TF_VAR_kubeconfig_path=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
         else
           echo "Warning: Failed to fetch kubeconfig. This is expected if the cluster is not yet deployed."
           rm -f "${KUBECONFIG_PATH}"
