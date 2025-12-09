@@ -1,16 +1,19 @@
 # Phase 1.1: PostgreSQL (Infisical DB)
-# Namespace: security
+# Namespace: platform (L2 layer convention, previously "security")
 # Storage: local-path PVC
 
-resource "kubernetes_namespace" "security" {
+resource "kubernetes_namespace" "platform" {
   metadata {
-    name = var.namespaces["security"]
+    name = "platform"
+    labels = {
+      "layer" = "L2"
+    }
   }
 }
 
 resource "helm_release" "postgresql" {
   name      = "postgresql"
-  namespace = kubernetes_namespace.security.metadata[0].name
+  namespace = kubernetes_namespace.platform.metadata[0].name
 
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "postgresql"
@@ -49,11 +52,11 @@ resource "helm_release" "postgresql" {
     })
   ]
 
-  depends_on = [kubernetes_namespace.security]
+  depends_on = [kubernetes_namespace.platform]
 }
 
 output "postgresql_endpoint" {
-  value = "postgresql.${kubernetes_namespace.security.metadata[0].name}.svc.cluster.local:5432"
+  value = "postgresql.${kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local:5432"
 }
 
 output "postgresql_database" {
