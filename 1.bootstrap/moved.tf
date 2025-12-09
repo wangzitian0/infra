@@ -212,3 +212,12 @@ moved {
   from = module.computing.kubernetes_secret.dashboard_admin_token
   to   = module.platform.kubernetes_secret.dashboard_admin_token
 }
+
+# ============================================================
+# Phase 4: nodep → bootstrap (namespace rename for L1 layer convention)
+# ============================================================
+
+moved {
+  from = kubernetes_namespace.nodep
+  to   = kubernetes_namespace.bootstrap
+}

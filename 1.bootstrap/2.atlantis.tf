@@ -1,16 +1,19 @@
 # L1.2: Atlantis (Terraform CI/CD) - Foundation Layer
 # Purpose: Self-hosted Terraform PR automation
-# Note: Deployed in "nodep" namespace
+# Note: Deployed in "bootstrap" namespace (L1 layer naming convention)
 
-resource "kubernetes_namespace" "nodep" {
+resource "kubernetes_namespace" "bootstrap" {
   metadata {
-    name = "nodep"
+    name = "bootstrap"
+    labels = {
+      "layer" = "L1"
+    }
   }
 }
 
 resource "helm_release" "atlantis" {
   name       = "atlantis"
-  namespace  = kubernetes_namespace.nodep.metadata[0].name
+  namespace  = kubernetes_namespace.bootstrap.metadata[0].name
   repository = "https://runatlantis.github.io/helm-charts"
   chart      = "atlantis"
   version    = "4.25.0"
@@ -128,15 +131,15 @@ resource "helm_release" "atlantis" {
       } : {}
     ))
   ]
-  depends_on = [kubernetes_namespace.nodep]
+  depends_on = [kubernetes_namespace.bootstrap]
 }
 
 output "atlantis_service" {
-  value = "atlantis.${kubernetes_namespace.nodep.metadata[0].name}.svc.cluster.local:4141"
+  value = "atlantis.${kubernetes_namespace.bootstrap.metadata[0].name}.svc.cluster.local:4141"
 }
 
-output "nodep_namespace" {
-  value = kubernetes_namespace.nodep.metadata[0].name
+output "bootstrap_namespace" {
+  value = kubernetes_namespace.bootstrap.metadata[0].name
 }
 
 # ClusterRoleBinding for Atlantis to manage all Terraform resources
@@ -155,7 +158,7 @@ resource "kubernetes_cluster_role_binding" "atlantis_cluster_admin" {
   subject {
     kind      = "ServiceAccount"
     name      = "atlantis"
-    namespace = kubernetes_namespace.nodep.metadata[0].name
+    namespace = kubernetes_namespace.bootstrap.metadata[0].name
   }
 
   depends_on = [helm_release.atlantis]
