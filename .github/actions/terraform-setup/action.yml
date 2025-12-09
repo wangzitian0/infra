@@ -69,6 +69,14 @@ inputs:
     description: "GitHub App Private Key (PEM) for Atlantis"
     required: false
     default: ""
+  infisical_github_client_id:
+    description: "GitHub OAuth App Client ID for Infisical SSO"
+    required: false
+    default: ""
+  infisical_github_client_secret:
+    description: "GitHub OAuth App Client Secret for Infisical SSO"
+    required: false
+    default: ""
   tf_state_key:
     description: "Terraform state file key in R2 bucket"
     required: false
@@ -134,6 +142,8 @@ runs:
         GITHUB_APP_KEY: ${{ inputs.github_app_key }}
         # L2: Infisical
         INFISICAL_POSTGRES_PASSWORD: ${{ inputs.infisical_postgres_password }}
+        INFISICAL_GITHUB_CLIENT_ID: ${{ inputs.infisical_github_client_id }}
+        INFISICAL_GITHUB_CLIENT_SECRET: ${{ inputs.infisical_github_client_secret }}
       run: |
         set -euo pipefail
 
@@ -171,6 +181,8 @@ runs:
         github_app_id         = "${GITHUB_APP_ID}"
         # L2: Infisical
         infisical_postgres_password = "${PG_PASSWORD}"
+        infisical_github_client_id = "${INFISICAL_GITHUB_CLIENT_ID}"
+        infisical_github_client_secret = "${INFISICAL_GITHUB_CLIENT_SECRET}"
         TFVARS_END
 
         echo 'ssh_private_key = <<-SSHKEY' >> 1.bootstrap/terraform.tfvars
