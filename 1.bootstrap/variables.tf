@@ -226,6 +226,19 @@ variable "github_app_key" {
   default     = ""
 }
 
+# Atlantis Web UI Authentication
+variable "atlantis_web_username" {
+  description = "Username for Atlantis Web UI Basic Auth"
+  type        = string
+  default     = "admin"
+}
+
+variable "atlantis_web_password" {
+  description = "Password for Atlantis Web UI Basic Auth (REQUIRED - no default for security)"
+  type        = string
+  sensitive   = true
+}
+
 variable "r2_account_id" {
   description = "Cloudflare R2 account ID"
   type        = string

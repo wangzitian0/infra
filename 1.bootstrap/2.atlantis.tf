@@ -92,6 +92,12 @@ resource "helm_release" "atlantis" {
           storageClassName = "local-path"
         }
 
+        # Basic Auth for Web UI (security hardening)
+        basicAuth = {
+          username = var.atlantis_web_username
+          password = var.atlantis_web_password
+        }
+
         # Resource limits (increased for production terraform operations)
         resources = {
           limits = {
