@@ -40,52 +40,6 @@ moved {
   to   = module.env_and_networking.helm_release.postgresql
 }
 
-moved {
-  from = module.phases.helm_release.infisical
-  to   = module.env_and_networking.helm_release.infisical
-}
-
-moved {
-  from = module.phases.kubernetes_secret.infisical_secrets
-  to   = module.env_and_networking.kubernetes_secret.infisical_secrets
-}
-
-# Infisical Random IDs
-moved {
-  from = module.phases.random_id.infisical_encryption_key
-  to   = module.env_and_networking.random_id.infisical_encryption_key
-}
-
-moved {
-  from = module.phases.random_id.infisical_jwt_signup_secret
-  to   = module.env_and_networking.random_id.infisical_jwt_signup_secret
-}
-
-moved {
-  from = module.phases.random_id.infisical_jwt_refresh_secret
-  to   = module.env_and_networking.random_id.infisical_jwt_refresh_secret
-}
-
-moved {
-  from = module.phases.random_id.infisical_jwt_auth_secret
-  to   = module.env_and_networking.random_id.infisical_jwt_auth_secret
-}
-
-moved {
-  from = module.phases.random_id.infisical_jwt_service_secret
-  to   = module.env_and_networking.random_id.infisical_jwt_service_secret
-}
-
-moved {
-  from = module.phases.random_id.infisical_jwt_mfa_secret
-  to   = module.env_and_networking.random_id.infisical_jwt_mfa_secret
-}
-
-moved {
-  from = module.phases.random_id.infisical_jwt_provider_secret
-  to   = module.env_and_networking.random_id.infisical_jwt_provider_secret
-}
-
 # L3: Computing (Dashboard) - historical
 moved {
   from = module.phases.kubernetes_namespace.dashboard
@@ -135,51 +89,6 @@ moved {
 moved {
   from = module.env_and_networking.helm_release.postgresql
   to   = module.platform.helm_release.postgresql
-}
-
-moved {
-  from = module.env_and_networking.helm_release.infisical
-  to   = module.platform.helm_release.infisical
-}
-
-moved {
-  from = module.env_and_networking.kubernetes_secret.infisical_secrets
-  to   = module.platform.kubernetes_secret.infisical_secrets
-}
-
-moved {
-  from = module.env_and_networking.random_id.infisical_encryption_key
-  to   = module.platform.random_id.infisical_encryption_key
-}
-
-moved {
-  from = module.env_and_networking.random_id.infisical_jwt_signup_secret
-  to   = module.platform.random_id.infisical_jwt_signup_secret
-}
-
-moved {
-  from = module.env_and_networking.random_id.infisical_jwt_refresh_secret
-  to   = module.platform.random_id.infisical_jwt_refresh_secret
-}
-
-moved {
-  from = module.env_and_networking.random_id.infisical_jwt_auth_secret
-  to   = module.platform.random_id.infisical_jwt_auth_secret
-}
-
-moved {
-  from = module.env_and_networking.random_id.infisical_jwt_service_secret
-  to   = module.platform.random_id.infisical_jwt_service_secret
-}
-
-moved {
-  from = module.env_and_networking.random_id.infisical_jwt_mfa_secret
-  to   = module.platform.random_id.infisical_jwt_mfa_secret
-}
-
-moved {
-  from = module.env_and_networking.random_id.infisical_jwt_provider_secret
-  to   = module.platform.random_id.infisical_jwt_provider_secret
 }
 
 # L3: computing → platform (Dashboard merged into platform)

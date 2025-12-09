@@ -26,7 +26,7 @@ All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 ```
 i-* (Internal/Infrastructure)
 ├── i-atlantis        # Terraform CI/CD
-├── i-secrets         # Infisical (Secrets Management)
+├── i-secrets         # Vault (Secrets Management)
 ├── i-kdashboard      # K8s Dashboard
 ├── i-k3s             # K3s API (port 6443)
 ├── i-kcloud          # Kubero UI (disabled)
@@ -50,7 +50,7 @@ Production (No prefix, direct domain)
 
 ## 3. Service Map by Layer
 
-> Last verified: 2025-12-08
+> Last verified: 2025-12-09
 
 ### L1: Bootstrap (Internal)
 
@@ -65,10 +65,10 @@ Production (No prefix, direct domain)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| Infisical | `i-secrets.truealpha.club` | 200 (Infisical UI) | ✅ Active |
+| Vault | `i-secrets.truealpha.club` | 404/Sealed (Vault UI) | ⏸️ Pending init/unseal |
 | K8s Dashboard | `i-kdashboard.truealpha.club` | 200 (Dashboard UI) | ✅ Active |
-| Kubero UI | `i-kcloud.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
-| Kubero API | `i-kapi.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| Kubero UI | `i-kcloud.truealpha.club` | 200 (404 backend) | ⏸️ Not deployed |
+| Kubero API | `i-kapi.truealpha.club` | 200 (404 backend) | ⏸️ Not deployed |
 
 ### L3: Data (Internal)
 
@@ -81,20 +81,20 @@ Production (No prefix, direct domain)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| SigNoz | `i-signoz.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
-| PostHog | `i-posthog.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| SigNoz | `i-signoz.truealpha.club` | 404 (no backend) | ⏸️ Not deployed |
+| PostHog | `i-posthog.truealpha.club` | 404 (no backend) | ⏸️ Not deployed |
 
 ### External Services (User-facing)
 
 | Environment | Domain | Curl | Status |
 |-------------|--------|------|--------|
 | **Production** | `truealpha.club` | 526 (SSL error) | ⚠️ No ingress configured |
-| **Production** | `api.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
-| Staging | `x-staging-*.truealpha.club` | 200 (fallback to Infisical) | ⏸️ Not deployed |
+| **Production** | `api.truealpha.club` | 404 (no backend) | ⏸️ Not deployed |
+| Staging | `x-staging-*.truealpha.club` | 404 (no backend) | ⏸️ Not deployed |
 | Test (PR) | `x-testpr-{num}-*.truealpha.club` | - | ⏸️ CI-managed |
 | Test (Commit) | `x-testcommit-{hash}-*.truealpha.club` | - | ⏸️ CI-managed |
 
-**Note**: Domains without dedicated ingress fall back to Infisical (default backend).
+**Note**: Domains without dedicated ingress currently return 404 (no default backend).
 
 ## 4. Variables
 

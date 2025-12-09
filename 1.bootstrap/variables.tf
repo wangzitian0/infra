@@ -110,16 +110,16 @@ variable "env_prefix" {
   default     = "x-staging"
 }
 
-# Infisical PostgreSQL (dedicated)
-variable "infisical_postgres_password" {
-  description = "PostgreSQL password for Infisical database (REQUIRED - no default for security)"
+# Vault PostgreSQL (dedicated)
+variable "vault_postgres_password" {
+  description = "PostgreSQL password for Vault storage backend (REQUIRED - no default for security)"
   type        = string
   sensitive   = true
   # No default - must be provided via tfvars or -var flag
 }
 
-variable "infisical_postgres_storage" {
-  description = "PostgreSQL storage size for Infisical"
+variable "vault_postgres_storage" {
+  description = "PostgreSQL storage size for Vault"
   type        = string
   default     = "10Gi"
 }
@@ -152,24 +152,17 @@ variable "neo4j_storage" {
   default     = "100Gi"
 }
 
-# Infisical
-variable "infisical_chart_version" {
-  description = "Helm chart version for Infisical"
+# Vault
+variable "vault_chart_version" {
+  description = "Helm chart version for Vault"
   type        = string
-  default     = "1.7.2"
+  default     = "0.31.0"
 }
 
-variable "infisical_image_tag" {
-  description = "Docker image tag for Infisical backend"
+variable "vault_image_tag" {
+  description = "Vault image tag"
   type        = string
-  default     = "v0.154.0"
-}
-
-variable "infisical_api_token" {
-  description = "Infisical API token (generated after initial deployment)"
-  type        = string
-  sensitive   = true
-  default     = ""
+  default     = "1.20.4"
 }
 
 # Feature flags
@@ -256,15 +249,4 @@ variable "cloudflare_zone_id" {
   type        = string
 }
 
-variable "infisical_github_client_id" {
-  description = "GitHub OAuth App Client ID for Infisical SSO"
-  type        = string
-  default     = ""
-}
-
-variable "infisical_github_client_secret" {
-  description = "GitHub OAuth App Client Secret for Infisical SSO"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
+# Removed: Infisical OAuth (replaced by Vault)

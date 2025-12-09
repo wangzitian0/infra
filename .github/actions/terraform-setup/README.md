@@ -43,6 +43,11 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 | `github_app_id` | ✗ | GitHub App ID (preferred over PAT) |
 | `github_app_key` | ✗ | GitHub App Private Key PEM |
 
+### L2 Platform
+| Input | Required | Description |
+|-------|----------|-------------|
+| `vault_postgres_password` | ✓ | Vault storage backend PostgreSQL password |
+
 ## Usage
 
 ```yaml
