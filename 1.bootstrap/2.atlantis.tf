@@ -44,8 +44,10 @@ resource "helm_release" "atlantis" {
           TF_VAR_infisical_postgres_password = var.infisical_postgres_password
           TF_VAR_github_token                = var.github_token
           TF_VAR_atlantis_webhook_secret     = var.atlantis_webhook_secret
-          TF_VAR_github_app_id               = var.github_app_id
-          TF_VAR_github_app_key              = var.github_app_key
+          TF_VAR_github_app_id                   = var.github_app_id
+          TF_VAR_github_app_key                  = var.github_app_key
+          TF_VAR_infisical_github_client_id      = var.infisical_github_client_id
+          TF_VAR_infisical_github_client_secret  = var.infisical_github_client_secret
         }
 
         # Server-side repo config (allows custom workflows)
