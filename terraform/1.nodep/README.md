@@ -97,4 +97,4 @@ After `terraform apply`, these checks run automatically:
 - **Important**: `/data` directory must exist on VPS before apply (created manually or via cloud-init).
 
 ---
-*Last updated: 2025-12-08*
+*Last updated: 2025-12-09*

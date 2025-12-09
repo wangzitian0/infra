@@ -72,10 +72,15 @@ resource "kubernetes_storage_class" "local_path_retain" {
   depends_on = [null_resource.kubeconfig]
 }
 
-# Restart local-path-provisioner when config changes so new paths take effect
+# Restart local-path-provisioner when any config field changes
 resource "null_resource" "restart_local_path_provisioner" {
   triggers = {
-    config_hash = sha1(local.local_path_config_json)
+    config_hash = sha1(join("", [
+      local.local_path_config_json,
+      local.local_path_helper_pod,
+      local.local_path_setup,
+      local.local_path_teardown,
+    ]))
   }
 
   provisioner "local-exec" {
