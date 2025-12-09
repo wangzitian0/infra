@@ -112,10 +112,10 @@ resource "kubectl_manifest" "kubero_instance" {
         port = 2000
       }
       persistence = {
-        enabled          = true
-        storageClassName = "local-path"
-        accessModes      = ["ReadWriteOnce"]
-        size             = "1Gi"
+        enabled      = true
+        storageClass = "local-path"
+        accessModes  = ["ReadWriteOnce"]
+        size         = "1Gi"
       }
       ingress = {
         enabled   = true
