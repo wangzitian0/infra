@@ -113,7 +113,7 @@ resource "kubectl_manifest" "kubero_instance" {
       }
       persistence = {
         enabled          = true
-        storageClassName = "local-path"
+        storageClass     = "local-path"
         accessModes      = ["ReadWriteOnce"]
         size             = "1Gi"
       }
