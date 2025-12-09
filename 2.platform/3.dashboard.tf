@@ -84,9 +84,9 @@ resource "kubernetes_ingress_v1" "dashboard" {
     name      = "kubernetes-dashboard"
     namespace = kubernetes_namespace.platform.metadata[0].name
     annotations = {
-      "cert-manager.io/cluster-issuer"                        = "letsencrypt-prod"
-      "traefik.ingress.kubernetes.io/router.tls"              = "true"
-      "traefik.ingress.kubernetes.io/service.serversscheme"   = "https"
+      "cert-manager.io/cluster-issuer"                      = "letsencrypt-prod"
+      "traefik.ingress.kubernetes.io/router.tls"            = "true"
+      "traefik.ingress.kubernetes.io/service.serversscheme" = "https"
     }
   }
 

@@ -16,7 +16,7 @@ provider "helm" {
 }
 
 provider "kubectl" {
-  config_path       = var.kubeconfig_path != "" ? var.kubeconfig_path : null
-  load_config_file  = var.kubeconfig_path != ""
+  config_path      = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+  load_config_file = var.kubeconfig_path != ""
 }
 
