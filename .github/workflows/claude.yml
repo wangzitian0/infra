@@ -13,17 +13,29 @@ on:
 jobs:
   claude:
     runs-on: ubuntu-latest
-    # Trigger on /review, @claude, or PTAL
+    # Trigger conditions:
+    # 1. Manual: /review, @claude, PTAL from any user (not bot)
+    # 2. Auto: Atlantis plan success (infra-flash bot comments with "Ran Plan" and no "Plan Failed")
     if: |
-      (github.event_name == 'issue_comment' && (contains(github.event.comment.body, '@claude') || contains(github.event.comment.body, '/review') || contains(github.event.comment.body, 'PTAL'))) ||
+      (
+        github.event_name == 'issue_comment' &&
+        !contains(github.event.comment.user.login, '[bot]') &&
+        (contains(github.event.comment.body, '@claude') || contains(github.event.comment.body, '/review') || contains(github.event.comment.body, 'PTAL'))
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.comment.user.login == 'infra-flash[bot]' &&
+        contains(github.event.comment.body, 'Ran Plan for') &&
+        !contains(github.event.comment.body, 'Plan Failed')
+      ) ||
       (github.event_name == 'pull_request_review_comment' && (contains(github.event.comment.body, '@claude') || contains(github.event.comment.body, '/review') || contains(github.event.comment.body, 'PTAL'))) ||
       (github.event_name == 'pull_request_review' && (contains(github.event.review.body, '@claude') || contains(github.event.review.body, '/review') || contains(github.event.review.body, 'PTAL'))) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
 
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
       id-token: write
       actions: read
 

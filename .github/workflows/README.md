@@ -45,8 +45,7 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | **Deploy K3s** (`deploy-k3s.yml`) | `push: [main]` | **The Enforcer**. Applies `terraform/` to production. Bootstraps K3s, deploys Helm charts. | **SSOT Convergence**. Ensures `main` = `Live State`. Uses state locking. |
 | **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs static analysis (`terraform fmt`, `tflint`), **pre-flight URL check**, then `terraform plan` on PRs. **Triggers Atlantis** via comment on success. Shows available commands. | **Dry Run** + **Atlantis Trigger**. |
 | **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
-| **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL` | **The Reviewer**. AI code review via Claude. Checks structure, doc consistency, and SSOT. Includes Documentation Guard. | **Quality Gate**. On-demand review via comments. |
-| **Claude Auto-Review** (`claude-code-review.yml`) | `pull_request` | **The Auto-Reviewer**. Automatic code review on PR open/sync. Includes Documentation Guard (replaces `docs-guard.yml`). | **Quality Gate**. Proactive review + doc validation. |
+| **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL` | **The Reviewer**. AI code review via Claude. Checks structure, doc consistency, and SSOT. Includes Documentation Guard. Auto-triggered by `terraform-plan.yml` on CI success. | **Quality Gate**. Triggered after CI passes. |
 
 ## Handling Multi-Environment & Modules
 
@@ -76,10 +75,7 @@ If a bad change is deployed:
 
 ## Claude Code Review
 
-Two workflows integrate [Claude Code Action](https://github.com/anthropics/claude-code-action) for AI-powered code review:
-
-- `claude.yml` - On-demand review via comments
-- `claude-code-review.yml` - Automatic review on PR open/sync
+`claude.yml` integrates [Claude Code Action](https://github.com/anthropics/claude-code-action) for AI-powered code review.
 
 ### Setup
 
@@ -91,12 +87,31 @@ claude
 
 This installs the Claude GitHub App and configures `CLAUDE_CODE_OAUTH_TOKEN` automatically.
 
-### Triggers
+### Trigger Flow
 
-| Workflow | Trigger | Use Case |
-| :--- | :--- | :--- |
-| `claude.yml` | `/review`, `@claude`, `PTAL` in comments | On-demand review or questions |
-| `claude-code-review.yml` | PR opened/synchronized | Automatic review for every PR |
+```
+PR opened/updated
+    ↓
+terraform-plan.yml (CI validation: fmt, tflint, plan)
+    ↓ (on CI success)
+github-actions comments "atlantis plan"
+    ↓
+Atlantis runs terraform plan
+    ↓ (on plan success)
+infra-flash[bot] comments "Ran Plan for X projects..."
+    ↓
+claude.yml detects bot's success comment
+    ↓
+Claude review runs
+```
+
+### Manual Triggers
+
+| Command | Use Case |
+| :--- | :--- |
+| `/review` | Request full code review |
+| `@claude <question>` | Ask Claude a question |
+| `PTAL` | Same as `/review` (Please Take A Look) |
 
 ### What It Reviews
 
