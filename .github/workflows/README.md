@@ -45,7 +45,8 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | **Deploy K3s** (`deploy-k3s.yml`) | `push: [main]` | **The Enforcer**. Applies `terraform/` to production. Bootstraps K3s, deploys Helm charts. | **SSOT Convergence**. Ensures `main` = `Live State`. Uses state locking. |
 | **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs static analysis (`terraform fmt`, `tflint`), **pre-flight URL check**, then `terraform plan` on PRs. **Triggers Atlantis** via comment on success. Shows available commands. | **Dry Run** + **Atlantis Trigger**. |
 | **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
-| **Claude** (`claude.yml`) | `/review`, `/ask`, `@claude` | **The Reviewer**. AI code review via Claude. Checks structure, maintainability, doc consistency, and SSOT. | **Quality Gate**. On-demand review via comments. |
+| **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL` | **The Reviewer**. AI code review via Claude. Checks structure, maintainability, doc consistency, and SSOT. | **Quality Gate**. On-demand review via comments. |
+| **Claude Auto-Review** (`claude-code-review.yml`) | `pull_request` | **The Auto-Reviewer**. Automatic code review on PR open/sync. Same criteria as manual review. | **Quality Gate**. Proactive review. |
 | **Docs Guard** (`docs-guard.yml`) | `pull_request` | **The Librarian**. Ensures documentation stays in sync with code changes. | **Doc Validation**. Fails if README not updated. |
 
 ## Handling Multi-Environment & Modules
@@ -76,41 +77,37 @@ If a bad change is deployed:
 
 ## Claude Code Review
 
-The `claude.yml` workflow integrates [Claude Code Action](https://github.com/anthropics/claude-code-action) for AI-powered code review.
+Two workflows integrate [Claude Code Action](https://github.com/anthropics/claude-code-action) for AI-powered code review:
+
+- `claude.yml` - On-demand review via comments
+- `claude-code-review.yml` - Automatic review on PR open/sync
 
 ### Setup
 
-**Option A: One-click (Recommended)**
+**One-click (Recommended)**
 ```bash
 claude
 /install-github-app
 ```
 
-**Option B: Manual**
-1. Install App: https://github.com/apps/claude
-2. Add secret: `ANTHROPIC_API_KEY` in Settings → Secrets → Actions
-3. Workflow file is already in place (`claude.yml`)
+This installs the Claude GitHub App and configures `CLAUDE_CODE_OAUTH_TOKEN` automatically.
 
-### Usage
+### Triggers
 
-Comment in any PR to trigger:
-
-| Command | Behavior |
-| :--- | :--- |
-| `/review` | Full code review |
-| `/ask <question>` | Ask Claude a specific question |
-| `@claude` | Same as `/ask` (responds to questions, or reviews if none) |
-| `PTAL` | Legacy trigger, same as `/review` |
+| Workflow | Trigger | Use Case |
+| :--- | :--- | :--- |
+| `claude.yml` | `/review`, `@claude`, `PTAL` in comments | On-demand review or questions |
+| `claude-code-review.yml` | PR opened/synchronized | Automatic review for every PR |
 
 ### What It Reviews
 
-- **Structure**: Correct layer (L1-L4), clean module boundaries
-- **Maintainability**: Abstraction, naming, DRY
-- **Code-Doc Consistency**: README.md / `0.check_now.md` sync
-- **SSOT Compliance**: No duplicate config, proper secrets
+**Primary (Project-Specific)**:
+- **Structure**: Correct layer (L1-nodep/L2-platform/L3-data/L4-insight), clean module boundaries
+- **Code-Doc Consistency**: README.md updated, `0.check_now.md` reflects current work
+- **SSOT Compliance**: No duplicate config, proper secrets handling
+- **Terraform**: `terraform fmt` compliant, proper resource naming
 
-### Error Handling
-
-If Claude review fails, it will automatically comment with:
-- Possible causes (API key, rate limit, network)
-- Link to workflow logs for debugging
+**Secondary (General)**:
+- Code quality and best practices
+- Potential bugs or security concerns
+- Performance considerations
