@@ -42,6 +42,7 @@ resource "helm_release" "infisical" {
   chart            = "infisical-standalone"
   version          = var.infisical_chart_version
   create_namespace = false
+  timeout          = 900
 
   values = [
     yamlencode({
