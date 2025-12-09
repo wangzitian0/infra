@@ -178,6 +178,18 @@ variable "github_token" {
   default     = ""
 }
 
+variable "github_org" {
+  description = "GitHub organization name for Atlantis allowlist"
+  type        = string
+  default     = "wangzitian0"
+}
+
+variable "github_user" {
+  description = "GitHub username for Atlantis"
+  type        = string
+  default     = "wangzitian0"
+}
+
 variable "atlantis_webhook_secret" {
   description = "Webhook secret for GitHub -> Atlantis"
   type        = string

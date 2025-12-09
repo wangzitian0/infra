@@ -76,9 +76,9 @@ resource "null_resource" "kubeconfig" {
       set -euo pipefail
       mkdir -p "${path.module}/output"
 
-      ssh -i "${local_sensitive_file.ssh_key.filename}" -p "${var.ssh_port}" -o StrictHostKeyChecking=no "${var.vps_user}@${var.vps_host}" "sudo cat /etc/rancher/k3s/k3s.yaml" > "${var.kubeconfig_path}"
-      chmod 600 "${var.kubeconfig_path}"
-      sed -i'' -e "s/127.0.0.1/${local.k3s_api_endpoint}/g" "${var.kubeconfig_path}"
+      ssh -i "${local_sensitive_file.ssh_key.filename}" -p "${var.ssh_port}" -o StrictHostKeyChecking=no "${var.vps_user}@${var.vps_host}" "sudo cat /etc/rancher/k3s/k3s.yaml" > "${local.kubeconfig_path}"
+      chmod 600 "${local.kubeconfig_path}"
+      sed -i'' -e "s/127.0.0.1/${local.k3s_api_endpoint}/g" "${local.kubeconfig_path}"
     EOT
   }
 }
