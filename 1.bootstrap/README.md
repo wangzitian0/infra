@@ -5,7 +5,7 @@
 - **K3s Cluster**: VPS provisioning via SSH
 - **Atlantis CI**: GitOps workflow engine
 - **DNS/Cert**: Cloudflare DNS + Let's Encrypt
-- **Namespace**: `kube-system`, `nodep`
+- **Namespace**: `kube-system`, `bootstrap` (L1 layer)
 
 ## Architecture
 
