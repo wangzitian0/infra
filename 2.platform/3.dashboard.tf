@@ -27,17 +27,21 @@ resource "helm_release" "kubernetes_dashboard" {
         }
       }
 
-      # Kong as internal gateway (no NodePort)
+      # Kong disabled (using Traefik Ingress directly)
       kong = {
-        proxy = {
-          http = {
-            enabled     = true
-            servicePort = 8443
-          }
+        enabled = false
+      }
+
+      # App Ingress disabled (we create our own below)
+      app = {
+        ingress = {
+          enabled = false
         }
-        service = {
-          type = "ClusterIP"
-        }
+      }
+
+      # Enable metrics scraper
+      metricsScraper = {
+        enabled = true
       }
 
       # Resource limits
@@ -78,15 +82,16 @@ resource "helm_release" "kubernetes_dashboard" {
   ]
 }
 
-# Ingress for Dashboard (via Traefik ingress controller)
+# Ingress for Dashboard (Direct access via Traefik)
 resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
     namespace = kubernetes_namespace.platform.metadata[0].name
     annotations = {
-      "cert-manager.io/cluster-issuer"                      = "letsencrypt-prod"
-      "traefik.ingress.kubernetes.io/router.tls"            = "true"
-      "traefik.ingress.kubernetes.io/service.serversscheme" = "https"
+      "cert-manager.io/cluster-issuer"           = "letsencrypt-prod"
+      "traefik.ingress.kubernetes.io/router.tls" = "true"
+      # Backend services are HTTP (8000)
+      "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
     }
   }
 
@@ -101,14 +106,67 @@ resource "kubernetes_ingress_v1" "dashboard" {
     rule {
       host = "i-kdashboard.${var.base_domain}"
       http {
+        # Auth Routes
+        path {
+          path      = "/api/v1/login"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "kubernetes-dashboard-auth"
+              port {
+                number = 8000
+              }
+            }
+          }
+        }
+        path {
+          path      = "/api/v1/csrftoken"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "kubernetes-dashboard-auth"
+              port {
+                number = 8000
+              }
+            }
+          }
+        }
+        path {
+          path      = "/api/v1/me"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "kubernetes-dashboard-auth"
+              port {
+                number = 8000
+              }
+            }
+          }
+        }
+
+        # API Routes
+        path {
+          path      = "/api"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "kubernetes-dashboard-api"
+              port {
+                number = 8000
+              }
+            }
+          }
+        }
+
+        # Web Route (Root)
         path {
           path      = "/"
           path_type = "Prefix"
           backend {
             service {
-              name = "kubernetes-dashboard-kong-proxy"
+              name = "kubernetes-dashboard-web"
               port {
-                number = 443
+                number = 8000
               }
             }
           }
@@ -173,11 +231,11 @@ output "dashboard_url" {
 }
 
 output "dashboard_token_command" {
-  value       = "kubectl -n kubernetes-dashboard get secret dashboard-admin-token -o jsonpath='{.data.token}' | base64 -d"
+  value       = "kubectl -n platform get secret dashboard-admin-token -o jsonpath='{.data.token}' | base64 -d"
   description = "Command to get dashboard admin token"
 }
 
 output "dashboard_port_forward_command" {
-  value       = "kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy 8443:443"
-  description = "Alternative: Access dashboard via port-forward on https://localhost:8443"
+  value       = "kubectl -n platform port-forward svc/kubernetes-dashboard-web 8000:8000"
+  description = "Access dashboard via port-forward on http://localhost:8000"
 }
