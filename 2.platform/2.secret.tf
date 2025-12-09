@@ -86,11 +86,9 @@ resource "helm_release" "infisical" {
       # We create our own ingress below
       ingress = {
         enabled = false
-      }
-
-      # Disable embedded ingress controller (we use Traefik)
-      ingress-nginx = {
-        enabled = false
+        nginx = {
+          enabled = false
+        }
       }
 
       # Resource limits for Infisical (based on official recommendations)
