@@ -84,6 +84,10 @@ inputs:
     description: "Terraform state file key in R2 bucket"
     required: false
     default: "terraform.tfstate"
+  working_directory:
+    description: "Working directory for Terraform operations"
+    required: false
+    default: "1.bootstrap"
 
 runs:
   using: "composite"
@@ -159,8 +163,11 @@ runs:
         VERSION_VALUE="${K3S_VERSION:-}"
         PG_PASSWORD="${INFISICAL_POSTGRES_PASSWORD:-CHANGE_ME}"
 
-        # Create tfvars in 1.bootstrap root
-        cat > 1.bootstrap/terraform.tfvars << TFVARS_END
+        WORKING_DIR="${{ inputs.working_directory }}"
+        mkdir -p "${WORKING_DIR}"
+
+        # Create tfvars in specified working directory
+        cat > "${WORKING_DIR}/terraform.tfvars" << TFVARS_END
         # L1 Bootstrap: R2 Backend
         aws_access_key_id     = "${AWS_ACCESS_KEY_ID}"
         aws_secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
@@ -191,13 +198,13 @@ runs:
         atlantis_web_password = "${ATLANTIS_WEB_PASSWORD}"
         TFVARS_END
 
-        echo 'ssh_private_key = <<-SSHKEY' >> 1.bootstrap/terraform.tfvars
-        echo "${VPS_SSH_KEY}" >> 1.bootstrap/terraform.tfvars
-        echo 'SSHKEY' >> 1.bootstrap/terraform.tfvars
+        echo 'ssh_private_key = <<-SSHKEY' >> "${WORKING_DIR}/terraform.tfvars"
+        echo "${VPS_SSH_KEY}" >> "${WORKING_DIR}/terraform.tfvars"
+        echo 'SSHKEY' >> "${WORKING_DIR}/terraform.tfvars"
 
-        echo 'github_app_key = <<-APPKEY' >> 1.bootstrap/terraform.tfvars
-        echo "${GITHUB_APP_KEY}" >> 1.bootstrap/terraform.tfvars
-        echo 'APPKEY' >> 1.bootstrap/terraform.tfvars
+        echo 'github_app_key = <<-APPKEY' >> "${WORKING_DIR}/terraform.tfvars"
+        echo "${GITHUB_APP_KEY}" >> "${WORKING_DIR}/terraform.tfvars"
+        echo 'APPKEY' >> "${WORKING_DIR}/terraform.tfvars"
 
         # Setup SSH for fetching kubeconfig
         mkdir -p ~/.ssh
@@ -208,7 +215,7 @@ runs:
         echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
 
     - name: Terraform init
-      working-directory: 1.bootstrap
+      working-directory: ${{ inputs.working_directory }}
       shell: bash
       env:
         AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
