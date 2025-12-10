@@ -120,9 +120,9 @@ jobs:
 
             # Count by status
             case "$code" in
-              200|401|403) ((OK_COUNT++)) ;;
-              503|526) ((WARN_COUNT++)) ;;
-              *) ((ERROR_COUNT++)) ;;
+              200|401|403) OK_COUNT=$((OK_COUNT + 1)) ;;
+              503|526) WARN_COUNT=$((WARN_COUNT + 1)) ;;
+              *) ERROR_COUNT=$((ERROR_COUNT + 1)) ;;
             esac
           done
 
