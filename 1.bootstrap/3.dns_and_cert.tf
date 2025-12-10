@@ -110,7 +110,7 @@ resource "null_resource" "wildcard_certificate_public" {
           name: letsencrypt-prod
           kind: ClusterIssuer
         dnsNames:
-${local.base_cert_domains_yaml}
+          ${replace(local.base_cert_domains_yaml, "\n", "\n          ")}
       EOF
     EOT
   }
