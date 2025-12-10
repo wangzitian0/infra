@@ -14,15 +14,15 @@ variable "env_prefix" {
 }
 
 variable "base_domain" {
-  description = "Base domain for all services"
+  description = "Base domain for business/production services"
   type        = string
   default     = "truealpha.club"
 }
 
 variable "internal_domain" {
-  description = "Internal/infra domain (falls back to base_domain if empty)"
+  description = "Internal/infra domain for platform services (dashboard, vault, kubero, auth)"
   type        = string
-  default     = ""
+  default     = "zitian.party"
 }
 
 variable "vault_chart_version" {

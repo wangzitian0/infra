@@ -99,19 +99,19 @@ resource "null_resource" "wildcard_certificate_public" {
   provisioner "local-exec" {
     command = <<-EOT
       kubectl --kubeconfig=${local.kubeconfig_path} apply -f - <<EOF
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: wildcard-tls-public
-  namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
-spec:
-  secretName: wildcard-tls-public
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  dnsNames:
-${local.base_cert_domains_yaml}
-EOF
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: wildcard-tls-public
+        namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
+      spec:
+        secretName: wildcard-tls-public
+        issuerRef:
+          name: letsencrypt-prod
+          kind: ClusterIssuer
+        dnsNames:
+${indent(10, local.base_cert_domains_yaml)}
+      EOF
     EOT
   }
 
@@ -126,19 +126,19 @@ resource "null_resource" "wildcard_certificate_internal" {
   provisioner "local-exec" {
     command = <<-EOT
       kubectl --kubeconfig=${local.kubeconfig_path} apply -f - <<EOF
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: wildcard-tls-internal
-  namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
-spec:
-  secretName: wildcard-tls-internal
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-  dnsNames:
-${local.internal_cert_domains_yaml}
-EOF
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: wildcard-tls-internal
+        namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
+      spec:
+        secretName: wildcard-tls-internal
+        issuerRef:
+          name: letsencrypt-prod
+          kind: ClusterIssuer
+        dnsNames:
+${indent(10, local.internal_cert_domains_yaml)}
+      EOF
     EOT
   }
 
