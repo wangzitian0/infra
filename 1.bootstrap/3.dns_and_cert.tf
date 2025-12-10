@@ -205,7 +205,7 @@ resource "cloudflare_record" "root" {
 resource "cloudflare_record" "x_staging" {
   zone_id         = var.cloudflare_zone_id
   name            = "x-staging"
-  value           = var.vps_host
+  content         = var.vps_host
   type            = "A"
   proxied         = true
   allow_overwrite = true
