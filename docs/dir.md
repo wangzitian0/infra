@@ -44,9 +44,9 @@ root/
 │   ├── backend.tf           # S3/R2 backend config
 │   ├── providers.tf         # Provider definitions
 │   └── *.tf                 # Bootstrap resources
-├── 2.platform/              # [+] L2: Platform (Atlantis)
+├── 2.platform/              # [+] L2: Platform Services (stateless, uses L3 for data)
 │   ├── README.md            # L2 platform docs
-│   └── *.tf                 # Infisical, Dashboard, Kubero
+│   └── *.tf                 # Vault, Dashboard, Kubero
 ├── 3.data/                  # [+] L3: Data (Atlantis)
 │   └── README.md            # L3 data layer docs
 ├── 4.apps/                  # [+] L4: Applications (Atlantis)
@@ -62,6 +62,19 @@ root/
 |---|---|---|---|---|---|
 | **L0** | **Tools Chain** | Project Roots | `0.tools/` :: Scripts <br> `docs/` :: Architecture | - | `README.md` |
 | **L1** | **Bootstrap** | Zero-Dependency Infra | `1.bootstrap/` :: Runtime (k3s), CI (Atlantis), DNS/Cert | `kube-system`, `bootstrap` | `1.bootstrap/README.md` |
-| **L2** | **Platform** | Platform Components | `2.platform/` :: Secrets (Vault), Dashboard, Kubero, Platform DB | `platform`, `kubero`, `kubero-operator-system` | `2.platform/README.md` |
+| **L2** | **Platform** | Platform Components | `2.platform/` :: Secrets (Vault), Dashboard, Kubero | `platform`, `kubero`, `kubero-operator-system` | `2.platform/README.md` |
 | **L3** | **Data** | Business Data Stores | `3.data/` :: Cache (Redis), Graph (Neo4j), DB (Postgres), OLAP (ClickHouse) | `data` | `3.data/README.md` |
 | **L4** | **Apps** | Applications | `4.apps/` :: Business Services (prod/staging) | `apps` | `4.apps/README.md` |
+
+## Persistence Architecture
+
+> **Only L1.4 and L3 layers have persistent state.** All other layers are stateless.
+
+| Layer | File | Storage Type | Purpose |
+|-------|------|--------------|---------|
+| **L1.4** | `1.bootstrap/4.storage.tf` | `/data` directory on VPS | Vault Raft data, backups, local-path PVCs |
+| **L3** | `3.data/*.tf` | PVCs on `/data` | Business databases (Postgres, Redis, Neo4j, ClickHouse) |
+
+- **L0**: Scripts and docs (no runtime state)
+- **L2**: Platform services (Vault uses L1.4 storage via PVC, Kubero/Dashboard stateless)
+- **L4**: Apps (stateless containers, use L3 for data)
