@@ -184,7 +184,29 @@ resource "kubernetes_ingress_v1" "dashboard" {
   depends_on = [helm_release.kubernetes_dashboard]
 }
 
-# Admin ServiceAccount for full cluster access
+# ClusterRoleBinding for Dashboard API ServiceAccount (created by Helm chart)
+# This allows the dashboard to view/manage cluster resources when OAuth is protecting access
+resource "kubernetes_cluster_role_binding" "dashboard_api_admin" {
+  metadata {
+    name = "kubernetes-dashboard-api-admin"
+  }
+
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "ClusterRole"
+    name      = "cluster-admin" # Full access since OAuth2-Proxy controls who can reach the dashboard
+  }
+
+  subject {
+    kind      = "ServiceAccount"
+    name      = "kubernetes-dashboard-api"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
+
+  depends_on = [helm_release.kubernetes_dashboard]
+}
+
+# Admin ServiceAccount for full cluster access (for manual token-based login)
 resource "kubernetes_service_account" "dashboard_admin" {
   metadata {
     name      = "dashboard-admin"

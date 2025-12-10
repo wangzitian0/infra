@@ -45,8 +45,29 @@ terraform apply
 ### Access
 
 - **Vault**: `https://secrets.<internal_domain>` (e.g., `secrets.zitian.party`) - HTTPS via cert-manager; manual init/unseal required
-- **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager; token auth
+- **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager
 - **OAuth2-Proxy**: `https://auth.<internal_domain>` (e.g., `auth.zitian.party`) - GitHub OAuth gateway (only when enabled)
+- **Kubero**: `https://kcloud.<internal_domain>` (e.g., `kcloud.zitian.party`) - GitOps PaaS UI
+
+### Dashboard Authentication
+
+Kubernetes Dashboard v7 has two authentication layers:
+
+1. **Access Control (OAuth2-Proxy)**: When enabled, only GitHub-authenticated users can reach the dashboard
+2. **API Authentication (Token)**: Dashboard still requires a token to authenticate Kubernetes API calls
+
+**To login:**
+1. Navigate to `https://kdashboard.<internal_domain>` - you'll be redirected to GitHub for OAuth (if enabled)
+2. After OAuth, you'll see the Dashboard login page
+3. Get the admin token:
+   ```bash
+   kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' | base64 -d
+   ```
+4. Paste the token and click "Sign in"
+
+**Why two authentication layers?**
+- OAuth2-Proxy controls WHO can access the dashboard (GitHub org members)
+- Token controls WHAT you can do in the cluster (cluster-admin via `dashboard-admin` ServiceAccount)
 
 ### Domain Configuration
 
