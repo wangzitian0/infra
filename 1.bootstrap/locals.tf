@@ -62,9 +62,9 @@ locals {
     "*.${local.internal_domain}"
   ]))
 
-  # Format dnsNames as indented YAML list items for Certificate resources
-  base_cert_domains_yaml     = join("\n", [for d in local.base_cert_domains : "    - \"${d}\""])
-  internal_cert_domains_yaml = join("\n", [for d in local.internal_cert_domains : "    - \"${d}\""])
+  # YAML list for Certificate dnsNames - use with indent() in heredoc
+  base_cert_domains_yaml     = yamlencode(local.base_cert_domains)
+  internal_cert_domains_yaml = yamlencode(local.internal_cert_domains)
 }
 
 data "cloudflare_zones" "internal" {
