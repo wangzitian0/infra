@@ -16,17 +16,17 @@ locals {
 
   # Domain map (i-* for infra, x-* via env_prefix for env traffic)
   domains = {
-    # Infra (DNS-only / grey cloud)
-    atlantis  = "i-atlantis.${local.internal_domain}"
-    k3s       = "i-k3s.${local.internal_domain}"
-    dashboard = "i-kdashboard.${local.internal_domain}"
-    vault     = "i-secrets.${local.internal_domain}"
+    # Infra (dedicated internal domain)
+    atlantis  = "atlantis.${local.internal_domain}"
+    k3s       = "k3s.${local.internal_domain}"
+    dashboard = "kdashboard.${local.internal_domain}"
+    vault     = "secrets.${local.internal_domain}"
 
     # Platform services
-    kubero_ui      = "i-kcloud.${local.internal_domain}"
-    kubero_backend = "i-kapi.${local.internal_domain}"
-    signoz         = "i-signoz.${local.internal_domain}"
-    posthog        = "i-posthog.${local.internal_domain}"
+    kubero_ui      = "kcloud.${local.internal_domain}"
+    kubero_backend = "kapi.${local.internal_domain}"
+    signoz         = "signoz.${local.internal_domain}"
+    posthog        = "posthog.${local.internal_domain}"
 
     # Env/External (proxied / orange cloud)
     frontend = "${var.env_prefix}.${var.base_domain}"

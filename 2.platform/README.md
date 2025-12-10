@@ -43,8 +43,8 @@ terraform apply
 
 ### Access
 
-- **Vault**: `https://i-secrets.<internal_domain>` (HTTPS via cert-manager; manual init/unseal required)
-- **Dashboard**: `https://i-kdashboard.<internal_domain>` (HTTPS via cert-manager; token auth)
+- **Vault**: `https://secrets.<internal_domain>` (HTTPS via cert-manager; manual init/unseal required)
+- **Dashboard**: `https://kdashboard.<internal_domain>` (HTTPS via cert-manager; token auth)
 
 ### Known Issues
 

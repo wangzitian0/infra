@@ -31,10 +31,10 @@ Managed by **GitHub Actions only** (not Atlantis).
 
 ## Domain Scheme
 
-- Infra uses `i-*` hosts on `INTERNAL_DOMAIN` (defaults to `BASE_DOMAIN`): `i-atlantis`, `i-kdashboard`, `i-secrets`, `i-k3s:6443`. These stay DNS-only (grey cloud).
+- Infra uses the dedicated `INTERNAL_DOMAIN` without prefixes: `atlantis`, `kdashboard`, `secrets`, `k3s:6443`, `kcloud`, `kapi`, `signoz`, `posthog`.
 - Env/test uses `x-*` on `BASE_DOMAIN` (proxied/orange): `x-staging`, `x-staging-api`, CI-managed `x-test*`.
 - Prod keeps root/no-prefix on `BASE_DOMAIN` (proxied/orange): `truealpha.club`, `api.truealpha.club`.
-- DNS inputs: `CLOUDFLARE_ZONE_ID` for `BASE_DOMAIN`; `INTERNAL_ZONE_ID` optionally overrides infra zone (falls back to `CLOUDFLARE_ZONE_ID`). Terraform writes explicit `i-*` A records to keep infra grey-cloud even when zones match.
+- DNS inputs: `CLOUDFLARE_ZONE_ID` for `BASE_DOMAIN`; `INTERNAL_ZONE_ID` optionally overrides infra zone (falls back to `CLOUDFLARE_ZONE_ID`). Infra records are explicit A records with per-host proxy (443 services proxied, `k3s` DNS-only).
 - Certificates: wildcard for `BASE_DOMAIN`; wildcard for `INTERNAL_DOMAIN` when distinct (separate secret). Ingresses also request per-host certs via cert-manager ingress shim.
 
 ## Bootstrap Command

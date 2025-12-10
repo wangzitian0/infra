@@ -1,6 +1,6 @@
 # Vault (Secrets Management) - Phase 1: Deployment Only
 # Namespace: platform
-# Access: https://i-secrets.{internal_domain}
+# Access: https://secrets.{internal_domain}
 # Storage: Raft integrated storage with PVC (HA enabled)
 #
 # MANUAL INIT REQUIRED after first deployment:
@@ -103,12 +103,12 @@ resource "kubernetes_ingress_v1" "vault" {
     ingress_class_name = "traefik"
 
     tls {
-      hosts       = ["i-secrets.${local.internal_domain}"]
+      hosts       = ["secrets.${local.internal_domain}"]
       secret_name = "vault-tls"
     }
 
     rule {
-      host = "i-secrets.${local.internal_domain}"
+      host = "secrets.${local.internal_domain}"
       http {
         path {
           path      = "/"
@@ -130,7 +130,7 @@ resource "kubernetes_ingress_v1" "vault" {
 }
 
 output "vault_ui" {
-  value       = "https://i-secrets.${local.internal_domain}"
+  value       = "https://secrets.${local.internal_domain}"
   description = "Vault UI/HTTP endpoint"
 }
 

@@ -105,7 +105,7 @@ variable "base_domain" {
 }
 
 variable "internal_domain" {
-  description = "Domain used for infra i-* hosts (e.g., truealpha.club -> i-atlantis.truealpha.club). Defaults to base_domain if empty."
+  description = "Domain used for infra hosts (e.g., truealpha.club -> atlantis.truealpha.club). Defaults to base_domain if empty."
   type        = string
   default     = ""
 }

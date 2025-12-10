@@ -1,16 +1,16 @@
 # L2.3: DNS & Certificate Management (Cloudflare + CertManager)
 
 locals {
-  internal_host_records = [
-    "i-atlantis",
-    "i-k3s",
-    "i-secrets",
-    "i-kdashboard",
-    "i-kcloud",
-    "i-kapi",
-    "i-signoz",
-    "i-posthog",
-  ]
+  infra_dns_records = {
+    atlantis   = true  # HTTPS via proxy
+    secrets    = true  # HTTPS via proxy
+    kdashboard = true  # HTTPS via proxy
+    kcloud     = true  # HTTPS via proxy
+    kapi       = true  # HTTPS via proxy
+    signoz     = true  # HTTPS via proxy
+    posthog    = true  # HTTPS via proxy
+    k3s        = false # API on 6443, must stay DNS-only
+  }
 
   # When internal_domain uses a different zone, keep the wildcard for convenience
   internal_zone_is_distinct = local.internal_zone_id != var.cloudflare_zone_id || local.internal_domain != var.base_domain
@@ -148,32 +148,32 @@ ${local.internal_cert_domains_yaml}
 # 6. Cloudflare DNS Records
 # =============================================================================
 # Architecture: 
-# - Infra (i-* on internal_domain): DNS-only (grey cloud)
+# - Infra on internal_domain (no prefix): per-record proxy (443 services proxied, k3s DNS-only)
 # - BASE_DOMAIN (public/x-*): Proxied (orange cloud) - CDN & DDoS protection
-# - Wildcard_internal: DNS-only fallback when internal_domain uses a separate zone
-# - Wildcard_public: proxied wildcard for public; explicit i-* records override when sharing the same zone
+# - Wildcard_internal: proxied wildcard when internal_domain uses a separate zone (overridden by explicit records)
+# - Wildcard_public: proxied wildcard for public; explicit internal records override when sharing the same zone
 # =============================================================================
 
-# Wildcard: default to DNS-only (grey cloud) for internal services when using a separate internal zone
-# This covers all internal services on the internal domain without clashing with BASE_DOMAIN wildcard
+# Wildcard: proxied for internal services when using a separate internal zone
+# Explicit records below override per-service proxy settings
 resource "cloudflare_record" "wildcard_internal" {
   count           = local.internal_zone_is_distinct ? 1 : 0
   zone_id         = local.internal_zone_id
   name            = "*"
   value           = var.vps_host
   type            = "A"
-  proxied         = false # Internal services: no proxy
+  proxied         = true
   allow_overwrite = true
 }
 
-# Explicit infra records (i-*) stay DNS-only even if internal/base domains share the same zone
+# Explicit infra records with per-service proxy settings (k3s stays DNS-only)
 resource "cloudflare_record" "infra_records" {
-  for_each        = toset(local.internal_host_records)
+  for_each        = local.infra_dns_records
   zone_id         = local.internal_zone_id
-  name            = each.value
+  name            = each.key
   value           = var.vps_host
   type            = "A"
-  proxied         = false
+  proxied         = each.value
   allow_overwrite = true
 }
 
@@ -222,7 +222,7 @@ resource "cloudflare_record" "x_staging" {
 # 7. Post-Apply Validation (DNS + Cert + Atlantis Health)
 # =============================================================================
 
-# Validate DNS resolution for Atlantis host (i- prefix)
+# Validate DNS resolution for Atlantis host
 resource "null_resource" "validate_dns" {
   triggers = {
     host   = local.domains.atlantis

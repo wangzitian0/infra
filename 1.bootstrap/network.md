@@ -8,36 +8,36 @@
 
 | Record | Cloudflare Mode | Purpose |
 |--------|-----------------|---------|
-| `i-*` (explicit A records) | Grey cloud (DNS-only) | Infra/admin endpoints (`i-atlantis`, `i-kdashboard`, `i-secrets`, `i-k3s:6443`, `i-kcloud`, `i-kapi`, `i-signoz`, `i-posthog`) |
-| `*` (wildcard on BASE_DOMAIN) | Orange cloud (proxied) | Public/env wildcard on `BASE_DOMAIN` (`x-*`, app subdomains); overridden by explicit `i-*` |
+| Infra A records | Orange cloud (proxied) for HTTPS services; grey for `k3s` | Infra/admin endpoints (`atlantis`, `kdashboard`, `secrets`, `k3s:6443`, `kcloud`, `kapi`, `signoz`, `posthog`) |
+| `*` (wildcard on BASE_DOMAIN) | Orange cloud (proxied) | Public/env wildcard on `BASE_DOMAIN` (`x-*`, app subdomains) |
 | `@` (root on BASE_DOMAIN) | Orange cloud (proxied) | Public landing page |
 | `x-*` (on BASE_DOMAIN) | Orange cloud (proxied) | Staging/test entrypoints (e.g., `x-staging`, CI-managed `x-test*`) |
-| `*` (wildcard on INTERNAL_DOMAIN) | Grey cloud (DNS-only) | Optional: only when `INTERNAL_DOMAIN` uses a distinct zone |
+| `*` (wildcard on INTERNAL_DOMAIN) | Orange cloud (proxied) | Optional: only when `INTERNAL_DOMAIN` uses a distinct zone (overridden by explicit infra records) |
 
 All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 
 ## 2. Domain Patterns
 
-`BASE_DOMAIN` is reserved for prod/root and business envs (`truealpha.club`). `INTERNAL_DOMAIN` defaults to `BASE_DOMAIN` and serves infra-only traffic with an `i-` prefix.
+`BASE_DOMAIN` is reserved for prod/root and business envs (`truealpha.club`). `INTERNAL_DOMAIN` defaults to `BASE_DOMAIN` and serves infra-only traffic without a prefix.
 
 | Pattern | Prefix | Cloudflare | Description |
 |---------|--------|------------|-------------|
-| **Infra domain** | `i-{service}.${INTERNAL_DOMAIN}` | Grey cloud | Infrastructure/admin services (L1/L2), may use non-standard ports (e.g., k3s:6443) |
+| **Infra domain** | `{service}.${INTERNAL_DOMAIN}` | Orange cloud (k3s grey) | Infrastructure/admin services (L1/L2), `k3s` stays DNS-only |
 | **x-** (External) | `x-{env}-{service}.${BASE_DOMAIN}` | Orange cloud | User-facing services with CDN (L3/L4) |
 | **Prod/root** | `{service}.${BASE_DOMAIN}` | Orange cloud | Production/root endpoints without prefix |
 
 ### Pattern Details
 
 ```
-Infra (INTERNAL_DOMAIN, DNS-only, i-* prefix)
-├── i-atlantis            # Terraform CI/CD
-├── i-secrets             # Vault (Secrets Management)
-├── i-kdashboard          # K8s Dashboard
-├── i-k3s                 # K3s API (port 6443)
-├── i-kcloud              # Kubero UI (disabled)
-├── i-kapi                # Kubero API (disabled)
-├── i-signoz              # SigNoz (Observability)
-├── i-posthog             # PostHog (Product analytics)
+Infra (INTERNAL_DOMAIN, per-record proxy; k3s is grey)
+├── atlantis            # Terraform CI/CD
+├── secrets             # Vault (Secrets Management)
+├── kdashboard          # K8s Dashboard
+├── k3s                 # K3s API (port 6443, DNS-only)
+├── kcloud              # Kubero UI (disabled)
+├── kapi                # Kubero API (disabled)
+├── signoz              # SigNoz (Observability)
+├── posthog             # PostHog (Product analytics)
 
 x-* on BASE_DOMAIN (External/Test, proxied)
 ├── x-staging-*             # Staging environment
@@ -61,8 +61,8 @@ Production on BASE_DOMAIN (No prefix, proxied)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| K3s API | `i-k3s.${INTERNAL_DOMAIN}:6443` | 401 Unauthorized | ✅ Active |
-| Atlantis | `i-atlantis.${INTERNAL_DOMAIN}` | `{"status":"ok"}` | ✅ Active |
+| K3s API | `k3s.${INTERNAL_DOMAIN}:6443` | 401 Unauthorized | ✅ Active |
+| Atlantis | `atlantis.${INTERNAL_DOMAIN}` | `{"status":"ok"}` | ✅ Active |
 | Cert-Manager | N/A | - | ✅ Active (internal) |
 | Ingress-Nginx | N/A | - | ✅ Active (internal) |
 
@@ -70,10 +70,10 @@ Production on BASE_DOMAIN (No prefix, proxied)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| Vault | `i-secrets.${INTERNAL_DOMAIN}` | 404/Sealed (Vault UI) | ⏸️ Pending init/unseal |
-| K8s Dashboard | `i-kdashboard.${INTERNAL_DOMAIN}` | 200 (Dashboard UI) | ✅ Active |
-| Kubero UI | `i-kcloud.${INTERNAL_DOMAIN}` | 200 (404 backend) | ⏸️ Not deployed |
-| Kubero API | `i-kapi.${INTERNAL_DOMAIN}` | 200 (404 backend) | ⏸️ Not deployed |
+| Vault | `secrets.${INTERNAL_DOMAIN}` | 404/Sealed (Vault UI) | ⏸️ Pending init/unseal |
+| K8s Dashboard | `kdashboard.${INTERNAL_DOMAIN}` | 200 (Dashboard UI) | ✅ Active |
+| Kubero UI | `kcloud.${INTERNAL_DOMAIN}` | 200 (404 backend) | ⏸️ Not deployed |
+| Kubero API | `kapi.${INTERNAL_DOMAIN}` | 200 (404 backend) | ⏸️ Not deployed |
 
 ### L3: Data (Internal)
 
@@ -86,8 +86,8 @@ Production on BASE_DOMAIN (No prefix, proxied)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| SigNoz | `i-signoz.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
-| PostHog | `i-posthog.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
+| SigNoz | `signoz.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
+| PostHog | `posthog.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
 
 ### External Services (User-facing)
 
