@@ -82,19 +82,23 @@ resource "helm_release" "kubernetes_dashboard" {
   ]
 }
 
-# Ingress for Dashboard (Protected by OAuth2-Proxy)
+# Ingress for Dashboard (Protected by OAuth2-Proxy when enabled)
 resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
     namespace = kubernetes_namespace.platform.metadata[0].name
-    annotations = {
-      "cert-manager.io/cluster-issuer"           = "letsencrypt-prod"
-      "traefik.ingress.kubernetes.io/router.tls" = "true"
-      # Backend services are HTTP (8000)
-      "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
-      # OAuth2-Proxy protection (requires GitHub login)
-      "traefik.ingress.kubernetes.io/router.middlewares" = "${kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
-    }
+    annotations = merge(
+      {
+        "cert-manager.io/cluster-issuer"           = "letsencrypt-prod"
+        "traefik.ingress.kubernetes.io/router.tls" = "true"
+        # Backend services are HTTP (8000)
+        "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
+      },
+      # OAuth2-Proxy protection (requires GitHub login) - only when OAuth is enabled
+      local.oauth2_proxy_enabled ? {
+        "traefik.ingress.kubernetes.io/router.middlewares" = "${kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
+      } : {}
+    )
   }
 
   spec {

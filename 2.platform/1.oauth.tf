@@ -11,17 +11,20 @@
 # 3. (Optional) Restrict to GitHub org: github_oauth_org
 
 locals {
-  # Use internal_domain for OAuth, fallback to base_domain if not set
-  oauth_domain = var.internal_domain != "" ? var.internal_domain : var.base_domain
+  # OAuth2-Proxy is only deployed when GitHub OAuth credentials are provided
+  oauth2_proxy_enabled = var.github_oauth_client_id != "" && var.github_oauth_client_secret != ""
 }
 
 resource "random_password" "oauth2_cookie_secret" {
+  count   = local.oauth2_proxy_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
-# OAuth2-Proxy Helm Release
+# OAuth2-Proxy Helm Release (conditional: requires GitHub OAuth credentials)
 resource "helm_release" "oauth2_proxy" {
+  count = local.oauth2_proxy_enabled ? 1 : 0
+
   name       = "oauth2-proxy"
   repository = "https://oauth2-proxy.github.io/manifests"
   chart      = "oauth2-proxy"
@@ -33,13 +36,13 @@ resource "helm_release" "oauth2_proxy" {
       config = {
         clientID     = var.github_oauth_client_id
         clientSecret = var.github_oauth_client_secret
-        cookieSecret = random_password.oauth2_cookie_secret.result
+        cookieSecret = random_password.oauth2_cookie_secret[0].result
       }
 
       extraArgs = {
         provider                  = "github"
         email-domain              = "*"
-        cookie-domain             = ".${local.oauth_domain}"
+        cookie-domain             = ".${local.internal_domain}"
         cookie-secure             = "true"
         cookie-samesite           = "lax"
         set-xauthrequest          = "true"
@@ -54,7 +57,7 @@ resource "helm_release" "oauth2_proxy" {
       ingress = {
         enabled   = true
         className = "traefik"
-        hosts     = ["auth.${local.oauth_domain}"]
+        hosts     = ["auth.${local.internal_domain}"]
         path      = "/"
         pathType  = "Prefix"
         annotations = {
@@ -62,7 +65,7 @@ resource "helm_release" "oauth2_proxy" {
         }
         tls = [{
           secretName = "oauth2-proxy-tls"
-          hosts      = ["auth.${local.oauth_domain}"]
+          hosts      = ["auth.${local.internal_domain}"]
         }]
       }
 
@@ -83,14 +86,22 @@ resource "helm_release" "oauth2_proxy" {
 }
 
 # Outputs
+output "oauth2_proxy_enabled" {
+  value       = local.oauth2_proxy_enabled
+  description = "Whether OAuth2-Proxy is deployed (requires GitHub OAuth credentials)"
+  sensitive   = true
+}
+
 output "oauth2_proxy_url" {
-  value       = "https://auth.${local.oauth_domain}"
+  value       = local.oauth2_proxy_enabled ? "https://auth.${local.internal_domain}" : "Not deployed (missing GitHub OAuth credentials)"
   description = "OAuth2-Proxy authentication endpoint"
+  sensitive   = true
 }
 
 output "oauth2_proxy_auth_url" {
-  value       = "https://auth.${local.oauth_domain}/oauth2/auth"
+  value       = local.oauth2_proxy_enabled ? "https://auth.${local.internal_domain}/oauth2/auth" : "Not deployed"
   description = "URL for Traefik forward-auth"
+  sensitive   = true
 }
 
 # =============================================================
@@ -106,6 +117,8 @@ output "oauth2_proxy_auth_url" {
 # =============================================================
 
 resource "kubernetes_manifest" "oauth2_auth_middleware" {
+  count = local.oauth2_proxy_enabled ? 1 : 0
+
   manifest = {
     apiVersion = "traefik.io/v1alpha1"
     kind       = "Middleware"
