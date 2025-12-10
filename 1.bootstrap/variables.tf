@@ -261,4 +261,18 @@ variable "internal_zone_id" {
   default     = ""
 }
 
-# Removed: Infisical OAuth (replaced by Vault)
+# OAuth2-Proxy (GitHub OAuth for Dashboard/Atlantis protection)
+variable "github_oauth_client_id" {
+  description = "GitHub OAuth App Client ID for OAuth2-Proxy"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_oauth_client_secret" {
+  description = "GitHub OAuth App Client Secret for OAuth2-Proxy"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+

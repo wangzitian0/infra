@@ -67,6 +67,9 @@ jobs:
           github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
           atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
+          # OAuth2-Proxy (GitHub OAuth for Dashboard protection)
+          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
 
       - name: Terraform plan (L1)
         working-directory: 1.bootstrap
