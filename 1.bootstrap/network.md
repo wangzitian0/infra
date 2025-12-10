@@ -106,7 +106,7 @@ Production on BASE_DOMAIN (No prefix, proxied)
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `${BASE_DOMAIN}` | Prod/public root domain | `truealpha.club` |
-| `${INTERNAL_DOMAIN}` | Internal/infra base domain for infra hosts (defaults to `${BASE_DOMAIN}`) | `zitian.party` |
+| `${INTERNAL_DOMAIN}` | Internal/infra base domain for infra hosts (defaults to `${BASE_DOMAIN}`) | `internal.org` |
 | `${VPS_HOST}` | VPS IP | `203.0.113.10` |
 | `{env}` | Environment | `staging`, `prod`, `test-pr-123` |
 | `{service}` | Service name | `app`, `api`, `signoz` |
