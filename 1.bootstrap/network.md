@@ -8,56 +8,61 @@
 
 | Record | Cloudflare Mode | Purpose |
 |--------|-----------------|---------|
-| `*` (wildcard) | Grey cloud (DNS-only) | Internal services, may use non-standard ports |
-| `@` (root) | Orange cloud (proxied) | Public landing page |
-| `x-*` | Orange cloud (proxied) | External user-facing services with CDN/DDoS protection |
+| `i-*` (explicit A records) | Grey cloud (DNS-only) | Infra/admin endpoints (`i-atlantis`, `i-kdashboard`, `i-secrets`, `i-k3s:6443`, `i-kcloud`, `i-kapi`, `i-signoz`, `i-posthog`) |
+| `*` (wildcard on BASE_DOMAIN) | Orange cloud (proxied) | Public/env wildcard on `BASE_DOMAIN` (`x-*`, app subdomains); overridden by explicit `i-*` |
+| `@` (root on BASE_DOMAIN) | Orange cloud (proxied) | Public landing page |
+| `x-*` (on BASE_DOMAIN) | Orange cloud (proxied) | Staging/test entrypoints (e.g., `x-staging`, CI-managed `x-test*`) |
+| `*` (wildcard on INTERNAL_DOMAIN) | Grey cloud (DNS-only) | Optional: only when `INTERNAL_DOMAIN` uses a distinct zone |
 
 All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 
 ## 2. Domain Patterns
 
+`BASE_DOMAIN` is reserved for prod/root and business envs (`truealpha.club`). `INTERNAL_DOMAIN` defaults to `BASE_DOMAIN` and serves infra-only traffic with an `i-` prefix.
+
 | Pattern | Prefix | Cloudflare | Description |
 |---------|--------|------------|-------------|
-| **i-** (Internal) | `i-{service}` | Grey cloud | Infrastructure/admin services (L1/L2) |
-| **x-** (External) | `x-{env}-{service}` | Orange cloud | User-facing services with CDN (L3/L4) |
+| **Infra domain** | `i-{service}.${INTERNAL_DOMAIN}` | Grey cloud | Infrastructure/admin services (L1/L2), may use non-standard ports (e.g., k3s:6443) |
+| **x-** (External) | `x-{env}-{service}.${BASE_DOMAIN}` | Orange cloud | User-facing services with CDN (L3/L4) |
+| **Prod/root** | `{service}.${BASE_DOMAIN}` | Orange cloud | Production/root endpoints without prefix |
 
 ### Pattern Details
 
 ```
-i-* (Internal/Infrastructure)
-├── i-atlantis        # Terraform CI/CD
-├── i-secrets         # Vault (Secrets Management)
-├── i-kdashboard      # K8s Dashboard
-├── i-k3s             # K3s API (port 6443)
-├── i-kcloud          # Kubero UI (disabled)
-├── i-kapi            # Kubero API (disabled)
-├── i-signoz          # SigNoz (Observability)
-└── i-posthog         # PostHog (Analytics)
+Infra (INTERNAL_DOMAIN, DNS-only, i-* prefix)
+├── i-atlantis            # Terraform CI/CD
+├── i-secrets             # Vault (Secrets Management)
+├── i-kdashboard          # K8s Dashboard
+├── i-k3s                 # K3s API (port 6443)
+├── i-kcloud              # Kubero UI (disabled)
+├── i-kapi                # Kubero API (disabled)
+├── i-signoz              # SigNoz (Observability)
+├── i-posthog             # PostHog (Product analytics)
 
-x-* (External/Test environments, Orange Cloud)
-├── x-staging-*           # Staging environment
+x-* on BASE_DOMAIN (External/Test, proxied)
+├── x-staging-*             # Staging environment
 │   ├── x-staging-app
 │   └── x-staging-api
-└── x-test*               # Ephemeral test environments
+└── x-test*                 # Ephemeral test environments
     ├── x-testpr-{num}-{service}      # PR previews
     └── x-testcommit-{hash}-{service} # Commit previews
 
-Production (No prefix, direct domain)
-├── {base_domain}         # truealpha.club
-├── api.{base_domain}     # api.truealpha.club
+Production on BASE_DOMAIN (No prefix, proxied)
+├── {base_domain}           # truealpha.club
+├── api.{base_domain}       # api.truealpha.club
 └── {service}.{base_domain}
 ```
 
 ## 3. Service Map by Layer
 
-> Last verified: 2025-12-09
+> Last verified: 2025-12-10
 
 ### L1: Bootstrap (Internal)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| K3s API | `i-k3s.truealpha.club:6443` | 401 Unauthorized | ✅ Active |
-| Atlantis | `i-atlantis.truealpha.club` | `{"status":"ok"}` | ✅ Active |
+| K3s API | `i-k3s.${INTERNAL_DOMAIN}:6443` | 401 Unauthorized | ✅ Active |
+| Atlantis | `i-atlantis.${INTERNAL_DOMAIN}` | `{"status":"ok"}` | ✅ Active |
 | Cert-Manager | N/A | - | ✅ Active (internal) |
 | Ingress-Nginx | N/A | - | ✅ Active (internal) |
 
@@ -65,10 +70,10 @@ Production (No prefix, direct domain)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| Vault | `i-secrets.truealpha.club` | 404/Sealed (Vault UI) | ⏸️ Pending init/unseal |
-| K8s Dashboard | `i-kdashboard.truealpha.club` | 200 (Dashboard UI) | ✅ Active |
-| Kubero UI | `i-kcloud.truealpha.club` | 200 (404 backend) | ⏸️ Not deployed |
-| Kubero API | `i-kapi.truealpha.club` | 200 (404 backend) | ⏸️ Not deployed |
+| Vault | `i-secrets.${INTERNAL_DOMAIN}` | 404/Sealed (Vault UI) | ⏸️ Pending init/unseal |
+| K8s Dashboard | `i-kdashboard.${INTERNAL_DOMAIN}` | 200 (Dashboard UI) | ✅ Active |
+| Kubero UI | `i-kcloud.${INTERNAL_DOMAIN}` | 200 (404 backend) | ⏸️ Not deployed |
+| Kubero API | `i-kapi.${INTERNAL_DOMAIN}` | 200 (404 backend) | ⏸️ Not deployed |
 
 ### L3: Data (Internal)
 
@@ -81,8 +86,8 @@ Production (No prefix, direct domain)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| SigNoz | `i-signoz.truealpha.club` | 404 (no backend) | ⏸️ Not deployed |
-| PostHog | `i-posthog.truealpha.club` | 404 (no backend) | ⏸️ Not deployed |
+| SigNoz | `i-signoz.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
+| PostHog | `i-posthog.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
 
 ### External Services (User-facing)
 
@@ -100,8 +105,9 @@ Production (No prefix, direct domain)
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `${BASE_DOMAIN}` | Root domain | `truealpha.club` |
-| `${VPS_HOST}` | VPS IP | `103.214.23.41` |
+| `${BASE_DOMAIN}` | Prod/public root domain | `truealpha.club` |
+| `${INTERNAL_DOMAIN}` | Internal/infra base domain for `i-*` hosts (defaults to `${BASE_DOMAIN}`) | `truealpha.club` |
+| `${VPS_HOST}` | VPS IP | `203.0.113.10` |
 | `{env}` | Environment | `staging`, `prod`, `test-pr-123` |
 | `{service}` | Service name | `app`, `api`, `signoz` |
 
@@ -110,14 +116,22 @@ Production (No prefix, direct domain)
 Defined in `3.dns_and_cert.tf`:
 
 ```hcl
-# Wildcard: DNS-only for i-* internal services
-cloudflare_record.wildcard: * → VPS_IP (grey cloud)
+# Infra (i-*, DNS-only / grey cloud)
+cloudflare_record.infra_records: [
+  i-atlantis, i-k3s, i-secrets, i-kdashboard, i-kcloud, i-kapi, i-signoz, i-posthog
+] -> VPS_IP (proxied = false)
+
+# Optional wildcard when INTERNAL_DOMAIN uses a separate zone
+cloudflare_record.wildcard_internal: * -> VPS_IP (grey cloud, only if INTERNAL_DOMAIN zone differs)
+
+# Public wildcard: proxied for apps/x-* (explicit i-* overrides)
+cloudflare_record.wildcard_public: * -> VPS_IP (orange cloud)
 
 # Root: proxied for production
-cloudflare_record.root: @ → VPS_IP (orange cloud)
+cloudflare_record.root: @ -> VPS_IP (orange cloud)
 
 # Staging: proxied with CDN protection
-cloudflare_record.x_staging: x-staging → VPS_IP (orange cloud)
+cloudflare_record.x_staging: x-staging -> VPS_IP (orange cloud)
 
 # Production: uses root domain directly (api.base.com, etc.)
 # No x-prod prefix - handled by wildcard or explicit records

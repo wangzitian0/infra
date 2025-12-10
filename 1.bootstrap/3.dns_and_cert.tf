@@ -1,5 +1,21 @@
 # L2.3: DNS & Certificate Management (Cloudflare + CertManager)
 
+locals {
+  internal_host_records = [
+    "i-atlantis",
+    "i-k3s",
+    "i-secrets",
+    "i-kdashboard",
+    "i-kcloud",
+    "i-kapi",
+    "i-signoz",
+    "i-posthog",
+  ]
+
+  # When internal_domain uses a different zone, keep the wildcard for convenience
+  internal_zone_is_distinct = local.internal_zone_id != var.cloudflare_zone_id || local.internal_domain != var.base_domain
+}
+
 # 1. Namespaces
 # Define "cert-manager" namespace explicitly so we can put secrets in it
 resource "kubernetes_namespace" "cert_manager" {
@@ -75,9 +91,9 @@ resource "null_resource" "cluster_issuer_letsencrypt_prod" {
 
 # 5. Wildcard Certificate (covers *.domain and domain)
 # Using DNS-01 challenge via Cloudflare for wildcard cert
-resource "null_resource" "wildcard_certificate" {
+resource "null_resource" "wildcard_certificate_public" {
   triggers = {
-    domain = var.base_domain
+    domains = join(",", local.base_cert_domains)
   }
 
   provisioner "local-exec" {
@@ -86,16 +102,42 @@ resource "null_resource" "wildcard_certificate" {
       apiVersion: cert-manager.io/v1
       kind: Certificate
       metadata:
-        name: wildcard-tls
+        name: wildcard-tls-public
         namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
       spec:
-        secretName: wildcard-tls-secret
+        secretName: wildcard-tls-public
         issuerRef:
           name: letsencrypt-prod
           kind: ClusterIssuer
         dnsNames:
-        - "${var.base_domain}"
-        - "*.${var.base_domain}"
+${local.base_cert_domains_yaml}
+      EOF
+    EOT
+  }
+
+  depends_on = [null_resource.cluster_issuer_letsencrypt_prod]
+}
+
+resource "null_resource" "wildcard_certificate_internal" {
+  triggers = {
+    domains = join(",", local.internal_cert_domains)
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      kubectl --kubeconfig=${local.kubeconfig_path} apply -f - <<EOF
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: wildcard-tls-internal
+        namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
+      spec:
+        secretName: wildcard-tls-internal
+        issuerRef:
+          name: letsencrypt-prod
+          kind: ClusterIssuer
+        dnsNames:
+${local.internal_cert_domains_yaml}
       EOF
     EOT
   }
@@ -106,20 +148,41 @@ resource "null_resource" "wildcard_certificate" {
 # 6. Cloudflare DNS Records
 # =============================================================================
 # Architecture: 
-# - i-* (internal): DNS-only (grey cloud) - may use non-standard ports
-# - x-* (external): Proxied (orange cloud) - CDN & DDoS protection
-# - Wildcard: DNS-only by default (internal fallback)
-# - Specific x-* records override wildcard with proxy enabled
+# - Infra (i-* on internal_domain): DNS-only (grey cloud)
+# - BASE_DOMAIN (public/x-*): Proxied (orange cloud) - CDN & DDoS protection
+# - Wildcard_internal: DNS-only fallback when internal_domain uses a separate zone
+# - Wildcard_public: proxied wildcard for public; explicit i-* records override when sharing the same zone
 # =============================================================================
 
-# Wildcard: default to DNS-only (grey cloud) for internal services
-# This covers all i-* subdomains automatically
-resource "cloudflare_record" "wildcard" {
-  zone_id         = var.cloudflare_zone_id
+# Wildcard: default to DNS-only (grey cloud) for internal services when using a separate internal zone
+# This covers all internal services on the internal domain without clashing with BASE_DOMAIN wildcard
+resource "cloudflare_record" "wildcard_internal" {
+  count           = local.internal_zone_is_distinct ? 1 : 0
+  zone_id         = local.internal_zone_id
   name            = "*"
   value           = var.vps_host
   type            = "A"
   proxied         = false # Internal services: no proxy
+  allow_overwrite = true
+}
+
+# Explicit infra records (i-*) stay DNS-only even if internal/base domains share the same zone
+resource "cloudflare_record" "infra_records" {
+  for_each        = toset(local.internal_host_records)
+  zone_id         = local.internal_zone_id
+  name            = each.value
+  value           = var.vps_host
+  type            = "A"
+  proxied         = false
+  allow_overwrite = true
+}
+
+resource "cloudflare_record" "wildcard_public" {
+  zone_id         = var.cloudflare_zone_id
+  name            = "*"
+  value           = var.vps_host
+  type            = "A"
+  proxied         = true
   allow_overwrite = true
 }
 
@@ -159,40 +222,40 @@ resource "cloudflare_record" "x_staging" {
 # 7. Post-Apply Validation (DNS + Cert + Atlantis Health)
 # =============================================================================
 
-# Validate DNS resolution for wildcard
+# Validate DNS resolution for Atlantis host (i- prefix)
 resource "null_resource" "validate_dns" {
   triggers = {
-    domain = var.base_domain
+    host   = local.domains.atlantis
     vps_ip = var.vps_host
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      echo "Validating DNS resolution for *.${var.base_domain}..."
-      RESOLVED_IP=$(dig +short i-atlantis.${var.base_domain} | head -1)
+      echo "Validating DNS resolution for ${local.domains.atlantis}..."
+      RESOLVED_IP=$(dig +short ${local.domains.atlantis} | head -1)
       if [ -z "$RESOLVED_IP" ]; then
-        echo "ERROR: DNS resolution failed for i-atlantis.${var.base_domain}"
+        echo "ERROR: DNS resolution failed for ${local.domains.atlantis}"
         exit 1
       fi
-      echo "OK: i-atlantis.${var.base_domain} resolves to $RESOLVED_IP"
+      echo "OK: ${local.domains.atlantis} resolves to $RESOLVED_IP"
     EOT
   }
 
-  depends_on = [cloudflare_record.wildcard]
+  depends_on = [cloudflare_record.infra_records]
 }
 
-# Validate HTTPS certificate is valid
+# Validate HTTPS certificate is valid for Atlantis host
 resource "null_resource" "validate_cert" {
   triggers = {
-    domain = var.base_domain
+    domain = local.domains.atlantis
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      echo "Validating HTTPS certificate for ${var.base_domain}..."
+      echo "Validating HTTPS certificate for ${local.domains.atlantis}..."
       # Wait for cert to be issued (max 2 minutes)
       for i in $(seq 1 24); do
-        if curl -sf --connect-timeout 5 https://i-atlantis.${var.base_domain}/healthz >/dev/null 2>&1; then
+        if curl -sf --connect-timeout 5 https://${local.domains.atlantis}/healthz >/dev/null 2>&1; then
           echo "OK: HTTPS certificate is valid"
           exit 0
         fi
@@ -203,7 +266,7 @@ resource "null_resource" "validate_cert" {
     EOT
   }
 
-  depends_on = [null_resource.wildcard_certificate, null_resource.validate_dns]
+  depends_on = [null_resource.wildcard_certificate_internal, null_resource.validate_dns]
 }
 
 # Validate Atlantis health (nodep module check)
@@ -215,7 +278,7 @@ resource "null_resource" "validate_atlantis" {
   provisioner "local-exec" {
     command = <<-EOT
       echo "Validating Atlantis health..."
-      HEALTH=$(curl -sf --connect-timeout 10 https://i-atlantis.${var.base_domain}/healthz || echo "FAIL")
+      HEALTH=$(curl -sf --connect-timeout 10 https://${local.domains.atlantis}/healthz || echo "FAIL")
       if [ "$HEALTH" = "FAIL" ]; then
         echo "WARNING: Atlantis healthz not reachable (may be starting up)"
       else

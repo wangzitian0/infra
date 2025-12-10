@@ -43,8 +43,8 @@ terraform apply
 
 ### Access
 
-- **Vault**: `https://i-secrets.<base_domain>` (manual init/unseal required)
-- **Dashboard**: `https://i-kdashboard.<base_domain>` (token auth via Kong proxy)
+- **Vault**: `https://i-secrets.<internal_domain>` (HTTPS via cert-manager; manual init/unseal required)
+- **Dashboard**: `https://i-kdashboard.<internal_domain>` (HTTPS via cert-manager; token auth)
 
 ### Known Issues
 
@@ -58,4 +58,4 @@ terraform apply
 - **Lost Admin Access**: Recover using stored root token/unseal keys.
 
 ---
-*Last updated: 2025-12-09*
+*Last updated: 2025-12-10*

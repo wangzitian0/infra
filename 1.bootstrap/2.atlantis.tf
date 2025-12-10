@@ -23,7 +23,7 @@ resource "helm_release" "atlantis" {
       {
         # GitHub Configuration
         orgAllowlist = "github.com/${var.github_org}/*"
-        atlantisUrl  = "https://i-atlantis.${var.base_domain}"
+        atlantisUrl  = "https://${local.domains.atlantis}"
 
         # Environment for R2 Backend (AWS_* used by S3 backend)
         # AND TF_VAR_* for Terraform variables
@@ -42,8 +42,10 @@ resource "helm_release" "atlantis" {
           TF_VAR_aws_access_key_id       = var.aws_access_key_id
           TF_VAR_aws_secret_access_key   = var.aws_secret_access_key
           TF_VAR_base_domain             = var.base_domain
+          TF_VAR_internal_domain         = local.internal_domain
           TF_VAR_cloudflare_api_token    = var.cloudflare_api_token
           TF_VAR_cloudflare_zone_id      = var.cloudflare_zone_id
+          TF_VAR_internal_zone_id        = local.internal_zone_id
           TF_VAR_vault_postgres_password = var.vault_postgres_password
           TF_VAR_github_token            = var.github_token
           TF_VAR_atlantis_webhook_secret = var.atlantis_webhook_secret
@@ -69,14 +71,14 @@ resource "helm_release" "atlantis" {
           }
           hosts = [
             {
-              host  = "i-atlantis.${var.base_domain}"
+              host  = local.domains.atlantis
               paths = ["/"]
             }
           ]
           tls = [
             {
               secretName = "atlantis-tls"
-              hosts      = ["i-atlantis.${var.base_domain}"]
+              hosts      = [local.domains.atlantis]
             }
           ]
         }

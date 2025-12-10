@@ -1,6 +1,6 @@
 # Phase 1.3: Kubernetes Dashboard (Web UI for Cluster Management)
 # Namespace: platform (L2 layer - shared with other platform services)
-# Access: Ingress via i-kdashboard.{base_domain}
+# Access: Ingress via i-kdashboard.{internal_domain}
 # Note: Dashboard namespace merged into platform namespace
 
 # ServiceAccount for Dashboard
@@ -99,12 +99,12 @@ resource "kubernetes_ingress_v1" "dashboard" {
     ingress_class_name = "traefik"
 
     tls {
-      hosts       = ["i-kdashboard.${var.base_domain}"]
+      hosts       = ["i-kdashboard.${local.internal_domain}"]
       secret_name = "dashboard-tls"
     }
 
     rule {
-      host = "i-kdashboard.${var.base_domain}"
+      host = "i-kdashboard.${local.internal_domain}"
       http {
         # Auth Routes
         path {
@@ -226,7 +226,7 @@ resource "kubernetes_secret" "dashboard_admin_token" {
 
 # Outputs
 output "dashboard_url" {
-  value       = "https://i-kdashboard.${var.base_domain}"
+  value       = "https://i-kdashboard.${local.internal_domain}"
   description = "Kubernetes Dashboard URL"
 }
 

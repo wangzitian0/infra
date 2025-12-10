@@ -124,7 +124,7 @@ resource "kubectl_manifest" "kubero_instance" {
           "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
         }
         hosts = [{
-          host = "i-kcloud.${var.base_domain}"
+          host = "i-kcloud.${local.internal_domain}"
           paths = [{
             path     = "/"
             pathType = "Prefix"
@@ -132,7 +132,7 @@ resource "kubectl_manifest" "kubero_instance" {
         }]
         tls = [{
           secretName = "kubero-ui-tls"
-          hosts      = ["i-kcloud.${var.base_domain}"]
+          hosts      = ["i-kcloud.${local.internal_domain}"]
         }]
       }
       kubero = {
@@ -172,7 +172,7 @@ resource "kubectl_manifest" "kubero_instance" {
 # Outputs
 # ============================================================
 output "kubero_ui_url" {
-  value       = "https://i-kcloud.${var.base_domain}"
+  value       = "https://i-kcloud.${local.internal_domain}"
   description = "Kubero UI URL"
 }
 
