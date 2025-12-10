@@ -9,9 +9,7 @@ locals {
   # 3) fallback to base zone
   internal_zone_id = var.internal_zone_id != "" ? var.internal_zone_id : (
     local.internal_domain != var.base_domain
-    && length(data.cloudflare_zones.internal) > 0
-    && length(data.cloudflare_zones.internal[0].zones) > 0
-    ? data.cloudflare_zones.internal[0].zones[0].id
+    ? try(data.cloudflare_zones.internal[0].zones[0].id, var.cloudflare_zone_id)
     : var.cloudflare_zone_id
   )
 
