@@ -102,6 +102,11 @@ variable "base_domain" {
   description = "Production/public base domain (e.g., truealpha.club)"
   type        = string
   default     = "truealpha.club"
+
+  validation {
+    condition     = trim(var.base_domain) != ""
+    error_message = "base_domain must be non-empty (set TF_VAR_base_domain or BASE_DOMAIN secret)."
+  }
 }
 
 variable "internal_domain" {
@@ -275,4 +280,3 @@ variable "github_oauth_client_secret" {
   sensitive   = true
   default     = ""
 }
-
