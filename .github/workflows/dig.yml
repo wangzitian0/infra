@@ -102,21 +102,24 @@ jobs:
           for entry in "${SERVICES[@]}"; do
             IFS='|' read -r layer service subdomain <<< "$entry"
 
-            # Build full domain
+            # Build full domain for curl, display domain for output
             if [ "$subdomain" = "@" ]; then
               domain="${BASE_DOMAIN}"
+              display_domain="\${BASE_DOMAIN}"
             elif [[ "$subdomain" == *":"* ]]; then
               # Has port (e.g., i-k3s:6443)
               sub="${subdomain%%:*}"
               port="${subdomain##*:}"
               domain="${sub}.${BASE_DOMAIN}:${port}"
+              display_domain="${sub}.\${BASE_DOMAIN}:${port}"
             else
               domain="${subdomain}.${BASE_DOMAIN}"
+              display_domain="${subdomain}.\${BASE_DOMAIN}"
             fi
 
             code=$(check_service "$domain")
             status=$(get_status "$code")
-            TABLE+="\n| $layer | $service | \`$domain\` | $status |"
+            TABLE+="\n| $layer | $service | \`$display_domain\` | $status |"
 
             # Count by status
             case "$code" in
