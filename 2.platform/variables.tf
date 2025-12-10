@@ -19,6 +19,12 @@ variable "base_domain" {
   default     = "truealpha.club"
 }
 
+variable "internal_domain" {
+  description = "Internal/infra domain (falls back to base_domain if empty)"
+  type        = string
+  default     = ""
+}
+
 variable "vault_chart_version" {
   description = "Vault Helm chart version"
   type        = string

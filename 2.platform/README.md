@@ -43,8 +43,8 @@ terraform apply
 
 ### Access
 
-- **Vault**: `https://i-secrets.<base_domain>` (manual init/unseal required)
-- **Dashboard**: `https://i-kdashboard.<base_domain>` (token auth via Kong proxy)
+- **Vault**: `https://secrets.<internal_domain>` (e.g., `secrets.zitian.party`) - HTTPS via cert-manager; manual init/unseal required
+- **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager; token auth
 
 ### Known Issues
 
@@ -58,4 +58,4 @@ terraform apply
 - **Lost Admin Access**: Recover using stored root token/unseal keys.
 
 ---
-*Last updated: 2025-12-09*
+*Last updated: 2025-12-10*

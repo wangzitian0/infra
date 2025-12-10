@@ -29,6 +29,14 @@ Managed by **GitHub Actions only** (not Atlantis).
 | `variables.tf` | All L1 variables |
 | `outputs.tf` | Kubeconfig + R2 credentials for L2 |
 
+## Domain Scheme
+
+- Infra uses the dedicated `INTERNAL_DOMAIN` without prefixes (e.g., `secrets.zitian.party`, `atlantis.zitian.party`); `k3s` stays on 6443 and DNS-only.
+- Env/test uses `x-*` on `BASE_DOMAIN` (proxied/orange): `x-staging`, `x-staging-api`, CI-managed `x-test*`.
+- Prod keeps root/no-prefix on `BASE_DOMAIN` (proxied/orange): `truealpha.club`, `api.truealpha.club`.
+- DNS inputs: `CLOUDFLARE_ZONE_ID` for `BASE_DOMAIN`; `INTERNAL_ZONE_ID` optionally overrides infra zone (falls back to `CLOUDFLARE_ZONE_ID`). Infra records are explicit A records with per-host proxy (443 services proxied, `k3s` DNS-only).
+- Certificates: wildcard for `BASE_DOMAIN`; wildcard for `INTERNAL_DOMAIN` when distinct (separate secret). Ingresses also request per-host certs via cert-manager ingress shim.
+
 ## Bootstrap Command
 
 ```bash
@@ -47,4 +55,4 @@ terraform apply
 | `r2_account_id` | R2 endpoint |
 
 ---
-*Last updated: 2025-12-09*
+*Last updated: 2025-12-10*
