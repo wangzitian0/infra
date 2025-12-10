@@ -8,9 +8,11 @@ locals {
   # 2) if internal domain differs and no zone provided, look up Cloudflare zone by name
   # 3) fallback to base zone
   internal_zone_id = var.internal_zone_id != "" ? var.internal_zone_id : (
-    local.internal_domain != var.base_domain && length(data.cloudflare_zones.internal) > 0 ?
-    data.cloudflare_zones.internal[0].result[0].id :
-    var.cloudflare_zone_id
+    local.internal_domain != var.base_domain
+    && length(data.cloudflare_zones.internal) > 0
+    && length(data.cloudflare_zones.internal[0].zones) > 0
+    ? data.cloudflare_zones.internal[0].zones[0].id
+    : var.cloudflare_zone_id
   )
 
   disable_flags = length(var.disable_components) > 0 ? join(" ", [
