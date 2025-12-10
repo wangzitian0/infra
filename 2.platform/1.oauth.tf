@@ -89,16 +89,19 @@ resource "helm_release" "oauth2_proxy" {
 output "oauth2_proxy_enabled" {
   value       = local.oauth2_proxy_enabled
   description = "Whether OAuth2-Proxy is deployed (requires GitHub OAuth credentials)"
+  sensitive   = true
 }
 
 output "oauth2_proxy_url" {
   value       = local.oauth2_proxy_enabled ? "https://auth.${local.internal_domain}" : "Not deployed (missing GitHub OAuth credentials)"
   description = "OAuth2-Proxy authentication endpoint"
+  sensitive   = true
 }
 
 output "oauth2_proxy_auth_url" {
   value       = local.oauth2_proxy_enabled ? "https://auth.${local.internal_domain}/oauth2/auth" : "Not deployed"
   description = "URL for Traefik forward-auth"
+  sensitive   = true
 }
 
 # =============================================================
