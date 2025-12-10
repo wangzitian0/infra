@@ -1,6 +1,6 @@
 # Vault (Secrets Management)
 # Namespace: platform
-# Storage: PostgreSQL backend (HA via advisory locks)
+# Storage: PostgreSQL backend (standalone mode)
 # Features: Agent Injector enabled, Auto-initialization with keys in K8s Secret
 
 locals {
@@ -15,7 +15,6 @@ locals {
 
     storage "postgresql" {
       connection_url = "${local.vault_storage_conn}"
-      ha_enabled     = "true"
     }
   EOT
 }
@@ -40,13 +39,9 @@ resource "helm_release" "vault" {
           repository = "hashicorp/vault"
           tag        = var.vault_image_tag
         }
-        ha = {
-          enabled  = true
-          replicas = 1
-          raft = {
-            enabled = false
-          }
-          config = local.vault_config
+        standalone = {
+          enabled = true
+          config  = local.vault_config
         }
         dataStorage = {
           enabled = false
