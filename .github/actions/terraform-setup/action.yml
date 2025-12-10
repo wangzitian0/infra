@@ -80,6 +80,14 @@ inputs:
   atlantis_web_password:
     description: "Password for Atlantis Web UI Basic Auth"
     required: true
+  github_oauth_client_id:
+    description: "GitHub OAuth App Client ID for OAuth2-Proxy (optional)"
+    required: false
+    default: ""
+  github_oauth_client_secret:
+    description: "GitHub OAuth App Client Secret for OAuth2-Proxy (optional)"
+    required: false
+    default: ""
   tf_state_key:
     description: "Terraform state file key in R2 bucket"
     required: false
@@ -152,6 +160,9 @@ runs:
         ATLANTIS_WEB_PASSWORD: ${{ inputs.atlantis_web_password }}
         # L2: Vault
         VAULT_POSTGRES_PASSWORD: ${{ inputs.vault_postgres_password }}
+        # L2: OAuth2-Proxy
+        GITHUB_OAUTH_CLIENT_ID: ${{ inputs.github_oauth_client_id }}
+        GITHUB_OAUTH_CLIENT_SECRET: ${{ inputs.github_oauth_client_secret }}
       run: |
         set -euo pipefail
 
@@ -201,6 +212,10 @@ runs:
 
         # L1: Atlantis Web UI Auth
         echo "TF_VAR_atlantis_web_password=${ATLANTIS_WEB_PASSWORD}" >> "$GITHUB_ENV"
+
+        # L2: OAuth2-Proxy
+        echo "TF_VAR_github_oauth_client_id=${GITHUB_OAUTH_CLIENT_ID}" >> "$GITHUB_ENV"
+        echo "TF_VAR_github_oauth_client_secret=${GITHUB_OAUTH_CLIENT_SECRET}" >> "$GITHUB_ENV"
 
         # Multiline Secrets
         {
