@@ -210,10 +210,7 @@ resource "kubernetes_job" "vault_init" {
   }
   depends_on = [helm_release.vault]
 
-  wait_for_completion = true
-  timeouts {
-    create = "10m"
-  }
+  # NOTE: Job runs async - do not wait. Verify manually: kubectl get jobs -n platform
 }
 
 # Backup PVC for Vault snapshots
