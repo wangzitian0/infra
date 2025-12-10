@@ -104,7 +104,7 @@ variable "base_domain" {
   default     = "truealpha.club"
 
   validation {
-    condition     = trim(var.base_domain) != ""
+    condition     = trimspace(var.base_domain) != ""
     error_message = "base_domain must be non-empty (set TF_VAR_base_domain or BASE_DOMAIN secret)."
   }
 }
