@@ -31,18 +31,6 @@ variable "vault_image_tag" {
   default     = "1.20.4"
 }
 
-variable "vault_postgres_password" {
-  description = "PostgreSQL password for Vault (sensitive, set via TF_VAR_*)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "vault_postgres_storage" {
-  description = "Storage size for Vault PostgreSQL PVC"
-  type        = string
-  default     = "10Gi"
-}
 
 variable "namespaces" {
   description = "Map of namespace names"
