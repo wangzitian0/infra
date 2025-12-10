@@ -8,7 +8,8 @@
 # 4. Simplifies tfvars management in CI/CD
 #
 # Categories:
-# - L1 Bootstrap: VPS, K3s, DNS, Atlantis
+# -# L1 Bootstrap Variables
+# Trigger CI: oauth deployment verify, DNS, Atlantis
 # - L2 Platform: Vault, Dashboard, Kubero
 # - L3+ Runtime: Accessed via Vault, not declared here
 # ============================================================
