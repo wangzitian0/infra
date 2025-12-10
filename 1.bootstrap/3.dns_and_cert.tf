@@ -160,7 +160,7 @@ resource "cloudflare_record" "wildcard_internal" {
   count           = local.internal_zone_is_distinct ? 1 : 0
   zone_id         = local.internal_zone_id
   name            = "*"
-  value           = var.vps_host
+  content         = var.vps_host
   type            = "A"
   proxied         = true
   allow_overwrite = true
@@ -171,7 +171,7 @@ resource "cloudflare_record" "infra_records" {
   for_each        = local.infra_dns_records
   zone_id         = local.internal_zone_id
   name            = each.key
-  value           = var.vps_host
+  content         = var.vps_host
   type            = "A"
   proxied         = each.value
   allow_overwrite = true
@@ -180,7 +180,7 @@ resource "cloudflare_record" "infra_records" {
 resource "cloudflare_record" "wildcard_public" {
   zone_id         = var.cloudflare_zone_id
   name            = "*"
-  value           = var.vps_host
+  content         = var.vps_host
   type            = "A"
   proxied         = true
   allow_overwrite = true
@@ -190,7 +190,7 @@ resource "cloudflare_record" "wildcard_public" {
 resource "cloudflare_record" "root" {
   zone_id         = var.cloudflare_zone_id
   name            = "@"
-  value           = var.vps_host
+  content         = var.vps_host
   type            = "A"
   proxied         = true
   allow_overwrite = true

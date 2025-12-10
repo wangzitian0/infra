@@ -8,7 +8,7 @@
 
 | Record | Cloudflare Mode | Purpose |
 |--------|-----------------|---------|
-| Infra A records | Orange cloud (proxied) for HTTPS services; grey for `k3s` | Infra/admin endpoints (`atlantis`, `kdashboard`, `secrets`, `k3s:6443`, `kcloud`, `kapi`, `signoz`, `posthog`) |
+| Infra A records | Orange cloud (proxied) for HTTPS services; grey/DNS-only for `k3s` | Infra/admin endpoints (`atlantis`, `kdashboard`, `secrets`, `k3s` on :6443 direct), `kcloud`, `kapi`, `signoz`, `posthog` |
 | `*` (wildcard on BASE_DOMAIN) | Orange cloud (proxied) | Public/env wildcard on `BASE_DOMAIN` (`x-*`, app subdomains) |
 | `@` (root on BASE_DOMAIN) | Orange cloud (proxied) | Public landing page |
 | `x-*` (on BASE_DOMAIN) | Orange cloud (proxied) | Staging/test entrypoints (e.g., `x-staging`, CI-managed `x-test*`) |
@@ -18,7 +18,7 @@ All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 
 ## 2. Domain Patterns
 
-`BASE_DOMAIN` is reserved for prod/root and business envs (`truealpha.club`). `INTERNAL_DOMAIN` defaults to `BASE_DOMAIN` and serves infra-only traffic without a prefix.
+`BASE_DOMAIN` is reserved for prod/root and business envs (`truealpha.club`). `INTERNAL_DOMAIN` defaults to `BASE_DOMAIN` and serves infra-only traffic without a prefix. If `INTERNAL_DOMAIN` differs and `internal_zone_id` is empty, Terraform auto-looks up the Cloudflare zone for `INTERNAL_DOMAIN` (otherwise falls back to `CLOUDFLARE_ZONE_ID`).
 
 | Pattern | Prefix | Cloudflare | Description |
 |---------|--------|------------|-------------|
@@ -33,7 +33,7 @@ Infra (INTERNAL_DOMAIN, per-record proxy; k3s is grey)
 ├── atlantis            # Terraform CI/CD
 ├── secrets             # Vault (Secrets Management)
 ├── kdashboard          # K8s Dashboard
-├── k3s                 # K3s API (port 6443, DNS-only)
+├── k3s                 # K3s API (port 6443, DNS-only; direct to node, no Cloudflare proxy)
 ├── kcloud              # Kubero UI (disabled)
 ├── kapi                # Kubero API (disabled)
 ├── signoz              # SigNoz (Observability)
@@ -61,7 +61,7 @@ Production on BASE_DOMAIN (No prefix, proxied)
 
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
-| K3s API | `k3s.${INTERNAL_DOMAIN}:6443` | 401 Unauthorized | ✅ Active |
+| K3s API | `k3s.${INTERNAL_DOMAIN}` (connect :6443, DNS-only) | 401 Unauthorized | ✅ Active |
 | Atlantis | `atlantis.${INTERNAL_DOMAIN}` | `{"status":"ok"}` | ✅ Active |
 | Cert-Manager | N/A | - | ✅ Active (internal) |
 | Ingress-Nginx | N/A | - | ✅ Active (internal) |
@@ -106,7 +106,7 @@ Production on BASE_DOMAIN (No prefix, proxied)
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `${BASE_DOMAIN}` | Prod/public root domain | `truealpha.club` |
-| `${INTERNAL_DOMAIN}` | Internal/infra base domain for infra hosts (defaults to `${BASE_DOMAIN}`) | `zitian.party` |
+| `${INTERNAL_DOMAIN}` | Internal/infra base domain for infra hosts (defaults to `${BASE_DOMAIN}`) | `internal.org` |
 | `${VPS_HOST}` | VPS IP | `203.0.113.10` |
 | `{env}` | Environment | `staging`, `prod`, `test-pr-123` |
 | `{service}` | Service name | `app`, `api`, `signoz` |

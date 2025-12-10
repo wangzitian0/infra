@@ -43,8 +43,8 @@ terraform apply
 
 ### Access
 
-- **Vault**: `https://secrets.<internal_domain>` (e.g., `secrets.zitian.party`) - HTTPS via cert-manager; manual init/unseal required
-- **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager; token auth
+- **Vault**: `https://secrets.<internal_domain>` (e.g., `secrets.internal.org`) - HTTPS via cert-manager; manual init/unseal required
+- **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.internal.org`) - HTTPS via cert-manager; token auth
 
 ### Known Issues
 
