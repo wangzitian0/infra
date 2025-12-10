@@ -62,8 +62,8 @@ locals {
     "*.${local.internal_domain}"
   ]))
 
-  base_cert_domains_yaml     = join("\n        ", [for d in local.base_cert_domains : "- \"${d}\""])
-  internal_cert_domains_yaml = join("\n        ", [for d in local.internal_cert_domains : "- \"${d}\""])
+  base_cert_domains_yaml     = join("\n", [for d in local.base_cert_domains : "          - \"${d}\""])
+  internal_cert_domains_yaml = join("\n", [for d in local.internal_cert_domains : "          - \"${d}\""])
 }
 
 data "cloudflare_zones" "internal" {
