@@ -99,13 +99,19 @@ variable "environment" {
 }
 
 variable "base_domain" {
-  description = "Base domain (e.g., truealpha.club)"
+  description = "Production/public base domain (e.g., truealpha.club)"
   type        = string
-  default     = "example.com"
+  default     = "truealpha.club"
+}
+
+variable "internal_domain" {
+  description = "Domain used for infra hosts (e.g., truealpha.club -> atlantis.truealpha.club). Defaults to base_domain if empty."
+  type        = string
+  default     = ""
 }
 
 variable "env_prefix" {
-  description = "Environment prefix (e.g., x-staging, x-test, empty for prod)"
+  description = "Environment prefix for x-* env hosts (e.g., x-staging, x-test, empty for prod)"
   type        = string
   default     = "x-staging"
 }
@@ -248,3 +254,11 @@ variable "cloudflare_zone_id" {
   description = "Cloudflare Zone ID for the domain"
   type        = string
 }
+
+variable "internal_zone_id" {
+  description = "Cloudflare Zone ID for the internal/infra domain. If empty, falls back to cloudflare_zone_id."
+  type        = string
+  default     = ""
+}
+
+# Removed: Infisical OAuth (replaced by Vault)

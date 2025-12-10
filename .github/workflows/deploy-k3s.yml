@@ -62,6 +62,8 @@ jobs:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           base_domain: ${{ secrets.BASE_DOMAIN }}
+          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
+          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
           github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
           atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
@@ -126,6 +128,8 @@ jobs:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           base_domain: ${{ secrets.BASE_DOMAIN }}
+          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
+          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
           github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
           atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
