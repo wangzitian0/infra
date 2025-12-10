@@ -86,9 +86,136 @@ resource "helm_release" "vault" {
   depends_on = [kubernetes_namespace.platform]
 }
 
-# NOTE: Vault initialization must be done manually after deployment
-# Run: kubectl exec -n platform vault-0 -- vault operator init
-# Store keys securely and create vault-unseal-keys secret for backup CronJobs
+# ============================================================
+# Vault Auto-Initialization via Kubernetes Job
+# ============================================================
+
+# ServiceAccount for init job with secret creation permission
+resource "kubernetes_service_account" "vault_init" {
+  metadata {
+    name      = "vault-init"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
+}
+
+resource "kubernetes_role" "vault_init" {
+  metadata {
+    name      = "vault-init"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
+  rule {
+    api_groups = [""]
+    resources  = ["secrets"]
+    verbs      = ["create", "get", "update", "patch"]
+  }
+}
+
+resource "kubernetes_role_binding" "vault_init" {
+  metadata {
+    name      = "vault-init"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role.vault_init.metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.vault_init.metadata[0].name
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
+}
+
+# Init job - runs once after Vault deployment
+resource "kubernetes_job" "vault_init" {
+  metadata {
+    name      = "vault-init-${helm_release.vault.metadata[0].revision}"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
+  spec {
+    ttl_seconds_after_finished = 300
+    template {
+      metadata {}
+      spec {
+        service_account_name = kubernetes_service_account.vault_init.metadata[0].name
+        container {
+          name    = "init"
+          image   = "bitnami/kubectl:latest"
+          command = ["/bin/sh", "-c"]
+          args = [<<-EOT
+            set -e
+            VAULT_ADDR="http://vault.platform.svc.cluster.local:8200"
+            
+            echo "Waiting for Vault to be ready..."
+            until wget -q --spider $VAULT_ADDR/v1/sys/health 2>/dev/null; do
+              echo "Vault not ready, waiting..."
+              sleep 5
+            done
+            echo "Vault is ready!"
+            
+            # Check if already initialized
+            INIT_STATUS=$(wget -qO- $VAULT_ADDR/v1/sys/init 2>/dev/null || echo '{"initialized":true}')
+            if echo "$INIT_STATUS" | grep -q '"initialized":false'; then
+              echo "Initializing Vault..."
+              INIT_RESPONSE=$(wget -qO- --post-data='{"secret_shares":5,"secret_threshold":3}' \
+                --header="Content-Type: application/json" \
+                $VAULT_ADDR/v1/sys/init)
+              
+              echo "$INIT_RESPONSE" > /tmp/init.json
+              
+              # Create K8s secret with init keys
+              echo "Storing unseal keys in Kubernetes Secret..."
+              kubectl create secret generic vault-unseal-keys -n platform \
+                --from-file=init-keys=/tmp/init.json \
+                --dry-run=client -o yaml | kubectl apply -f -
+              
+              # Extract and unseal with first 3 keys
+              echo "Unsealing Vault..."
+              KEY1=$(cat /tmp/init.json | sed 's/.*"keys_base64":\["\([^"]*\)".*/\1/')
+              KEY2=$(cat /tmp/init.json | sed 's/.*"keys_base64":\["[^"]*","\([^"]*\)".*/\1/')
+              KEY3=$(cat /tmp/init.json | sed 's/.*"keys_base64":\["[^"]*","[^"]*","\([^"]*\)".*/\1/')
+              
+              wget -qO- --post-data="{\"key\":\"$KEY1\"}" --header="Content-Type: application/json" $VAULT_ADDR/v1/sys/unseal
+              wget -qO- --post-data="{\"key\":\"$KEY2\"}" --header="Content-Type: application/json" $VAULT_ADDR/v1/sys/unseal
+              wget -qO- --post-data="{\"key\":\"$KEY3\"}" --header="Content-Type: application/json" $VAULT_ADDR/v1/sys/unseal
+              
+              rm /tmp/init.json
+              echo "Vault initialized and unsealed successfully!"
+            else
+              echo "Vault already initialized, skipping init"
+              
+              # Check if sealed and try to unseal
+              SEAL_STATUS=$(wget -qO- $VAULT_ADDR/v1/sys/seal-status 2>/dev/null || echo '{"sealed":false}')
+              if echo "$SEAL_STATUS" | grep -q '"sealed":true'; then
+                echo "Vault is sealed, attempting unseal from stored keys..."
+                KEYS_JSON=$(kubectl get secret -n platform vault-unseal-keys -o jsonpath='{.data.init-keys}' | base64 -d)
+                KEY1=$(echo "$KEYS_JSON" | sed 's/.*"keys_base64":\["\([^"]*\)".*/\1/')
+                KEY2=$(echo "$KEYS_JSON" | sed 's/.*"keys_base64":\["[^"]*","\([^"]*\)".*/\1/')
+                KEY3=$(echo "$KEYS_JSON" | sed 's/.*"keys_base64":\["[^"]*","[^"]*","\([^"]*\)".*/\1/')
+                
+                wget -qO- --post-data="{\"key\":\"$KEY1\"}" --header="Content-Type: application/json" $VAULT_ADDR/v1/sys/unseal || true
+                wget -qO- --post-data="{\"key\":\"$KEY2\"}" --header="Content-Type: application/json" $VAULT_ADDR/v1/sys/unseal || true
+                wget -qO- --post-data="{\"key\":\"$KEY3\"}" --header="Content-Type: application/json" $VAULT_ADDR/v1/sys/unseal || true
+                echo "Unseal attempted"
+              else
+                echo "Vault is already unsealed"
+              fi
+            fi
+          EOT
+          ]
+        }
+        restart_policy = "OnFailure"
+      }
+    }
+  }
+  depends_on = [helm_release.vault]
+
+  wait_for_completion = true
+  timeouts {
+    create = "10m"
+  }
+}
 
 # Backup PVC for Vault snapshots
 resource "kubernetes_persistent_volume_claim" "vault_backup" {
@@ -175,7 +302,7 @@ resource "kubernetes_cron_job_v1" "vault_backup_daily" {
       }
     }
   }
-  depends_on = [helm_release.vault, kubernetes_persistent_volume_claim.vault_backup]
+  depends_on = [kubernetes_job.vault_init, kubernetes_persistent_volume_claim.vault_backup]
 }
 
 # Weekly backup CronJob (retain 1 month / 4 weeks)
@@ -245,7 +372,7 @@ resource "kubernetes_cron_job_v1" "vault_backup_weekly" {
       }
     }
   }
-  depends_on = [helm_release.vault, kubernetes_persistent_volume_claim.vault_backup]
+  depends_on = [kubernetes_job.vault_init, kubernetes_persistent_volume_claim.vault_backup]
 }
 
 # Ingress for Vault UI/API
