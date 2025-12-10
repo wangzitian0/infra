@@ -1,8 +1,17 @@
 locals {
   api_endpoint = coalesce(var.api_endpoint, var.vps_host)
 
-  internal_domain  = var.internal_domain != "" ? var.internal_domain : var.base_domain
-  internal_zone_id = var.internal_zone_id != "" ? var.internal_zone_id : var.cloudflare_zone_id
+  internal_domain = var.internal_domain != "" ? var.internal_domain : var.base_domain
+
+  # Resolve internal zone:
+  # 1) respect explicit internal_zone_id
+  # 2) if internal domain differs and no zone provided, look up Cloudflare zone by name
+  # 3) fallback to base zone
+  internal_zone_id = var.internal_zone_id != "" ? var.internal_zone_id : (
+    local.internal_domain != var.base_domain && length(data.cloudflare_zones.internal) > 0 ?
+    data.cloudflare_zones.internal[0].result[0].id :
+    var.cloudflare_zone_id
+  )
 
   disable_flags = length(var.disable_components) > 0 ? join(" ", [
     for c in var.disable_components : "--disable ${c}"
@@ -55,4 +64,12 @@ locals {
 
   base_cert_domains_yaml     = join("\n        ", [for d in local.base_cert_domains : "- \"${d}\""])
   internal_cert_domains_yaml = join("\n        ", [for d in local.internal_cert_domains : "- \"${d}\""])
+}
+
+data "cloudflare_zones" "internal" {
+  count = local.internal_domain != var.base_domain && var.internal_zone_id == "" ? 1 : 0
+  filter {
+    name   = local.internal_domain
+    status = "active"
+  }
 }

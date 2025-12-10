@@ -18,7 +18,7 @@ All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
 
 ## 2. Domain Patterns
 
-`BASE_DOMAIN` is reserved for prod/root and business envs (`truealpha.club`). `INTERNAL_DOMAIN` defaults to `BASE_DOMAIN` and serves infra-only traffic without a prefix.
+`BASE_DOMAIN` is reserved for prod/root and business envs (`truealpha.club`). `INTERNAL_DOMAIN` defaults to `BASE_DOMAIN` and serves infra-only traffic without a prefix. If `INTERNAL_DOMAIN` differs and `internal_zone_id` is empty, Terraform auto-looks up the Cloudflare zone for `INTERNAL_DOMAIN` (otherwise falls back to `CLOUDFLARE_ZONE_ID`).
 
 | Pattern | Prefix | Cloudflare | Description |
 |---------|--------|------------|-------------|
