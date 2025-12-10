@@ -228,7 +228,9 @@ resource "kubernetes_persistent_volume_claim" "vault_backup" {
       }
     }
   }
-  depends_on = [kubernetes_namespace.platform]
+  # WaitForFirstConsumer storage class - don't wait for binding
+  wait_until_bound = false
+  depends_on       = [kubernetes_namespace.platform]
 }
 
 # Daily backup CronJob (retain 3 days)
