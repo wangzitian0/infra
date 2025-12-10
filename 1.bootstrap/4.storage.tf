@@ -1,5 +1,5 @@
 # L1.4: Storage safety for local-path
-# Goal: keep critical PVCs (e.g., Infisical Postgres) on /data and avoid auto-deletion on PVC removal
+# Goal: keep critical PVCs (e.g., Vault Raft storage) on /data and avoid auto-deletion on PVC removal
 
 locals {
   # config.json: use /data as primary path for persistent volumes
