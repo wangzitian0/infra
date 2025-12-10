@@ -1,6 +1,6 @@
-# Platform PostgreSQL (Vault storage backend)
+# Platform PostgreSQL (Available for L2 services - Vault uses Raft storage)
 # Namespace: platform (L2)
-# Storage: local-path PVC (Retain)
+# Storage: local-path-retain PVC
 
 resource "kubernetes_namespace" "platform" {
   metadata {

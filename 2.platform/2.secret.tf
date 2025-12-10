@@ -1,11 +1,10 @@
 # Vault (Secrets Management)
 # Namespace: platform
-# Dependencies: Platform PostgreSQL (same namespace)
-# Features: Agent Injector enabled, PostgreSQL storage backend (HA via advisory locks)
+# Storage: Raft integrated storage with PVC (no external DB dependency)
+# Features: Agent Injector enabled, HA-ready Raft backend
 
 locals {
-  vault_storage_conn = "postgresql://vault:${var.vault_postgres_password}@postgresql.platform.svc.cluster.local:5432/vault?sslmode=disable"
-  vault_config       = <<-EOT
+  vault_config = <<-EOT
     ui = true
 
     listener "tcp" {
@@ -13,14 +12,15 @@ locals {
       tls_disable = "true"
     }
 
-    storage "postgresql" {
-      connection_url = "${local.vault_storage_conn}"
-      ha_enabled     = "true"
+    storage "raft" {
+      path = "/vault/data"
     }
+
+    service_registration "kubernetes" {}
   EOT
 }
 
-# Helm release for Vault with PostgreSQL backend and Agent Injector
+# Helm release for Vault with Raft storage and Agent Injector
 resource "helm_release" "vault" {
   name             = "vault"
   namespace        = kubernetes_namespace.platform.metadata[0].name
@@ -44,12 +44,15 @@ resource "helm_release" "vault" {
           enabled  = true
           replicas = 1
           raft = {
-            enabled = false
+            enabled   = true
+            setNodeId = true
           }
           config = local.vault_config
         }
         dataStorage = {
-          enabled = false
+          enabled      = true
+          size         = "1Gi"
+          storageClass = "local-path-retain"
         }
         auditStorage = {
           enabled = false
@@ -64,7 +67,7 @@ resource "helm_release" "vault" {
     })
   ]
 
-  depends_on = [helm_release.postgresql]
+  depends_on = [kubernetes_namespace.platform]
 }
 
 # Ingress for Vault UI/API
@@ -116,3 +119,4 @@ output "vault_internal_endpoint" {
   value       = "vault.platform.svc.cluster.local:8200"
   description = "Cluster-internal Vault service endpoint"
 }
+
