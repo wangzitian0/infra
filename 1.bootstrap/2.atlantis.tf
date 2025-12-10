@@ -51,6 +51,9 @@ resource "helm_release" "atlantis" {
           TF_VAR_atlantis_webhook_secret = var.atlantis_webhook_secret
           TF_VAR_github_app_id           = var.github_app_id
           TF_VAR_github_app_key          = var.github_app_key
+          # OAuth2-Proxy (GitHub OAuth for Dashboard protection)
+          TF_VAR_github_oauth_client_id     = var.github_oauth_client_id
+          TF_VAR_github_oauth_client_secret = var.github_oauth_client_secret
         }
 
         # Server-side repo config (allows custom workflows)
