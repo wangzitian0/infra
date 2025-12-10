@@ -58,3 +58,27 @@ variable "vps_host" {
   type        = string
   default     = ""
 }
+
+# ============================================================
+# OAuth2-Proxy (GitHub OAuth)
+# ============================================================
+
+variable "github_oauth_client_id" {
+  description = "GitHub OAuth App Client ID (set via TF_VAR_github_oauth_client_id)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_oauth_client_secret" {
+  description = "GitHub OAuth App Client Secret (set via TF_VAR_github_oauth_client_secret)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "github_oauth_org" {
+  description = "GitHub organization to restrict access (leave empty for any GitHub user)"
+  type        = string
+  default     = ""
+}

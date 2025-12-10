@@ -82,7 +82,7 @@ resource "helm_release" "kubernetes_dashboard" {
   ]
 }
 
-# Ingress for Dashboard (Direct access via Traefik)
+# Ingress for Dashboard (Protected by OAuth2-Proxy)
 resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
@@ -92,6 +92,8 @@ resource "kubernetes_ingress_v1" "dashboard" {
       "traefik.ingress.kubernetes.io/router.tls" = "true"
       # Backend services are HTTP (8000)
       "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
+      # OAuth2-Proxy protection (requires GitHub login)
+      "traefik.ingress.kubernetes.io/router.middlewares" = "${kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
     }
   }
 
