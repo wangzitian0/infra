@@ -40,6 +40,12 @@ resource "helm_release" "vault" {
   create_namespace = false
   timeout          = 900
 
+  # Force replacement when storage config changes (StatefulSet volumeClaimTemplates are immutable)
+  force_update    = true
+  replace         = true
+  cleanup_on_fail = true
+
+
   values = [
     yamlencode({
       global = {

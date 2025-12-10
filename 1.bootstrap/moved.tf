@@ -29,7 +29,7 @@ moved {
   to   = local_sensitive_file.ssh_key
 }
 
-# L2: Environment & Networking → Platform (Secrets/Infisical/Postgres)
+# L2: Environment & Networking → Platform (Secrets/Vault)
 moved {
   from = module.phases.kubernetes_namespace.iac
   to   = module.env_and_networking.kubernetes_namespace.iac

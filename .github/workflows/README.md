@@ -53,7 +53,7 @@ This workflow ensures that the `main` branch is always consistent with the live 
 The project uses a **Layered Architecture** within a single Repository (Monorepo-style logic):
 
 *   **Layer 1 (NoDep)**: Bootstrap (VPS, K3s, Atlantis, DNS/Cert).
-*   **Layer 2 (Platform)**: Secrets (Infisical), K8s Dashboard, Kubero.
+*   **Layer 2 (Platform)**: Secrets (Vault), K8s Dashboard, Kubero.
 *   **Layer 3 (Data)**: Business databases (Postgres, Redis, Neo4j).
 *   **Layer 4 (Insight)**: Observability (SigNoz), Analytics (PostHog).
 

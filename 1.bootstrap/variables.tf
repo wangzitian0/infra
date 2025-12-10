@@ -3,14 +3,14 @@
 # ============================================================
 # All variables are defined here because:
 # 1. L1 is the only layer with direct secret access (GitHub Secrets)
-# 2. L2+ layers read config from L1 state or Infisical
+# 2. L2+ layers read config from L1 state or Vault
 # 3. Single source of truth for variable definitions
 # 4. Simplifies tfvars management in CI/CD
 #
 # Categories:
 # - L1 Bootstrap: VPS, K3s, DNS, Atlantis
-# - L2 Platform: Infisical, Dashboard, Kubero
-# - L3+ Runtime: Accessed via Infisical, not declared here
+# - L2 Platform: Vault, Dashboard, Kubero
+# - L3+ Runtime: Accessed via Vault, not declared here
 # ============================================================
 
 variable "vps_host" {
@@ -248,5 +248,3 @@ variable "cloudflare_zone_id" {
   description = "Cloudflare Zone ID for the domain"
   type        = string
 }
-
-# Removed: Infisical OAuth (replaced by Vault)
