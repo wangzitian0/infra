@@ -146,7 +146,8 @@ resource "kubernetes_job" "vault_init" {
             VAULT_ADDR="http://vault.platform.svc.cluster.local:8200"
             
             echo "Waiting for Vault to be ready..."
-            until wget -q --spider $VAULT_ADDR/v1/sys/health 2>/dev/null; do
+            # Use /v1/sys/init instead of /v1/sys/health - health returns 503 when uninitialized
+            until wget -qO- $VAULT_ADDR/v1/sys/init 2>/dev/null | grep -q initialized; do
               echo "Vault not ready, waiting..."
               sleep 5
             done
