@@ -31,7 +31,7 @@ Managed by **GitHub Actions only** (not Atlantis).
 
 ## Domain Scheme
 
-- Infra uses the dedicated `INTERNAL_DOMAIN` without prefixes (e.g., `secrets.zitian.party`, `atlantis.zitian.party`); `k3s` stays on 6443 and DNS-only.
+- Infra uses the dedicated `INTERNAL_DOMAIN` without prefixes (e.g., `secrets.internal.org`, `atlantis.internal.org`); `k3s` stays DNS-only on :6443 (no Cloudflare proxy).
 - Env/test uses `x-*` on `BASE_DOMAIN` (proxied/orange): `x-staging`, `x-staging-api`, CI-managed `x-test*`.
 - Prod keeps root/no-prefix on `BASE_DOMAIN` (proxied/orange): `truealpha.club`, `api.truealpha.club`.
 - DNS inputs: `CLOUDFLARE_ZONE_ID` for `BASE_DOMAIN`; `INTERNAL_ZONE_ID` optionally overrides infra zone (falls back to `CLOUDFLARE_ZONE_ID`). Infra records are explicit A records with per-host proxy (443 services proxied, `k3s` DNS-only).
