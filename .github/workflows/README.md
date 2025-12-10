@@ -46,6 +46,7 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs static analysis (`terraform fmt`, `tflint`), **pre-flight URL check**, then `terraform plan` on PRs. **Triggers Atlantis** via comment on success. Shows available commands. | **Dry Run** + **Atlantis Trigger**. |
 | **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
 | **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL`, `infra-flash[bot]` Atlantis success comment | **The Reviewer**. AI code review via Claude. Checks structure, doc consistency, and SSOT. Includes Documentation Guard. Auto-triggered when Atlantis (infra-flash[bot]) reports a successful plan (after `terraform-plan.yml` kicks Atlantis). | **Quality Gate**. Runs after CI + successful Atlantis plan. |
+| **Dig** (`dig.yml`) | `/dig` comment on PR | **The Health Checker**. Tests connectivity to all documented services and posts a live-updating table with status. | **Observability**. Quick service status check. |
 
 ## Handling Multi-Environment & Modules
 
@@ -114,6 +115,56 @@ Auto-review fires whenever `infra-flash[bot]` posts a successful Atlantis plan c
 | `/review` | Request full code review |
 | `@claude <question>` | Ask Claude a question |
 | `PTAL` | Same as `/review` (Please Take A Look) |
+| `/dig` | Run service health check (see below) |
+
+---
+
+## Service Health Check (/dig)
+
+`dig.yml` provides a quick way to check connectivity to all documented services.
+
+### Usage
+
+Comment `/dig` on any PR to trigger a health check. The bot will:
+
+1. Create a comment with "Testing connectivity..."
+2. curl all documented services (L1-L4)
+3. Update the comment with a results table
+
+### Example Output
+
+```
+## Service Health Check :green_circle: All systems operational
+
+<details open>
+<summary>Results: 4/10 healthy</summary>
+
+| Layer | Service | Domain | Status |
+|-------|---------|--------|--------|
+| L1 | Atlantis | `i-atlantis.${BASE_DOMAIN}` | :lock: 401 Auth Required |
+| L2 | K8s Dashboard | `i-kdashboard.${BASE_DOMAIN}` | :white_check_mark: 200 OK |
+| L2 | Vault | `i-secrets.${BASE_DOMAIN}` | :x: 502 Bad Gateway |
+| ... | ... | ... | ... |
+
+</details>
+```
+
+### Required Secrets
+
+| Secret | Description |
+| :--- | :--- |
+| `BASE_DOMAIN` | Base domain for all services (e.g., `example.com`) |
+
+### Status Legend
+
+| Emoji | Meaning |
+| :--- | :--- |
+| :white_check_mark: | 200 OK - Service healthy |
+| :lock: | 401/403 - Auth required (expected for protected services) |
+| :grey_question: | 404 - No backend configured |
+| :warning: | 503/526 - Service unavailable or SSL error |
+| :x: | 502/504 - Backend error |
+| :no_entry: | Timeout - Service unreachable |
 
 ### What It Reviews
 
