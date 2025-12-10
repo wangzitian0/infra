@@ -72,6 +72,36 @@ If a bad change is deployed:
 
 > **Note**: Because we rely on Terraform State, "Reverting" code in Git implies "Rolling forward" the state to the previous configuration. This is safer than manual resource deletion.
 
+## Atlantis Commands Reference
+
+Comment on a PR to trigger Atlantis operations:
+
+| Command | Description |
+|---------|-------------|
+| `atlantis plan` | Run plan for all modified directories |
+| `atlantis plan -d <dir>` | Run plan for specific directory (e.g., `atlantis plan -d 2.platform`) |
+| `atlantis apply` | Apply all pending plans |
+| `atlantis apply -d <dir>` | Apply plan for specific directory |
+| `atlantis unlock` | Unlock the PR (releases state lock) |
+
+### Advanced Commands
+
+Pass extra Terraform arguments using `--`:
+
+```bash
+# Destroy resources in a directory
+atlantis plan -d 2.platform -- -destroy
+atlantis apply -d 2.platform
+
+# Target specific resources
+atlantis plan -d 1.bootstrap -- -target=helm_release.vault
+
+# Refresh state only
+atlantis plan -d 2.platform -- -refresh-only
+```
+
+> **Reference**: [Atlantis Docs - Using Atlantis](https://www.runatlantis.io/docs/using-atlantis.html)
+
 ---
 
 ## Claude Code Review
