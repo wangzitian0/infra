@@ -9,6 +9,7 @@
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
 | [dir.md](./dir.md) | 项目结构 | 目录树、Layer 定义、Namespace 注册 |
+| [k3s.md](./k3s.md) | 集群与 PaaS | K3s、StorageClass、Kubero、Namespace 规范 |
 | [vars.md](./vars.md) | 非密钥变量 | TF_VAR 列表、默认值、Feature Flags |
 | [secrets.md](./secrets.md) | 密钥管理 | 四层模型、1Password 清单、Vault Path |
 | [pipeline.md](./pipeline.md) | 流程汇总 | L1 手动 vs L2+ GitOps、灾备 |
