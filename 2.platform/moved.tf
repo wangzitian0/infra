@@ -12,10 +12,14 @@
 # Phase 1: security → platform (namespace and resource renames)
 # ============================================================
 
-moved {
-  from = kubernetes_namespace.security
-  to   = kubernetes_namespace.platform
-}
+# Note: This moved block is no longer needed since platform namespace
+# is now created in L1 (1.bootstrap/5.platform_pg.tf) as a NEW resource.
+# The old namespace resource in L2 is replaced by a data source.
+#
+# moved {
+#   from = kubernetes_namespace.security
+#   to   = kubernetes_namespace.platform
+# }
 
 # ============================================================
 # Phase 2: kubernetes-dashboard → platform (namespace merge)

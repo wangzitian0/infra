@@ -29,7 +29,7 @@ resource "helm_release" "oauth2_proxy" {
   repository = "https://oauth2-proxy.github.io/manifests"
   chart      = "oauth2-proxy"
   version    = "7.12.7"
-  namespace  = kubernetes_namespace.platform.metadata[0].name
+  namespace  = data.kubernetes_namespace.platform.metadata[0].name
 
   values = [
     yamlencode({
@@ -82,7 +82,7 @@ resource "helm_release" "oauth2_proxy" {
     })
   ]
 
-  depends_on = [kubernetes_namespace.platform]
+  depends_on = [data.kubernetes_namespace.platform]
 }
 
 # Outputs
@@ -124,11 +124,11 @@ resource "kubernetes_manifest" "oauth2_auth_middleware" {
     kind       = "Middleware"
     metadata = {
       name      = "oauth2-proxy-auth"
-      namespace = kubernetes_namespace.platform.metadata[0].name
+      namespace = data.kubernetes_namespace.platform.metadata[0].name
     }
     spec = {
       forwardAuth = {
-        address             = "http://oauth2-proxy.${kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/auth"
+        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/auth"
         trustForwardHeader  = true
         authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email", "X-Auth-Request-Access-Token"]
       }
