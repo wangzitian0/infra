@@ -26,7 +26,7 @@ resource "kubernetes_namespace" "platform" {
 resource "helm_release" "platform_pg" {
   name             = "postgresql"
   namespace        = kubernetes_namespace.platform.metadata[0].name
-  repository       = "https://charts.bitnami.com/bitnami"
+  repository       = "oci://registry-1.docker.io/bitnamicharts"
   chart            = "postgresql"
   version          = "16.3.2"
   create_namespace = false
