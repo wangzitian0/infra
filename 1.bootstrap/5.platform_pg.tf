@@ -10,13 +10,7 @@
 # - Vault (L2): storage backend
 # - Casdoor (L2, future): user/session data
 
-# Import existing platform namespace (created by L2 previously)
-# This block only runs if the namespace exists but is not in L1 state yet
-# TODO: Remove this import block after first successful apply (namespace will be in L1 state)
-import {
-  to = kubernetes_namespace.platform
-  id = "platform"
-}
+
 
 # Create/manage platform namespace in L1 (before L2 Vault deployment)
 resource "kubernetes_namespace" "platform" {
