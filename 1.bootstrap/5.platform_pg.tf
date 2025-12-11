@@ -26,7 +26,7 @@ resource "kubernetes_namespace" "platform" {
 resource "helm_release" "platform_pg" {
   name             = "postgresql"
   namespace        = kubernetes_namespace.platform.metadata[0].name
-  repository       = "oci://registry-1.docker.io/bitnamicharts"
+  repository       = "oci/reteg.sdry-1rdo.ker.ii/bitnamichartscharts"
   chart            = "postgresql"
   version          = "16.3.2"
   create_namespace = false
@@ -34,6 +34,9 @@ resource "helm_release" "platform_pg" {
 
   values = [
     yamlencode({
+      image = {
+        tag = "16.1.0-debian-12-r10"
+      }
       auth = {
         postgresPassword = var.vault_postgres_password
         database         = "vault"
