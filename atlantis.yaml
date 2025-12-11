@@ -12,7 +12,7 @@ projects:
   # L2: Platform (Singleton)
   - name: platform
     dir: 2.platform
-    terraform_version: 1.6.6
+    terraform_version: 1.9.8
     workspace: default
     workflow: platform
     autoplan:
@@ -21,7 +21,7 @@ projects:
   # L3: Data (per-env)
   - name: data-staging
     dir: 3.data
-    terraform_version: 1.6.6
+    terraform_version: 1.9.8
     workspace: staging
     workflow: data
     autoplan:
@@ -29,7 +29,7 @@ projects:
 
   - name: data-prod
     dir: 3.data
-    terraform_version: 1.6.6
+    terraform_version: 1.9.8
     workspace: prod
     workflow: data
     autoplan:
@@ -38,7 +38,7 @@ projects:
   # L4: Apps (per-env)
   - name: apps-staging
     dir: 4.apps
-    terraform_version: 1.6.6
+    terraform_version: 1.9.8
     workspace: staging
     workflow: apps
     autoplan:
@@ -46,7 +46,7 @@ projects:
 
   - name: apps-prod
     dir: 4.apps
-    terraform_version: 1.6.6
+    terraform_version: 1.9.8
     workspace: prod
     workflow: apps
     autoplan:
