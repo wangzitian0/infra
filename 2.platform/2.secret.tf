@@ -1,7 +1,7 @@
-# Vault (Secrets Management) - Phase 1: Deployment Only
+# Vault (Secrets Management) - PostgreSQL Storage Backend
 # Namespace: platform
 # Access: https://secrets.{internal_domain}
-# Storage: Raft integrated storage with PVC (HA enabled)
+# Storage: PostgreSQL (deployed in L1 as Platform PG)
 #
 # MANUAL INIT REQUIRED after first deployment:
 #   kubectl exec -n platform vault-0 -- vault operator init
@@ -19,6 +19,9 @@ data "kubernetes_namespace" "platform" {
 }
 
 locals {
+  # PostgreSQL connection string for Vault storage backend
+  vault_pg_connection = "postgres://postgres:${var.vault_postgres_password}@postgresql.platform.svc.cluster.local:5432/vault?sslmode=disable"
+
   vault_config = <<-EOT
     ui = true
 
@@ -27,15 +30,18 @@ locals {
       tls_disable = "true"
     }
 
-    storage "raft" {
-      path = "/vault/data"
+    storage "postgresql" {
+      connection_url = "${local.vault_pg_connection}"
+      table          = "vault_kv_store"
+      ha_enabled     = true
+      ha_table       = "vault_ha_locks"
     }
 
     service_registration "kubernetes" {}
   EOT
 }
 
-# Helm release for Vault with Raft HA storage
+# Helm release for Vault with PostgreSQL storage backend
 resource "helm_release" "vault" {
   name             = "vault"
   namespace        = data.kubernetes_namespace.platform.metadata[0].name
@@ -43,7 +49,9 @@ resource "helm_release" "vault" {
   chart            = "vault"
   version          = var.vault_chart_version
   create_namespace = false
-  timeout          = 600
+  timeout          = 300
+  wait             = true
+  wait_for_jobs    = true
 
   cleanup_on_fail = true
 
@@ -60,16 +68,15 @@ resource "helm_release" "vault" {
         ha = {
           enabled  = true
           replicas = 1
+          # Raft disabled - using PostgreSQL storage backend
           raft = {
-            enabled   = true
-            setNodeId = true
+            enabled = false
           }
           config = local.vault_config
         }
+        # dataStorage not needed with PostgreSQL backend
         dataStorage = {
-          enabled      = true
-          size         = "1Gi"
-          storageClass = "local-path-retain"
+          enabled = false
         }
         auditStorage = {
           enabled      = true

@@ -37,6 +37,12 @@ variable "vault_image_tag" {
   default     = "1.20.4"
 }
 
+variable "vault_postgres_password" {
+  description = "PostgreSQL password for Vault storage backend (from GitHub Secret via L1)"
+  type        = string
+  sensitive   = true
+}
+
 
 variable "namespaces" {
   description = "Map of namespace names"

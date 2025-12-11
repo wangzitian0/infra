@@ -21,6 +21,12 @@
 #   to   = kubernetes_namespace.platform
 # }
 
+# CRITICAL: kubernetes_namespace.platform is now managed by L1 (1.bootstrap/5.platform_pg.tf)
+# The resource is removed from L2 state via atlantis.yaml workflow step:
+#   terraform state rm kubernetes_namespace.platform
+# This runs automatically before plan/apply to prevent namespace destruction.
+# See PR #125 for migration details.
+
 # ============================================================
 # Phase 2: kubernetes-dashboard → platform (namespace merge)
 # Dashboard resources moved to platform namespace

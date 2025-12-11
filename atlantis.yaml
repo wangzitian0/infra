@@ -67,6 +67,9 @@ workflows:
             EOF
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
+        # Remove namespace from L2 state (now managed by L1)
+        # This is idempotent - will succeed even if resource doesn't exist
+        - run: terraform state rm kubernetes_namespace.platform 2>/dev/null || true
         - plan
     apply:
       steps:
@@ -79,6 +82,9 @@ workflows:
             EOF
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
+        # Remove namespace from L2 state (now managed by L1)
+        # This is idempotent - will succeed even if resource doesn't exist
+        - run: terraform state rm kubernetes_namespace.platform 2>/dev/null || true
         - apply
 
   # L3: Data
