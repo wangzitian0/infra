@@ -21,6 +21,15 @@
 #   to   = kubernetes_namespace.platform
 # }
 
+# CRITICAL: Tell Terraform to forget kubernetes_namespace.platform from L2 state
+# without destroying it. The resource is now managed by L1.
+removed {
+  from = kubernetes_namespace.platform
+  lifecycle {
+    destroy = false
+  }
+}
+
 # ============================================================
 # Phase 2: kubernetes-dashboard → platform (namespace merge)
 # Dashboard resources moved to platform namespace
