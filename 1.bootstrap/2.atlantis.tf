@@ -118,6 +118,14 @@ resource "helm_release" "atlantis" {
             memory = "512Mi"
           }
         }
+
+        # Speed up readiness checks (default periodSeconds=60 is too slow)
+        readinessProbe = {
+          periodSeconds = 10
+        }
+        livenessProbe = {
+          periodSeconds = 10
+        }
       },
       # GitHub App Auth (preferred when configured)
       var.github_app_id != "" ? {
