@@ -71,6 +71,9 @@ resource "helm_release" "atlantis" {
           ingressClassName = "traefik"
           annotations = {
             "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+            # Limit to GitHub Webhook IPs only (security hardening)
+            # See: https://api.github.com/meta
+            "nginx.ingress.kubernetes.io/whitelist-source-range" = "140.82.112.0/20,185.199.108.0/22,192.30.252.0/22"
           }
           hosts = [
             {

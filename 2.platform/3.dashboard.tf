@@ -7,7 +7,7 @@
 resource "kubernetes_service_account" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
-    namespace = kubernetes_namespace.platform.metadata[0].name
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
   }
 }
 
@@ -17,7 +17,7 @@ resource "helm_release" "kubernetes_dashboard" {
   repository = "https://kubernetes.github.io/dashboard/"
   chart      = "kubernetes-dashboard"
   version    = "7.10.0"
-  namespace  = kubernetes_namespace.platform.metadata[0].name
+  namespace  = data.kubernetes_namespace.platform.metadata[0].name
 
   values = [
     yamlencode({
@@ -78,7 +78,7 @@ resource "helm_release" "kubernetes_dashboard" {
   ]
 
   depends_on = [
-    kubernetes_namespace.platform
+    data.kubernetes_namespace.platform
   ]
 }
 
@@ -86,7 +86,7 @@ resource "helm_release" "kubernetes_dashboard" {
 resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
-    namespace = kubernetes_namespace.platform.metadata[0].name
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
     annotations = merge(
       {
         "cert-manager.io/cluster-issuer"           = "letsencrypt-prod"
@@ -96,7 +96,7 @@ resource "kubernetes_ingress_v1" "dashboard" {
       },
       # OAuth2-Proxy protection (requires GitHub login) - only when OAuth is enabled
       local.oauth2_proxy_enabled ? {
-        "traefik.ingress.kubernetes.io/router.middlewares" = "${kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
+        "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
       } : {}
     )
   }
@@ -200,7 +200,7 @@ resource "kubernetes_cluster_role_binding" "dashboard_api_admin" {
   subject {
     kind      = "ServiceAccount"
     name      = "kubernetes-dashboard-api"
-    namespace = kubernetes_namespace.platform.metadata[0].name
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
   }
 
   depends_on = [helm_release.kubernetes_dashboard]
@@ -210,7 +210,7 @@ resource "kubernetes_cluster_role_binding" "dashboard_api_admin" {
 resource "kubernetes_service_account" "dashboard_admin" {
   metadata {
     name      = "dashboard-admin"
-    namespace = kubernetes_namespace.platform.metadata[0].name
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
   }
 
   depends_on = [helm_release.kubernetes_dashboard]
@@ -241,7 +241,7 @@ resource "kubernetes_cluster_role_binding" "dashboard_admin" {
 resource "kubernetes_secret" "dashboard_admin_token" {
   metadata {
     name      = "dashboard-admin-token"
-    namespace = kubernetes_namespace.platform.metadata[0].name
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
     annotations = {
       "kubernetes.io/service-account.name" = kubernetes_service_account.dashboard_admin.metadata[0].name
     }

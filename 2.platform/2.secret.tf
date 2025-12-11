@@ -10,13 +10,11 @@
 #   kubectl exec -n platform vault-0 -- vault operator unseal <key2>
 #   kubectl exec -n platform vault-0 -- vault operator unseal <key3>
 
-# Platform namespace
-resource "kubernetes_namespace" "platform" {
+# Platform namespace (created in L1 by 5.platform_pg.tf)
+# Using data source to reference existing namespace
+data "kubernetes_namespace" "platform" {
   metadata {
     name = "platform"
-    labels = {
-      layer = "L2"
-    }
   }
 }
 
@@ -40,7 +38,7 @@ locals {
 # Helm release for Vault with Raft HA storage
 resource "helm_release" "vault" {
   name             = "vault"
-  namespace        = kubernetes_namespace.platform.metadata[0].name
+  namespace        = data.kubernetes_namespace.platform.metadata[0].name
   repository       = "https://helm.releases.hashicorp.com"
   chart            = "vault"
   version          = var.vault_chart_version
@@ -74,7 +72,9 @@ resource "helm_release" "vault" {
           storageClass = "local-path-retain"
         }
         auditStorage = {
-          enabled = false
+          enabled      = true
+          size         = "1Gi"
+          storageClass = "local-path-retain"
         }
         service = {
           type = "ClusterIP"
@@ -86,14 +86,14 @@ resource "helm_release" "vault" {
     })
   ]
 
-  depends_on = [kubernetes_namespace.platform]
+  depends_on = [data.kubernetes_namespace.platform]
 }
 
 # Ingress for Vault UI/API
 resource "kubernetes_ingress_v1" "vault" {
   metadata {
     name      = "vault-ingress"
-    namespace = kubernetes_namespace.platform.metadata[0].name
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
     annotations = {
       "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
     }
