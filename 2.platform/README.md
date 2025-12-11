@@ -96,6 +96,7 @@ When disabled:
 - **Vault init/unseal**: Manual init/unseal required after deploy; store keys outside Terraform.
 - **PostgreSQL storage**: Uses `local-path-retain` StorageClass (reclaimPolicy=Retain) to keep PV data after PVC deletion.
 - **PostgreSQL upgrades**: `helm_release.postgresql` uses `force_update=true` to allow spec changes (e.g., auth tweaks). Expect pod recreation/downtime during upgrades.
+- **Namespace ownership**: `platform` namespace is created in L1 (`1.bootstrap/5.platform_pg.tf`), not L2. The Atlantis workflow removes stale namespace refs from L2 state automatically.
 
 ### Disaster Recovery
 
@@ -103,4 +104,4 @@ When disabled:
 - **Lost Admin Access**: Recover using stored root token/unseal keys.
 
 ---
-*Last updated: 2025-12-10*
+*Last updated: 2025-12-12*

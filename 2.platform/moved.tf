@@ -21,15 +21,11 @@
 #   to   = kubernetes_namespace.platform
 # }
 
-# CRITICAL: Tell Terraform to forget kubernetes_namespace.platform from L2 state
-# without destroying it. The resource is now managed by L1.
-# (Removed block commented out as it requires TF 1.7+, but we are stuck on 1.6.6)
-# removed {
-#   from = kubernetes_namespace.platform
-#   lifecycle {
-#     destroy = false
-#   }
-# }
+# CRITICAL: kubernetes_namespace.platform is now managed by L1 (1.bootstrap/5.platform_pg.tf)
+# The resource is removed from L2 state via atlantis.yaml workflow step:
+#   terraform state rm kubernetes_namespace.platform
+# This runs automatically before plan/apply to prevent namespace destruction.
+# See PR #125 for migration details.
 
 # ============================================================
 # Phase 2: kubernetes-dashboard → platform (namespace merge)
