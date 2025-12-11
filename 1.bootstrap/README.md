@@ -19,6 +19,7 @@ Managed by **GitHub Actions only** (not Atlantis).
 | `1.k3s.tf` | K3s Cluster | SSH-based VPS bootstrap |
 | `2.atlantis.tf` | Atlantis | GitOps CI/CD for L2-L4 |
 | `3.dns_and_cert.tf` | DNS + Certs | Cloudflare + cert-manager |
+| `5.platform_pg.tf` | Platform PostgreSQL | Trust anchor DB for Vault/Casdoor |
 
 ## Key Files
 
@@ -55,4 +56,4 @@ terraform apply
 | `r2_account_id` | R2 endpoint |
 
 ---
-*Last updated: 2025-12-10*
+*Last updated: 2025-12-12*

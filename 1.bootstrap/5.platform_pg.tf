@@ -34,6 +34,9 @@ resource "helm_release" "platform_pg" {
 
   values = [
     yamlencode({
+      image = {
+        tag = "16.1.0-debian-12-r10"
+      }
       auth = {
         postgresPassword = var.vault_postgres_password
         database         = "vault"
