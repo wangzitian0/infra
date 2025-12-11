@@ -101,7 +101,15 @@ jobs:
       - name: Apply Infrastructure (L1)
         if: github.event_name == 'push'
         working-directory: 1.bootstrap
-        run: terraform apply -auto-approve
+        env:
+          TF_LOG: INFO
+        run: |
+          terraform apply -auto-approve || {
+            echo "::error::L1 Apply failed. Checking pod status..."
+            kubectl get pods -A -o wide 2>/dev/null || true
+            kubectl describe pods -n platform 2>/dev/null | tail -50 || true
+            exit 1
+          }
 
       # =============================================================================
       # L2 Platform Deployment
@@ -151,7 +159,15 @@ jobs:
         working-directory: 2.platform
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: terraform apply -auto-approve
+          TF_LOG: INFO
+        run: |
+          terraform apply -auto-approve || {
+            echo "::error::L2 Apply failed. Checking pod status..."
+            kubectl get pods -n platform -o wide 2>/dev/null || true
+            kubectl describe pods -n platform 2>/dev/null | tail -80 || true
+            kubectl logs -n platform -l app.kubernetes.io/name=vault --tail=30 2>/dev/null || true
+            exit 1
+          }
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4

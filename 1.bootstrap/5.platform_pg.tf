@@ -30,13 +30,13 @@ resource "helm_release" "platform_pg" {
   chart            = "postgresql"
   version          = "16.3.2"
   create_namespace = false
-  timeout          = 600
+  timeout          = 300
+  wait             = true
+  wait_for_jobs    = true
 
   values = [
     yamlencode({
-      image = {
-        tag = "16.1.0-debian-12-r10"
-      }
+      # Use chart default image (Bitnami tags change frequently)
       auth = {
         postgresPassword = var.vault_postgres_password
         database         = "vault"

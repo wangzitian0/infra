@@ -41,7 +41,7 @@ locals {
   EOT
 }
 
-# Helm release for Vault with Raft HA storage
+# Helm release for Vault with PostgreSQL storage backend
 resource "helm_release" "vault" {
   name             = "vault"
   namespace        = data.kubernetes_namespace.platform.metadata[0].name
@@ -49,7 +49,9 @@ resource "helm_release" "vault" {
   chart            = "vault"
   version          = var.vault_chart_version
   create_namespace = false
-  timeout          = 600
+  timeout          = 300
+  wait             = true
+  wait_for_jobs    = true
 
   cleanup_on_fail = true
 
