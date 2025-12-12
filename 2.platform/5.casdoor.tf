@@ -123,10 +123,14 @@ staticBaseUrl = https://cdn.casbin.org
 driverName = postgres
 dataSourceName = user=postgres password=${var.vault_postgres_password} host=postgresql.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=disable
 dbName = casdoor
+
+# Path to init_data.json (mounted via extraVolumes from ConfigMap)
+initDataFile = /init-data/init_data.json
 EOT
 
       # Mount init_data.json ConfigMap via extraVolumes (initData field is NOT supported by Helm chart)
       # This properly mounts the JSON file that Casdoor reads on first startup
+      # Note: We mount to /init-data/ because /conf is managed by the chart's projected volume
       extraVolumes = [
         {
           name = "init-data"
@@ -139,8 +143,7 @@ EOT
       extraVolumeMounts = [
         {
           name      = "init-data"
-          mountPath = "/conf/init_data.json"
-          subPath   = "init_data.json"
+          mountPath = "/init-data"
           readOnly  = true
         }
       ]
