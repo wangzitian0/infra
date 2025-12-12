@@ -22,6 +22,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
 | `5.casdoor.tf` | Casdoor SSO | Unified SSO (OIDC provider, uses `initData` for IaC initialization of org/user/app) |
+| `99.one-auth.tf` | One-Auth Gate | SSO gate switch and preconditions (controlled by `enable_one_auth`) |
 
 ### Secrets Strategy
 
@@ -87,6 +88,7 @@ Terraform does **not** guarantee file order; rollout is controlled by `enable_on
      - `https://secrets.<internal_domain>` (Vault UI loads; init/unseal is separate)
      - `https://kdashboard.<internal_domain>` (Dashboard loads)
      - `https://kcloud.<internal_domain>` (Kubero UI loads)
+     - `https://sso.<internal_domain>` (Casdoor UI loads, when enabled)
 
 2) **Phase B: Enable SSO gate**
    - Set `enable_one_auth=true`
