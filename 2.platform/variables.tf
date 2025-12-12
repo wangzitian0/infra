@@ -110,14 +110,3 @@ variable "casdoor_admin_password" {
   sensitive   = true
   default     = ""
 }
-
-# ============================================================
-# One-Auth (SSO Gate Switch)
-# ============================================================
-
-variable "enable_one_auth" {
-  description = "Enable SSO gate (Traefik middleware) for L2 ingresses; turn on only after verifying base L2 endpoints are reachable."
-  type        = bool
-  default     = false
-  # NOTE: Cross-variable validation (OAuth2-Proxy prerequisites) is in 99.one-auth.tf precondition
-}

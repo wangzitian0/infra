@@ -112,8 +112,9 @@ graph TD
 | Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
 | GitHub OAuth | ⏳ Casdoor UI 中配置 |
 | Vault OIDC | ⏳ 待配置 |
-| Dashboard OIDC | ⏳ 待配置 |
-| OAuth2-Proxy | 🗑️ 待移除 (被 Casdoor 替代) |
+| Dashboard OIDC | ❌ 不支持原生 OIDC，使用 Token 认证 |
+| Kubero OAuth2 | ⏳ 待配置 |
+| OAuth2-Proxy | ✅ 已移除 (被 Casdoor 替代) |
 
 ---
 
