@@ -17,8 +17,8 @@ locals {
   casdoor_domain  = "sso.${local.internal_domain}"
 }
 
-  # Casdoor admin password now comes from 1Password via var.casdoor_admin_password
-  # (GitHub Secret CASDOOR_ADMIN_PASSWORD → TF_VAR_casdoor_admin_password)
+# Casdoor admin password now comes from 1Password via var.casdoor_admin_password
+# (GitHub Secret CASDOOR_ADMIN_PASSWORD → TF_VAR_casdoor_admin_password)
 
 # ConfigMap for Casdoor init_data.json
 # This file is loaded on first startup to initialize organization, user, and application
