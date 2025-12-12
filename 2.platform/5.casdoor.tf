@@ -261,3 +261,4 @@ output "casdoor_admin_password" {
   description = "Casdoor admin password (retrieve with: terraform output -raw casdoor_admin_password)"
   sensitive   = true
 }
+# Trigger deployment 20251213054509
