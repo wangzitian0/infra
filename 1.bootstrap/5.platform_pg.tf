@@ -80,7 +80,7 @@ resource "null_resource" "vault_pg_schema" {
 
   provisioner "local-exec" {
     environment = {
-      KUBECONFIG = var.kubeconfig_path
+      KUBECONFIG = local.kubeconfig_path
     }
     command = <<-EOT
       # Wait for PostgreSQL to be ready
