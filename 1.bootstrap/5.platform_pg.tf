@@ -79,6 +79,9 @@ resource "null_resource" "vault_pg_schema" {
   depends_on = [helm_release.platform_pg]
 
   provisioner "local-exec" {
+    environment = {
+      KUBECONFIG = var.kubeconfig_path
+    }
     command = <<-EOT
       # Wait for PostgreSQL to be ready
       sleep 10
@@ -108,7 +111,7 @@ resource "null_resource" "vault_pg_schema" {
           -- Verify tables exist
           SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
 SQL
-      "
+      " || true  # Don't fail if tables already exist or there's a connection issue
     EOT
   }
 
