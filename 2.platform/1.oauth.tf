@@ -103,8 +103,8 @@ output "oauth2_proxy_url" {
 }
 
 output "oauth2_proxy_auth_url" {
-  value       = local.oauth2_proxy_enabled ? "https://auth.${local.internal_domain}/oauth2/auth" : "Not deployed"
-  description = "URL for Traefik forward-auth"
+  value       = local.oauth2_proxy_enabled ? "https://auth.${local.internal_domain}/" : "Not deployed"
+  description = "URL for Traefik forwardAuth (root path allows redirect into OAuth flow)"
   sensitive   = true
 }
 
@@ -117,7 +117,7 @@ output "oauth2_proxy_auth_url" {
 #     "platform-oauth2-proxy-auth@kubernetescrd"
 # }
 #
-# Or create a Traefik ForwardAuth middleware:
+# Or create a Traefik ForwardAuth middleware (address should be OAuth2-Proxy root "/"):
 # =============================================================
 
 resource "kubernetes_manifest" "oauth2_auth_middleware" {
