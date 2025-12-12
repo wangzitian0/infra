@@ -88,3 +88,14 @@ variable "github_oauth_org" {
   type        = string
   default     = ""
 }
+
+# ============================================================
+# Cloudflare (for Casdoor DNS)
+# ============================================================
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API Token for DNS record management (set via TF_VAR_cloudflare_api_token)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
