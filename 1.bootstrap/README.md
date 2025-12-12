@@ -55,5 +55,11 @@ terraform apply
 | `r2_bucket` | State bucket name |
 | `r2_account_id` | R2 endpoint |
 
+## Chart Repository Migration
+
+- **PostgreSQL Chart**: Migrated to OCI format (`oci://registry-1.docker.io/bitnamicharts`) as of 2025-12-11
+- **Reason**: Bitnami deprecated HTTP chart repository in favor of OCI registry
+- **Image Pin**: `16.1.0-debian-12-r10` (explicit tag to avoid ImagePullBackOff)
+
 ---
-*Last updated: 2025-12-12*
+*Last updated: 2025-12-13*
