@@ -43,7 +43,7 @@ graph LR
 | | ATLANTIS_GH_APP_KEY | `ATLANTIS_GH_APP_KEY` | App 私钥 |
 | `Vault (zitian.party)` | Unseal Key | `VAULT_UNSEAL_KEY` | 解封 |
 | | Root Token | *(不在 GH)* | 管理登录 |
-| `Casdoor Admin` | password | *(代码中)* | SSO 管理 |
+| `Casdoor Admin` | password | `CASDOOR_ADMIN_PASSWORD` | SSO 管理员密码 |
 
 ### 额外 GitHub Secrets（非 1Password 管理）
 
@@ -83,6 +83,24 @@ done
 
 ---
 
+## Casdoor 密码传递链
+
+```mermaid
+graph LR
+    OP[1Password<br/>Casdoor Admin] -->|op + gh secret set| GH[GitHub Secret<br/>CASDOOR_ADMIN_PASSWORD]
+    GH -->|TF_VAR_| L1[L1 var.casdoor_admin_password]
+    L1 -->|Atlantis env| L2[L2 var.casdoor_admin_password]
+    L2 -->|ConfigMap| CM[init_data.json]
+    CM -->|mount /init_data.json| POD[Casdoor Pod]
+    POD -->|启动写入| DB[(PostgreSQL)]
+```
+
+**SSOT**：1Password `Casdoor Admin` 项目的 `password` 字段  
+**同步**：`gh secret set CASDOOR_ADMIN_PASSWORD --body "$(op item get 'Casdoor Admin' ...)"`  
+**传递**：GitHub Secret → L1 TF_VAR → Atlantis env → L2 var → ConfigMap → Pod Mount → DB
+
+---
+
 ## 层级认证模型
 
 | 层级 | 认证方式 | 密钥来源 |
@@ -104,3 +122,5 @@ done
 | GitHub Secrets | ✅ 20 secrets |
 | 1P → GH 同步 | ✅ VAULT_POSTGRES_PASSWORD 已同步 |
 | CI Auto-unseal | ✅ 已实现 |
+| Casdoor init_data.json | ✅ 正确挂载到 /init_data.json |
+

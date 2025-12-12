@@ -101,6 +101,17 @@ variable "cloudflare_api_token" {
 }
 
 # ============================================================
+# Casdoor SSO
+# ============================================================
+
+variable "casdoor_admin_password" {
+  description = "Casdoor admin password (from 1Password via GitHub Secret CASDOOR_ADMIN_PASSWORD)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# ============================================================
 # One-Auth (SSO Gate Switch)
 # ============================================================
 
