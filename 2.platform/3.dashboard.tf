@@ -82,23 +82,16 @@ resource "helm_release" "kubernetes_dashboard" {
   ]
 }
 
-# Ingress for Dashboard (SSO-gated when enable_one_auth=true)
+# Ingress for Dashboard
 resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
     namespace = data.kubernetes_namespace.platform.metadata[0].name
-    annotations = merge(
-      {
-        "cert-manager.io/cluster-issuer"           = "letsencrypt-prod"
-        "traefik.ingress.kubernetes.io/router.tls" = "true"
-        # Backend services are HTTP (8000)
-        "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
-      },
-      # SSO gate - only when explicitly enabled (after manual verification)
-      local.one_auth_enabled ? {
-        "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
-      } : {}
-    )
+    annotations = {
+      "cert-manager.io/cluster-issuer"                      = "letsencrypt-prod"
+      "traefik.ingress.kubernetes.io/router.tls"            = "true"
+      "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
+    }
   }
 
   spec {
@@ -185,7 +178,7 @@ resource "kubernetes_ingress_v1" "dashboard" {
 }
 
 # ClusterRoleBinding for Dashboard API ServiceAccount (created by Helm chart)
-# This allows the dashboard to view/manage cluster resources when OAuth is protecting access
+# This allows the dashboard to view/manage cluster resources
 resource "kubernetes_cluster_role_binding" "dashboard_api_admin" {
   metadata {
     name = "kubernetes-dashboard-api-admin"
@@ -194,7 +187,7 @@ resource "kubernetes_cluster_role_binding" "dashboard_api_admin" {
   role_ref {
     api_group = "rbac.authorization.k8s.io"
     kind      = "ClusterRole"
-    name      = "cluster-admin" # Full access since OAuth2-Proxy controls who can reach the dashboard
+    name      = "cluster-admin" # Full access for dashboard API
   }
 
   subject {
