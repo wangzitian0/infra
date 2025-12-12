@@ -24,6 +24,69 @@ resource "random_password" "casdoor_admin" {
   special = false
 }
 
+# ConfigMap for Casdoor init_data.json
+# This file is loaded on first startup to initialize organization, user, and application
+resource "kubernetes_config_map" "casdoor_init_data" {
+  count = local.casdoor_enabled ? 1 : 0
+
+  metadata {
+    name      = "casdoor-init-data"
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
+  }
+
+  data = {
+    "init_data.json" = jsonencode({
+      organizations = [
+        {
+          owner         = "admin"
+          name          = "built-in"
+          createdTime   = "2025-01-01T00:00:00Z"
+          displayName   = "Built-in Organization"
+          websiteUrl    = "https://${local.casdoor_domain}"
+          favicon       = "https://cdn.casbin.org/img/casbin.svg"
+          passwordType  = "plain"
+          defaultAvatar = "https://cdn.casbin.org/img/casbin.svg"
+          accountItems  = []
+          tags          = []
+          languages     = []
+          mfaItems      = []
+        }
+      ]
+      users = [
+        {
+          owner         = "built-in"
+          name          = "admin"
+          createdTime   = "2025-01-01T00:00:00Z"
+          displayName   = "Admin"
+          type          = "normal-user"
+          password      = random_password.casdoor_admin[0].result
+          passwordType  = "plain"
+          isAdmin       = true
+          isGlobalAdmin = true
+        }
+      ]
+      applications = [
+        {
+          owner          = "admin"
+          name           = "app-built-in"
+          createdTime    = "2025-01-01T00:00:00Z"
+          displayName    = "Built-in Application"
+          organization   = "built-in"
+          clientId       = "casdoor-builtin-app"
+          clientSecret   = random_password.casdoor_admin[0].result
+          redirectUris   = ["https://${local.casdoor_domain}/callback"]
+          enablePassword = true
+          providers      = []
+          signinMethods  = []
+          signupItems    = []
+          grantTypes     = []
+          tags           = []
+        }
+      ]
+    })
+  }
+}
+
 # Casdoor Helm Release
 resource "helm_release" "casdoor" {
   count = local.casdoor_enabled ? 1 : 0
@@ -62,48 +125,25 @@ dataSourceName = user=postgres password=${var.vault_postgres_password} host=post
 dbName = casdoor
 EOT
 
-      # Initial data configuration (IaC pattern - replaces manual setup)
-      # This JSON is mounted as /conf/init_data.json and loaded on first startup
-      initData = jsonencode({
-        organizations = [
-          {
-            owner         = "admin"
-            name          = "built-in"
-            createdTime   = "2025-01-01T00:00:00Z"
-            displayName   = "Built-in Organization"
-            websiteUrl    = "https://${local.casdoor_domain}"
-            favicon       = "https://cdn.casbin.org/img/casbin.svg"
-            passwordType  = "plain"
-            defaultAvatar = "https://cdn.casbin.org/img/casbin.svg"
+      # Mount init_data.json ConfigMap via extraVolumes (initData field is NOT supported by Helm chart)
+      # This properly mounts the JSON file that Casdoor reads on first startup
+      extraVolumes = [
+        {
+          name = "init-data"
+          configMap = {
+            name = kubernetes_config_map.casdoor_init_data[0].metadata[0].name
           }
-        ]
-        users = [
-          {
-            owner         = "built-in"
-            name          = "admin"
-            createdTime   = "2025-01-01T00:00:00Z"
-            displayName   = "Admin"
-            type          = "normal-user"
-            password      = random_password.casdoor_admin[0].result
-            passwordType  = "plain"
-            isAdmin       = true
-            isGlobalAdmin = true
-          }
-        ]
-        applications = [
-          {
-            owner          = "admin"
-            name           = "app-built-in"
-            createdTime    = "2025-01-01T00:00:00Z"
-            displayName    = "Built-in Application"
-            organization   = "built-in"
-            clientId       = "auto-generated"
-            clientSecret   = "auto-generated"
-            redirectUris   = ["https://${local.casdoor_domain}/callback"]
-            enablePassword = true
-          }
-        ]
-      })
+        }
+      ]
+
+      extraVolumeMounts = [
+        {
+          name      = "init-data"
+          mountPath = "/conf/init_data.json"
+          subPath   = "init_data.json"
+          readOnly  = true
+        }
+      ]
 
       service = {
         type = "ClusterIP"
