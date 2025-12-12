@@ -51,13 +51,13 @@ resource "helm_release" "casdoor" {
         sslMode      = "disable"
       }
 
-      # Casdoor application config
-      config = {
-        appname       = "casdoor"
-        httpport      = 8000
-        origin        = "https://${local.casdoor_domain}"
-        staticBaseUrl = "https://cdn.casbin.org"
-      }
+      # Casdoor application config (must be string, not map)
+      config = <<-EOT
+appname = casdoor
+httpport = 8000
+origin = https://${local.casdoor_domain}
+staticBaseUrl = https://cdn.casbin.org
+EOT
 
       service = {
         type = "ClusterIP"
