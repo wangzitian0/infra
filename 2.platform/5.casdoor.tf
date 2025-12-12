@@ -261,3 +261,5 @@ output "casdoor_admin_password" {
   description = "Casdoor admin password (retrieve with: terraform output -raw casdoor_admin_password)"
   sensitive   = true
 }
+
+# TRIGGER_DEPLOYMENT: Force CI to run terraform plan/apply
