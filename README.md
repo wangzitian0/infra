@@ -18,4 +18,4 @@ Documentation guard enforces updating `0.check_now.md` and directory `README.md`
 For detailed CI/CD design philosophy, plan/apply/revert workflows, see [workflows/README.md](./workflows/README.md).
 
 ---
-*Last updated: 2025-12-08*
+*Last updated: 2025-12-12*
