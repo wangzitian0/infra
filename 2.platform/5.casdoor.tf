@@ -69,7 +69,7 @@ EOT
           {
             owner         = "admin"
             name          = "built-in"
-            createdTime   = "2024-01-01T00:00:00Z"
+            createdTime   = "2025-01-01T00:00:00Z"
             displayName   = "Built-in Organization"
             websiteUrl    = "https://${local.casdoor_domain}"
             favicon       = "https://cdn.casbin.org/img/casbin.svg"
@@ -81,7 +81,7 @@ EOT
           {
             owner         = "built-in"
             name          = "admin"
-            createdTime   = "2024-01-01T00:00:00Z"
+            createdTime   = "2025-01-01T00:00:00Z"
             displayName   = "Admin"
             type          = "normal-user"
             password      = random_password.casdoor_admin[0].result
@@ -94,7 +94,7 @@ EOT
           {
             owner          = "admin"
             name           = "app-built-in"
-            createdTime    = "2024-01-01T00:00:00Z"
+            createdTime    = "2025-01-01T00:00:00Z"
             displayName    = "Built-in Application"
             organization   = "built-in"
             clientId       = "auto-generated"
