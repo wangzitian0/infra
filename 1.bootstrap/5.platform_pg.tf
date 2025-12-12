@@ -46,25 +46,8 @@ resource "helm_release" "platform_pg" {
         database         = "vault"
       }
       primary = {
-        # Initialize databases on first startup (IaC pattern - no null_resource needed)
-        initdb = {
-          scripts = {
-            "00-create-databases.sql" = <<-SQL
-              -- Create Casdoor database if not exists (using PL/pgSQL for idempotency)
-              DO $$
-              BEGIN
-                IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'casdoor') THEN
-                  CREATE DATABASE casdoor;
-                END IF;
-              END
-              $$;
-              
-              -- Grant permissions
-              GRANT ALL PRIVILEGES ON DATABASE vault TO postgres;
-              GRANT ALL PRIVILEGES ON DATABASE casdoor TO postgres;
-            SQL
-          }
-        }
+        # NOTE: Additional databases (casdoor) are created by null_resource.casdoor_database
+        # initdb.scripts cannot use CREATE DATABASE (runs inside transaction context)
         persistence = {
           enabled      = true
           storageClass = "local-path-retain"
