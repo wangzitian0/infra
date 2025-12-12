@@ -102,28 +102,31 @@ resource "helm_release" "casdoor" {
     })
   ]
 
-  depends_on = [data.kubernetes_namespace.platform]
+  depends_on = [null_resource.casdoor_database]
 }
 
-# Create Casdoor database in PostgreSQL (L1 already has PostgreSQL running)
-# Note: This requires the database to be created before Casdoor starts
-# The database will be created by a null_resource similar to Vault tables
+# Create Casdoor database in PostgreSQL BEFORE Casdoor starts
+# Database must exist for Casdoor to initialize
 resource "null_resource" "casdoor_database" {
-  count      = local.casdoor_enabled ? 1 : 0
-  depends_on = [helm_release.casdoor]
+  count = local.casdoor_enabled ? 1 : 0
 
   provisioner "local-exec" {
+    environment = {
+      KUBECONFIG = var.kubeconfig_path
+    }
     command = <<-EOT
-      # Create casdoor database if not exists
+      # Create casdoor database if not exists (idempotent)
       kubectl exec -n platform postgresql-0 -- bash -c "
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
+        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
         PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"CREATE DATABASE casdoor\"
-      " || true
+      "
     EOT
   }
 
+  # Only re-run if Casdoor is newly enabled or password changes
   triggers = {
-    always_run = timestamp()
+    casdoor_enabled = local.casdoor_enabled
+    pg_password     = sha256(var.vault_postgres_password)
   }
 }
 
