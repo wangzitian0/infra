@@ -120,6 +120,10 @@ httpport = 8000
 origin = https://${local.casdoor_domain}
 staticBaseUrl = https://cdn.casbin.org
 
+# Required for Beego to parse request body (fixes "unexpected end of JSON input" login bug)
+# Reference: https://github.com/casdoor/casdoor/issues/3224
+copyrequestbody = true
+
 # Database configuration
 driverName = postgres
 dataSourceName = user=postgres password=${var.vault_postgres_password} host=postgresql.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=disable
