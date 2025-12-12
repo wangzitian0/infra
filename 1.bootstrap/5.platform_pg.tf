@@ -46,6 +46,25 @@ resource "helm_release" "platform_pg" {
         database         = "vault"
       }
       primary = {
+        # Initialize databases on first startup (IaC pattern - no null_resource needed)
+        initdb = {
+          scripts = {
+            "00-create-databases.sql" = <<-SQL
+              -- Create Casdoor database if not exists (using PL/pgSQL for idempotency)
+              DO $$
+              BEGIN
+                IF NOT EXISTS (SELECT FROM pg_database WHERE datname = 'casdoor') THEN
+                  CREATE DATABASE casdoor;
+                END IF;
+              END
+              $$;
+              
+              -- Grant permissions
+              GRANT ALL PRIVILEGES ON DATABASE vault TO postgres;
+              GRANT ALL PRIVILEGES ON DATABASE casdoor TO postgres;
+            SQL
+          }
+        }
         persistence = {
           enabled      = true
           storageClass = "local-path-retain"
@@ -121,8 +140,9 @@ SQL
   }
 }
 
-# Casdoor database - separate resource to ensure it runs on first deploy
-# This allows Casdoor to be enabled in L2 without waiting for L1 PostgreSQL changes
+# Casdoor database - idempotent check-then-create pattern
+# Runs on every L1 apply, safe for both new and existing PG deployments
+# initdb.scripts handles NEW PG, this handles EXISTING PG
 resource "null_resource" "casdoor_database" {
   depends_on = [helm_release.platform_pg]
 
@@ -134,7 +154,7 @@ resource "null_resource" "casdoor_database" {
       # Wait for PostgreSQL to be ready
       sleep 10
 
-      # Create Casdoor database if not exists (idempotent)
+      # Idempotent: check if database exists, create if not
       kubectl exec -n platform postgresql-0 -- bash -c "
         PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
         PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"CREATE DATABASE casdoor\"
@@ -142,9 +162,9 @@ resource "null_resource" "casdoor_database" {
     EOT
   }
 
-  # Fixed trigger - runs once, then never again
+  # Re-run when PG release changes (covers helm upgrade scenarios)
   triggers = {
-    casdoor_enabled = "true"
+    pg_release_revision = helm_release.platform_pg.metadata[0].revision
   }
 }
 
