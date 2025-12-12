@@ -24,6 +24,69 @@ resource "random_password" "casdoor_admin" {
   special = false
 }
 
+# ConfigMap for Casdoor init_data.json
+# This file is loaded on first startup to initialize organization, user, and application
+resource "kubernetes_config_map" "casdoor_init_data" {
+  count = local.casdoor_enabled ? 1 : 0
+
+  metadata {
+    name      = "casdoor-init-data"
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
+  }
+
+  data = {
+    "init_data.json" = jsonencode({
+      organizations = [
+        {
+          owner         = "admin"
+          name          = "built-in"
+          createdTime   = "2025-01-01T00:00:00Z"
+          displayName   = "Built-in Organization"
+          websiteUrl    = "https://${local.casdoor_domain}"
+          favicon       = "https://cdn.casbin.org/img/casbin.svg"
+          passwordType  = "plain"
+          defaultAvatar = "https://cdn.casbin.org/img/casbin.svg"
+          accountItems  = []
+          tags          = []
+          languages     = []
+          mfaItems      = []
+        }
+      ]
+      users = [
+        {
+          owner         = "built-in"
+          name          = "admin"
+          createdTime   = "2025-01-01T00:00:00Z"
+          displayName   = "Admin"
+          type          = "normal-user"
+          password      = random_password.casdoor_admin[0].result
+          passwordType  = "plain"
+          isAdmin       = true
+          isGlobalAdmin = true
+        }
+      ]
+      applications = [
+        {
+          owner          = "admin"
+          name           = "app-built-in"
+          createdTime    = "2025-01-01T00:00:00Z"
+          displayName    = "Built-in Application"
+          organization   = "built-in"
+          clientId       = "casdoor-builtin-app"
+          clientSecret   = random_password.casdoor_admin[0].result
+          redirectUris   = ["https://${local.casdoor_domain}/callback"]
+          enablePassword = true
+          providers      = []
+          signinMethods  = []
+          signupItems    = []
+          grantTypes     = []
+          tags           = []
+        }
+      ]
+    })
+  }
+}
+
 # Casdoor Helm Release
 resource "helm_release" "casdoor" {
   count = local.casdoor_enabled ? 1 : 0
@@ -34,7 +97,7 @@ resource "helm_release" "casdoor" {
   version          = "v1.702.0"
   namespace        = data.kubernetes_namespace.platform.metadata[0].name
   create_namespace = false
-  timeout          = 300
+  timeout          = 120
   wait             = true
 
   values = [
@@ -60,50 +123,30 @@ staticBaseUrl = https://cdn.casbin.org
 driverName = postgres
 dataSourceName = user=postgres password=${var.vault_postgres_password} host=postgresql.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=disable
 dbName = casdoor
+
+# Path to init_data.json (mounted via extraVolumes from ConfigMap)
+initDataFile = /init-data/init_data.json
 EOT
 
-      # Initial data configuration (IaC pattern - replaces manual setup)
-      # This JSON is mounted as /conf/init_data.json and loaded on first startup
-      initData = jsonencode({
-        organizations = [
-          {
-            owner         = "admin"
-            name          = "built-in"
-            createdTime   = "2025-01-01T00:00:00Z"
-            displayName   = "Built-in Organization"
-            websiteUrl    = "https://${local.casdoor_domain}"
-            favicon       = "https://cdn.casbin.org/img/casbin.svg"
-            passwordType  = "plain"
-            defaultAvatar = "https://cdn.casbin.org/img/casbin.svg"
+      # Mount init_data.json ConfigMap via extraVolumes (initData field is NOT supported by Helm chart)
+      # This properly mounts the JSON file that Casdoor reads on first startup
+      # Note: We mount to /init-data/ because /conf is managed by the chart's projected volume
+      extraVolumes = [
+        {
+          name = "init-data"
+          configMap = {
+            name = kubernetes_config_map.casdoor_init_data[0].metadata[0].name
           }
-        ]
-        users = [
-          {
-            owner         = "built-in"
-            name          = "admin"
-            createdTime   = "2025-01-01T00:00:00Z"
-            displayName   = "Admin"
-            type          = "normal-user"
-            password      = random_password.casdoor_admin[0].result
-            passwordType  = "plain"
-            isAdmin       = true
-            isGlobalAdmin = true
-          }
-        ]
-        applications = [
-          {
-            owner          = "admin"
-            name           = "app-built-in"
-            createdTime    = "2025-01-01T00:00:00Z"
-            displayName    = "Built-in Application"
-            organization   = "built-in"
-            clientId       = "auto-generated"
-            clientSecret   = "auto-generated"
-            redirectUris   = ["https://${local.casdoor_domain}/callback"]
-            enablePassword = true
-          }
-        ]
-      })
+        }
+      ]
+
+      extraVolumeMounts = [
+        {
+          name      = "init-data"
+          mountPath = "/init-data"
+          readOnly  = true
+        }
+      ]
 
       service = {
         type = "ClusterIP"
@@ -144,6 +187,38 @@ EOT
           cpu    = "100m"
           memory = "128Mi"
         }
+      }
+
+      # Startup probe (Casdoor community recommendation for slow-starting apps)
+      # Allows 120s for DB connection and schema initialization before liveness kicks in
+      startupProbe = {
+        httpGet = {
+          path = "/"
+          port = "http"
+        }
+        failureThreshold = 12
+        periodSeconds    = 10
+        # 12 * 10 = 120s max startup time
+      }
+
+      # Liveness probe (only starts after startupProbe succeeds)
+      livenessProbe = {
+        httpGet = {
+          path = "/"
+          port = "http"
+        }
+        failureThreshold = 3
+        periodSeconds    = 10
+      }
+
+      # Readiness probe
+      readinessProbe = {
+        httpGet = {
+          path = "/"
+          port = "http"
+        }
+        failureThreshold = 3
+        periodSeconds    = 10
       }
     })
   ]

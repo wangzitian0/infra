@@ -30,7 +30,7 @@ resource "helm_release" "platform_pg" {
   chart            = "postgresql"
   version          = "16.3.2"
   create_namespace = false
-  timeout          = 300
+  timeout          = 120
   wait             = true
   wait_for_jobs    = true
 
