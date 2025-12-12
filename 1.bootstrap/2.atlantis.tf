@@ -54,6 +54,8 @@ resource "helm_release" "atlantis" {
           # OAuth2-Proxy (GitHub OAuth for Dashboard protection)
           TF_VAR_github_oauth_client_id     = var.github_oauth_client_id
           TF_VAR_github_oauth_client_secret = var.github_oauth_client_secret
+          # Casdoor SSO
+          TF_VAR_casdoor_admin_password = var.casdoor_admin_password
         }
 
         # Server-side repo config (allows custom workflows)

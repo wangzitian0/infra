@@ -17,13 +17,8 @@ locals {
   casdoor_domain  = "sso.${local.internal_domain}"
 }
 
-# Generate random password for Casdoor admin (stored in TF state, not in code)
-# After deployment, retrieve with: terraform output casdoor_admin_password
-resource "random_password" "casdoor_admin" {
-  count   = local.casdoor_enabled ? 1 : 0
-  length  = 20
-  special = false
-}
+# Casdoor admin password now comes from 1Password via var.casdoor_admin_password
+# (GitHub Secret CASDOOR_ADMIN_PASSWORD → TF_VAR_casdoor_admin_password)
 
 # ConfigMap for Casdoor init_data.json
 # This file is loaded on first startup to initialize organization, user, and application
@@ -60,7 +55,7 @@ resource "kubernetes_config_map" "casdoor_init_data" {
           createdTime   = "2025-01-01T00:00:00Z"
           displayName   = "Admin"
           type          = "normal-user"
-          password      = random_password.casdoor_admin[0].result
+          password      = var.casdoor_admin_password
           passwordType  = "plain"
           isAdmin       = true
           isGlobalAdmin = true
@@ -74,7 +69,7 @@ resource "kubernetes_config_map" "casdoor_init_data" {
           displayName    = "Built-in Application"
           organization   = "built-in"
           clientId       = "casdoor-builtin-app"
-          clientSecret   = random_password.casdoor_admin[0].result
+          clientSecret   = var.casdoor_admin_password
           redirectUris   = ["https://${local.casdoor_domain}/callback"]
           enablePassword = true
           providers      = []
@@ -128,9 +123,6 @@ copyrequestbody = true
 driverName = postgres
 dataSourceName = user=postgres password=${var.vault_postgres_password} host=postgresql.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=disable
 dbName = casdoor
-
-# Path to init_data.json (mounted via extraVolumes from ConfigMap)
-initDataFile = /init-data/init_data.json
 EOT
 
       # Mount init_data.json ConfigMap via extraVolumes (initData field is NOT supported by Helm chart)
@@ -145,10 +137,13 @@ EOT
         }
       ]
 
+      # Mount init_data.json to root directory as file (per Casdoor K8s docs)
+      # Ref: https://casdoor.org/docs/deployment/data-initialization#for-kubernetes
       extraVolumeMounts = [
         {
           name      = "init-data"
-          mountPath = "/init-data"
+          mountPath = "/init_data.json"
+          subPath   = "init_data.json"
           readOnly  = true
         }
       ]
@@ -257,8 +252,8 @@ output "casdoor_url" {
 }
 
 output "casdoor_admin_password" {
-  value       = local.casdoor_enabled ? random_password.casdoor_admin[0].result : null
-  description = "Casdoor admin password (retrieve with: terraform output -raw casdoor_admin_password)"
+  value       = local.casdoor_enabled ? var.casdoor_admin_password : null
+  description = "Casdoor admin password (from 1Password via GitHub Secret)"
   sensitive   = true
 }
 

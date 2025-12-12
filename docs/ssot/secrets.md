@@ -43,7 +43,7 @@ graph LR
 | | ATLANTIS_GH_APP_KEY | `ATLANTIS_GH_APP_KEY` | App 私钥 |
 | `Vault (zitian.party)` | Unseal Key | `VAULT_UNSEAL_KEY` | 解封 |
 | | Root Token | *(不在 GH)* | 管理登录 |
-| `Casdoor Admin` | password | *(代码中)* | SSO 管理 |
+| `Casdoor Admin` | password | `CASDOOR_ADMIN_PASSWORD` | SSO 管理员密码 |
 
 ### 额外 GitHub Secrets（非 1Password 管理）
 
@@ -104,3 +104,5 @@ done
 | GitHub Secrets | ✅ 20 secrets |
 | 1P → GH 同步 | ✅ VAULT_POSTGRES_PASSWORD 已同步 |
 | CI Auto-unseal | ✅ 已实现 |
+| Casdoor init_data.json | ✅ 正确挂载到 /init_data.json |
+
