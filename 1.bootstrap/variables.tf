@@ -289,3 +289,11 @@ variable "casdoor_admin_password" {
   sensitive   = true
   default     = ""
 }
+
+# L3 Vault Access
+variable "vault_root_token" {
+  description = "Vault root token for L3 secret storage (from 1Password via GitHub Secret VAULT_ROOT_TOKEN)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
