@@ -12,7 +12,8 @@
 # 2. Database will be created in same PostgreSQL as Vault
 
 locals {
-  casdoor_enabled = var.github_oauth_client_id != "" && var.github_oauth_client_secret != ""
+  # Use nonsensitive() to avoid tainting downstream outputs as sensitive.
+  casdoor_enabled = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
   casdoor_domain  = "sso.${local.internal_domain}"
 }
 

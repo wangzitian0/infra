@@ -82,7 +82,7 @@ resource "helm_release" "kubernetes_dashboard" {
   ]
 }
 
-# Ingress for Dashboard (Protected by OAuth2-Proxy when enabled)
+# Ingress for Dashboard (SSO-gated when enable_one_auth=true)
 resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
@@ -94,8 +94,8 @@ resource "kubernetes_ingress_v1" "dashboard" {
         # Backend services are HTTP (8000)
         "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
       },
-      # OAuth2-Proxy protection (requires GitHub login) - only when OAuth is enabled
-      local.oauth2_proxy_enabled ? {
+      # SSO gate - only when explicitly enabled (after manual verification)
+      local.one_auth_enabled ? {
         "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
       } : {}
     )

@@ -12,7 +12,8 @@
 
 locals {
   # OAuth2-Proxy is only deployed when GitHub OAuth credentials are provided
-  oauth2_proxy_enabled = var.github_oauth_client_id != "" && var.github_oauth_client_secret != ""
+  # Use nonsensitive() to avoid tainting downstream booleans/outputs as sensitive.
+  oauth2_proxy_enabled = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
 }
 
 resource "random_password" "oauth2_cookie_secret" {
