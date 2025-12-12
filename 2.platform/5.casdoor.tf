@@ -102,32 +102,9 @@ resource "helm_release" "casdoor" {
     })
   ]
 
-  depends_on = [null_resource.casdoor_database]
-}
-
-# Create Casdoor database in PostgreSQL BEFORE Casdoor starts
-# Database must exist for Casdoor to initialize
-resource "null_resource" "casdoor_database" {
-  count = local.casdoor_enabled ? 1 : 0
-
-  provisioner "local-exec" {
-    environment = {
-      KUBECONFIG = var.kubeconfig_path
-    }
-    command = <<-EOT
-      # Create casdoor database if not exists (idempotent)
-      kubectl exec -n platform postgresql-0 -- bash -c "
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"CREATE DATABASE casdoor\"
-      "
-    EOT
-  }
-
-  # Only re-run if Casdoor is newly enabled or password changes
-  triggers = {
-    casdoor_enabled = local.casdoor_enabled
-    pg_password     = sha256(var.vault_postgres_password)
-  }
+  # NOTE: Casdoor database is created by L1 (1.bootstrap/5.platform_pg.tf)
+  # because Atlantis pod doesn't have kubectl. L1 CI runner does.
+  depends_on = [data.kubernetes_namespace.platform]
 }
 
 # DNS Record for Casdoor

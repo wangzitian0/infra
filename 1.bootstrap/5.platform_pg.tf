@@ -72,9 +72,10 @@ resource "helm_release" "platform_pg" {
   depends_on = [kubernetes_namespace.platform]
 }
 
-# Vault PostgreSQL Schema - Required tables for Vault storage backend
-# Uses CREATE TABLE IF NOT EXISTS for idempotency (check-and-set pattern)
+# Vault + Casdoor PostgreSQL Schema
+# Uses CREATE TABLE/DATABASE IF NOT EXISTS for idempotency
 # This ensures fresh deployments get the schema, existing deployments are unaffected
+# NOTE: Must run in L1 (CI runner has kubectl), not L2 (Atlantis pod lacks kubectl)
 resource "null_resource" "vault_pg_schema" {
   depends_on = [helm_release.platform_pg]
 
@@ -85,6 +86,12 @@ resource "null_resource" "vault_pg_schema" {
     command = <<-EOT
       # Wait for PostgreSQL to be ready
       sleep 10
+
+      # Create Casdoor database if not exists (idempotent)
+      kubectl exec -n platform postgresql-0 -- bash -c "
+        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
+        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"CREATE DATABASE casdoor\"
+      " || true
 
       # Create Vault tables if they don't exist (idempotent)
       kubectl exec -n platform postgresql-0 -- bash -c "
@@ -111,7 +118,7 @@ resource "null_resource" "vault_pg_schema" {
           -- Verify tables exist
           SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
 SQL
-      " || true  # Don't fail if tables already exist or there's a connection issue
+      " || true
     EOT
   }
 
