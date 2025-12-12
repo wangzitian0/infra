@@ -108,9 +108,5 @@ variable "enable_one_auth" {
   description = "Enable SSO gate (Traefik middleware) for L2 ingresses; turn on only after verifying base L2 endpoints are reachable."
   type        = bool
   default     = false
-
-  validation {
-    condition     = !var.enable_one_auth || (var.github_oauth_client_id != "" && var.github_oauth_client_secret != "")
-    error_message = "enable_one_auth=true requires github_oauth_client_id/github_oauth_client_secret (OAuth2-Proxy prerequisites)."
-  }
+  # NOTE: Cross-variable validation (OAuth2-Proxy prerequisites) is in 99.one-auth.tf precondition
 }
