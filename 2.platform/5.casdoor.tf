@@ -54,6 +54,49 @@ dataSourceName = user=postgres password=${var.vault_postgres_password} host=post
 dbName = casdoor
 EOT
 
+      # Initial data configuration (IaC pattern - replaces manual setup)
+      # This JSON is mounted as /conf/init_data.json and loaded on first startup
+      initData = jsonencode({
+        organizations = [
+          {
+            owner         = "admin"
+            name          = "built-in"
+            createdTime   = "2024-01-01T00:00:00Z"
+            displayName   = "Built-in Organization"
+            websiteUrl    = "https://${local.casdoor_domain}"
+            favicon       = "https://cdn.casbin.org/img/casbin.svg"
+            passwordType  = "plain"
+            defaultAvatar = "https://cdn.casbin.org/img/casbin.svg"
+          }
+        ]
+        users = [
+          {
+            owner         = "built-in"
+            name          = "admin"
+            createdTime   = "2024-01-01T00:00:00Z"
+            displayName   = "Admin"
+            type          = "normal-user"
+            password      = "FbAdymIDrdJvvUg9HTOt"
+            passwordType  = "plain"
+            isAdmin       = true
+            isGlobalAdmin = true
+          }
+        ]
+        applications = [
+          {
+            owner          = "admin"
+            name           = "app-built-in"
+            createdTime    = "2024-01-01T00:00:00Z"
+            displayName    = "Built-in Application"
+            organization   = "built-in"
+            clientId       = "auto-generated"
+            clientSecret   = "auto-generated"
+            redirectUris   = ["https://${local.casdoor_domain}/callback"]
+            enablePassword = true
+          }
+        ]
+      })
+
       service = {
         type = "ClusterIP"
         port = 8000
