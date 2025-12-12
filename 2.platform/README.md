@@ -21,6 +21,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
+| `5.casdoor.tf` | Casdoor SSO | Unified SSO (OIDC provider for Vault, Dashboard, etc.) |
 
 ### Secrets Strategy
 
@@ -48,6 +49,7 @@ terraform apply
 - **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager
 - **OAuth2-Proxy**: `https://auth.<internal_domain>` (e.g., `auth.zitian.party`) - GitHub OAuth gateway (only when enabled)
 - **Kubero**: `https://kcloud.<internal_domain>` (e.g., `kcloud.zitian.party`) - GitOps PaaS UI
+- **Casdoor**: `https://sso.<internal_domain>` (e.g., `sso.zitian.party`) - Unified SSO (when enabled)
 
 ### Dashboard Authentication
 

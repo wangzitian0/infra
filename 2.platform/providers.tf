@@ -20,3 +20,12 @@ provider "kubectl" {
   load_config_file = var.kubeconfig_path != ""
 }
 
+# Cloudflare provider for DNS records (e.g., Casdoor)
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}
+
+# Cloudflare zone data source for internal domain (used by Casdoor DNS)
+data "cloudflare_zone" "internal" {
+  name = local.internal_domain
+}

@@ -1,60 +1,94 @@
 # 认证与授权 SSOT
 
-> **核心问题**：用户登录各 Portal 的统一入口
+> **一句话**：Casdoor 作为统一 SSO 入口，所有 L2+ 服务通过 OIDC 接入，L1 服务使用独立认证。
 
-## 目标架构：Casdoor SSO
+## 架构
 
+```mermaid
+graph TD
+    subgraph "Identity Providers"
+        GH[GitHub]
+        GOOGLE[Google]
+    end
+
+    subgraph "L2 Platform"
+        CASDOOR[Casdoor SSO<br/>sso.zitian.party]
+    end
+
+    subgraph "Protected Services"
+        VAULT[Vault UI]
+        DASH[K8s Dashboard]
+        KUBERO[Kubero]
+        APPS[L4 Apps]
+    end
+
+    subgraph "L1 Bootstrap (独立认证)"
+        ATLANTIS[Atlantis<br/>Basic Auth]
+        K3S[K3s API<br/>Token]
+    end
+
+    GH -->|OAuth| CASDOOR
+    GOOGLE -->|OAuth| CASDOOR
+    CASDOOR -->|OIDC| VAULT
+    CASDOOR -->|OIDC| DASH
+    CASDOOR -->|OIDC| KUBERO
+    CASDOOR -->|OIDC| APPS
 ```
-                    ┌─────────────────┐
-                    │   GitHub IDP    │
-                    │   Google IDP    │
-                    └────────┬────────┘
-                             │ OIDC
-                             ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Casdoor (L2 Platform)                                      │
-│  - 部署在 platform namespace                                 │
-│  - 连接 L1 Platform PostgreSQL                               │
-│  - 域名: sso.<internal_domain>                               │
-└─────────────────────────────────────────────────────────────┘
-                             │
-          ┌──────────────────┴──────────────────┐
-          ▼                                     ▼
-    ┌──────────────────────────┐    ┌──────────────────────────┐
-    │ L2 服务 (可用 Casdoor)    │    │ L4 应用 (可用 Casdoor)  │
-    │ • Dashboard              │    │ • 业务应用              │
-    │ • Kubero                 │    │ • SigNoz                │
-    │ • Vault UI (OIDC)        │    │ • PostHog               │
-    └──────────────────────────┘    └──────────────────────────┘
 
-    ┌──────────────────────────┐    ┌──────────────────────────┐
-    │ L1 服务 (不能用 Casdoor)  │    │ L3 数据 (无需 Portal)   │
-    │ • Atlantis → Basic Auth  │    │ • PostgreSQL            │
-    │ • K3s API → Token        │    │ • Redis                 │
-    └──────────────────────────┘    └──────────────────────────┘
-```
+## 认证分层
 
-## 服务认证矩阵
+| 层级 | 服务 | 认证方式 | 说明 |
+|------|------|----------|------|
+| **L1** | Atlantis | Basic Auth | ⚠️ 不能依赖 L2 (循环依赖) |
+| **L1** | K3s API | Token | 系统级，不变 |
+| **L2** | Casdoor | GitHub/Google OAuth | SSO 入口 |
+| **L2** | Vault UI | Casdoor OIDC | Vault 原生支持 |
+| **L2** | Dashboard | Casdoor OIDC | 替换当前 OAuth2-Proxy |
+| **L2** | Kubero | Casdoor OIDC | 替换当前无认证 |
+| **L4** | Apps | Casdoor SDK/OIDC | 可选 |
 
-> **规则**：L1 服务无法被 L2 Casdoor 保护（循环依赖），必须使用独立认证。
+## 为什么选 Casdoor？
 
-| 服务 | 层级 | 当前认证 | 目标认证 | 原因 |
-|------|------|----------|----------|------|
-| **Atlantis** | L1 | Basic Auth | **Basic Auth (保持)** | ⚠️ L1 不能用 L2 SSO |
-| **K3s API** | L1 | Token | Token | 系统级，不变 |
-| **K8s Dashboard** | L2 | Token + OAuth2-Proxy | Casdoor SSO | 可以用 L2 |
-| **Vault UI** | L2 | Root Token | Casdoor OIDC | Vault 原生支持 |
-| **Kubero UI** | L2 | 无认证 | Casdoor SSO | 可以用 L2 |
-| **L4 Apps** | L4 | 应用自定义 | Casdoor SDK | 可以用 L2 |
+| 对比 | OAuth2-Proxy | Vault | Casdoor |
+|------|-------------|-------|---------|
+| **真正的 SSO** | ❌ 每个应用独立 session | ❌ 不是 IdP | ✅ 一次登录全部可用 |
+| **OIDC Provider** | ❌ | ⚠️ Enterprise | ✅ 免费 |
+| **用户管理** | ❌ | ⚠️ 弱 | ✅ 完整 |
+| **成本** | 无 | Enterprise $$ | 免费 |
 
-## 当前实现：OAuth2-Proxy
+## 当前状态 vs 目标
 
-当前使用 OAuth2-Proxy + GitHub OAuth 作为过渡方案：
+| 服务 | 当前 | 目标 |
+|------|------|------|
+| Vault | Token 登录 | Casdoor OIDC |
+| Dashboard | OAuth2-Proxy | Casdoor OIDC |
+| Kubero | 无认证 | Casdoor OIDC |
+| OAuth2-Proxy | ✅ 已部署 | 🗑️ 移除 (被 Casdoor 替代) |
 
-- 配置文件: [`2.platform/1.oauth.tf`](../../2.platform/1.oauth.tf)
-- 保护方式: Traefik ForwardAuth middleware
+## 实施步骤
+
+1. **部署 Casdoor** (L2)
+   - 连接 L1 Platform PostgreSQL
+   - 配置 GitHub/Google OAuth
+   - 域名: `sso.zitian.party`
+
+2. **配置 Vault OIDC**
+   ```hcl
+   resource "vault_jwt_auth_backend" "casdoor" {
+     path         = "oidc"
+     type         = "oidc"
+     oidc_discovery_url = "https://sso.zitian.party"
+     oidc_client_id     = var.casdoor_vault_client_id
+     oidc_client_secret = var.casdoor_vault_client_secret
+   }
+   ```
+
+3. **迁移 Dashboard 到 Casdoor**
+
+4. **移除 OAuth2-Proxy**
 
 ## 相关文件
 
-- OAuth2-Proxy: [`2.platform/1.oauth.tf`](../../2.platform/1.oauth.tf)
-- Dashboard: [`2.platform/3.dashboard.tf`](../../2.platform/3.dashboard.tf)
+- [1.oauth.tf](../../2.platform/1.oauth.tf) - OAuth2-Proxy (过渡方案)
+- [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
+- [3.dashboard.tf](../../2.platform/3.dashboard.tf) - Dashboard

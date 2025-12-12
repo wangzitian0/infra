@@ -72,13 +72,16 @@ resource "helm_release" "platform_pg" {
   depends_on = [kubernetes_namespace.platform]
 }
 
-# Vault PostgreSQL Schema - Required tables for Vault storage backend
-# Uses CREATE TABLE IF NOT EXISTS for idempotency (check-and-set pattern)
-# This ensures fresh deployments get the schema, existing deployments are unaffected
+# Vault PostgreSQL Schema
+# Uses CREATE TABLE IF NOT EXISTS for idempotency
+# NOTE: Must run in L1 (CI runner has kubectl), not L2 (Atlantis pod lacks kubectl)
 resource "null_resource" "vault_pg_schema" {
   depends_on = [helm_release.platform_pg]
 
   provisioner "local-exec" {
+    environment = {
+      KUBECONFIG = local.kubeconfig_path
+    }
     command = <<-EOT
       # Wait for PostgreSQL to be ready
       sleep 10
@@ -108,13 +111,40 @@ resource "null_resource" "vault_pg_schema" {
           -- Verify tables exist
           SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
 SQL
-      "
+      " || true
     EOT
   }
 
   # Only re-run if PostgreSQL release changes (new deployment)
   triggers = {
     pg_release_revision = helm_release.platform_pg.metadata[0].revision
+  }
+}
+
+# Casdoor database - separate resource to ensure it runs on first deploy
+# This allows Casdoor to be enabled in L2 without waiting for L1 PostgreSQL changes
+resource "null_resource" "casdoor_database" {
+  depends_on = [helm_release.platform_pg]
+
+  provisioner "local-exec" {
+    environment = {
+      KUBECONFIG = local.kubeconfig_path
+    }
+    command = <<-EOT
+      # Wait for PostgreSQL to be ready
+      sleep 10
+
+      # Create Casdoor database if not exists (idempotent)
+      kubectl exec -n platform postgresql-0 -- bash -c "
+        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
+        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"CREATE DATABASE casdoor\"
+      " || true
+    EOT
+  }
+
+  # Fixed trigger - runs once, then never again
+  triggers = {
+    casdoor_enabled = "true"
   }
 }
 
