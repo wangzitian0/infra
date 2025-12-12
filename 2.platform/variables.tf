@@ -99,9 +99,3 @@ variable "cloudflare_api_token" {
   sensitive   = true
   default     = ""
 }
-
-variable "vps_host" {
-  description = "VPS IP address for DNS A records (set via TF_VAR_vps_host)"
-  type        = string
-  default     = ""
-}
