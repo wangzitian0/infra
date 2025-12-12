@@ -94,7 +94,7 @@ resource "helm_release" "casdoor" {
   name             = "casdoor"
   repository       = "oci://registry-1.docker.io/casbin"
   chart            = "casdoor-helm-charts"
-  version          = "v1.702.0"
+  version          = "v1.570.0"
   namespace        = data.kubernetes_namespace.platform.metadata[0].name
   create_namespace = false
   timeout          = 120
@@ -107,7 +107,7 @@ resource "helm_release" "casdoor" {
       image = {
         repository = "casbin"
         name       = "casdoor"
-        tag        = "v1.702.0"
+        tag        = "v1.570.0"
         pullPolicy = "IfNotPresent"
       }
 
