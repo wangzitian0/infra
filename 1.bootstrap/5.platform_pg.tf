@@ -140,6 +140,34 @@ SQL
   }
 }
 
+# Casdoor database - idempotent check-then-create pattern
+# Runs on every L1 apply, safe for both new and existing PG deployments
+# initdb.scripts handles NEW PG, this handles EXISTING PG
+resource "null_resource" "casdoor_database" {
+  depends_on = [helm_release.platform_pg]
+
+  provisioner "local-exec" {
+    environment = {
+      KUBECONFIG = local.kubeconfig_path
+    }
+    command = <<-EOT
+      # Wait for PostgreSQL to be ready
+      sleep 10
+
+      # Idempotent: check if database exists, create if not
+      kubectl exec -n platform postgresql-0 -- bash -c "
+        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
+        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"CREATE DATABASE casdoor\"
+      " || true
+    EOT
+  }
+
+  # Re-run when PG release changes (covers helm upgrade scenarios)
+  triggers = {
+    pg_release_revision = helm_release.platform_pg.metadata[0].revision
+  }
+}
+
 # Output for L2 to consume
 output "platform_pg_host" {
   value       = "postgresql.platform.svc.cluster.local"
