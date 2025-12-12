@@ -60,6 +60,8 @@ resource "helm_release" "atlantis" {
           TF_VAR_github_oauth_client_secret = var.github_oauth_client_secret
           # Casdoor SSO
           TF_VAR_casdoor_admin_password = var.casdoor_admin_password
+          # L3 Vault access
+          TF_VAR_vault_root_token = var.vault_root_token
         }
 
         # Server-side repo config (allows custom workflows)
