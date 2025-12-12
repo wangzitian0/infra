@@ -40,23 +40,18 @@ resource "helm_release" "casdoor" {
         pullPolicy = "IfNotPresent"
       }
 
-      # Database configuration - use L1 PostgreSQL
-      database = {
-        driver       = "postgres"
-        user         = "postgres"
-        password     = var.vault_postgres_password
-        host         = "postgresql.platform.svc.cluster.local"
-        port         = 5432
-        databaseName = "casdoor"
-        sslMode      = "disable"
-      }
-
-      # Casdoor application config (must be string, not map)
+      # Casdoor app.conf - ALL config must be in this string (INI format)
+      # The helm chart ignores separate "database" map, only uses "config" string
       config = <<-EOT
 appname = casdoor
 httpport = 8000
 origin = https://${local.casdoor_domain}
 staticBaseUrl = https://cdn.casbin.org
+
+# Database configuration
+driverName = postgres
+dataSourceName = user=postgres password=${var.vault_postgres_password} host=postgresql.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=disable
+dbName = casdoor
 EOT
 
       service = {
