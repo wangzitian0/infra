@@ -105,6 +105,8 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 
 OAuth2-Proxy is **only deployed** when both `github_oauth_client_id` and `github_oauth_client_secret` are set.
 
+Implementation note: One-Auth uses Traefik ForwardAuth against OAuth2-Proxy `/` (not `/oauth2/auth`) so unauthenticated requests can be redirected into the OAuth flow.
+
 **Setup (optional)**:
 1. Create GitHub OAuth App: https://github.com/settings/developers
    - Homepage URL: `https://auth.<internal_domain>`

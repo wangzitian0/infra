@@ -47,9 +47,12 @@ resource "helm_release" "oauth2_proxy" {
           cookie-domain        = ".${local.internal_domain}"
           cookie-secure        = "true"
           cookie-samesite      = "lax"
+          upstream             = "static://202"
           set-xauthrequest     = "true"
           reverse-proxy        = "true"
           skip-provider-button = "true"
+          "redirect-url"       = "https://auth.${local.internal_domain}/oauth2/callback"
+          "whitelist-domain"   = ".${local.internal_domain}"
         },
         # Restrict to specific GitHub org (optional)
         var.github_oauth_org != "" ? { "github-org" = var.github_oauth_org } : {}
@@ -129,7 +132,7 @@ resource "kubernetes_manifest" "oauth2_auth_middleware" {
     }
     spec = {
       forwardAuth = {
-        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/auth"
+        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
         trustForwardHeader  = false
         authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
       }
@@ -152,7 +155,7 @@ resource "kubernetes_manifest" "oauth2_auth_middleware_kubero" {
     }
     spec = {
       forwardAuth = {
-        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/auth"
+        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
         trustForwardHeader  = false
         authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
       }
