@@ -20,3 +20,7 @@ provider "kubectl" {
   load_config_file = var.kubeconfig_path != ""
 }
 
+# Cloudflare zone data source for internal domain (used by Casdoor DNS)
+data "cloudflare_zone" "internal" {
+  name = local.internal_domain
+}
