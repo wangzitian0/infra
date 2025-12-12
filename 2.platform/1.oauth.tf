@@ -40,20 +40,20 @@ resource "helm_release" "oauth2_proxy" {
         cookieSecret = random_password.oauth2_cookie_secret[0].result
       }
 
-      extraArgs = {
-        provider                  = "github"
-        email-domain              = "*"
-        cookie-domain             = ".${local.internal_domain}"
-        cookie-secure             = "true"
-        cookie-samesite           = "lax"
-        set-xauthrequest          = "true"
-        reverse-proxy             = "true"
-        pass-access-token         = "true"
-        pass-authorization-header = "true"
-        skip-provider-button      = "true"
+      extraArgs = merge(
+        {
+          provider             = "github"
+          email-domain         = "*"
+          cookie-domain        = ".${local.internal_domain}"
+          cookie-secure        = "true"
+          cookie-samesite      = "lax"
+          set-xauthrequest     = "true"
+          reverse-proxy        = "true"
+          skip-provider-button = "true"
+        },
         # Restrict to specific GitHub org (optional)
-        github-org = var.github_oauth_org
-      }
+        var.github_oauth_org != "" ? { "github-org" = var.github_oauth_org } : {}
+      )
 
       ingress = {
         enabled   = true
@@ -130,11 +130,34 @@ resource "kubernetes_manifest" "oauth2_auth_middleware" {
     spec = {
       forwardAuth = {
         address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/auth"
-        trustForwardHeader  = true
-        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email", "X-Auth-Request-Access-Token"]
+        trustForwardHeader  = false
+        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
       }
     }
   }
 
   depends_on = [helm_release.oauth2_proxy]
+}
+
+# Separate middleware in kubero namespace to avoid relying on Traefik cross-namespace references.
+resource "kubernetes_manifest" "oauth2_auth_middleware_kubero" {
+  count = local.oauth2_proxy_enabled ? 1 : 0
+
+  manifest = {
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "Middleware"
+    metadata = {
+      name      = "oauth2-proxy-auth"
+      namespace = kubernetes_namespace.kubero.metadata[0].name
+    }
+    spec = {
+      forwardAuth = {
+        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/auth"
+        trustForwardHeader  = false
+        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
+      }
+    }
+  }
+
+  depends_on = [helm_release.oauth2_proxy, kubernetes_namespace.kubero]
 }

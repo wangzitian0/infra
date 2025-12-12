@@ -126,7 +126,7 @@ resource "kubectl_manifest" "kubero_instance" {
           },
           # SSO gate - only when explicitly enabled (after manual verification)
           local.one_auth_enabled ? {
-            "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
+            "traefik.ingress.kubernetes.io/router.middlewares" = "${kubernetes_namespace.kubero.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
           } : {}
         )
         hosts = [{

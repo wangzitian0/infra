@@ -23,8 +23,8 @@ resource "terraform_data" "one_auth_precheck" {
     }
 
     precondition {
-      condition     = !var.enable_one_auth || length(kubernetes_manifest.oauth2_auth_middleware) == 1
-      error_message = "enable_one_auth=true requires the Traefik oauth2-proxy middleware to exist."
+      condition     = !var.enable_one_auth || (length(kubernetes_manifest.oauth2_auth_middleware) == 1 && length(kubernetes_manifest.oauth2_auth_middleware_kubero) == 1)
+      error_message = "enable_one_auth=true requires the Traefik oauth2-proxy middleware to exist (platform + kubero namespaces)."
     }
   }
 }
@@ -33,4 +33,3 @@ output "one_auth_enabled" {
   value       = local.one_auth_enabled
   description = "Whether L2 ingress SSO gate is enabled (Traefik middleware)."
 }
-

@@ -75,6 +75,11 @@ Kubernetes Dashboard v7 has two authentication layers:
 
 Terraform does **not** guarantee file order; rollout is controlled by `enable_one_auth`.
 
+**Security notes:**
+- One-Auth only gates Ingress access (Vault/Dashboard/Kubero still have their own auth).
+- GitHub access tokens are **not** forwarded to upstream services (only user/email headers).
+- Strongly recommended: set `github_oauth_org` when enabling the gate; leaving it empty allows **any GitHub user** to pass the gate.
+
 1) **Phase A: Deploy L2 base (no SSO gate)**
    - Set `enable_one_auth=false` (default)
    - `terraform apply`
@@ -121,6 +126,7 @@ When disabled:
 
 - **Lost Vault Pods**: Re-apply helm chart; PostgreSQL data persists in PVC (`/data/local-path-provisioner`). Re-unseal using stored keys.
 - **Lost Admin Access**: Recover using stored root token/unseal keys.
+- **SSO Gate Lockout**: Set `enable_one_auth=false` and re-apply, or use `kubectl port-forward` to reach services directly (bypass Ingress).
 
 ---
 *Last updated: 2025-12-12*
