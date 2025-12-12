@@ -12,7 +12,8 @@
 # 2. Database will be created in same PostgreSQL as Vault
 
 locals {
-  casdoor_enabled = var.github_oauth_client_id != "" && var.github_oauth_client_secret != ""
+  # Use nonsensitive() to avoid tainting downstream outputs as sensitive.
+  casdoor_enabled = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
   casdoor_domain  = "sso.${local.internal_domain}"
 }
 
@@ -156,9 +157,14 @@ EOT
       ingress = {
         enabled   = true
         className = "traefik"
-        annotations = {
-          "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-        }
+        annotations = merge(
+          {
+            "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+          },
+          local.one_auth_enabled ? {
+            "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
+          } : {}
+        )
         hosts = [
           {
             host = local.casdoor_domain

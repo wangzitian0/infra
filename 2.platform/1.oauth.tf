@@ -12,7 +12,8 @@
 
 locals {
   # OAuth2-Proxy is only deployed when GitHub OAuth credentials are provided
-  oauth2_proxy_enabled = var.github_oauth_client_id != "" && var.github_oauth_client_secret != ""
+  # Use nonsensitive() to avoid tainting downstream booleans/outputs as sensitive.
+  oauth2_proxy_enabled = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
 }
 
 resource "random_password" "oauth2_cookie_secret" {
@@ -39,20 +40,23 @@ resource "helm_release" "oauth2_proxy" {
         cookieSecret = random_password.oauth2_cookie_secret[0].result
       }
 
-      extraArgs = {
-        provider                  = "github"
-        email-domain              = "*"
-        cookie-domain             = ".${local.internal_domain}"
-        cookie-secure             = "true"
-        cookie-samesite           = "lax"
-        set-xauthrequest          = "true"
-        reverse-proxy             = "true"
-        pass-access-token         = "true"
-        pass-authorization-header = "true"
-        skip-provider-button      = "true"
+      extraArgs = merge(
+        {
+          provider             = "github"
+          email-domain         = "*"
+          cookie-domain        = ".${local.internal_domain}"
+          cookie-secure        = "true"
+          cookie-samesite      = "lax"
+          upstream             = "static://202"
+          set-xauthrequest     = "true"
+          reverse-proxy        = "true"
+          skip-provider-button = "true"
+          "redirect-url"       = "https://auth.${local.internal_domain}/oauth2/callback"
+          "whitelist-domain"   = ".${local.internal_domain}"
+        },
         # Restrict to specific GitHub org (optional)
-        github-org = var.github_oauth_org
-      }
+        var.github_oauth_org != "" ? { "github-org" = var.github_oauth_org } : {}
+      )
 
       ingress = {
         enabled   = true
@@ -99,8 +103,8 @@ output "oauth2_proxy_url" {
 }
 
 output "oauth2_proxy_auth_url" {
-  value       = local.oauth2_proxy_enabled ? "https://auth.${local.internal_domain}/oauth2/auth" : "Not deployed"
-  description = "URL for Traefik forward-auth"
+  value       = local.oauth2_proxy_enabled ? "https://auth.${local.internal_domain}/" : "Not deployed"
+  description = "URL for Traefik forwardAuth (root path allows redirect into OAuth flow)"
   sensitive   = true
 }
 
@@ -113,7 +117,7 @@ output "oauth2_proxy_auth_url" {
 #     "platform-oauth2-proxy-auth@kubernetescrd"
 # }
 #
-# Or create a Traefik ForwardAuth middleware:
+# Or create a Traefik ForwardAuth middleware (address should be OAuth2-Proxy root "/"):
 # =============================================================
 
 resource "kubernetes_manifest" "oauth2_auth_middleware" {
@@ -128,12 +132,35 @@ resource "kubernetes_manifest" "oauth2_auth_middleware" {
     }
     spec = {
       forwardAuth = {
-        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/auth"
-        trustForwardHeader  = true
-        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email", "X-Auth-Request-Access-Token"]
+        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
+        trustForwardHeader  = false
+        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
       }
     }
   }
 
   depends_on = [helm_release.oauth2_proxy]
+}
+
+# Separate middleware in kubero namespace to avoid relying on Traefik cross-namespace references.
+resource "kubernetes_manifest" "oauth2_auth_middleware_kubero" {
+  count = local.oauth2_proxy_enabled ? 1 : 0
+
+  manifest = {
+    apiVersion = "traefik.io/v1alpha1"
+    kind       = "Middleware"
+    metadata = {
+      name      = "oauth2-proxy-auth"
+      namespace = kubernetes_namespace.kubero.metadata[0].name
+    }
+    spec = {
+      forwardAuth = {
+        address             = "http://oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
+        trustForwardHeader  = false
+        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
+      }
+    }
+  }
+
+  depends_on = [helm_release.oauth2_proxy, kubernetes_namespace.kubero]
 }

@@ -101,9 +101,15 @@ resource "kubernetes_ingress_v1" "vault" {
   metadata {
     name      = "vault-ingress"
     namespace = data.kubernetes_namespace.platform.metadata[0].name
-    annotations = {
-      "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-    }
+    annotations = merge(
+      {
+        "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+      },
+      # SSO gate - only when explicitly enabled (after manual verification)
+      local.one_auth_enabled ? {
+        "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
+      } : {}
+    )
   }
 
   spec {

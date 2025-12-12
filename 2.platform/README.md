@@ -22,6 +22,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
 | `5.casdoor.tf` | Casdoor SSO | Unified SSO (OIDC provider, uses `initData` for IaC initialization of org/user/app) |
+| `99.one-auth.tf` | One-Auth Gate | SSO gate switch and preconditions (controlled by `enable_one_auth`) |
 
 ### Secrets Strategy
 
@@ -55,11 +56,11 @@ terraform apply
 
 Kubernetes Dashboard v7 has two authentication layers:
 
-1. **Access Control (OAuth2-Proxy)**: When enabled, only GitHub-authenticated users can reach the dashboard
+1. **Access Control (One-Auth SSO Gate)**: When `enable_one_auth=true`, only GitHub-authenticated users can reach protected L2 services (Traefik middleware backed by OAuth2-Proxy)
 2. **API Authentication (Token)**: Dashboard still requires a token to authenticate Kubernetes API calls
 
 **To login:**
-1. Navigate to `https://kdashboard.<internal_domain>` - you'll be redirected to GitHub for OAuth (if enabled)
+1. Navigate to `https://kdashboard.<internal_domain>` - you'll be gated by SSO (if enabled)
 2. After OAuth, you'll see the Dashboard login page
 3. Get the admin token:
    ```bash
@@ -70,6 +71,29 @@ Kubernetes Dashboard v7 has two authentication layers:
 **Why two authentication layers?**
 - OAuth2-Proxy controls WHO can access the dashboard (GitHub org members)
 - Token controls WHAT you can do in the cluster (cluster-admin via `dashboard-admin` ServiceAccount)
+
+### One-Auth (Two-Phase Rollout)
+
+Terraform does **not** guarantee file order; rollout is controlled by `enable_one_auth`.
+
+**Security notes:**
+- One-Auth gates Ingress access for all L2 services (Vault/Dashboard/Kubero/Casdoor still have their own app-level auth).
+- GitHub access tokens are **not** forwarded to upstream services (only user/email headers).
+- Strongly recommended: set `github_oauth_org` when enabling the gate; leaving it empty allows **any GitHub user** to pass the gate.
+
+1) **Phase A: Deploy L2 base (no SSO gate)**
+   - Set `enable_one_auth=false` (default)
+   - `terraform apply`
+   - Verify you can reach:
+     - `https://secrets.<internal_domain>` (Vault UI loads; init/unseal is separate)
+     - `https://kdashboard.<internal_domain>` (Dashboard loads)
+     - `https://kcloud.<internal_domain>` (Kubero UI loads)
+     - `https://sso.<internal_domain>` (Casdoor UI loads, when enabled)
+
+2) **Phase B: Enable SSO gate**
+   - Set `enable_one_auth=true`
+   - `terraform apply`
+   - Verify the above endpoints are now SSO-gated.
 
 ### Domain Configuration
 
@@ -83,6 +107,8 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 
 OAuth2-Proxy is **only deployed** when both `github_oauth_client_id` and `github_oauth_client_secret` are set.
 
+Implementation note: One-Auth uses Traefik ForwardAuth against OAuth2-Proxy `/` (not `/oauth2/auth`) so unauthenticated requests can be redirected into the OAuth flow.
+
 **Setup (optional)**:
 1. Create GitHub OAuth App: https://github.com/settings/developers
    - Homepage URL: `https://auth.<internal_domain>`
@@ -90,8 +116,8 @@ OAuth2-Proxy is **only deployed** when both `github_oauth_client_id` and `github
 2. Set `TF_VAR_github_oauth_client_id` and `TF_VAR_github_oauth_client_secret` in L1 bootstrap
 
 When disabled:
-- Dashboard is accessible without OAuth (token auth only)
-- Other services using `oauth2-proxy-auth` middleware will fail (remove the middleware annotation)
+- L2 services are accessible without the SSO gate (token/app auth only)
+- Enabling `enable_one_auth` will fail prechecks
 
 ### Known Issues
 
@@ -104,6 +130,7 @@ When disabled:
 
 - **Lost Vault Pods**: Re-apply helm chart; PostgreSQL data persists in PVC (`/data/local-path-provisioner`). Re-unseal using stored keys.
 - **Lost Admin Access**: Recover using stored root token/unseal keys.
+- **SSO Gate Lockout**: Set `enable_one_auth=false` and re-apply, or use `kubectl port-forward` to reach services directly (bypass Ingress).
 
 ---
-*Last updated: 2025-12-12*
+*Last updated: 2025-12-13*
