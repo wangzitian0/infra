@@ -1,94 +1,124 @@
 # 认证与授权 SSOT
 
-> **一句话**：Casdoor 作为统一 SSO 入口，所有 L2+ 服务通过 OIDC 接入，L1 服务使用独立认证。
+> **一句话**：L1 使用根密钥，L2 支持根密钥+SSO 双认证，L3/L4 完全走 Vault+SSO。
 
-## 架构
+## 分层认证架构
 
 ```mermaid
 graph TD
-    subgraph "Identity Providers"
-        GH[GitHub]
-        GOOGLE[Google]
+    subgraph "认证方式"
+        ROOT[根密钥<br/>1Password]
+        SSO[Casdoor SSO<br/>GitHub/Google OAuth]
+        VAULT_AUTH[Vault Auth<br/>Token/OIDC]
+    end
+
+    subgraph "L1 Bootstrap"
+        L1_ATLANTIS[Atlantis]
+        L1_K3S[K3s API]
     end
 
     subgraph "L2 Platform"
-        CASDOOR[Casdoor SSO<br/>sso.zitian.party]
+        L2_VAULT[Vault UI]
+        L2_DASH[K8s Dashboard]
+        L2_CASDOOR[Casdoor]
     end
 
-    subgraph "Protected Services"
-        VAULT[Vault UI]
-        DASH[K8s Dashboard]
-        KUBERO[Kubero]
-        APPS[L4 Apps]
+    subgraph "L3 Data"
+        L3_PG[PostgreSQL]
+        L3_REDIS[Redis]
     end
 
-    subgraph "L1 Bootstrap (独立认证)"
-        ATLANTIS[Atlantis<br/>Basic Auth]
-        K3S[K3s API<br/>Token]
+    subgraph "L4 Apps"
+        L4_APPS[应用]
     end
 
-    GH -->|OAuth| CASDOOR
-    GOOGLE -->|OAuth| CASDOOR
-    CASDOOR -->|OIDC| VAULT
-    CASDOOR -->|OIDC| DASH
-    CASDOOR -->|OIDC| KUBERO
-    CASDOOR -->|OIDC| APPS
+    ROOT -->|Basic Auth| L1_ATLANTIS
+    ROOT -->|Token| L1_K3S
+    
+    ROOT -->|Root Token| L2_VAULT
+    SSO -->|OIDC| L2_VAULT
+    SSO -->|OIDC| L2_DASH
+    SSO -->|管理| L2_CASDOOR
+
+    VAULT_AUTH --> L3_PG
+    SSO --> L3_PG
+    
+    VAULT_AUTH --> L4_APPS
+    SSO --> L4_APPS
 ```
 
-## 认证分层
+---
+
+## 层级认证策略
 
 | 层级 | 服务 | 认证方式 | 说明 |
 |------|------|----------|------|
-| **L1** | Atlantis | Basic Auth | ⚠️ 不能依赖 L2 (循环依赖) |
-| **L1** | K3s API | Token | 系统级，不变 |
-| **L2** | Casdoor | GitHub/Google OAuth | SSO 入口 |
-| **L2** | Vault UI | Casdoor OIDC | Vault 原生支持 |
-| **L2** | Dashboard | Casdoor OIDC | 替换当前 OAuth2-Proxy |
-| **L2** | Kubero | Casdoor OIDC | 替换当前无认证 |
-| **L4** | Apps | Casdoor SDK/OIDC | 可选 |
+| **L1** | Atlantis | 根密钥 (Basic Auth) | 不能依赖 L2 SSO (循环依赖) |
+| **L1** | K3s API | 根密钥 (Token) | 系统级 |
+| **L2** | Vault | 根密钥 (Root Token) + SSO (OIDC) | **双认证** - 灾难恢复 |
+| **L2** | Dashboard | 根密钥 + SSO (OIDC) | **双认证** - 运维需要 |
+| **L2** | Casdoor | 根密钥 (admin 密码) | SSO 入口本身 |
+| **L3** | PostgreSQL | Vault 动态凭据 | 业务 DB |
+| **L3** | Redis | Vault 动态凭据 | 业务缓存 |
+| **L4** | Apps | Vault + SSO | 业务层完全依赖平台认证 |
 
-## 为什么选 Casdoor？
+---
 
-| 对比 | OAuth2-Proxy | Vault | Casdoor |
-|------|-------------|-------|---------|
-| **真正的 SSO** | ❌ 每个应用独立 session | ❌ 不是 IdP | ✅ 一次登录全部可用 |
-| **OIDC Provider** | ❌ | ⚠️ Enterprise | ✅ 免费 |
-| **用户管理** | ❌ | ⚠️ 弱 | ✅ 完整 |
-| **成本** | 无 | Enterprise $$ | 免费 |
+## 根密钥管理
 
-## 当前状态 vs 目标
+| 服务 | 根密钥位置 | GitHub Secret | 用途 |
+|------|-----------|---------------|------|
+| Atlantis | 1Password `Atlantis` | `ATLANTIS_WEB_PASSWORD` | Web 登录 |
+| K3s | kubeconfig 文件 | *(CI 生成)* | kubectl |
+| Vault | 1Password `Vault (zitian.party)` | `VAULT_UNSEAL_KEY` | 解封/Root 登录 |
+| Casdoor | 1Password `Casdoor Admin` | *(代码中)* | 管理登录 |
 
-| 服务 | 当前 | 目标 |
-|------|------|------|
-| Vault | Token 登录 | Casdoor OIDC |
-| Dashboard | OAuth2-Proxy | Casdoor OIDC |
-| Kubero | 无认证 | Casdoor OIDC |
-| OAuth2-Proxy | ✅ 已部署 | 🗑️ 移除 (被 Casdoor 替代) |
+---
 
-## 实施步骤
+## SSO (Casdoor) 配置
 
-1. **部署 Casdoor** (L2)
-   - 连接 L1 Platform PostgreSQL
-   - 配置 GitHub/Google OAuth
-   - 域名: `sso.zitian.party`
+### Identity Providers
 
-2. **配置 Vault OIDC**
-   ```hcl
-   resource "vault_jwt_auth_backend" "casdoor" {
-     path         = "oidc"
-     type         = "oidc"
-     oidc_discovery_url = "https://sso.zitian.party"
-     oidc_client_id     = var.casdoor_vault_client_id
-     oidc_client_secret = var.casdoor_vault_client_secret
-   }
-   ```
+| Provider | 用途 | 状态 |
+|----------|------|------|
+| GitHub | 开发者登录 | ⏳ 待配置 |
+| Google | 备用登录 | ⏳ 待配置 |
 
-3. **迁移 Dashboard 到 Casdoor**
+### OIDC Clients (待创建)
 
-4. **移除 OAuth2-Proxy**
+| 应用 | Client ID | Redirect URI |
+|------|-----------|--------------|
+| Vault | `vault-oidc` | `https://vault.zitian.party/ui/vault/auth/oidc/oidc/callback` |
+| Dashboard | `dashboard-oidc` | `https://dash.zitian.party/oauth2/callback` |
+| Kubero | `kubero-oidc` | `https://kubero.zitian.party/auth/callback` |
+
+---
+
+## 认证凭据存储对照
+
+| 凭据类型 | 存储位置 | 访问方式 |
+|----------|----------|----------|
+| 根密钥 | 1Password | `op` CLI 本地 |
+| CI 密钥 | GitHub Secrets | `${{ secrets.* }}` |
+| 运行时密钥 | Vault | Kubernetes SA |
+| 用户凭据 | Casdoor DB | OIDC Token |
+
+---
+
+## 实施状态
+
+| 组件 | 状态 |
+|------|------|
+| Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
+| GitHub OAuth | ⏳ Casdoor UI 中配置 |
+| Vault OIDC | ⏳ 待配置 |
+| Dashboard OIDC | ⏳ 待配置 |
+| OAuth2-Proxy | 🗑️ 待移除 (被 Casdoor 替代) |
+
+---
 
 ## 相关文件
 
-- [1.oauth.tf](../../2.platform/1.oauth.tf) - OAuth2-Proxy (过渡方案)
+- [secrets.md](secrets.md) - 密钥管理 SSOT
+- [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor 部署
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
-- [3.dashboard.tf](../../2.platform/3.dashboard.tf) - Dashboard

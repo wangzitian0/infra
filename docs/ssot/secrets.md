@@ -1,90 +1,98 @@
 # 密钥管理 SSOT
 
-> **一句话**：根密钥存 1Password（人类备份），同步到 GitHub Secrets（CI 可读），GitHub Actions 部署完自动 unseal。
+> **一句话**：所有密钥的 Single Source of Truth 在 1Password，GitHub Secrets 是部署副本，可随时从 1Password 恢复。
 
-## 架构
+## 信息流架构
 
 ```mermaid
 graph LR
-    OP[1Password<br/>本地备份] -->|人工同步| GH[GitHub Secrets]
-    GH -->|CI 读取| GA[GitHub Actions]
-    GA -->|kubectl exec| VAULT[Vault]
+    OP[1Password<br/>my_cloud vault] -->|"op item get + gh secret set"| GH[GitHub Secrets]
+    GH -->|"${{ secrets.* }}"| CI[GitHub Actions]
+    CI -->|TF_VAR_*| TF[Terraform]
+    TF -->|Helm values| K8S[Kubernetes]
+    K8S -->|运行时| VAULT[Vault]
 ```
 
-## 信任层次
-
-| 层级 | 存储 | 可访问性 | 用途 |
-|------|------|---------|------|
-| **人类备份** | 1Password | 本地 `op` CLI | 灾难恢复 |
-| **CI 可读** | GitHub Secrets | Actions Runner | 自动化 |
-| **运行时** | Vault | K8s 内部 | 业务密钥 |
-
----
-
-## 密钥同步流程
-
-### 首次初始化（本地执行）
-```bash
-# 1. Vault init（通过 SSH）
-INIT=$(ssh root@VPS "kubectl exec vault-0 -n platform -- vault operator init -format=json")
-
-# 2. 写入 1Password（本地备份）
-op item create --vault=my_cloud --title="Vault" \
-  "Unseal Key=$(echo $INIT | jq -r '.unseal_keys_b64[0]')" \
-  "Root Token=$(echo $INIT | jq -r '.root_token')"
-
-# 3. 同步到 GitHub Secrets（CI 可读）
-gh secret set VAULT_UNSEAL_KEY --body "$(echo $INIT | jq -r '.unseal_keys_b64[0]')"
-```
-
-### 后续部署（CI 自动）
-```yaml
-# deploy-k3s.yml (PR #135)
-- name: Auto-unseal Vault
-  run: |
-    if kubectl exec vault-0 -- vault status | grep "Sealed.*true"; then
-      kubectl exec vault-0 -- vault operator unseal "$VAULT_UNSEAL_KEY"
-    fi
-```
+**灾难恢复**：GitHub Secrets 丢失 → 从 1Password 恢复所有值
 
 ---
 
 ## 密钥清单
 
-### GitHub Secrets（CI 用）
+### 1Password → GitHub Secrets 映射
 
-| Secret | 用途 | 来源 |
+| 1Password 项目 | 字段 | GitHub Secret | 用途 |
+|----------------|------|---------------|------|
+| `Cloudflare API` | BASE_DOMAIN | `BASE_DOMAIN` | 主域名 |
+| | CLOUDFLARE_ZONE_ID | `CLOUDFLARE_ZONE_ID` | 主 Zone |
+| | INTERNAL_DOMAIN | `INTERNAL_DOMAIN` | 内部域名 |
+| | INTERNAL_ZONE_ID | `INTERNAL_ZONE_ID` | 内部 Zone |
+| | CLOUDFLARE_API_TOKEN | `CLOUDFLARE_API_TOKEN` | DNS 管理 |
+| `R2 Backend (AWS)` | R2_BUCKET | `R2_BUCKET` | TF State |
+| | R2_ACCOUNT_ID | `R2_ACCOUNT_ID` | R2 账户 |
+| | AWS_ACCESS_KEY_ID | `AWS_ACCESS_KEY_ID` | R2 认证 |
+| | AWS_SECRET_ACCESS_KEY | `AWS_SECRET_ACCESS_KEY` | R2 认证 |
+| `VPS SSH` | VPS_HOST | `VPS_HOST` | VPS IP |
+| | VPS_SSH_KEY | `VPS_SSH_KEY` | SSH 私钥 |
+| `PostgreSQL (Platform)` | VAULT_POSTGRES_PASSWORD | `VAULT_POSTGRES_PASSWORD` | PG 密码 |
+| `GitHub OAuth` | GH_OAUTH_CLIENT_ID | `GH_OAUTH_CLIENT_ID` | OAuth |
+| | GH_OAUTH_CLIENT_SECRET | `GH_OAUTH_CLIENT_SECRET` | OAuth |
+| `Atlantis` | ATLANTIS_WEBHOOK_SECRET | `ATLANTIS_WEBHOOK_SECRET` | Webhook |
+| | ATLANTIS_WEB_PASSWORD | `ATLANTIS_WEB_PASSWORD` | Web 密码 |
+| | ATLANTIS_GH_APP_ID | `ATLANTIS_GH_APP_ID` | App ID |
+| | ATLANTIS_GH_APP_KEY | `ATLANTIS_GH_APP_KEY` | App 私钥 |
+| `Vault (zitian.party)` | Unseal Key | `VAULT_UNSEAL_KEY` | 解封 |
+| | Root Token | *(不在 GH)* | 管理登录 |
+| `Casdoor Admin` | password | *(代码中)* | SSO 管理 |
+
+### 额外 GitHub Secrets（非 1Password 管理）
+
+| Secret | 用途 | 备注 |
 |--------|------|------|
-| `VPS_SSH_KEY` | SSH 登录 | 手动生成 |
-| `R2_ACCESS_KEY` | TF State | Cloudflare |
-| `CLOUDFLARE_API_TOKEN` | DNS | Cloudflare |
-| `VAULT_POSTGRES_PASSWORD` | PG 密码 | 手动设置 |
-| `VAULT_UNSEAL_KEY` | Vault 解封 | vault init |
-
-### Vault Secrets（运行时 SSOT，L2+）
-
-| Secret | 用途 | 消费者 | 存储 |
-|--------|------|--------|------|
-| `OPENROUTER_API_KEY` | OpenRouter LLM 调用 | L4 Apps | Vault KV |
-| *(其他应用/DB 密钥)* | 业务侧 | L3/L4 | Vault KV（按需扩展动态凭据） |
-
-### 1Password（人类备份）
-
-| Item | 内容 |
-|------|------|
-| `Vault (zitian.party)` | unseal_key, root_token, URL |
-| `Cloudflare API` | API Token |
-| `VPS SSH` | Private Key |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code 集成 | 单独管理 |
 
 ---
 
-## 自动化行为
+## 同步命令
 
-| 触发 | 行为 |
-|------|------|
-| `git push main` | L1 → L2 部署 → 检查 Vault → 自动 unseal |
-| Pod 重启 | 下次 CI 运行时自动 unseal |
-| 手动 unseal | `/vault-unseal` workflow (本地) |
+### 从 1Password 恢复 GitHub Secret
+
+```bash
+# 示例：恢复 VAULT_POSTGRES_PASSWORD
+gh secret set VAULT_POSTGRES_PASSWORD \
+  --body "$(op item get 'PostgreSQL (Platform)' --vault my_cloud --fields VAULT_POSTGRES_PASSWORD --reveal)"
+
+# 示例：恢复 VPS_SSH_KEY
+gh secret set VPS_SSH_KEY \
+  --body "$(op item get 'VPS SSH' --vault my_cloud --fields VPS_SSH_KEY --reveal)"
+```
+
+### 批量恢复（灾难恢复）
+
+```bash
+# Cloudflare
+for f in BASE_DOMAIN CLOUDFLARE_ZONE_ID INTERNAL_DOMAIN INTERNAL_ZONE_ID CLOUDFLARE_API_TOKEN; do
+  gh secret set $f --body "$(op item get 'Cloudflare API' --vault my_cloud --fields $f --reveal)"
+done
+
+# R2/AWS
+for f in R2_BUCKET R2_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+  gh secret set $f --body "$(op item get 'R2 Backend (AWS)' --vault my_cloud --fields $f --reveal)"
+done
+```
+
+---
+
+## 层级认证模型
+
+| 层级 | 认证方式 | 密钥来源 |
+|------|----------|----------|
+| **L1 Bootstrap** | 根密钥 (SSH + Vault Root Token) | 1Password 直接 |
+| **L2 Platform** | 根密钥 + SSO (Casdoor OIDC) | GitHub Secrets → TF |
+| **L3 Data** | Vault + SSO | Vault KV |
+| **L4 Apps** | Vault + SSO | Vault 动态凭据 |
+
+详见 [auth.md](auth.md)
 
 ---
 
@@ -92,6 +100,7 @@ gh secret set VAULT_UNSEAL_KEY --body "$(echo $INIT | jq -r '.unseal_keys_b64[0]
 
 | 组件 | 状态 |
 |------|------|
-| 1Password 备份 | ✅ `Vault (zitian.party)` |
-| GitHub Secret | ✅ `VAULT_UNSEAL_KEY` |
-| CI Auto-unseal | ⏳ PR #135 待合并 |
+| 1Password SSOT | ✅ 9 项目，20+ 字段 |
+| GitHub Secrets | ✅ 20 secrets |
+| 1P → GH 同步 | ✅ VAULT_POSTGRES_PASSWORD 已同步 |
+| CI Auto-unseal | ✅ 已实现 |
