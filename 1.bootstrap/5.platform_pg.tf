@@ -72,6 +72,52 @@ resource "helm_release" "platform_pg" {
   depends_on = [kubernetes_namespace.platform]
 }
 
+# Vault PostgreSQL Schema - Required tables for Vault storage backend
+# Uses CREATE TABLE IF NOT EXISTS for idempotency (check-and-set pattern)
+# This ensures fresh deployments get the schema, existing deployments are unaffected
+resource "null_resource" "vault_pg_schema" {
+  depends_on = [helm_release.platform_pg]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Wait for PostgreSQL to be ready
+      sleep 10
+
+      # Create Vault tables if they don't exist (idempotent)
+      kubectl exec -n platform postgresql-0 -- bash -c "
+        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -d vault <<SQL
+          -- Vault KV store table
+          CREATE TABLE IF NOT EXISTS vault_kv_store (
+            parent_path TEXT COLLATE \"C\" NOT NULL,
+            path        TEXT COLLATE \"C\",
+            key         TEXT COLLATE \"C\",
+            value       BYTEA,
+            CONSTRAINT pkey PRIMARY KEY (path, key)
+          );
+          CREATE INDEX IF NOT EXISTS parent_path_idx ON vault_kv_store (parent_path);
+
+          -- Vault HA locks table
+          CREATE TABLE IF NOT EXISTS vault_ha_locks (
+            ha_key      TEXT COLLATE \"C\" NOT NULL,
+            ha_identity TEXT COLLATE \"C\" NOT NULL,
+            ha_value    TEXT COLLATE \"C\",
+            valid_until TIMESTAMP WITH TIME ZONE NOT NULL,
+            CONSTRAINT ha_key PRIMARY KEY (ha_key)
+          );
+
+          -- Verify tables exist
+          SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
+SQL
+      "
+    EOT
+  }
+
+  # Only re-run if PostgreSQL release changes (new deployment)
+  triggers = {
+    pg_release_revision = helm_release.platform_pg.metadata[0].revision
+  }
+}
+
 # Output for L2 to consume
 output "platform_pg_host" {
   value       = "postgresql.platform.svc.cluster.local"
