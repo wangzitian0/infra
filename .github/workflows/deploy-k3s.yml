@@ -169,6 +169,36 @@ jobs:
             exit 1
           }
 
+      # Auto-unseal Vault after L2 deployment
+      # Vault starts sealed after every pod restart, this ensures CI keeps it running
+      - name: Auto-unseal Vault
+        if: github.event_name == 'push'
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          VAULT_UNSEAL_KEY: ${{ secrets.VAULT_UNSEAL_KEY }}
+        run: |
+          echo "Checking Vault seal status..."
+          # Wait for Vault pod to be running
+          for i in {1..30}; do
+            if kubectl get pod vault-0 -n platform -o jsonpath='{.status.phase}' 2>/dev/null | grep -q "Running"; then
+              break
+            fi
+            echo "Waiting for Vault pod... ($i/30)"
+            sleep 5
+          done
+
+          # Check if sealed and unseal if needed
+          if kubectl exec -n platform vault-0 -- vault status 2>/dev/null | grep -q "Sealed.*true"; then
+            echo "Vault is sealed, unsealing..."
+            kubectl exec -n platform vault-0 -- vault operator unseal "$VAULT_UNSEAL_KEY"
+            echo "Vault unsealed successfully"
+          else
+            echo "Vault is already unsealed or not initialized"
+          fi
+
+          # Show final status
+          kubectl exec -n platform vault-0 -- vault status || true
+
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
