@@ -128,9 +128,6 @@ copyrequestbody = true
 driverName = postgres
 dataSourceName = user=postgres password=${var.vault_postgres_password} host=postgresql.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=disable
 dbName = casdoor
-
-# Path to init_data.json (mounted via extraVolumes from ConfigMap)
-initDataFile = /init-data/init_data.json
 EOT
 
       # Mount init_data.json ConfigMap via extraVolumes (initData field is NOT supported by Helm chart)
@@ -145,10 +142,13 @@ EOT
         }
       ]
 
+      # Mount init_data.json to root directory as file (per Casdoor K8s docs)
+      # Ref: https://casdoor.org/docs/deployment/data-initialization#for-kubernetes
       extraVolumeMounts = [
         {
           name      = "init-data"
-          mountPath = "/init-data"
+          mountPath = "/init_data.json"
+          subPath   = "init_data.json"
           readOnly  = true
         }
       ]
