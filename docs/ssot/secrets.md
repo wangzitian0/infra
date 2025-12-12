@@ -61,6 +61,13 @@ gh secret set VAULT_UNSEAL_KEY --body "$(echo $INIT | jq -r '.unseal_keys_b64[0]
 | `VAULT_POSTGRES_PASSWORD` | PG 密码 | 手动设置 |
 | `VAULT_UNSEAL_KEY` | Vault 解封 | vault init |
 
+### Vault Secrets（运行时 SSOT，L2+）
+
+| Secret | 用途 | 消费者 | 存储 |
+|--------|------|--------|------|
+| `OPENROUTER_API_KEY` | OpenRouter LLM 调用 | L4 Apps | Vault KV |
+| *(其他应用/DB 密钥)* | 业务侧 | L3/L4 | Vault KV（按需扩展动态凭据） |
+
 ### 1Password（人类备份）
 
 | Item | 内容 |

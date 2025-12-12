@@ -11,11 +11,15 @@
 | [dir.md](./dir.md) | 项目结构 | 目录树、Layer 定义、Namespace 注册 |
 | [k3s.md](./k3s.md) | 集群与 PaaS | K3s、StorageClass、Kubero、Namespace 规范 |
 | [vars.md](./vars.md) | 非密钥变量 | TF_VAR 列表、默认值、Feature Flags |
-| [secrets.md](./secrets.md) | 密钥管理 | 四层模型、1Password 清单、Vault Path |
+| [secrets.md](./secrets.md) | 密钥管理 | 四层模型、1Password 清单、Vault（SSOT） |
 | [pipeline.md](./pipeline.md) | 流程汇总 | L1 手动 vs L2+ GitOps、灾备 |
 | [db.md](./db.md) | 数据库分布 | Platform PG (L1) vs Business DBs (L3) |
 | [auth.md](./auth.md) | 统一认证 | Casdoor SSO、服务接入矩阵 |
 | [network.md](./network.md) | 域名规则 | Internal vs Env 模式 |
+| [observability.md](./observability.md) | 日志与监控 | SigNoz、OTel、数据保留 |
+| [alerting.md](./alerting.md) | 告警 | 规则分级、通知通道、值班策略 |
+| [storage.md](./storage.md) | 存储与文件系统 | /data、StorageClass、R2 备份与同步 |
+| [ai.md](./ai.md) | AI 接入 | OpenRouter、变量/密钥、注入方式 |
 
 ## 层级架构
 
