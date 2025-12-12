@@ -188,6 +188,38 @@ EOT
           memory = "128Mi"
         }
       }
+
+      # Startup probe (Casdoor community recommendation for slow-starting apps)
+      # Allows 120s for DB connection and schema initialization before liveness kicks in
+      startupProbe = {
+        httpGet = {
+          path = "/"
+          port = "http"
+        }
+        failureThreshold = 12
+        periodSeconds    = 10
+        # 12 * 10 = 120s max startup time
+      }
+
+      # Liveness probe (only starts after startupProbe succeeds)
+      livenessProbe = {
+        httpGet = {
+          path = "/"
+          port = "http"
+        }
+        failureThreshold = 3
+        periodSeconds    = 10
+      }
+
+      # Readiness probe
+      readinessProbe = {
+        httpGet = {
+          path = "/"
+          port = "http"
+        }
+        failureThreshold = 3
+        periodSeconds    = 10
+      }
     })
   ]
 
