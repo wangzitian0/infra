@@ -16,6 +16,14 @@ locals {
   casdoor_domain  = "sso.${local.internal_domain}"
 }
 
+# Generate random password for Casdoor admin (stored in TF state, not in code)
+# After deployment, retrieve with: terraform output casdoor_admin_password
+resource "random_password" "casdoor_admin" {
+  count   = local.casdoor_enabled ? 1 : 0
+  length  = 20
+  special = false
+}
+
 # Casdoor Helm Release
 resource "helm_release" "casdoor" {
   count = local.casdoor_enabled ? 1 : 0
@@ -76,7 +84,7 @@ EOT
             createdTime   = "2024-01-01T00:00:00Z"
             displayName   = "Admin"
             type          = "normal-user"
-            password      = "FbAdymIDrdJvvUg9HTOt"
+            password      = random_password.casdoor_admin[0].result
             passwordType  = "plain"
             isAdmin       = true
             isGlobalAdmin = true
@@ -161,4 +169,10 @@ resource "cloudflare_record" "casdoor" {
 output "casdoor_url" {
   value       = local.casdoor_enabled ? "https://${local.casdoor_domain}" : "Casdoor not enabled (missing OAuth credentials)"
   description = "Casdoor SSO URL"
+}
+
+output "casdoor_admin_password" {
+  value       = local.casdoor_enabled ? random_password.casdoor_admin[0].result : null
+  description = "Casdoor admin password (retrieve with: terraform output -raw casdoor_admin_password)"
+  sensitive   = true
 }

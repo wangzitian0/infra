@@ -21,7 +21,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
-| `5.casdoor.tf` | Casdoor SSO | Unified SSO (OIDC provider for Vault, Dashboard, etc.) |
+| `5.casdoor.tf` | Casdoor SSO | Unified SSO (OIDC provider, uses `initData` for IaC initialization of org/user/app) |
 
 ### Secrets Strategy
 
