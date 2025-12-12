@@ -157,9 +157,14 @@ EOT
       ingress = {
         enabled   = true
         className = "traefik"
-        annotations = {
-          "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-        }
+        annotations = merge(
+          {
+            "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+          },
+          local.one_auth_enabled ? {
+            "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-oauth2-proxy-auth@kubernetescrd"
+          } : {}
+        )
         hosts = [
           {
             host = local.casdoor_domain
