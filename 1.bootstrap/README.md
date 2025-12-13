@@ -55,6 +55,17 @@ terraform apply
 | `r2_bucket` | State bucket name |
 | `r2_account_id` | R2 endpoint |
 
+## Atlantis TF_VAR Passthrough
+
+L1 Atlantis passes the following variables to L2/L3:
+
+| TF_VAR | Purpose | Source |
+|--------|---------|--------|
+| `vault_root_token` | Vault access for L2 database engine config | 1Password → GitHub Secret |
+| `casdoor_admin_password` | Casdoor SSO admin | 1Password → GitHub Secret |
+| `github_oauth_client_id` | OAuth2-Proxy | GitHub OAuth App |
+| `github_oauth_client_secret` | OAuth2-Proxy | GitHub OAuth App |
+
 ## Chart Repository Migration
 
 - **PostgreSQL Chart**: Migrated to OCI format (`oci://registry-1.docker.io/bitnamicharts`) as of 2025-12-11
