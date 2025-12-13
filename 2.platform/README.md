@@ -58,7 +58,7 @@ L2 services use **app-level authentication** (no unified ingress gate):
 | **Vault** | Token / OIDC (planned) | Manual init/unseal required; OIDC via Casdoor (future) |
 | **Dashboard** | Token | Get token: `kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' \| base64 -d` |
 | **Kubero** | Session / OAuth2 (planned) | OAuth2 via Casdoor (future) |
-| **Casdoor** | Admin password | SSO provider itself; admin password from `terraform output -raw casdoor_admin_password` |
+| **Casdoor** | Admin password | SSO provider itself; admin password from **1Password → GitHub Secret `CASDOOR_ADMIN_PASSWORD` → `TF_VAR_casdoor_admin_password`** (Terraform outputs exist but are not the SSOT) |
 
 See [docs/ssot/auth.md](../docs/ssot/auth.md) for the full authentication architecture.
 
