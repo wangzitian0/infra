@@ -88,6 +88,10 @@ inputs:
     description: "GitHub OAuth App Client Secret for OAuth2-Proxy (optional)"
     required: false
     default: ""
+  vault_root_token:
+    description: "Vault root token for L3 secret storage (from 1Password via GitHub Secret VAULT_ROOT_TOKEN)"
+    required: false
+    default: ""
   tf_state_key:
     description: "Terraform state file key in R2 bucket"
     required: false
@@ -163,6 +167,8 @@ runs:
         # L2: OAuth2-Proxy
         GITHUB_OAUTH_CLIENT_ID: ${{ inputs.github_oauth_client_id }}
         GITHUB_OAUTH_CLIENT_SECRET: ${{ inputs.github_oauth_client_secret }}
+        # L3: Vault Access
+        VAULT_ROOT_TOKEN: ${{ inputs.vault_root_token }}
       run: |
         set -euo pipefail
 
@@ -216,6 +222,9 @@ runs:
         # L2: OAuth2-Proxy
         echo "TF_VAR_github_oauth_client_id=${GITHUB_OAUTH_CLIENT_ID}" >> "$GITHUB_ENV"
         echo "TF_VAR_github_oauth_client_secret=${GITHUB_OAUTH_CLIENT_SECRET}" >> "$GITHUB_ENV"
+
+        # L3: Vault Access
+        echo "TF_VAR_vault_root_token=${VAULT_ROOT_TOKEN}" >> "$GITHUB_ENV"
 
         # Multiline Secrets
         {
