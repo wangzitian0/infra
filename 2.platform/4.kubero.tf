@@ -120,9 +120,14 @@ resource "kubectl_manifest" "kubero_instance" {
       ingress = {
         enabled   = true
         className = "traefik"
-        annotations = {
-          "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-        }
+        annotations = merge(
+          {
+            "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+          },
+          local.portal_sso_gate_enabled ? {
+            "traefik.ingress.kubernetes.io/router.middlewares" = "${kubernetes_namespace.kubero.metadata[0].name}-portal-auth@kubernetescrd"
+          } : {}
+        )
         hosts = [{
           host = "kcloud.${local.internal_domain}"
           paths = [{

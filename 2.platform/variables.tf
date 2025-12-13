@@ -122,3 +122,22 @@ variable "casdoor_admin_password" {
   sensitive   = true
   default     = ""
 }
+
+variable "enable_portal_sso_gate" {
+  description = "Enable Casdoor-based SSO gate for platform portals (Vault/Dashboard/Kubero) via OAuth2-Proxy; keep false until Casdoor + client credentials are ready to avoid lockout."
+  type        = bool
+  default     = false
+}
+
+variable "casdoor_portal_client_id" {
+  description = "Casdoor application Client ID used by the portal SSO gate (OAuth2-Proxy)."
+  type        = string
+  default     = "portal-gate"
+}
+
+variable "casdoor_portal_client_secret" {
+  description = "Casdoor application Client Secret used by the portal SSO gate (OAuth2-Proxy)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
