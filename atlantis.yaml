@@ -98,6 +98,13 @@ workflows:
             key       = "k3s/data-${WORKSPACE}.tfstate"
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
+        # Set TF_VAR for environment (from workspace) and vault token
+        - env:
+            name: TF_VAR_environment
+            value: ${WORKSPACE}
+        - env:
+            name: TF_VAR_vault_root_token
+            command: 'echo $VAULT_ROOT_TOKEN'
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
         - plan
@@ -110,6 +117,12 @@ workflows:
             key       = "k3s/data-${WORKSPACE}.tfstate"
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
+        - env:
+            name: TF_VAR_environment
+            value: ${WORKSPACE}
+        - env:
+            name: TF_VAR_vault_root_token
+            command: 'echo $VAULT_ROOT_TOKEN'
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
         - apply

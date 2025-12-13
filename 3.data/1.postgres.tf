@@ -4,12 +4,12 @@
 # Password: Read from Vault KV at secret/data/postgres (generated in L2)
 
 # =============================================================================
-# Namespace
+# Namespace (SSOT: docs/ssot/env.md - L3 uses data-<env>)
 # =============================================================================
 
 resource "kubernetes_namespace" "data" {
   metadata {
-    name = "data"
+    name = "data-${var.environment}"
   }
 }
 
@@ -68,11 +68,16 @@ resource "helm_release" "postgresql" {
 # =============================================================================
 
 output "postgres_host" {
-  value       = "postgresql.data.svc.cluster.local"
+  value       = "postgresql.data-${var.environment}.svc.cluster.local"
   description = "PostgreSQL K8s service DNS"
 }
 
 output "postgres_vault_path" {
   value       = "secret/data/postgres"
   description = "Vault KV path for PostgreSQL credentials"
+}
+
+output "postgres_namespace" {
+  value       = "data-${var.environment}"
+  description = "Namespace where PostgreSQL is deployed"
 }
