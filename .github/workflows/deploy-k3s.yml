@@ -161,6 +161,24 @@ jobs:
           sleep 3
           echo "VAULT_PORT_FORWARD_PID=$!" >> $GITHUB_ENV
 
+      # Import existing Vault mounts if they exist but not in state
+      - name: Import Existing Vault Mounts (L2)
+        working-directory: 2.platform
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          TF_VAR_vault_address: "http://localhost:8200"
+        run: |
+          # Import vault_mount.kv if not in state
+          if ! terraform state show vault_mount.kv 2>/dev/null; then
+            echo "Importing vault_mount.kv..."
+            terraform import vault_mount.kv secret || true
+          fi
+          # Import vault_mount.database if not in state
+          if ! terraform state show vault_mount.database 2>/dev/null; then
+            echo "Importing vault_mount.database..."
+            terraform import vault_mount.database database || true
+          fi
+
       - name: Terraform plan (L2)
         working-directory: 2.platform
         env:
