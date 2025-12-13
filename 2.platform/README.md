@@ -65,8 +65,8 @@ L2 services use **app-level authentication** (no unified ingress gate):
 See [docs/ssot/auth.md](../docs/ssot/auth.md) for the full authentication architecture.
 
 #### Portal SSO Gate Rollout（前置变量 → 自动化 → 事后验证/切流）
-1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor，手工在 Casdoor 创建 Portal Gate 应用，获取 `casdoor_portal_client_id/secret`（建议存 Vault 或 GitHub Secrets）。
-2. **自动化执行**：在 2.platform 目录设置上述变量后，`terraform init && terraform apply`。开关置 `true` 时，Vault/Dashboard/Kubero Ingress 自动挂载 Traefik ForwardAuth（OAuth2-Proxy→Casdoor）。
+1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor。Portal Gate 客户端可选手动创建并填入 `casdoor_portal_client_id/secret`；若留空，开关开启时 Terraform 会自动生成 secret。
+2. **自动化执行**：在 2.platform 目录设置变量后，`terraform init && terraform apply`。开关置 `true` 时，Terraform 自动生成/写入 Casdoor 应用（Portal/Vault/Dashboard/Kubero），Ingress 自动挂 Traefik ForwardAuth（OAuth2-Proxy→Casdoor）。
 3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 302 → Casdoor 登录链路，若异常可立即将开关关回 `false` 并重跑 apply，避免锁死。
 
 ### Domain Configuration
