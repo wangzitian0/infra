@@ -15,7 +15,7 @@ locals {
   # Use nonsensitive() to avoid tainting downstream outputs as sensitive.
   casdoor_enabled     = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
   casdoor_domain      = "sso.${local.internal_domain}"
-  portal_gate_enabled = casdoor_enabled && var.enable_portal_sso_gate && var.casdoor_portal_client_secret != ""
+  portal_gate_enabled = local.casdoor_enabled && var.enable_portal_sso_gate && var.casdoor_portal_client_secret != ""
 }
 
 # Casdoor admin password now comes from 1Password via var.casdoor_admin_password
