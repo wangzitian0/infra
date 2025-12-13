@@ -98,13 +98,11 @@ workflows:
             key       = "k3s/data-${WORKSPACE}.tfstate"
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
-        # Set TF_VAR for environment (from workspace) and vault token
+        # Set TF_VAR_environment from workspace
+        # Note: TF_VAR_vault_root_token is already in Atlantis Pod env (from L1 Helm)
         - env:
             name: TF_VAR_environment
             command: 'echo $WORKSPACE'
-        - env:
-            name: TF_VAR_vault_root_token
-            command: 'echo $TF_VAR_vault_root_token'
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
         - plan
@@ -117,12 +115,11 @@ workflows:
             key       = "k3s/data-${WORKSPACE}.tfstate"
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
+        # Set TF_VAR_environment from workspace
+        # Note: TF_VAR_vault_root_token is already in Atlantis Pod env (from L1 Helm)
         - env:
             name: TF_VAR_environment
             command: 'echo $WORKSPACE'
-        - env:
-            name: TF_VAR_vault_root_token
-            command: 'echo $TF_VAR_vault_root_token'
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
         - apply
