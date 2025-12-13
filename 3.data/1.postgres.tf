@@ -30,11 +30,23 @@ resource "kubernetes_namespace" "data" {
 
 # =============================================================================
 # Read Password from Vault (generated and stored by L2)
+# Note: Only reads when vault_root_token is provided; uses dummy for plan
 # =============================================================================
 
+locals {
+  # Check if vault token is available (non-empty)
+  vault_token_available = var.vault_root_token != ""
+}
+
 data "vault_kv_secret_v2" "postgres" {
+  count = local.vault_token_available ? 1 : 0
   mount = "secret"
   name  = "data/postgres"
+}
+
+locals {
+  # Use Vault password if available, dummy for plan-time
+  postgres_password = local.vault_token_available ? data.vault_kv_secret_v2.postgres[0].data["password"] : "plan-time-dummy-will-be-replaced-at-apply"
 }
 
 # =============================================================================
@@ -60,7 +72,7 @@ resource "helm_release" "postgresql" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        postgresPassword = data.vault_kv_secret_v2.postgres.data["password"]
+        postgresPassword = local.postgres_password
         database         = "app"
       }
       primary = {
@@ -82,6 +94,14 @@ resource "helm_release" "postgresql" {
       }
     })
   ]
+
+  # Prevent apply with dummy password
+  lifecycle {
+    precondition {
+      condition     = local.vault_token_available
+      error_message = "vault_root_token must be set to apply. Provide via TF_VAR_vault_root_token."
+    }
+  }
 }
 
 # =============================================================================
