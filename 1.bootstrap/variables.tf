@@ -34,12 +34,22 @@ variable "aws_access_key_id" {
   description = "AWS Access Key ID for R2 (S3-compatible)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.aws_access_key_id) >= 16
+    error_message = "aws_access_key_id must be at least 16 characters."
+  }
 }
 
 variable "aws_secret_access_key" {
   description = "AWS Secret Access Key for R2 (S3-compatible)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.aws_secret_access_key) >= 32
+    error_message = "aws_secret_access_key must be at least 32 characters."
+  }
 }
 
 variable "vps_user" {
