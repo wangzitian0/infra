@@ -136,7 +136,7 @@ variable "casdoor_portal_client_id" {
 }
 
 variable "casdoor_portal_client_secret" {
-  description = "Casdoor application Client Secret used by the portal SSO gate (OAuth2-Proxy)."
+  description = "Casdoor application Client Secret used by the portal SSO gate (OAuth2-Proxy). Leave blank to auto-generate."
   type        = string
   sensitive   = true
   default     = ""

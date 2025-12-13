@@ -7,9 +7,10 @@
 # 3) Set enable_portal_sso_gate=true and apply to gate the portals.
 
 locals {
-  casdoor_enabled_for_gate = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
-  portal_auth_host         = "auth.${local.internal_domain}"
-  casdoor_issuer           = "https://sso.${local.internal_domain}"
+  casdoor_enabled_for_gate  = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
+  portal_auth_host          = "auth.${local.internal_domain}"
+  casdoor_issuer            = "https://sso.${local.internal_domain}"
+  portal_gate_client_secret = var.casdoor_portal_client_secret != "" ? var.casdoor_portal_client_secret : (var.enable_portal_sso_gate && local.casdoor_enabled_for_gate ? random_password.portal_gate_client_secret[0].result : "")
 }
 
 resource "terraform_data" "portal_sso_precheck" {
@@ -21,11 +22,6 @@ resource "terraform_data" "portal_sso_precheck" {
     precondition {
       condition     = !local.portal_sso_gate_enabled || local.casdoor_enabled_for_gate
       error_message = "enable_portal_sso_gate=true 需要先启用 Casdoor（github_oauth_client_id/secret）。"
-    }
-
-    precondition {
-      condition     = !local.portal_sso_gate_enabled || (var.casdoor_portal_client_id != "" && var.casdoor_portal_client_secret != "")
-      error_message = "enable_portal_sso_gate=true 需要提供 Casdoor 应用凭据（casdoor_portal_client_id/secret）。"
     }
   }
 }
@@ -49,7 +45,7 @@ resource "helm_release" "portal_auth" {
     yamlencode({
       config = {
         clientID     = var.casdoor_portal_client_id
-        clientSecret = var.casdoor_portal_client_secret
+        clientSecret = local.portal_gate_client_secret
         cookieSecret = random_password.portal_cookie_secret[0].result
       }
 

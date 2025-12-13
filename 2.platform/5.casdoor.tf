@@ -13,9 +13,38 @@
 
 locals {
   # Use nonsensitive() to avoid tainting downstream outputs as sensitive.
-  casdoor_enabled     = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
-  casdoor_domain      = "sso.${local.internal_domain}"
-  portal_gate_enabled = local.casdoor_enabled && var.enable_portal_sso_gate && var.casdoor_portal_client_secret != ""
+  casdoor_enabled           = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
+  casdoor_domain            = "sso.${local.internal_domain}"
+  portal_gate_enabled       = local.casdoor_enabled && var.enable_portal_sso_gate
+  portal_gate_client_secret = var.casdoor_portal_client_secret != "" ? var.casdoor_portal_client_secret : (local.portal_gate_enabled ? random_password.portal_gate_client_secret[0].result : "")
+
+  vault_oidc_client_secret     = local.portal_gate_enabled ? random_password.vault_oidc_client_secret[0].result : ""
+  dashboard_oidc_client_secret = local.portal_gate_enabled ? random_password.dashboard_oidc_client_secret[0].result : ""
+  kubero_oidc_client_secret    = local.portal_gate_enabled ? random_password.kubero_oidc_client_secret[0].result : ""
+}
+
+resource "random_password" "portal_gate_client_secret" {
+  count   = local.portal_gate_enabled && var.casdoor_portal_client_secret == "" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "random_password" "vault_oidc_client_secret" {
+  count   = local.portal_gate_enabled ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "random_password" "dashboard_oidc_client_secret" {
+  count   = local.portal_gate_enabled ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "random_password" "kubero_oidc_client_secret" {
+  count   = local.portal_gate_enabled ? 1 : 0
+  length  = 32
+  special = false
 }
 
 # Casdoor admin password now comes from 1Password via var.casdoor_admin_password
@@ -89,8 +118,56 @@ resource "kubernetes_config_map" "casdoor_init_data" {
             displayName    = "Portal SSO Gate"
             organization   = "built-in"
             clientId       = var.casdoor_portal_client_id
-            clientSecret   = var.casdoor_portal_client_secret
+            clientSecret   = local.portal_gate_client_secret
             redirectUris   = ["https://auth.${local.internal_domain}/oauth2/callback"]
+            enablePassword = false
+            providers      = []
+            signinMethods  = []
+            signupItems    = []
+            grantTypes     = ["authorization_code", "refresh_token"]
+            tags           = []
+          },
+          {
+            owner          = "admin"
+            name           = "vault-oidc"
+            createdTime    = "2025-01-01T00:00:00Z"
+            displayName    = "Vault OIDC"
+            organization   = "built-in"
+            clientId       = "vault-oidc"
+            clientSecret   = local.vault_oidc_client_secret
+            redirectUris   = ["https://secrets.${local.internal_domain}/ui/vault/auth/oidc/oidc/callback"]
+            enablePassword = false
+            providers      = []
+            signinMethods  = []
+            signupItems    = []
+            grantTypes     = ["authorization_code", "refresh_token"]
+            tags           = []
+          },
+          {
+            owner          = "admin"
+            name           = "dashboard-oidc"
+            createdTime    = "2025-01-01T00:00:00Z"
+            displayName    = "Dashboard OIDC"
+            organization   = "built-in"
+            clientId       = "dashboard-oidc"
+            clientSecret   = local.dashboard_oidc_client_secret
+            redirectUris   = ["https://kdashboard.${local.internal_domain}/oauth2/callback"]
+            enablePassword = false
+            providers      = []
+            signinMethods  = []
+            signupItems    = []
+            grantTypes     = ["authorization_code", "refresh_token"]
+            tags           = []
+          },
+          {
+            owner          = "admin"
+            name           = "kubero-oidc"
+            createdTime    = "2025-01-01T00:00:00Z"
+            displayName    = "Kubero OIDC"
+            organization   = "built-in"
+            clientId       = "kubero-oidc"
+            clientSecret   = local.kubero_oidc_client_secret
+            redirectUris   = ["https://kcloud.${local.internal_domain}/auth/callback"]
             enablePassword = false
             providers      = []
             signinMethods  = []
