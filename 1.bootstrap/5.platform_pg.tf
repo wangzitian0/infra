@@ -20,7 +20,8 @@ resource "kubernetes_namespace" "platform" {
   }
 }
 
-# Platform PostgreSQL via Bitnami Helm chart (with official postgres image)
+# Platform PostgreSQL via Bitnami Helm chart
+# Note: Bitnami deletes old image tags, so we use 'latest' with IfNotPresent
 resource "helm_release" "platform_pg" {
   name             = "postgresql"
   namespace        = kubernetes_namespace.platform.metadata[0].name
@@ -34,11 +35,9 @@ resource "helm_release" "platform_pg" {
 
   values = [
     yamlencode({
-      # Use official postgres image (Bitnami deletes old tags, official doesn't)
+      # Bitnami deletes old tags; use latest + IfNotPresent to reduce drift
       image = {
-        registry   = "docker.io"
-        repository = "postgres"
-        tag        = "17.2-alpine"
+        tag        = "latest"
         pullPolicy = "IfNotPresent"
       }
       auth = {
