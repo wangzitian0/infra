@@ -2,23 +2,11 @@
 #
 # Purpose: Configure dynamic PostgreSQL credential generation
 # This file manages:
-# 1. L3 'data' namespace (created here, used by L3 workspaces)
-# 2. Vault secrets engines (KV + database)
-# 3. L3 PostgreSQL root password (generated here, used by L3)
-# 4. Dynamic credential roles for L4 applications
-
-# =============================================================================
-# L3 Data Namespace (created by L2, used by all L3 workspaces)
-# =============================================================================
-
-resource "kubernetes_namespace" "data" {
-  metadata {
-    name = "data"
-    labels = {
-      layer = "L3"
-    }
-  }
-}
+# 1. Vault secrets engines (KV + database)
+# 2. L3 PostgreSQL root password (generated here, used by L3)
+# 3. Dynamic credential roles for L4 applications
+#
+# Note: L3 namespaces (data-staging, data-prod) are created by L3 workspaces
 
 # =============================================================================
 # Vault Secrets Engines (IaC - replaces manual vault secrets enable)
@@ -64,7 +52,7 @@ resource "vault_kv_secret_v2" "l3_postgres" {
   data_json = jsonencode({
     username = "postgres"
     password = random_password.l3_postgres.result
-    host     = "postgresql.data.svc.cluster.local"
+    host     = "postgresql.data-staging.svc.cluster.local"
     port     = "5432"
     database = "app"
   })
@@ -82,7 +70,7 @@ resource "vault_database_secret_backend_connection" "l3_postgres" {
   allowed_roles = ["app-readonly", "app-readwrite"]
 
   postgresql {
-    connection_url = "postgres://postgres:${random_password.l3_postgres.result}@postgresql.data.svc.cluster.local:5432/app?sslmode=disable"
+    connection_url = "postgres://postgres:${random_password.l3_postgres.result}@postgresql.data-staging.svc.cluster.local:5432/app?sslmode=disable"
   }
 
   depends_on = [vault_kv_secret_v2.l3_postgres]

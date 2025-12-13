@@ -11,7 +11,7 @@
 # - L2 Vault: dynamic credential generation
 #
 # Namespace: singular 'data' (not per-env) because:
-# - L2 Vault database engine is singleton, expects postgresql.data.svc
+# - L2 Vault database engine connects to staging: postgresql.data-staging.svc
 # - Single VPS MVP doesn't need DB-level env isolation
 # - L4 apps handle env isolation at app layer
 #
@@ -20,19 +20,21 @@
 # L3 reads password from Vault KV → deploys PostgreSQL
 
 # =============================================================================
-# Namespace (singular 'data' - must exist before L3 apply)
+# Namespace (per-environment: data-staging, data-prod)
 # =============================================================================
-# Note: Namespace is created by L2 (2.platform/2.secret.tf) or manually.
-# L3 workspaces only reference it to avoid create/import conflicts.
-
-data "kubernetes_namespace" "data" {
-  metadata {
-    name = "data"
-  }
-}
 
 locals {
-  data_namespace = data.kubernetes_namespace.data.metadata[0].name
+  namespace_name = "data-${terraform.workspace}"
+}
+
+resource "kubernetes_namespace" "data" {
+  metadata {
+    name = local.namespace_name
+    labels = {
+      layer = "L3"
+      env   = terraform.workspace
+    }
+  }
 }
 
 # =============================================================================
@@ -51,7 +53,7 @@ data "vault_kv_secret_v2" "postgres" {
 
 resource "helm_release" "postgresql" {
   name             = "postgresql"
-  namespace        = local.data_namespace
+  namespace        = kubernetes_namespace.data.metadata[0].name
   repository       = "oci://registry-1.docker.io/bitnamicharts"
   chart            = "postgresql"
   version          = "16.4.2"
@@ -115,7 +117,7 @@ resource "helm_release" "postgresql" {
 # =============================================================================
 
 output "postgres_host" {
-  value       = "postgresql.data.svc.cluster.local"
+  value       = "postgresql.${local.namespace_name}.svc.cluster.local"
   description = "PostgreSQL K8s service DNS"
 }
 
@@ -125,6 +127,6 @@ output "postgres_vault_path" {
 }
 
 output "postgres_namespace" {
-  value       = "data"
+  value       = local.namespace_name
   description = "Namespace where PostgreSQL is deployed"
 }
