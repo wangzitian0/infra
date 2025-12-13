@@ -73,9 +73,9 @@ resource "helm_release" "atlantis" {
           ingressClassName = "traefik"
           annotations = {
             "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-            # Limit to GitHub Webhook IPs only (security hardening)
+            # IP allowlist enforced by Traefik Middleware (security hardening)
             # See: https://api.github.com/meta
-            "nginx.ingress.kubernetes.io/whitelist-source-range" = "140.82.112.0/20,185.199.108.0/22,192.30.252.0/22"
+            "traefik.ingress.kubernetes.io/router.middlewares" = "bootstrap-atlantis-ipallowlist@kubernetescrd"
           }
           hosts = [
             {
@@ -148,6 +148,57 @@ resource "helm_release" "atlantis" {
     ))
   ]
   depends_on = [kubernetes_namespace.bootstrap]
+}
+
+#
+# Traefik IPAllowList middleware for Atlantis
+#
+# Why: IngressClass is Traefik (k3s default). NGINX whitelist annotations do NOT apply here.
+# This middleware restricts Atlantis exposure to GitHub Webhook IP ranges.
+#
+resource "null_resource" "atlantis_ipallowlist_middleware" {
+  triggers = {
+    # Re-apply when allowlist changes
+    allowlist = "140.82.112.0/20,185.199.108.0/22,192.30.252.0/22"
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command     = <<-EOT
+      set -euo pipefail
+      export KUBECONFIG="${local.kubeconfig_path}"
+
+      # Detect Traefik Middleware API group (varies by Traefik version)
+      if kubectl api-resources --api-group=traefik.io 2>/dev/null | grep -qi '^middlewares'; then
+        API_VERSION="traefik.io/v1alpha1"
+      elif kubectl api-resources --api-group=traefik.containo.us 2>/dev/null | grep -qi '^middlewares'; then
+        API_VERSION="traefik.containo.us/v1alpha1"
+      else
+        echo "WARNING: Traefik Middleware CRD not found; cannot enforce Atlantis IP allowlist at ingress level."
+        echo "         (Ensure Traefik CRDs are installed in the cluster.)"
+        exit 0
+      fi
+
+      kubectl apply -f - <<EOF
+      apiVersion: $API_VERSION
+      kind: Middleware
+      metadata:
+        name: atlantis-ipallowlist
+        namespace: ${kubernetes_namespace.bootstrap.metadata[0].name}
+      spec:
+        ipAllowList:
+          sourceRange:
+          - 140.82.112.0/20
+          - 185.199.108.0/22
+          - 192.30.252.0/22
+      EOF
+    EOT
+  }
+
+  depends_on = [
+    helm_release.atlantis,
+    kubernetes_namespace.bootstrap,
+  ]
 }
 
 output "atlantis_service" {

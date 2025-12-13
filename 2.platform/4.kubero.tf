@@ -104,8 +104,8 @@ resource "kubectl_manifest" "kubero_instance" {
       replicaCount = 1
       image = {
         repository = "ghcr.io/kubero-dev/kubero/kubero"
-        tag        = "latest"
-        pullPolicy = "Always"
+        tag        = var.kubero_ui_image_tag
+        pullPolicy = var.kubero_ui_image_pull_policy
       }
       service = {
         type = "ClusterIP"
