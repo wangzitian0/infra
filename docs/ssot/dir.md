@@ -1,84 +1,134 @@
-# Directory Structure (SSOT)
+# 目录结构 SSOT
 
-This document serves as the navigation map for the `infra` repository.
+> **核心问题**：代码在哪里？负责什么？
 
-## Legend
-- `[+]` : Directory
-- `[*]` : GitIgnored (Generated file)
-- `(!)` : SSOT / Critical File (The Source of Truth)
-- `README.md` : Documentation & Entry Point
+---
 
-## Tree
+## 层级架构
 
-```text
-root/
-├── 0.check_now.md          # (!) Current sprint context
-├── 0.tools/                 # [+] Scripts & Utilities
-│   ├── README.md            # Scripts index
-│   ├── preflight-check.sh   # Helm URL validation
-│   └── migrate-state.sh     # State migration helper
-├── .github/                 # [+] CI/Bots
-│   ├── README.md            # CI/CD folder index
-│   └── workflows/           # [+] GitHub Runners
-│       ├── README.md        # Workflows index
-│       ├── terraform-plan.yml # (!) Terraform validation
-│       ├── deploy-k3s.yml   # (!) K3s deployment
-│       └── claude.yml       # (!) AI code review (Claude GitHub App)
-├── AGENTS.md                # (!) AI Behavior Guidelines
-├── README.md                # (!) Project Index
-├── docs/
-│   ├── ssot/
-│   │   ├── README.md        # (!) SSOT index
-│   │   ├── dir.md           # (!) This map & Namespace Registry
-│   │   ├── env.md           # (!) Environment model (env/workspace/ns/state/domains)
-│   │   └── ...              # Topic SSOT docs
-│   ├── README.md            # (!) Design Concepts
-│   ├── BRN-004.env_eaas_design.md # (!) Env & EaaS architecture
-│   ├── project/
-│   │   ├── README.md        # BRN status/index
-│   │   └── BRN-004.md       # BRN-004 integrated architecture
-│   ├── change_log/
-│   │   ├── README.md        # Change log index
-│   │   └── ...              # History entries
-│   └── deep_dives/
-│       ├── README.md        # Deep dive index
-│       └── ...              # Decision records
-├── 1.bootstrap/             # [+] L1: K3s + Atlantis (GitHub Actions)
-│   ├── README.md            # (!) IaC entry & layer map
-│   ├── backend.tf           # S3/R2 backend config
-│   ├── providers.tf         # Provider definitions
-│   └── *.tf                 # Bootstrap resources
-├── 2.platform/              # [+] L2: Platform Services (stateless, uses L3 for data)
-│   ├── README.md            # L2 platform docs
-│   └── *.tf                 # Vault, Dashboard, Kubero
-├── 3.data/                  # [+] L3: Data (Atlantis)
-│   └── README.md            # L3 data layer docs
-├── 4.apps/                  # [+] L4: Applications (Atlantis)
-│   └── README.md            # L4 apps docs
-└── envs/                    # [+] Environment config
-    ├── README.md            # tfvars templates per environment
-    └── *.tfvars.template    # Backend config templates
+```
+L0 Tools     ─  0.tools/, docs/          ─  脚本、文档
+L1 Bootstrap ─  1.bootstrap/             ─  K3s, Atlantis, DNS/Cert, PG
+L2 Platform  ─  2.platform/              ─  Vault, Dashboard, Kubero, Casdoor
+L3 Data      ─  3.data/                  ─  业务数据库 (per-env)
+L4 Apps      ─  4.apps/                  ─  业务应用 (per-env)
 ```
 
-## Key Layers (L1-L4 Simplified Architecture)
+---
 
-| Layer | Name | Definition | Modules (Path :: Function) | k3s Namespace | SSOT |
-|---|---|---|---|---|---|
-| **L0** | **Tools Chain** | Project Roots | `0.tools/` :: Scripts <br> `docs/` :: Architecture | - | `README.md` |
-| **L1** | **Bootstrap** | Zero-Dependency Infra | `1.bootstrap/` :: Runtime (k3s), CI (Atlantis), DNS/Cert | `kube-system`, `bootstrap` | `1.bootstrap/README.md` |
-| **L2** | **Platform** | Platform Components | `2.platform/` :: Secrets (Vault), Dashboard, Kubero | `platform`, `kubero`, `kubero-operator-system` | `2.platform/README.md` |
-| **L3** | **Data** | Business Data Stores | `3.data/` :: Cache (Redis), Graph (Neo4j), DB (Postgres), OLAP (ClickHouse) | `data-<env>` | `3.data/README.md` |
-| **L4** | **Apps** | Applications | `4.apps/` :: Business Services (prod/staging) | `apps-<env>` | `4.apps/README.md` |
+## 完整目录树
 
-## Persistence Architecture
+```
+root/
+├── AGENTS.md                    # (!) AI 行为准则
+├── 0.check_now.md               # (!) 当前 sprint
+├── atlantis.yaml                # (!) GitOps 配置
+├── README.md                    # (!) 项目入口
+│
+├── 0.tools/
+│   ├── README.md                # 脚本索引
+│   ├── preflight-check.sh       # Helm URL 验证
+│   └── migrate-state.sh         # State 迁移
+│
+├── docs/
+│   ├── README.md                # (!) 设计概念
+│   ├── ssot/
+│   │   ├── README.md            # (!) SSOT 索引
+│   │   ├── dir.md               # (!) 本文件
+│   │   ├── env.md               # (!) 环境模型
+│   │   ├── pipeline.md          # (!) 部署流程
+│   │   ├── network.md           # 网络/域名
+│   │   ├── db.md                # 数据库分布
+│   │   ├── k3s.md               # K3s/PaaS
+│   │   ├── vars.md              # 变量定义
+│   │   ├── secrets.md           # 密钥管理
+│   │   └── auth.md              # 认证架构
+│   ├── project/
+│   │   ├── README.md            # BRN 索引
+│   │   └── BRN-*.md             # 设计文档
+│   ├── change_log/              # 变更历史
+│   └── deep_dives/              # 深度分析
+│
+├── .github/
+│   └── workflows/
+│       ├── README.md            # CI 索引
+│       ├── terraform-plan.yml   # (!) TF 验证
+│       ├── deploy-k3s.yml       # (!) K3s 部署
+│       └── claude.yml           # AI Review
+│
+├── 1.bootstrap/                 # L1: GitHub Actions 部署
+│   ├── README.md                # (!) L1 文档
+│   ├── backend.tf               # R2 后端
+│   ├── providers.tf             # Provider
+│   ├── variables.tf             # 变量定义
+│   ├── locals.tf                # 本地变量
+│   ├── 1.k3s.tf                 # K3s 安装
+│   ├── 2.atlantis.tf            # Atlantis
+│   ├── 3.dns_cert.tf            # DNS + Cert-Manager
+│   ├── 4.storage.tf             # 存储类
+│   └── 5.platform_pg.tf         # Platform PostgreSQL
+│
+├── 2.platform/                  # L2: Atlantis 部署
+│   ├── README.md                # (!) L2 文档
+│   ├── backend.tf               # R2 后端
+│   ├── providers.tf             # Provider
+│   ├── variables.tf             # 变量定义
+│   ├── locals.tf                # 本地变量
+│   ├── 1.portal-auth.tf         # Portal SSO Gate
+│   ├── 2.secret.tf              # Vault
+│   ├── 3.dashboard.tf           # K8s Dashboard
+│   ├── 4.kubero.tf              # Kubero PaaS
+│   └── 5.casdoor.tf             # Casdoor SSO
+│
+├── 3.data/                      # L3: Atlantis 部署 (per-env)
+│   ├── README.md                # (!) L3 文档
+│   └── *.tf                     # Redis, Neo4j, PG, ClickHouse
+│
+├── 4.apps/                      # L4: Atlantis 部署 (per-env)
+│   ├── README.md                # (!) L4 文档
+│   └── *.tf                     # 业务应用
+│
+└── envs/                        # 环境配置
+    ├── README.md                # tfvars 指南
+    ├── staging.tfvars.example   # Staging 模板
+    └── prod.tfvars.example      # Prod 模板
+```
 
-> **Only L1.4 and L3 layers have persistent state.** All other layers are stateless.
+**图例**：`(!)` = SSOT / 关键文件
 
-| Layer | File | Storage Type | Purpose |
-|-------|------|--------------|---------|
-| **L1.4** | `1.bootstrap/4.storage.tf` | `/data` directory on VPS | Vault Raft data, backups, local-path PVCs |
-| **L3** | `3.data/*.tf` | PVCs on `/data` | Business databases (Postgres, Redis, Neo4j, ClickHouse) |
+---
 
-- **L0**: Scripts and docs (no runtime state)
-- **L2**: Platform services (Vault uses L1.4 storage via PVC, Kubero/Dashboard stateless)
-- **L4**: Apps (stateless containers, use L3 for data)
+## Namespace 规则
+
+| 层级 | Namespace | 组件 |
+|------|-----------|------|
+| L1 | `kube-system` | K3s 系统组件 |
+| L1 | `bootstrap` | Atlantis |
+| L2 | `platform` | Vault, Dashboard, Casdoor |
+| L2 | `kubero` | Kubero UI |
+| L2 | `kubero-operator-system` | Kubero Operator |
+| L3 | `data-staging` | Staging 数据库 |
+| L3 | `data-prod` | Prod 数据库 |
+| L4 | `apps-staging` | Staging 应用 |
+| L4 | `apps-prod` | Prod 应用 |
+
+---
+
+## 持久化
+
+| 层级 | 组件 | 存储 |
+|------|------|------|
+| L1 | PostgreSQL | PVC on `/data` |
+| L2 | Vault | 使用 L1 PG |
+| L2 | Casdoor | 使用 L1 PG |
+| L3 | 业务 DB | PVC on `/data` |
+| L4 | Apps | 无状态，用 L3 |
+
+---
+
+## 相关文件
+
+| 文件 | 用途 |
+|------|------|
+| `docs/ssot/env.md` | 环境模型 |
+| `docs/ssot/pipeline.md` | 部署流程 |

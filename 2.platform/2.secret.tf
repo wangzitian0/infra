@@ -65,6 +65,17 @@ resource "helm_release" "vault" {
           repository = "hashicorp/vault"
           tag        = var.vault_image_tag
         }
+        # Wait for PostgreSQL before starting Vault
+        extraInitContainers = [
+          {
+            name  = "wait-for-postgres"
+            image = "busybox:1.36"
+            command = [
+              "sh", "-c",
+              "until nc -z postgresql.platform.svc.cluster.local 5432; do echo 'waiting for PostgreSQL...'; sleep 2; done"
+            ]
+          }
+        ]
         ha = {
           enabled  = true
           replicas = 1

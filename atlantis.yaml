@@ -3,6 +3,11 @@
 
 version: 3
 
+# Allow parallel plan execution, apply remains serial
+# Prevents plan failure from blocking other PRs
+parallel_plan: true
+parallel_apply: false
+
 projects:
   # L1: Bootstrap (GitHub Actions only, NOT managed by Atlantis)
   # - name: bootstrap

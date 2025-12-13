@@ -205,6 +205,18 @@ resource "helm_release" "casdoor" {
         pullPolicy = "IfNotPresent"
       }
 
+      # Wait for PostgreSQL before starting Casdoor
+      initContainers = [
+        {
+          name  = "wait-for-postgres"
+          image = "busybox:1.36"
+          command = [
+            "sh", "-c",
+            "until nc -z postgresql.platform.svc.cluster.local 5432; do echo 'waiting for PostgreSQL...'; sleep 2; done"
+          ]
+        }
+      ]
+
       # Casdoor app.conf - ALL config must be in this string (INI format)
       # The helm chart ignores separate "database" map, only uses "config" string
       config = <<-EOT
