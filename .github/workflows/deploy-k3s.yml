@@ -152,10 +152,20 @@ jobs:
           # L2/L3: Vault Access
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
 
+      # Port-forward Vault for L2 Terraform (runner is outside cluster, can't use internal DNS)
+      - name: Port-forward Vault
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          kubectl port-forward svc/vault -n platform 8200:8200 &
+          sleep 3
+          echo "VAULT_PORT_FORWARD_PID=$!" >> $GITHUB_ENV
+
       - name: Terraform plan (L2)
         working-directory: 2.platform
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          TF_VAR_vault_address: "http://localhost:8200"
         run: terraform plan -input=false
 
       - name: Apply Infrastructure (L2)
@@ -163,6 +173,7 @@ jobs:
         working-directory: 2.platform
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          TF_VAR_vault_address: "http://localhost:8200"
           TF_LOG: INFO
         run: |
           terraform apply -auto-approve || {
