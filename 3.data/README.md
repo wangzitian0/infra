@@ -13,46 +13,42 @@ This layer provides stateful services for **Business Applications** (L4).
 
 *Note: Platform DB (for Vault/Casdoor) is in L1 (`1.bootstrap/5.platform_pg.tf`).*
 
-### Password Flow
+### Password Flow (Fully Reproducible)
 
 ```mermaid
 graph LR
-    TF[random_password] -->|store| VAULT[Vault KV<br/>secret/data/postgres]
-    TF -->|inject| HELM[Helm Release<br/>PostgreSQL]
-    VAULT -->|read| APP[L4 Apps<br/>via Vault Agent]
+    subgraph "L2 Platform"
+        RND[random_password] --> KV[Vault KV<br/>secret/data/postgres]
+        KV --> DB_CFG[database_secret_backend]
+    end
+    subgraph "L3 Data"
+        DATA[data.vault_kv_secret_v2] --> HELM[PostgreSQL Helm]
+    end
+    KV --> DATA
+    DB_CFG --> |dynamic creds| L4[L4 Apps]
 ```
+
+**No manual steps required** - all Vault configuration is IaC managed in L2.
 
 ### Components
 
 | File | Component | Purpose |
 |------|-----------|---------|
-| `1.postgres.tf` | PostgreSQL | Business database, creds at `secret/data/postgres` |
+| `1.postgres.tf` | PostgreSQL | Business database, creds from Vault KV |
 
-### Prerequisites
+### Deployment Order
 
-Before first deployment:
-1. **Vault unsealed**: `vault operator unseal`
-2. **KV engine enabled** (one-time bootstrap):
-   ```bash
-   vault secrets enable -path=secret kv-v2
-   ```
-3. **GitHub Secret**: `VAULT_ROOT_TOKEN` set from 1Password
+1. **L1** (Bootstrap): k3s, Platform PostgreSQL
+2. **L2** (Platform): Vault, vault_mount, password generation, database engine config
+3. **L3** (Data): Read password from Vault, deploy PostgreSQL Helm
+4. **L4** (Apps): Get dynamic credentials via Vault Agent
 
 ### Credentials
 
-| Service | Vault Path | Fields |
-|---------|------------|--------|
-| PostgreSQL | `secret/data/postgres` | username, password, host, port, database |
-
-### Usage
-
-```bash
-# Deploy via Atlantis (PR merge to main)
-# Or locally:
-cd 3.data
-terraform init
-terraform apply
-```
+| Service | Vault Path | Type |
+|---------|------------|------|
+| PostgreSQL root | `secret/data/postgres` | Static (L2 generated) |
+| PostgreSQL app users | `database/creds/app-*` | Dynamic (short-lived) |
 
 ---
 *Last updated: 2025-12-13*
