@@ -191,7 +191,7 @@ resource "helm_release" "casdoor" {
   version          = "v1.570.0"
   namespace        = data.kubernetes_namespace.platform.metadata[0].name
   create_namespace = false
-  timeout          = 120
+  timeout          = 300  # Match other Helm releases
   wait             = true
 
   values = [
@@ -205,14 +205,14 @@ resource "helm_release" "casdoor" {
         pullPolicy = "IfNotPresent"
       }
 
-      # Wait for PostgreSQL before starting Casdoor
+      # Wait for PostgreSQL before starting Casdoor (max 120s timeout)
       initContainers = [
         {
           name  = "wait-for-postgres"
           image = "busybox:1.36"
           command = [
             "sh", "-c",
-            "until nc -z postgresql.platform.svc.cluster.local 5432; do echo 'waiting for PostgreSQL...'; sleep 2; done"
+            "timeout=120; elapsed=0; until nc -z postgresql.platform.svc.cluster.local 5432; do echo \"waiting for PostgreSQL... ($elapsed/$timeout s)\"; sleep 2; elapsed=$((elapsed+2)); if [ $elapsed -ge $timeout ]; then echo 'TIMEOUT: PostgreSQL not available'; exit 1; fi; done"
           ]
         }
       ]

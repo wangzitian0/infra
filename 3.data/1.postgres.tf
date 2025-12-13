@@ -69,14 +69,14 @@ resource "helm_release" "postgresql" {
         database         = "app"
       }
       primary = {
-        # Wait for Vault to be available (password comes from Vault KV)
+        # Wait for Vault to be available (max 120s timeout)
         initContainers = [
           {
             name  = "wait-for-vault"
             image = "busybox:1.36"
             command = [
               "sh", "-c",
-              "until nc -z vault.platform.svc.cluster.local 8200; do echo 'waiting for Vault...'; sleep 2; done"
+              "t=120;e=0;until nc -z vault.platform.svc.cluster.local 8200;do echo \"wait Vault $e/$t\";sleep 2;e=$((e+2));[ $e -ge $t ]&&exit 1;done"
             ]
           }
         ]
