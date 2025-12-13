@@ -41,6 +41,11 @@ variable "vault_postgres_password" {
   description = "PostgreSQL password for Vault storage backend (from GitHub Secret via L1)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.vault_postgres_password) >= 16
+    error_message = "vault_postgres_password must be at least 16 characters."
+  }
 }
 
 variable "kubero_ui_image_tag" {
@@ -121,6 +126,11 @@ variable "casdoor_admin_password" {
   type        = string
   sensitive   = true
   default     = ""
+
+  validation {
+    condition     = var.casdoor_admin_password == "" || length(var.casdoor_admin_password) >= 12
+    error_message = "casdoor_admin_password must be at least 12 characters (or empty to disable Casdoor)."
+  }
 }
 
 variable "enable_portal_sso_gate" {
@@ -151,6 +161,11 @@ variable "vault_root_token" {
   type        = string
   sensitive   = true
   default     = ""
+
+  validation {
+    condition     = var.vault_root_token == "" || length(var.vault_root_token) > 20
+    error_message = "vault_root_token must be a valid Vault token (or empty to skip Vault config)."
+  }
 }
 
 variable "vault_address" {

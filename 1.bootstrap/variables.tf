@@ -150,12 +150,12 @@ variable "vault_postgres_storage" {
   default     = "10Gi"
 }
 
-# Redis
+# Redis (L3 - not yet implemented)
 variable "redis_password" {
-  description = "Redis password"
+  description = "Redis password (REQUIRED when enabling Redis)"
   type        = string
   sensitive   = true
-  default     = "CHANGE_ME"
+  default     = "" # No default - must be provided when Redis is enabled
 }
 
 variable "redis_storage" {
@@ -164,12 +164,12 @@ variable "redis_storage" {
   default     = "20Gi"
 }
 
-# Neo4j
+# Neo4j (L3 - not yet implemented)
 variable "neo4j_password" {
-  description = "Neo4j password"
+  description = "Neo4j password (REQUIRED when enabling Neo4j)"
   type        = string
   sensitive   = true
-  default     = "CHANGE_ME"
+  default     = "" # No default - must be provided when Neo4j is enabled
 }
 
 variable "neo4j_storage" {

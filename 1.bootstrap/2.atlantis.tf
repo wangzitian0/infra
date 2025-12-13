@@ -21,6 +21,8 @@ resource "helm_release" "atlantis" {
   repository = "https://runatlantis.github.io/helm-charts"
   chart      = "atlantis"
   version    = "4.25.0"
+  timeout    = 300
+  wait       = true
 
   values = [
     yamlencode(merge(

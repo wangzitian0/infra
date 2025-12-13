@@ -49,7 +49,7 @@ resource "helm_release" "vault" {
   chart            = "vault"
   version          = var.vault_chart_version
   create_namespace = false
-  timeout          = 120
+  timeout          = 300  # Increased: Vault depends on PG which may take time
   wait             = true
   wait_for_jobs    = true
 
