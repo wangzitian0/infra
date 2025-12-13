@@ -9,17 +9,21 @@
 # Consumers:
 # - L4 Apps: business data storage
 # - L2 Vault: dynamic credential generation
+#
+# Namespace: singular 'data' (not per-env) because:
+# - L2 Vault database engine is singleton, expects postgresql.data.svc
+# - Single VPS MVP doesn't need DB-level env isolation
+# - L4 apps handle env isolation at app layer
 
 # =============================================================================
-# Namespace (SSOT: docs/ssot/env.md - L3 uses data-<env>)
+# Namespace (singular 'data' - L2 Vault connection expects this)
 # =============================================================================
 
 resource "kubernetes_namespace" "data" {
   metadata {
-    name = "data-${var.environment}"
+    name = "data"
     labels = {
-      layer       = "L3"
-      environment = var.environment
+      layer = "L3"
     }
   }
 }
@@ -85,7 +89,7 @@ resource "helm_release" "postgresql" {
 # =============================================================================
 
 output "postgres_host" {
-  value       = "postgresql.data-${var.environment}.svc.cluster.local"
+  value       = "postgresql.data.svc.cluster.local"
   description = "PostgreSQL K8s service DNS"
 }
 
@@ -95,6 +99,6 @@ output "postgres_vault_path" {
 }
 
 output "postgres_namespace" {
-  value       = "data-${var.environment}"
+  value       = "data"
   description = "Namespace where PostgreSQL is deployed"
 }

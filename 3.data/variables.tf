@@ -6,12 +6,6 @@ variable "kubeconfig_path" {
   default     = ""
 }
 
-variable "environment" {
-  description = "Environment name (staging, prod) - determines namespace suffix"
-  type        = string
-  default     = "staging" # Default for plan; Atlantis sets via TF_VAR_environment
-}
-
 variable "vault_root_token" {
   description = "Vault root token for reading secrets (from 1Password via GitHub Secret)"
   type        = string
