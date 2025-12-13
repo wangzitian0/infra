@@ -70,6 +70,7 @@ See [docs/ssot/auth.md](../docs/ssot/auth.md) for the full authentication archit
 1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor。Portal Gate 客户端可选手动创建并填入 `casdoor_portal_client_id/secret`；若留空，开关开启时 Terraform 会自动生成 secret。
 2. **自动化执行**：在 2.platform 目录设置变量后，`terraform init && terraform apply`。开关置 `true` 时，Terraform 自动生成/写入 Casdoor 应用（Portal/Vault/Dashboard/Kubero），Ingress 自动挂 Traefik ForwardAuth（OAuth2-Proxy→Casdoor）。
 3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 302 → Casdoor 登录链路，若异常可立即将开关关回 `false` 并重跑 apply，避免锁死。
+> 提示：L1 Atlantis 环境默认将 `enable_portal_sso_gate=false`，避免首次 bootstrap 时 `portal-auth` Helm release 等待 OIDC issuer/TLS 导致超时；需要启用时再显式打开。
 
 ### Domain Configuration
 

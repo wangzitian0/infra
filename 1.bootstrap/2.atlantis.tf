@@ -62,8 +62,9 @@ resource "helm_release" "atlantis" {
           TF_VAR_github_oauth_client_secret = var.github_oauth_client_secret
           # Casdoor SSO
           TF_VAR_casdoor_admin_password = var.casdoor_admin_password
-          # Portal SSO Gate - enables OIDC apps for Vault/Dashboard/Kubero
-          TF_VAR_enable_portal_sso_gate = "true"
+          # Portal SSO Gate - keep disabled by default to avoid apply timeouts/lockout during bootstrap.
+          # Enable later after Casdoor (OIDC issuer) is reachable and Portal Gate config is verified.
+          TF_VAR_enable_portal_sso_gate = "false"
           # L3 Vault access
           TF_VAR_vault_root_token = var.vault_root_token
         }

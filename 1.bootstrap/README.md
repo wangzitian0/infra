@@ -65,6 +65,7 @@ L1 Atlantis passes the following variables to L2/L3:
 | `casdoor_admin_password` | Casdoor SSO admin | 1Password → GitHub Secret |
 | `github_oauth_client_id` | OAuth2-Proxy | GitHub OAuth App |
 | `github_oauth_client_secret` | OAuth2-Proxy | GitHub OAuth App |
+| `enable_portal_sso_gate` | Portal SSO Gate toggle (keep false until Casdoor issuer is reachable) | Default `false` in L1 Atlantis |
 
 ## Chart Repository Migration
 
@@ -73,4 +74,4 @@ L1 Atlantis passes the following variables to L2/L3:
 - **Image Pin**: Use the chart default image tag (pinned via chart version). Do **NOT** override to `latest` (breaks reproducibility).
 
 ---
-*Last updated: 2025-12-13*
+*Last updated: 2025-12-14*
