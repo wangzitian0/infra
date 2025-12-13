@@ -139,11 +139,3 @@ output "l3_postgres_vault_path" {
   description = "Vault KV path for L3 PostgreSQL credentials"
   value       = "${vault_mount.kv.path}/data/postgres"
 }
-
-# L3 PostgreSQL password for remote_state consumption
-# This eliminates L3's need for Vault provider/token
-output "l3_postgres_password" {
-  description = "L3 PostgreSQL root password (consumed by L3 via remote_state)"
-  value       = random_password.l3_postgres.result
-  sensitive   = true
-}
