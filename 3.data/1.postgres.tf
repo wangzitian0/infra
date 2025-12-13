@@ -20,16 +20,32 @@
 # L3 reads password from Vault KV → deploys PostgreSQL
 
 # =============================================================================
-# Namespace (singular 'data' - L2 Vault connection expects this)
+# Namespace (singular 'data' - shared by all workspaces)
 # =============================================================================
+# Note: Multiple TF workspaces share this namespace. Only 'staging' workspace
+# creates it to avoid conflicts. Prod workspace uses data source.
 
 resource "kubernetes_namespace" "data" {
+  count = terraform.workspace == "staging" ? 1 : 0
+
   metadata {
     name = "data"
     labels = {
       layer = "L3"
     }
   }
+}
+
+data "kubernetes_namespace" "data" {
+  count = terraform.workspace != "staging" ? 1 : 0
+
+  metadata {
+    name = "data"
+  }
+}
+
+locals {
+  data_namespace = terraform.workspace == "staging" ? kubernetes_namespace.data[0].metadata[0].name : data.kubernetes_namespace.data[0].metadata[0].name
 }
 
 # =============================================================================
@@ -48,7 +64,7 @@ data "vault_kv_secret_v2" "postgres" {
 
 resource "helm_release" "postgresql" {
   name             = "postgresql"
-  namespace        = kubernetes_namespace.data.metadata[0].name
+  namespace        = local.data_namespace
   repository       = "oci://registry-1.docker.io/bitnamicharts"
   chart            = "postgresql"
   version          = "16.4.2"
