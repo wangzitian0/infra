@@ -22,9 +22,10 @@
 # }
 
 # CRITICAL: kubernetes_namespace.platform is now managed by L1 (1.bootstrap/5.platform_pg.tf)
-# The stale L2 state entry is removed declaratively via `removed` block:
-#   `2.platform/removed.tf`
-# This prevents Terraform from attempting to destroy the namespace.
+# The stale L2 state entry is removed by Atlantis workflow (plan stage only):
+#   `terraform state rm kubernetes_namespace.platform`
+# This prevents Terraform from attempting to destroy the namespace while avoiding
+# saved-plan staleness between plan/apply.
 # See PR #125 for migration details.
 
 # ============================================================

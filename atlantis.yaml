@@ -77,6 +77,9 @@ workflows:
             EOF
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
+        # Remove stale L2 namespace state entry (namespace is owned by L1).
+        # NOTE: Do this in plan only; doing it again in apply would invalidate the saved plan.
+        - run: terraform state rm kubernetes_namespace.platform 2>/dev/null || true
         - plan
     apply:
       steps:
