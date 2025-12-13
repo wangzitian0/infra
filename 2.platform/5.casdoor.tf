@@ -191,7 +191,7 @@ resource "helm_release" "casdoor" {
   version          = "v1.570.0"
   namespace        = data.kubernetes_namespace.platform.metadata[0].name
   create_namespace = false
-  timeout          = 300  # Match other Helm releases
+  timeout          = 300 # Match other Helm releases
   wait             = true
 
   values = [

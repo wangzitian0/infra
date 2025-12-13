@@ -49,7 +49,7 @@ resource "helm_release" "vault" {
   chart            = "vault"
   version          = var.vault_chart_version
   create_namespace = false
-  timeout          = 300  # Increased: Vault depends on PG which may take time
+  timeout          = 300 # Increased: Vault depends on PG which may take time
   wait             = true
   wait_for_jobs    = true
 
@@ -103,8 +103,8 @@ resource "helm_release" "vault" {
           path    = "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
         }
         livenessProbe = {
-          enabled     = true
-          path        = "/v1/sys/health?standbyok=true"
+          enabled             = true
+          path                = "/v1/sys/health?standbyok=true"
           initialDelaySeconds = 60
         }
       }
