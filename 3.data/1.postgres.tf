@@ -69,6 +69,17 @@ resource "helm_release" "postgresql" {
         database         = "app"
       }
       primary = {
+        # Wait for Vault to be available (password comes from Vault KV)
+        initContainers = [
+          {
+            name  = "wait-for-vault"
+            image = "busybox:1.36"
+            command = [
+              "sh", "-c",
+              "until nc -z vault.platform.svc.cluster.local 8200; do echo 'waiting for Vault...'; sleep 2; done"
+            ]
+          }
+        ]
         persistence = {
           enabled      = true
           storageClass = "local-path-retain"

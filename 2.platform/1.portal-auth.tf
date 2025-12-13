@@ -102,6 +102,16 @@ resource "helm_release" "portal_auth" {
           memory = "128Mi"
         }
       }
+
+      # Health probes
+      livenessProbe = {
+        enabled = true
+        path    = "/ping"
+      }
+      readinessProbe = {
+        enabled = true
+        path    = "/ping"
+      }
     })
   ]
 

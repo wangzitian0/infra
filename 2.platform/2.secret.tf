@@ -97,6 +97,16 @@ resource "helm_release" "vault" {
         service = {
           type = "ClusterIP"
         }
+        # Health probes for Vault
+        readinessProbe = {
+          enabled = true
+          path    = "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+        }
+        livenessProbe = {
+          enabled     = true
+          path        = "/v1/sys/health?standbyok=true"
+          initialDelaySeconds = 60
+        }
       }
       injector = {
         enabled = true

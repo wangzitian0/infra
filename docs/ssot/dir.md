@@ -126,6 +126,27 @@ root/
 
 ---
 
+## 组件健康检查覆盖度
+
+| 层级 | 组件 | 依赖 | initContainer | Probes | validation | precondition |
+|------|------|------|---------------|--------|------------|--------------|
+| **L1** | k3s | 无 | N/A | N/A | ❌ | ❌ |
+| | Atlantis | k3s | ❌ | ✅ R+L | ❌ | ❌ |
+| | DNS/Cert | k3s | N/A | N/A | ❌ | ❌ |
+| | Storage | k3s | N/A | N/A | ❌ | ❌ |
+| | Platform PG | storage | ❌ | ✅ Helm | ✅ | ❌ |
+| **L2** | Vault | PG | ✅ | ✅ R+L | ❌ | ❌ |
+| | Casdoor | PG | ✅ | ✅ S+R+L | ❌ | ❌ |
+| | Portal-Auth | Casdoor | ✅ | ✅ R+L | ❌ | ✅ |
+| | Dashboard | namespace | ❌ | ✅ Helm | ❌ | ❌ |
+| | Kubero | namespace | ❌ | ✅ R+L | ❌ | ❌ |
+| | Vault-DB | Vault | N/A | N/A | ❌ | ❌ |
+| **L3** | L3 Postgres | Vault KV | ✅ | ✅ Helm | ❌ | ❌ |
+
+**图例**：R=readiness, L=liveness, S=startup, Helm=Chart 默认, N/A=不适用
+
+---
+
 ## 相关文件
 
 | 文件 | 用途 |
