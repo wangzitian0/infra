@@ -15,6 +15,13 @@ resource "vault_mount" "kv" {
   path        = "secret"
   type        = "kv-v2"
   description = "KV v2 secrets engine for L3 static secrets"
+
+  lifecycle {
+    precondition {
+      condition     = var.vault_root_token != ""
+      error_message = "vault_root_token is required for Vault secrets engine configuration."
+    }
+  }
 }
 
 # Database secrets engine for dynamic credentials

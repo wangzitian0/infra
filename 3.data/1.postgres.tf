@@ -98,6 +98,13 @@ resource "helm_release" "postgresql" {
       }
     })
   ]
+
+  lifecycle {
+    precondition {
+      condition     = can(data.vault_kv_secret_v2.postgres.data["password"]) && length(data.vault_kv_secret_v2.postgres.data["password"]) >= 16
+      error_message = "L3 PostgreSQL password must be available in Vault KV and at least 16 characters."
+    }
+  }
 }
 
 # =============================================================================

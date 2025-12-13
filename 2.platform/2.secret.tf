@@ -115,6 +115,13 @@ resource "helm_release" "vault" {
   ]
 
   depends_on = [data.kubernetes_namespace.platform]
+
+  lifecycle {
+    precondition {
+      condition     = length(var.vault_postgres_password) >= 16
+      error_message = "vault_postgres_password must be at least 16 characters."
+    }
+  }
 }
 
 # Ingress for Vault UI/API

@@ -336,6 +336,17 @@ EOT
   # NOTE: Casdoor database is created by L1 (1.bootstrap/5.platform_pg.tf)
   # because Atlantis pod doesn't have kubectl. L1 CI runner does.
   depends_on = [data.kubernetes_namespace.platform]
+
+  lifecycle {
+    precondition {
+      condition     = var.casdoor_admin_password != "" && length(var.casdoor_admin_password) >= 12
+      error_message = "casdoor_admin_password must be set and at least 12 characters."
+    }
+    precondition {
+      condition     = length(var.vault_postgres_password) >= 16
+      error_message = "vault_postgres_password (for Casdoor DB) must be at least 16 characters."
+    }
+  }
 }
 
 # DNS Record for Casdoor

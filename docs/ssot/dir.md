@@ -126,22 +126,34 @@ root/
 
 ---
 
-## 组件健康检查覆盖度
+## 组件健康检查规范
+
+### 强制要求
+
+| 检查类型 | 适用场景 | 强制 |
+|----------|----------|------|
+| **initContainer** | 有外部依赖的 Pod | ✅ 必须 |
+| **Probes** | 所有长期运行 Pod | ✅ 必须 |
+| **validation** | 敏感变量（密码/密钥/URL） | ✅ 必须 |
+| **precondition** | 依赖其他 TF 资源的组件 | ✅ 必须 |
+| **postcondition** | Helm release | 建议 |
+
+### 覆盖度矩阵
 
 | 层级 | 组件 | 依赖 | initContainer | Probes | validation | precondition |
 |------|------|------|---------------|--------|------------|--------------|
-| **L1** | k3s | 无 | N/A | N/A | ❌ | ❌ |
-| | Atlantis | k3s | ❌ | ✅ R+L | ❌ | ❌ |
-| | DNS/Cert | k3s | N/A | N/A | ❌ | ❌ |
-| | Storage | k3s | N/A | N/A | ❌ | ❌ |
-| | Platform PG | storage | ❌ | ✅ Helm | ✅ | ❌ |
-| **L2** | Vault | PG | ✅ | ✅ R+L | ❌ | ❌ |
-| | Casdoor | PG | ✅ | ✅ S+R+L | ❌ | ❌ |
-| | Portal-Auth | Casdoor | ✅ | ✅ R+L | ❌ | ✅ |
-| | Dashboard | namespace | ❌ | ✅ Helm | ❌ | ❌ |
-| | Kubero | namespace | ❌ | ✅ R+L | ❌ | ❌ |
-| | Vault-DB | Vault | N/A | N/A | ❌ | ❌ |
-| **L3** | L3 Postgres | Vault KV | ✅ | ✅ Helm | ❌ | ❌ |
+| **L1** | k3s | 无 | N/A | N/A | N/A | N/A |
+| | Atlantis | k3s | N/A | ✅ R+L | ✅ | ✅ |
+| | DNS/Cert | k3s | N/A | N/A | ✅ | N/A |
+| | Storage | k3s | N/A | N/A | N/A | N/A |
+| | Platform PG | storage | N/A | ✅ Helm | ✅ | ✅ |
+| **L2** | Vault | PG | ✅ | ✅ R+L | ✅ | ✅ |
+| | Casdoor | PG | ✅ | ✅ S+R+L | ✅ | ✅ |
+| | Portal-Auth | Casdoor | ✅ | ✅ R+L | ✅ | ✅ |
+| | Dashboard | namespace | N/A | ✅ Helm | N/A | N/A |
+| | Kubero | namespace | N/A | ✅ R+L | N/A | N/A |
+| | Vault-DB | Vault | N/A | N/A | ✅ | ✅ |
+| **L3** | L3 Postgres | Vault KV | ✅ | ✅ Helm | ✅ | ✅ |
 
 **图例**：R=readiness, L=liveness, S=startup, Helm=Chart 默认, N/A=不适用
 
