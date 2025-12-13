@@ -1,12 +1,63 @@
 # 流程 SSOT
 
-> **核心问题**：如何保证每个组件可用？
+> **核心问题**：如何保证 Plan = Apply = 实际状态？
 
-**答案**：分层检查 + Audit 追踪
+**答案**：变量一致性 + 版本锁定 + 分层检查
 
 ---
 
-## 1. 健康检查分层
+## 1. 一致性保证
+
+### 变量流
+
+```
+1Password (SSOT)
+     ↓ op item get + gh secret set
+GitHub Secrets
+     ├─→ CI (terraform-plan.yml)     → TF_VAR_*
+     └─→ Atlantis Pod (deploy-k3s)   → TF_VAR_*
+              ↓
+         terraform plan/apply
+              ↓
+         Kubernetes 资源
+```
+
+### 变量一致性检查表
+
+| 变量 | CI 来源 | Atlantis 来源 | 验证 |
+|------|---------|---------------|------|
+| `vault_postgres_password` | `secrets.VAULT_POSTGRES_PASSWORD` | Pod env | ✅ |
+| `vault_root_token` | `secrets.VAULT_ROOT_TOKEN` | Pod env | ✅ |
+| `vault_address` | 外部 URL | 内部 DNS | **不同但正确** |
+| `cloudflare_api_token` | `secrets.CLOUDFLARE_API_TOKEN` | Pod env | ✅ |
+
+**vault_address 差异说明**：
+- CI：`https://secrets.{domain}` （外部访问）
+- Atlantis：`http://vault.platform.svc:8200` （集群内）
+- 两者都能正确连接 Vault
+
+### 版本锁定
+
+```hcl
+# versions.tf - 固定 provider 版本
+terraform {
+  required_version = ">= 1.6.0"
+  required_providers {
+    kubernetes = { version = "~> 2.25" }
+    helm       = { version = "~> 2.12" }
+    vault      = { version = "~> 4.2" }
+  }
+}
+```
+
+```
+# .terraform.lock.hcl 提交到 Git
+# 确保 CI 和 Atlantis 用相同 provider 版本
+```
+
+---
+
+## 2. 健康检查分层
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -23,95 +74,94 @@
 ### 依赖拓扑
 
 ```
-PostgreSQL ─┬─→ Vault     (initContainer 等待 PG)
-            └─→ Casdoor   (initContainer 等待 PG)
+PostgreSQL ─┬─→ Vault       (initContainer 等待 PG)
+            ├─→ Casdoor     (initContainer 等待 PG)
+            │       └─→ Portal-Auth (initContainer 等待 Casdoor)
+            └─→ L3 Postgres (initContainer 等待 PG)
 ```
 
-### 组件标准模板
+### initContainer 实现状态
 
-```hcl
-# 所有依赖 PG 的组件都用这个模式
-resource "helm_release" "xxx" {
-  lifecycle {
-    precondition {
-      condition     = data.external.pg_ready.result.ok == "true"
-      error_message = "PostgreSQL not ready"
-    }
-  }
-}
-```
-
-```yaml
-# K8s: 等待依赖 + 健康检查
-initContainers:
-  - name: wait-for-postgres
-    image: busybox:1.36
-    command: ['sh', '-c', 'until nc -z postgresql.platform.svc 5432; do sleep 2; done']
-readinessProbe:
-  exec: { command: ["健康检查命令"] }
-livenessProbe:
-  exec: { command: ["健康检查命令"] }
-```
+| 组件 | 等待 | 状态 |
+|------|------|------|
+| Vault | PostgreSQL | ✅ |
+| Casdoor | PostgreSQL | ✅ |
+| Portal-Auth | Casdoor | ✅ |
 
 ---
 
-## 2. 部署流程
+## 3. 部署流程
 
 ### L1 Bootstrap（GitHub Actions）
 
 ```
-push to main → plan (validation + check) → apply (pre/post condition)
+push to main
+     ↓
+terraform fmt/lint/validate
+     ↓
+terraform plan (CI 预览)
+     ↓
+terraform apply (自动)
 ```
 
 ### L2-L4（Atlantis GitOps）
 
 ```
-PR → atlantis plan → review → atlantis apply → merge
+PR 创建
+     ↓
+CI plan (语法+安全检查)
+     ↓
+atlantis plan (实际 plan)
+     ↓
+Review
+     ↓
+atlantis apply
+     ↓
+Merge
 ```
 
-**Lock 策略**：`parallel_plan: true`，plan 失败自动 unlock。
+**Lock 策略**：
+- `parallel_plan: true` - 多 PR 并行 plan
+- `parallel_apply: false` - apply 串行，避免冲突
 
 ---
 
-## 3. Drift 管理
+## 4. Plan/Apply 常见问题
 
-### 原则
-
-> 允许手动操作，但有 Audit 追踪
-
-### 机制
+### State Stale
 
 ```
-手动 kubectl/helm
-       ↓
-K8s Audit Log 记录 (who/what/when)
-       ↓
-下次 atlantis apply 前自动显示:
-  "上次 apply 后的手动操作: ..."
-       ↓
-Reviewer 知晓上下文 → apply
+Error: Saved plan is stale
 ```
 
-### Audit 配置
+**原因**：Plan 后 state 被其他操作修改
+**解决**：重新 `atlantis plan`
 
-```yaml
-# /etc/rancher/k3s/config.yaml
-kube-apiserver-arg:
-  - audit-log-path=/var/log/k8s-audit.log
-  - audit-policy-file=/etc/rancher/k3s/audit-policy.yaml
+### Provider 不匹配
+
+```
+Error: Inconsistent dependency lock file
 ```
 
-### Drift 修复
+**原因**：`.terraform.lock.hcl` 变更
+**解决**：
+1. 本地 `terraform init -upgrade`
+2. 提交 `.terraform.lock.hcl`
 
-| 场景 | 命令 |
-|------|------|
-| 资源被删 | `terraform apply` |
-| 资源被创建 | `terraform import` |
-| State 残留 | `terraform state rm` |
+### 变量缺失
+
+```
+Error: No value for required variable
+```
+
+**检查**：
+1. GitHub Secrets 是否存在
+2. CI workflow 是否传递
+3. Atlantis Pod env 是否有
 
 ---
 
-## 4. 灾难恢复
+## 5. 灾难恢复
 
 | 场景 | 恢复 |
 |------|------|
@@ -124,6 +174,7 @@ kube-apiserver-arg:
 ### 1Password 密钥
 
 - `Vault Unseal Keys` - unseal
+- `Vault Root Token` - TF provider
 - `Casdoor Admin` - SSO 管理
 - `VPS SSH Key` - 服务器访问
 - `R2 Credentials` - TF state
@@ -134,6 +185,8 @@ kube-apiserver-arg:
 
 | 文件 | 用途 |
 |------|------|
-| `1.bootstrap/*.tf` | L1 组件实现 |
-| `2.platform/*.tf` | L2 组件实现 |
+| `docs/ssot/secrets.md` | 密钥 SSOT |
+| `docs/ssot/vars.md` | 变量定义 |
+| `.github/actions/terraform-setup/` | CI 变量注入 |
+| `1.bootstrap/2.atlantis.tf` | Atlantis Pod env |
 | `atlantis.yaml` | GitOps 配置 |

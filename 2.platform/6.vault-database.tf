@@ -5,6 +5,8 @@
 # 1. Vault secrets engines (KV + database)
 # 2. L3 PostgreSQL root password (generated here, used by L3)
 # 3. Dynamic credential roles for L4 applications
+#
+# Note: L3 namespaces (data-staging, data-prod) are created by L3 workspaces
 
 # =============================================================================
 # Vault Secrets Engines (IaC - replaces manual vault secrets enable)
@@ -15,6 +17,13 @@ resource "vault_mount" "kv" {
   path        = "secret"
   type        = "kv-v2"
   description = "KV v2 secrets engine for L3 static secrets"
+
+  lifecycle {
+    precondition {
+      condition     = var.vault_root_token != ""
+      error_message = "vault_root_token is required for Vault secrets engine configuration."
+    }
+  }
 }
 
 # Database secrets engine for dynamic credentials
@@ -43,7 +52,7 @@ resource "vault_kv_secret_v2" "l3_postgres" {
   data_json = jsonencode({
     username = "postgres"
     password = random_password.l3_postgres.result
-    host     = "postgresql.data.svc.cluster.local"
+    host     = "postgresql.data-staging.svc.cluster.local"
     port     = "5432"
     database = "app"
   })
@@ -61,7 +70,7 @@ resource "vault_database_secret_backend_connection" "l3_postgres" {
   allowed_roles = ["app-readonly", "app-readwrite"]
 
   postgresql {
-    connection_url = "postgres://postgres:${random_password.l3_postgres.result}@postgresql.data.svc.cluster.local:5432/app?sslmode=disable"
+    connection_url = "postgres://postgres:${random_password.l3_postgres.result}@postgresql.data-staging.svc.cluster.local:5432/app?sslmode=disable"
   }
 
   depends_on = [vault_kv_secret_v2.l3_postgres]

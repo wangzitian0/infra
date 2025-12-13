@@ -111,6 +111,23 @@ resource "kubectl_manifest" "kubero_instance" {
         type = "ClusterIP"
         port = 2000
       }
+      # Health probes
+      livenessProbe = {
+        httpGet = {
+          path = "/"
+          port = 2000
+        }
+        initialDelaySeconds = 30
+        periodSeconds       = 10
+      }
+      readinessProbe = {
+        httpGet = {
+          path = "/"
+          port = 2000
+        }
+        initialDelaySeconds = 5
+        periodSeconds       = 5
+      }
       persistence = {
         enabled      = true
         storageClass = "local-path"

@@ -11,7 +11,7 @@
 # - L2 Vault: dynamic credential generation
 #
 # Namespace: singular 'data' (not per-env) because:
-# - L2 Vault database engine is singleton, expects postgresql.data.svc
+# - L2 Vault database engine connects to staging: postgresql.data-staging.svc
 # - Single VPS MVP doesn't need DB-level env isolation
 # - L4 apps handle env isolation at app layer
 #
@@ -20,14 +20,19 @@
 # L3 reads password from Vault KV → deploys PostgreSQL
 
 # =============================================================================
-# Namespace (singular 'data' - L2 Vault connection expects this)
+# Namespace (per-environment: data-staging, data-prod)
 # =============================================================================
+
+locals {
+  namespace_name = "data-${terraform.workspace}"
+}
 
 resource "kubernetes_namespace" "data" {
   metadata {
-    name = "data"
+    name = local.namespace_name
     labels = {
       layer = "L3"
+      env   = terraform.workspace
     }
   }
 }
@@ -69,6 +74,17 @@ resource "helm_release" "postgresql" {
         database         = "app"
       }
       primary = {
+        # Wait for Vault to be available (max 120s timeout)
+        initContainers = [
+          {
+            name  = "wait-for-vault"
+            image = "busybox:1.36"
+            command = [
+              "sh", "-c",
+              "t=120;e=0;until nc -z vault.platform.svc.cluster.local 8200;do echo \"waiting for Vault... ($e/$t s)\";sleep 2;e=$((e+2));[ $e -ge $t ]&&exit 1;done"
+            ]
+          }
+        ]
         persistence = {
           enabled      = true
           storageClass = "local-path-retain"
@@ -87,6 +103,13 @@ resource "helm_release" "postgresql" {
       }
     })
   ]
+
+  lifecycle {
+    precondition {
+      condition     = can(data.vault_kv_secret_v2.postgres.data["password"]) && length(data.vault_kv_secret_v2.postgres.data["password"]) >= 16
+      error_message = "L3 PostgreSQL password must be available in Vault KV and at least 16 characters."
+    }
+  }
 }
 
 # =============================================================================
@@ -94,7 +117,7 @@ resource "helm_release" "postgresql" {
 # =============================================================================
 
 output "postgres_host" {
-  value       = "postgresql.data.svc.cluster.local"
+  value       = "postgresql.${local.namespace_name}.svc.cluster.local"
   description = "PostgreSQL K8s service DNS"
 }
 
@@ -104,6 +127,6 @@ output "postgres_vault_path" {
 }
 
 output "postgres_namespace" {
-  value       = "data"
+  value       = local.namespace_name
   description = "Namespace where PostgreSQL is deployed"
 }

@@ -11,4 +11,9 @@ variable "vault_root_token" {
   type        = string
   sensitive   = true
   default     = "" # Default for plan; Atlantis sets via TF_VAR_vault_root_token
+
+  validation {
+    condition     = var.vault_root_token == "" || length(var.vault_root_token) > 20
+    error_message = "vault_root_token must be a valid Vault token (or empty for plan-only)."
+  }
 }
