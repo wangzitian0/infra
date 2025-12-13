@@ -153,6 +153,12 @@ variable "vault_root_token" {
   default     = ""
 }
 
+variable "vault_address" {
+  description = "Vault server address. Default is internal K8s DNS for Atlantis. Set to http://localhost:8200 for GitHub Actions with port-forward."
+  type        = string
+  default     = "http://vault.platform.svc.cluster.local:8200"
+}
+
 # ============================================================
 # One-Auth (SSO Gate Switch)
 # ============================================================

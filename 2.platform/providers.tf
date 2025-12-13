@@ -28,7 +28,7 @@ provider "cloudflare" {
 # Vault provider for database secrets engine configuration
 # Uses root token for now; can migrate to Kubernetes auth later
 provider "vault" {
-  address         = "http://vault.platform.svc.cluster.local:8200"
+  address         = var.vault_address
   token           = var.vault_root_token
   skip_tls_verify = true
 }
