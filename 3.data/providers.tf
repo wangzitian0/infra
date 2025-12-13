@@ -1,8 +1,12 @@
 # L3 Data Layer Provider Configuration
 #
-# Providers: kubernetes, helm, vault
-# Vault access: Uses root token from GitHub Secret (for initial setup)
-# Future: Migrate to Kubernetes auth method
+# Providers: kubernetes, helm
+# Password: Read from L2 via terraform_remote_state (no Vault provider needed!)
+#
+# Architecture decision:
+# Instead of L3 requiring Vault token to read password,
+# L3 reads password from L2's terraform state via terraform_remote_state.
+# This simplifies the auth chain and eliminates env var passing issues.
 
 # When running in Atlantis (in-cluster), kubeconfig_path can be empty.
 # Providers will auto-detect in-cluster ServiceAccount credentials.
@@ -15,14 +19,4 @@ provider "helm" {
   kubernetes {
     config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
   }
-}
-
-# Vault provider for reading secrets
-# Address: internal K8s service DNS
-provider "vault" {
-  address = "http://vault.platform.svc.cluster.local:8200"
-  token   = var.vault_root_token
-
-  # Skip TLS verification for internal communication
-  skip_tls_verify = true
 }

@@ -6,9 +6,15 @@ variable "kubeconfig_path" {
   default     = ""
 }
 
-variable "vault_root_token" {
-  description = "Vault root token for reading secrets (from 1Password via GitHub Secret)"
+# R2 configuration for terraform_remote_state
+variable "r2_bucket" {
+  description = "R2 bucket name for Terraform state"
   type        = string
-  sensitive   = true
-  default     = "" # Default for plan; Atlantis sets via TF_VAR_vault_root_token
+  default     = "zitian-infra"
+}
+
+variable "r2_account_id" {
+  description = "Cloudflare account ID for R2"
+  type        = string
+  default     = "" # Set via TF_VAR_r2_account_id or Atlantis env
 }
