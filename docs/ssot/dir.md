@@ -145,14 +145,14 @@ root/
 |------|------|------|---------------|--------|------------|--------------|---------|
 | **L1** | k3s | 无 | N/A | N/A | N/A | N/A | 5m |
 | | Atlantis | k3s | N/A | ✅ R+L | ✅ | ✅ | 300s |
-| | DNS/Cert | k3s | N/A | N/A | ✅ | N/A | N/A |
+| | DNS/Cert | k3s | N/A | N/A | ✅ | N/A | 300s |
 | | Storage | k3s | N/A | N/A | N/A | N/A | 2m |
 | | Platform PG | storage | N/A | ✅ Helm | ✅ | ✅ | 300s |
 | **L2** | Vault | PG | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
 | | Casdoor | PG | ✅ 120s | ✅ S+R+L | ✅ | ✅ | 300s |
 | | Portal-Auth | Casdoor | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
-| | Dashboard | namespace | N/A | ✅ Helm | N/A | N/A | default |
-| | Kubero | namespace | N/A | ✅ R+L | N/A | N/A | default |
+| | Dashboard | namespace | N/A | ✅ Helm | N/A | N/A | 300s |
+| | Kubero | namespace | N/A | ✅ R+L | N/A | N/A | N/A (manifest) |
 | | Vault-DB | Vault | N/A | N/A | ✅ | ✅ | N/A |
 | **L3** | L3 Postgres | Vault KV | ✅ 120s | ✅ Helm | ✅ | ✅ | 300s |
 
