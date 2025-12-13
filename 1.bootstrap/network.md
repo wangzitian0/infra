@@ -4,7 +4,7 @@
 
 ## 1. DNS Architecture
 
-**Cloudflare DNS + Nginx Ingress Routing**:
+**Cloudflare DNS + Traefik Ingress Routing**:
 
 | Record | Cloudflare Mode | Purpose |
 |--------|-----------------|---------|
@@ -14,7 +14,7 @@
 | `x-*` (on BASE_DOMAIN) | Orange cloud (proxied) | Staging/test entrypoints (e.g., `x-staging`, CI-managed `x-test*`) |
 | `*` (wildcard on INTERNAL_DOMAIN) | Orange cloud (proxied) | Optional: only when `INTERNAL_DOMAIN` uses a distinct zone (overridden by explicit infra records) |
 
-All HTTP/HTTPS (80/443) services route through Nginx Ingress Controller.
+All HTTP/HTTPS (80/443) services route through Traefik Ingress Controller (k3s default).
 
 ## 2. Domain Patterns
 
@@ -64,7 +64,7 @@ Production on BASE_DOMAIN (No prefix, proxied)
 | K3s API | `k3s.${INTERNAL_DOMAIN}` (connect :6443, DNS-only) | 401 Unauthorized | ✅ Active |
 | Atlantis | `atlantis.${INTERNAL_DOMAIN}` | `{"status":"ok"}` | ✅ Active |
 | Cert-Manager | N/A | - | ✅ Active (internal) |
-| Ingress-Nginx | N/A | - | ✅ Active (internal) |
+| Traefik Ingress | N/A | - | ✅ Active (internal) |
 
 ### L2: Platform (Internal)
 
@@ -118,11 +118,11 @@ Defined in `3.dns_and_cert.tf`:
 ```hcl
 # Infra (i-*, DNS-only / grey cloud)
 cloudflare_record.infra_records: [
-  i-atlantis, i-k3s, i-secrets, i-kdashboard, i-kcloud, i-kapi, i-signoz, i-posthog
-] -> VPS_IP (proxied = false)
+  atlantis, k3s, secrets, kdashboard, kcloud, kapi, signoz, posthog
+] -> VPS_IP (proxied = per-service; k3s is DNS-only)
 
 # Optional wildcard when INTERNAL_DOMAIN uses a separate zone
-cloudflare_record.wildcard_internal: * -> VPS_IP (grey cloud, only if INTERNAL_DOMAIN zone differs)
+cloudflare_record.wildcard_internal: * -> VPS_IP (orange cloud, only if INTERNAL_DOMAIN zone differs; explicit records override)
 
 # Public wildcard: proxied for apps/x-* (explicit i-* overrides)
 cloudflare_record.wildcard_public: * -> VPS_IP (orange cloud)

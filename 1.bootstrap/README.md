@@ -59,7 +59,7 @@ terraform apply
 
 - **PostgreSQL Chart**: Migrated to OCI format (`oci://registry-1.docker.io/bitnamicharts`) as of 2025-12-11
 - **Reason**: Bitnami deprecated HTTP chart repository in favor of OCI registry
-- **Image Pin**: `16.1.0-debian-12-r10` (explicit tag to avoid ImagePullBackOff)
+- **Image Pin**: Use the chart default image tag (pinned via chart version). Do **NOT** override to `latest` (breaks reproducibility).
 
 ---
 *Last updated: 2025-12-13*

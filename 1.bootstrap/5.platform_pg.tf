@@ -36,11 +36,8 @@ resource "helm_release" "platform_pg" {
 
   values = [
     yamlencode({
-      # Bitnami only publishes "latest" tag reliably
-      # Version-specific tags (e.g., 17.2.0-debian-12-r3) are often missing
-      image = {
-        tag = "latest"
-      }
+      # IMPORTANT: Do NOT pin "latest" here (breaks reproducibility).
+      # We rely on the chart's default image tag, which is pinned by the chart version.
       auth = {
         postgresPassword = var.vault_postgres_password
         database         = "vault"
