@@ -64,7 +64,7 @@ resource "helm_release" "portal_auth" {
 
       extraArgs = {
         provider                    = "oidc"
-        oidc_issuer_url             = local.casdoor_issuer
+        "oidc-issuer-url"           = local.casdoor_issuer
         email-domain                = "*"
         cookie-domain               = ".${local.internal_domain}"
         cookie-secure               = "true"
