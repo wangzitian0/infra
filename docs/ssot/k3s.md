@@ -64,8 +64,10 @@ Kubero 是 L2 平台的 PaaS 组件，用于部署应用：
 | `platform` | L2 | Vault, Dashboard, OAuth2-Proxy, Platform PG |
 | `kubero` | L2 | Kubero UI |
 | `kubero-operator-system` | L2 | Kubero Operator |
-| `data` | L3 | 业务数据库 |
-| `apps` | L4 | 业务应用 |
+| `data-<env>` | L3 | 业务数据库（`data-staging` / `data-prod`） |
+| `apps-<env>` | L4 | 业务应用（`apps-staging` / `apps-prod`） |
+
+> 环境模型（workspace/state/namespace/domain 的统一规则）见：[`env.md`](./env.md)
 
 ## 相关文件
 

@@ -15,12 +15,13 @@ cluster_name        = "staging-k3s"
 k3s_channel         = "stable"
 k3s_version         = ""
 api_endpoint        = "i-k3s.example.com"
-disable_components  = ["traefik"]
+# ⚠️ 不要随意禁用 traefik：当前 L1/L2 IngressClass 使用 traefik；禁用会导致平台入口不可用
+disable_components  = []
 
 # 环境标识
 environment         = "staging"
 base_domain         = "example.com"
-env_prefix          = "x-staging"  # Kubero/Vault 域名前缀
+env_prefix          = "x-staging"  # 业务域名前缀：x-staging.<base_domain> / x-staging-api.<base_domain>（平台域名用 internal_domain）
 enable_ssl          = true
 
 # Vault 密钥

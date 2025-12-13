@@ -20,7 +20,7 @@
 ├─────────────────────────────────────────────────────────────┤
 │  PostgreSQL (业务)  Redis    Neo4j    ClickHouse            │
 │  └─ 密码: Vault     └─ Vault └─ Vault └─ Vault              │
-│  └─ NS: data        └─ data  └─ data  └─ data               │
+│  └─ NS: data-<env>   └─ data-<env>  └─ data-<env>  └─ data-<env> │
 │  └─ Storage: local-path-retain (持久化)                     │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -30,10 +30,10 @@
 | 数据库 | 层级 | 命名空间 | 密码来源 | StorageClass | 消费者 |
 |--------|------|----------|----------|--------------|--------|
 | **Platform PG** | L1 | `platform` | GitHub Secret | `local-path-retain` | Vault, Casdoor |
-| **Business PG** | L3 | `data` | Vault | `local-path-retain` | L4 Apps |
-| **Redis** | L3 | `data` | Vault | `local-path-retain` | L4 Apps (Cache) |
-| **Neo4j** | L3 | `data` | Vault | `local-path-retain` | L4 Apps (Graph) |
-| **ClickHouse** | L3 | `data` | Vault | `local-path-retain` | L4 Apps (OLAP) |
+| **Business PG** | L3 | `data-<env>` | Vault | `local-path-retain` | L4 Apps |
+| **Redis** | L3 | `data-<env>` | Vault | `local-path-retain` | L4 Apps (Cache) |
+| **Neo4j** | L3 | `data-<env>` | Vault | `local-path-retain` | L4 Apps (Graph) |
+| **ClickHouse** | L3 | `data-<env>` | Vault | `local-path-retain` | L4 Apps (OLAP) |
 
 ## 为什么 Platform PG 在 L1？
 

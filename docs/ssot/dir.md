@@ -27,7 +27,11 @@ root/
 ├── AGENTS.md                # (!) AI Behavior Guidelines
 ├── README.md                # (!) Project Index
 ├── docs/
-│   ├── dir.md               # (!) This map & Namespace Registry
+│   ├── ssot/
+│   │   ├── README.md        # (!) SSOT index
+│   │   ├── dir.md           # (!) This map & Namespace Registry
+│   │   ├── env.md           # (!) Environment model (env/workspace/ns/state/domains)
+│   │   └── ...              # Topic SSOT docs
 │   ├── README.md            # (!) Design Concepts
 │   ├── BRN-004.env_eaas_design.md # (!) Env & EaaS architecture
 │   ├── project/
@@ -63,8 +67,8 @@ root/
 | **L0** | **Tools Chain** | Project Roots | `0.tools/` :: Scripts <br> `docs/` :: Architecture | - | `README.md` |
 | **L1** | **Bootstrap** | Zero-Dependency Infra | `1.bootstrap/` :: Runtime (k3s), CI (Atlantis), DNS/Cert | `kube-system`, `bootstrap` | `1.bootstrap/README.md` |
 | **L2** | **Platform** | Platform Components | `2.platform/` :: Secrets (Vault), Dashboard, Kubero | `platform`, `kubero`, `kubero-operator-system` | `2.platform/README.md` |
-| **L3** | **Data** | Business Data Stores | `3.data/` :: Cache (Redis), Graph (Neo4j), DB (Postgres), OLAP (ClickHouse) | `data` | `3.data/README.md` |
-| **L4** | **Apps** | Applications | `4.apps/` :: Business Services (prod/staging) | `apps` | `4.apps/README.md` |
+| **L3** | **Data** | Business Data Stores | `3.data/` :: Cache (Redis), Graph (Neo4j), DB (Postgres), OLAP (ClickHouse) | `data-<env>` | `3.data/README.md` |
+| **L4** | **Apps** | Applications | `4.apps/` :: Business Services (prod/staging) | `apps-<env>` | `4.apps/README.md` |
 
 ## Persistence Architecture
 
