@@ -10,4 +10,5 @@ variable "vault_root_token" {
   description = "Vault root token for storing secrets (from 1Password via GitHub Secret)"
   type        = string
   sensitive   = true
+  default     = "" # Empty for plan; actual token via TF_VAR at apply time
 }
