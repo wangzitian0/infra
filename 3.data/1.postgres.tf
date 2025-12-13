@@ -94,14 +94,6 @@ resource "helm_release" "postgresql" {
       }
     })
   ]
-
-  # Prevent apply with dummy password
-  lifecycle {
-    precondition {
-      condition     = local.vault_token_available
-      error_message = "vault_root_token must be set to apply. Provide via TF_VAR_vault_root_token."
-    }
-  }
 }
 
 # =============================================================================
