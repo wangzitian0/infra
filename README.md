@@ -15,8 +15,10 @@ CI/CD and bot configuration live here. Workflows under `workflows/` drive Terraf
 
 Documentation guard enforces updating `0.check_now.md` and directory `README.md` files whenever code changes land.
 
+Repo-level Atlantis behavior is configured in `atlantis.yaml` (including `execution_order_group` to avoid parallel workspace collisions).
+
 For detailed CI/CD design philosophy, plan/apply/revert workflows, see [workflows/README.md](./workflows/README.md).
 
 ---
-*Last updated: 2025-12-12*
+*Last updated: 2025-12-14*
 # Trigger CI Sun Dec 14 00:22:03 +08 2025

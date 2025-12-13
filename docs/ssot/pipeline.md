@@ -154,8 +154,8 @@ Error: Inconsistent dependency lock file
 Error: text file busy
 ```
 
-**原因**：多项目并行 `init -upgrade`，同时写共享 cache
-**解决**：`atlantis unlock` → 重新 `atlantis plan`
+**原因**：`parallel_plan: true` 时，若多个 Atlantis projects 指向同一目录（例如同一模块的不同 workspace），并行 `rm -rf .terraform` / `terraform init` 会互相踩踏，导致 provider 文件被占用。
+**解决**：通过 `atlantis.yaml` 的 `execution_order_group` 将同目录的 projects 串行化；或只对单个 project 运行 `atlantis plan -p <project>`。
 
 ### Workspace 已存在
 
@@ -163,8 +163,8 @@ Error: text file busy
 Error: Workspace "prod" already exists
 ```
 
-**原因**：前次 plan 遗留的 workspace
-**解决**：`atlantis unlock` → `atlantis plan`
+**原因**：同目录的多 workspace 并行 plan 时，`terraform workspace new`/`select` 存在竞争条件。
+**解决**：同上（用 `execution_order_group` 串行化）；必要时 `atlantis unlock` 后重跑 `atlantis plan`。
 
 ### 变量缺失
 

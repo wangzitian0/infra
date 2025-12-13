@@ -19,6 +19,7 @@ projects:
     dir: 2.platform
     terraform_version: 1.6.6
     workspace: default
+    execution_order_group: 0
     workflow: platform
     autoplan:
       enabled: false
@@ -28,6 +29,7 @@ projects:
     dir: 3.data
     terraform_version: 1.6.6
     workspace: staging
+    execution_order_group: 10
     workflow: data
     autoplan:
       enabled: false
@@ -36,6 +38,7 @@ projects:
     dir: 3.data
     terraform_version: 1.6.6
     workspace: prod
+    execution_order_group: 20
     workflow: data
     autoplan:
       enabled: false
@@ -45,6 +48,7 @@ projects:
     dir: 4.apps
     terraform_version: 1.6.6
     workspace: staging
+    execution_order_group: 10
     workflow: apps
     autoplan:
       enabled: false
@@ -53,6 +57,7 @@ projects:
     dir: 4.apps
     terraform_version: 1.6.6
     workspace: prod
+    execution_order_group: 20
     workflow: apps
     autoplan:
       enabled: false
@@ -72,30 +77,10 @@ workflows:
             EOF
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
-        # Remove stale resources from L2 state (idempotent)
-        - run: |
-            terraform state rm kubernetes_namespace.platform 2>/dev/null || true
-            terraform state rm vault_mount.database 2>/dev/null || true
-            terraform state rm vault_mount.kv 2>/dev/null || true
-            terraform state rm random_password.l3_postgres 2>/dev/null || true
         - plan
     apply:
       steps:
-        - run: rm -rf .terraform
-        - run: |
-            cat > backend.tfvars <<EOF
-            bucket    = "${R2_BUCKET}"
-            key       = "k3s/platform.tfstate"
-            endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-            EOF
-        - init:
-            extra_args: ["-backend-config=backend.tfvars"]
-        # Remove stale resources from L2 state (idempotent)
-        - run: |
-            terraform state rm kubernetes_namespace.platform 2>/dev/null || true
-            terraform state rm vault_mount.database 2>/dev/null || true
-            terraform state rm vault_mount.kv 2>/dev/null || true
-            terraform state rm random_password.l3_postgres 2>/dev/null || true
+        # Reuse .terraform from plan step to avoid state lineage mismatch
         - apply
 
   # L3: Data

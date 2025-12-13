@@ -84,7 +84,7 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **Vault init/unseal**: Manual init/unseal required after deploy; store keys outside Terraform.
 - **PostgreSQL storage**: Uses `local-path-retain` StorageClass (reclaimPolicy=Retain) to keep PV data after PVC deletion.
 - **PostgreSQL upgrades**: `helm_release.postgresql` uses `force_update=true` to allow spec changes (e.g., auth tweaks). Expect pod recreation/downtime during upgrades.
-- **Namespace ownership**: `platform` namespace is created in L1 (`1.bootstrap/5.platform_pg.tf`), not L2. The Atlantis workflow removes stale namespace refs from L2 state automatically.
+- **Namespace ownership**: `platform` namespace is created in L1 (`1.bootstrap/5.platform_pg.tf`), not L2. L2 uses a `removed` block (`2.platform/removed.tf`) to prevent Terraform from attempting to destroy the namespace if a stale state entry exists.
 - **Casdoor login bug**: Requires `copyrequestbody = true` in `app.conf` to fix "unexpected end of JSON input" error. See [#3224](https://github.com/casdoor/casdoor/issues/3224).
 - **Kubero UI image pin**: Prefer pinning `kubero_ui_image_tag` to a fixed version and keep pull policy `IfNotPresent` for reproducible deploys.
 
@@ -94,4 +94,4 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **Lost Admin Access**: Recover using stored root token/unseal keys.
 
 ---
-*Last updated: 2025-12-13*
+*Last updated: 2025-12-14*

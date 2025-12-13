@@ -42,7 +42,7 @@
 └──────────────────┘  └──────────────────┘  └──────────────────┘
 ```
 
-> 更新说明：`auth.md` 现包含 Casdoor 门户级 SSO 覆盖的进度表与 1Password/Vault 密钥策略，对应 BRN-008 场景 5 的落地。
+> 更新说明：`pipeline.md` 已补齐 Atlantis 并发问题与 `execution_order_group` 约束；`auth.md` 现包含 Casdoor 门户级 SSO 覆盖的进度表与 1Password/Vault 密钥策略，对应 BRN-008 场景 5 的落地。
 
 ## 相关文档
 
