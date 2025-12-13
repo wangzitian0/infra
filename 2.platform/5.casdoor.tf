@@ -338,13 +338,14 @@ EOT
   depends_on = [data.kubernetes_namespace.platform]
 
   lifecycle {
+    # Only validate when Casdoor is actually enabled (count > 0)
     precondition {
-      condition     = var.casdoor_admin_password != "" && length(var.casdoor_admin_password) >= 12
-      error_message = "casdoor_admin_password must be set and at least 12 characters."
+      condition     = !local.casdoor_enabled || (var.casdoor_admin_password != "" && length(var.casdoor_admin_password) >= 12)
+      error_message = "casdoor_admin_password must be set and at least 12 characters when Casdoor is enabled."
     }
     precondition {
-      condition     = length(var.vault_postgres_password) >= 16
-      error_message = "vault_postgres_password (for Casdoor DB) must be at least 16 characters."
+      condition     = !local.casdoor_enabled || length(var.vault_postgres_password) >= 16
+      error_message = "vault_postgres_password (for Casdoor DB) must be at least 16 characters when Casdoor is enabled."
     }
   }
 }
