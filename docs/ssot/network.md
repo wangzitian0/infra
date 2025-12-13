@@ -11,6 +11,8 @@
 | `x-<env>.<base_domain>` | ✅ Orange | 测试环境 | `x-staging.truealpha.club` |
 | `<base_domain>` | ✅ Orange | 生产 | `truealpha.club` |
 
+> 环境模型（workspace/state/namespace/domain 的统一规则）见：[`env.md`](./env.md)
+
 ## 服务域名映射
 
 | 服务 | 域名 | 层级 | Ingress |
@@ -22,6 +24,11 @@
 | OAuth2-Proxy | `auth.<internal_domain>` | L2 | ✅ |
 | Casdoor (未来) | `sso.<internal_domain>` | L2 | ✅ |
 | SigNoz (未来) | `signoz.<internal_domain>` | L4 | ✅ |
+
+### 业务应用域名（L4，多环境）
+
+- **staging**：`x-staging.<base_domain>` / `x-staging-api.<base_domain>`
+- **prod**：`<base_domain>` / `api.<base_domain>`
 
 ## TLS 证书
 

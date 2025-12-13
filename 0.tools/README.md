@@ -17,7 +17,7 @@ Run before `terraform apply` to catch common issues early.
 ### Usage
 
 ```bash
-./scripts/preflight-check.sh
+./preflight-check.sh
 ```
 
 ### Integration

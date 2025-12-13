@@ -1,30 +1,24 @@
 # Multi-Environment Architecture
 
-This infrastructure follows a **4-Layer Design**, mixing Singleton (Shared) and Isolated (Namespaced) resources.
+This directory documents **how we represent environments** via `*.tfvars` files.
+
+> Architecture SSOT lives in `docs/ssot/` (especially `docs/ssot/env.md`). This README is operational guidance, not a second SSOT.
 
 ## Layer Strategy (L1-L4)
 
 | Layer | Name | Scope | Managed By | Description |
 |-------|------|-------|------------|-------------|
-| **L1** | **Bootstrap** | **Shared** (Singleton) | `infra` | K3s Cluster, Atlantis CI, DNS/Cert (`kube-system`) |
-| **L2** | **Platform** | **Shared** (Singleton) | `infra` | Secrets (Vault), K8s Dashboard, Kubero, Platform DB |
-| **L3** | **Data** | **Isolated** (Namespace) | `staging`/`prod` | Stateful Services (Redis, Postgres) in `data-<env>` |
-| **L4** | **Insight** | **Isolated** (Namespace) | `staging`/`prod` | Observability (SigNoz), Analytics (PostHog) |
+| **L1** | **Bootstrap** | **Shared** (Singleton) | GitHub Actions | K3s Cluster, Atlantis, DNS/Cert, Storage, Platform PG |
+| **L2** | **Platform** | **Shared** (Singleton) | Atlantis (`platform`) | Vault, Dashboard, Kubero, Casdoor |
+| **L3** | **Data** | **Isolated** (Per-env) | Atlantis (`data-<env>`) | Business databases in `data-<env>` |
+| **L4** | **Apps** | **Isolated** (Per-env) | Atlantis (`apps-<env>`) | Business apps in `apps-<env>` |
 
 ## Environment Isolation
 
-- **L1/L2 (Shared Infrastructure)**
-    - Only deployed via `atlantis apply -p infra`.
-    - Protected by `enable_infra=true` toggle.
-    - Resources live in system namespaces (`kube-system`, `iac`, `kubernetes-dashboard`).
-
-- **L3/L4 (Application Environments)**
-    - Deployed via `atlantis apply` (Staging) or `-p prod` (Production).
-    - `enable_infra=false` prevents touching L1/L2.
-    - Resources are isolated by **Namespace Suffix**:
-        - Staging: `data-staging`, `monitoring-staging`
-        - Prod: `data-prod`, `monitoring-prod`
-        - Test: `data-test`, `monitoring-test`
+- **Shared layers (L1/L2)**: single instance shared by all envs (single VPS MVP).
+- **Env layers (L3/L4)**: isolated by **workspace + namespace suffix**:
+  - Staging: `data-staging`, `apps-staging`
+  - Prod: `data-prod`, `apps-prod`
 
 ## Design Decision: Namespace vs Cluster Isolation
 
@@ -44,9 +38,17 @@ This infrastructure follows a **4-Layer Design**, mixing Singleton (Shared) and 
 
 ## tfvars usage
 
-Use these files to configure non-sensitive environment variables:
-- `staging.tfvars`: `env_prefix="x-staging"`, `environment="staging"`
-- `prod.tfvars`: `env_prefix=""`, `environment="prod"`
+Use these files to configure **non-sensitive** environment variables:
+- `envs/staging.tfvars` (not committed; use `staging.tfvars.example` as template)
+- `envs/prod.tfvars` (not committed; create similarly)
+
+Recommended minimum content:
+- `environment = "staging"|"prod"`
+- `base_domain = "..."`
+- `internal_domain = "..."` (optional; defaults to base_domain)
+- `env_prefix = "x-staging"|""` (business domains only)
+
+For the authoritative environment model, see: `docs/ssot/env.md`.
 
 ---
 *Last updated: 2025-12-09*

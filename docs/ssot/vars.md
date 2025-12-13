@@ -11,6 +11,8 @@
 | **Helm Values** | chart versions | `variables.tf` | TF → Helm |
 | **Runtime Env** | `NODE_ENV` | L4 App 定义 | K8s ConfigMap |
 
+> 环境语义（environment/workspace/namespace/domain）与 tfvars 的边界，见：[`env.md`](./env.md)
+
 ## L1 Bootstrap 变量
 
 | 变量 | 类型 | 必填 | 默认值 | 用途 |
