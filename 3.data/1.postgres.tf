@@ -20,32 +20,19 @@
 # L3 reads password from Vault KV → deploys PostgreSQL
 
 # =============================================================================
-# Namespace (singular 'data' - shared by all workspaces)
+# Namespace (singular 'data' - must exist before L3 apply)
 # =============================================================================
-# Note: Multiple TF workspaces share this namespace. Only 'staging' workspace
-# creates it to avoid conflicts. Prod workspace uses data source.
-
-resource "kubernetes_namespace" "data" {
-  count = terraform.workspace == "staging" ? 1 : 0
-
-  metadata {
-    name = "data"
-    labels = {
-      layer = "L3"
-    }
-  }
-}
+# Note: Namespace is created by L2 (2.platform/2.secret.tf) or manually.
+# L3 workspaces only reference it to avoid create/import conflicts.
 
 data "kubernetes_namespace" "data" {
-  count = terraform.workspace != "staging" ? 1 : 0
-
   metadata {
     name = "data"
   }
 }
 
 locals {
-  data_namespace = terraform.workspace == "staging" ? kubernetes_namespace.data[0].metadata[0].name : data.kubernetes_namespace.data[0].metadata[0].name
+  data_namespace = data.kubernetes_namespace.data.metadata[0].name
 }
 
 # =============================================================================

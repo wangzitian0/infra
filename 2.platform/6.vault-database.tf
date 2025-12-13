@@ -2,9 +2,23 @@
 #
 # Purpose: Configure dynamic PostgreSQL credential generation
 # This file manages:
-# 1. Vault secrets engines (KV + database)
-# 2. L3 PostgreSQL root password (generated here, used by L3)
-# 3. Dynamic credential roles for L4 applications
+# 1. L3 'data' namespace (created here, used by L3 workspaces)
+# 2. Vault secrets engines (KV + database)
+# 3. L3 PostgreSQL root password (generated here, used by L3)
+# 4. Dynamic credential roles for L4 applications
+
+# =============================================================================
+# L3 Data Namespace (created by L2, used by all L3 workspaces)
+# =============================================================================
+
+resource "kubernetes_namespace" "data" {
+  metadata {
+    name = "data"
+    labels = {
+      layer = "L3"
+    }
+  }
+}
 
 # =============================================================================
 # Vault Secrets Engines (IaC - replaces manual vault secrets enable)
