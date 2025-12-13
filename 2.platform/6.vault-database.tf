@@ -51,9 +51,11 @@ resource "vault_kv_secret_v2" "l3_postgres" {
 
 # =============================================================================
 # Vault Database Connection for L3 PostgreSQL
+# NOTE: Enable only after L3 PostgreSQL is deployed (set enable_postgres_backend=true)
 # =============================================================================
 
 resource "vault_database_secret_backend_connection" "l3_postgres" {
+  count         = var.enable_postgres_backend ? 1 : 0
   backend       = vault_mount.database.path
   name          = "l3-postgres"
   allowed_roles = ["app-readonly", "app-readwrite"]
@@ -71,9 +73,10 @@ resource "vault_database_secret_backend_connection" "l3_postgres" {
 
 # Readonly role for app queries
 resource "vault_database_secret_backend_role" "app_readonly" {
+  count               = var.enable_postgres_backend ? 1 : 0
   backend             = vault_mount.database.path
   name                = "app-readonly"
-  db_name             = vault_database_secret_backend_connection.l3_postgres.name
+  db_name             = vault_database_secret_backend_connection.l3_postgres[0].name
   default_ttl         = 3600  # 1 hour
   max_ttl             = 86400 # 24 hours
 
@@ -91,9 +94,10 @@ resource "vault_database_secret_backend_role" "app_readonly" {
 
 # Readwrite role for app CRUD operations
 resource "vault_database_secret_backend_role" "app_readwrite" {
+  count               = var.enable_postgres_backend ? 1 : 0
   backend             = vault_mount.database.path
   name                = "app-readwrite"
-  db_name             = vault_database_secret_backend_connection.l3_postgres.name
+  db_name             = vault_database_secret_backend_connection.l3_postgres[0].name
   default_ttl         = 3600  # 1 hour
   max_ttl             = 86400 # 24 hours
 
