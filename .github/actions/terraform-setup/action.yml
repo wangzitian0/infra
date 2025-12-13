@@ -92,6 +92,10 @@ inputs:
     description: "Vault root token for L3 secret storage (from 1Password via GitHub Secret VAULT_ROOT_TOKEN)"
     required: false
     default: ""
+  vault_address:
+    description: "Vault server address. Use external URL for CI (https://secrets.domain), internal for Atlantis"
+    required: false
+    default: ""
   tf_state_key:
     description: "Terraform state file key in R2 bucket"
     required: false
@@ -169,6 +173,7 @@ runs:
         GITHUB_OAUTH_CLIENT_SECRET: ${{ inputs.github_oauth_client_secret }}
         # L3: Vault Access
         VAULT_ROOT_TOKEN: ${{ inputs.vault_root_token }}
+        VAULT_ADDRESS: ${{ inputs.vault_address }}
       run: |
         set -euo pipefail
 
@@ -225,6 +230,9 @@ runs:
 
         # L3: Vault Access
         echo "TF_VAR_vault_root_token=${VAULT_ROOT_TOKEN}" >> "$GITHUB_ENV"
+        if [ -n "${VAULT_ADDRESS}" ]; then
+          echo "TF_VAR_vault_address=${VAULT_ADDRESS}" >> "$GITHUB_ENV"
+        fi
 
         # Multiline Secrets
         {

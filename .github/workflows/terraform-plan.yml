@@ -91,6 +91,7 @@ jobs:
           github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
           github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
+          vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
 
       # ============================================================
       # Static Analysis (runs before plan to catch issues early)
