@@ -123,16 +123,7 @@ workflows:
         - plan
     apply:
       steps:
-        - run: rm -rf .terraform
-        - run: |
-            cat > backend.tfvars <<EOF
-            bucket    = "${R2_BUCKET}"
-            key       = "k3s/data-${WORKSPACE}.tfstate"
-            endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-            EOF
-        # Note: TF_VAR_vault_root_token is already in Atlantis Pod env (from L1 Helm)
-        - init:
-            extra_args: ["-backend-config=backend.tfvars"]
+        # Reuse .terraform from plan step to avoid state lineage mismatch
         - apply
 
   # L4: Apps
@@ -151,13 +142,5 @@ workflows:
         - plan
     apply:
       steps:
-        - run: rm -rf .terraform
-        - run: |
-            cat > backend.tfvars <<EOF
-            bucket    = "${R2_BUCKET}"
-            key       = "k3s/apps-${WORKSPACE}.tfstate"
-            endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-            EOF
-        - init:
-            extra_args: ["-backend-config=backend.tfvars"]
+        # Reuse .terraform from plan step to avoid state lineage mismatch
         - apply
