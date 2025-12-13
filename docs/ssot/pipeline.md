@@ -1,52 +1,139 @@
 # 流程 SSOT
 
-> **核心问题**：这个操作走什么流程？手动还是自动？
+> **核心问题**：如何保证每个组件可用？
 
-## 流程分类
+**答案**：分层检查 + Audit 追踪
 
-| 类型 | 触发 | 工具 | 配置位置 | SSOT 状态 |
-|------|------|------|----------|-----------| 
-| L1 Bootstrap | 手动 | TF + GitHub Actions | `.github/workflows/deploy-k3s.yml` | ❌ 人工触发 |
-| L2-L4 部署 | PR 评论 | Atlantis | `atlantis.yaml` | ✅ GitOps |
-| 代码审查 | 自动 | Claude Action | `.github/workflows/claude.yml` | ✅ 自动化 |
-| 健康检查 | 评论 | GitHub Actions | `.github/workflows/dig.yml` | ✅ 按需 |
-| 密钥轮换 | (计划) | Vault + CronJob | TBD | ✅ 自动化 |
+---
 
-## 详细流程
-
-### 1. L1 Bootstrap (打破 SSOT — 鸡生蛋)
-
-触发条件: 手动执行或 push to main (`deploy-k3s.yml`)
-
-```bash
-cd 1.bootstrap
-terraform init -backend-config="bucket=$R2_BUCKET" ...
-terraform apply -auto-approve
-```
-
-### 2. L2-L4 GitOps (遵守 SSOT)
+## 1. 健康检查分层
 
 ```
-PR Created → terraform-plan.yml (fmt, lint, plan)
-          → github-actions 评论 "atlantis plan"
-          → Atlantis 执行 plan
-          → infra-flash[bot] 评论结果
-          → Claude 自动 review
-          → 人工 review
-          → 评论 "atlantis apply"
-          → 合并到 main
+┌─────────────────────────────────────────────────────────────┐
+│  时机        │  能力                │  作用                 │
+├─────────────────────────────────────────────────────────────┤
+│  Plan       │  variable.validation │  拒绝无效输入          │
+│  Apply 前   │  precondition        │  验证依赖就绪          │
+│  Pod 启动   │  initContainer       │  等待依赖可用          │
+│  运行时     │  readiness/liveness  │  流量控制 / 自动重启   │
+│  Apply 后   │  postcondition       │  验证部署成功          │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 3. 灾难恢复流程
+### 依赖拓扑
 
-| 场景 | 恢复步骤 |
-|------|----------|
-| Vault Pod 挂掉 | Re-apply Helm → PG 数据在 → Unseal |
-| Platform PG 丢失 | 从 VPS /data 备份恢复 → Vault re-init |
-| VPS 完全丢失 | 1Password 根密钥 → 新 VPS → L1 apply → L2 apply |
+```
+PostgreSQL ─┬─→ Vault     (initContainer 等待 PG)
+            └─→ Casdoor   (initContainer 等待 PG)
+```
+
+### 组件标准模板
+
+```hcl
+# 所有依赖 PG 的组件都用这个模式
+resource "helm_release" "xxx" {
+  lifecycle {
+    precondition {
+      condition     = data.external.pg_ready.result.ok == "true"
+      error_message = "PostgreSQL not ready"
+    }
+  }
+}
+```
+
+```yaml
+# K8s: 等待依赖 + 健康检查
+initContainers:
+  - name: wait-for-postgres
+    image: busybox:1.36
+    command: ['sh', '-c', 'until nc -z postgresql.platform.svc 5432; do sleep 2; done']
+readinessProbe:
+  exec: { command: ["健康检查命令"] }
+livenessProbe:
+  exec: { command: ["健康检查命令"] }
+```
+
+---
+
+## 2. 部署流程
+
+### L1 Bootstrap（GitHub Actions）
+
+```
+push to main → plan (validation + check) → apply (pre/post condition)
+```
+
+### L2-L4（Atlantis GitOps）
+
+```
+PR → atlantis plan → review → atlantis apply → merge
+```
+
+**Lock 策略**：`parallel_plan: true`，plan 失败自动 unlock。
+
+---
+
+## 3. Drift 管理
+
+### 原则
+
+> 允许手动操作，但有 Audit 追踪
+
+### 机制
+
+```
+手动 kubectl/helm
+       ↓
+K8s Audit Log 记录 (who/what/when)
+       ↓
+下次 atlantis apply 前自动显示:
+  "上次 apply 后的手动操作: ..."
+       ↓
+Reviewer 知晓上下文 → apply
+```
+
+### Audit 配置
+
+```yaml
+# /etc/rancher/k3s/config.yaml
+kube-apiserver-arg:
+  - audit-log-path=/var/log/k8s-audit.log
+  - audit-policy-file=/etc/rancher/k3s/audit-policy.yaml
+```
+
+### Drift 修复
+
+| 场景 | 命令 |
+|------|------|
+| 资源被删 | `terraform apply` |
+| 资源被创建 | `terraform import` |
+| State 残留 | `terraform state rm` |
+
+---
+
+## 4. 灾难恢复
+
+| 场景 | 恢复 |
+|------|------|
+| Pod 挂 | K8s 自动重建 |
+| 依赖未就绪 | initContainer 等待 |
+| Vault sealed | `vault operator unseal <key>` |
+| PG 数据丢失 | 删 PVC → apply → reinit |
+| VPS 丢失 | 1Password → 新 VPS → L1 → L2 |
+
+### 1Password 密钥
+
+- `Vault Unseal Keys` - unseal
+- `Casdoor Admin` - SSO 管理
+- `VPS SSH Key` - 服务器访问
+- `R2 Credentials` - TF state
+
+---
 
 ## 相关文件
 
-- [deploy-k3s.yml](../../.github/workflows/deploy-k3s.yml) - L1 部署
-- [terraform-plan.yml](../../.github/workflows/terraform-plan.yml) - PR 验证
-- [atlantis.yaml](../../atlantis.yaml) - Atlantis 配置
+| 文件 | 用途 |
+|------|------|
+| `1.bootstrap/*.tf` | L1 组件实现 |
+| `2.platform/*.tf` | L2 组件实现 |
+| `atlantis.yaml` | GitOps 配置 |
