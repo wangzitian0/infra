@@ -25,6 +25,14 @@ provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
+# Vault provider for database secrets engine configuration
+# Uses root token for now; can migrate to Kubernetes auth later
+provider "vault" {
+  address         = "http://vault.platform.svc.cluster.local:8200"
+  token           = var.vault_root_token
+  skip_tls_verify = true
+}
+
 # Cloudflare zone data source for internal domain (used by Casdoor DNS)
 data "cloudflare_zone" "internal" {
   name = local.internal_domain

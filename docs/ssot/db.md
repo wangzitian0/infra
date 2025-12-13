@@ -44,12 +44,26 @@
 
 ## 连接方式
 
-| 消费者 | 目标 DB | 连接字符串来源 |
-|--------|---------|----------------|
-| Vault Pod | Platform PG | Helm values (L1 注入) |
-| Casdoor Pod | Platform PG | Helm values (L1 注入) |
-| L4 App Pod | Business PG | Vault Agent 注入 |
-| L4 App Pod | Redis | Vault Agent 注入 |
+| 消费者 | 目标 DB | 连接字符串来源 | 凭证类型 |
+|--------|---------|----------------|----------|
+| Vault Pod | Platform PG | Helm values (L1 注入) | 静态 (GitHub Secret) |
+| Casdoor Pod | Platform PG | Helm values (L1 注入) | 静态 (GitHub Secret) |
+| L4 App Pod | Business PG | Vault Agent 注入 | **动态** (Vault Database Engine) |
+| L4 App Pod | Redis | Vault Agent 注入 | 静态 (Vault KV) |
+
+### Vault 动态凭证流程
+
+```mermaid
+graph LR
+    APP[L4 App + Vault Agent] -->|"vault read database/creds/app-readonly"| VAULT[Vault]
+    VAULT -->|"CREATE ROLE + GRANT"| PG[(L3 PostgreSQL)]
+    VAULT -->|"短期 user/pass"| APP
+    APP -->|"使用动态凭证"| PG
+```
+
+**可用角色**：
+- `database/creds/app-readonly` - SELECT 权限 (TTL: 1h)
+- `database/creds/app-readwrite` - SELECT, INSERT, UPDATE, DELETE (TTL: 1h)
 
 ## 相关文件
 

@@ -112,6 +112,17 @@ variable "casdoor_admin_password" {
 }
 
 # ============================================================
+# Vault Configuration
+# ============================================================
+
+variable "vault_root_token" {
+  description = "Vault root token for database secrets engine config (from 1Password via GitHub Secret VAULT_ROOT_TOKEN)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# ============================================================
 # One-Auth (SSO Gate Switch)
 # ============================================================
 
