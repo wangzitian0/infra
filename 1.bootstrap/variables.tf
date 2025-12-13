@@ -289,3 +289,10 @@ variable "casdoor_admin_password" {
   sensitive   = true
   default     = ""
 }
+
+# Atlantis IP Allowlist (Admin Access)
+variable "atlantis_allowed_admin_ips" {
+  description = "Additional IP CIDRs allowed to access Atlantis UI (e.g., office IPs, VPN). GitHub webhook IPs are always included."
+  type        = list(string)
+  default     = []
+}
