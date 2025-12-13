@@ -6,11 +6,14 @@
 # - Vault needs DB → Services need Vault → Can't use Vault to manage Vault's DB
 # - This breaks SSOT intentionally as Trust Anchor
 #
+# Why native K8s instead of Helm?
+# - Bitnami deletes old image tags (breaks reproducibility)
+# - Official postgres image has stable tags
+# - Full control over configuration
+#
 # Consumers:
 # - Vault (L2): storage backend
-# - Casdoor (L2, future): user/session data
-
-
+# - Casdoor (L2): user/session data
 
 # Create/manage platform namespace in L1 (before L2 Vault deployment)
 resource "kubernetes_namespace" "platform" {
@@ -22,129 +25,258 @@ resource "kubernetes_namespace" "platform" {
   }
 }
 
-# Platform PostgreSQL via Bitnami Helm chart
-resource "helm_release" "platform_pg" {
-  name             = "postgresql"
-  namespace        = kubernetes_namespace.platform.metadata[0].name
-  repository       = "oci://registry-1.docker.io/bitnamicharts"
-  chart            = "postgresql"
-  version          = "16.3.2"
-  create_namespace = false
-  timeout          = 120
-  wait             = true
-  wait_for_jobs    = true
+# PostgreSQL Secret (password)
+resource "kubernetes_secret" "platform_pg" {
+  metadata {
+    name      = "postgresql"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
 
-  values = [
-    yamlencode({
-      # IMPORTANT: Do NOT pin "latest" here (breaks reproducibility).
-      # We rely on the chart's default image tag, which is pinned by the chart version.
-      auth = {
-        postgresPassword = var.vault_postgres_password
-        database         = "vault"
+  data = {
+    POSTGRES_PASSWORD = var.vault_postgres_password
+  }
+}
+
+# PostgreSQL Headless Service (for StatefulSet)
+resource "kubernetes_service" "platform_pg_headless" {
+  metadata {
+    name      = "postgresql-hl"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+    labels = {
+      app = "postgresql"
+    }
+  }
+
+  spec {
+    type       = "ClusterIP"
+    cluster_ip = "None"
+
+    port {
+      name        = "tcp-postgresql"
+      port        = 5432
+      target_port = 5432
+    }
+
+    selector = {
+      app = "postgresql"
+    }
+  }
+}
+
+# PostgreSQL Service (for clients)
+resource "kubernetes_service" "platform_pg" {
+  metadata {
+    name      = "postgresql"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+    labels = {
+      app = "postgresql"
+    }
+  }
+
+  spec {
+    type = "ClusterIP"
+
+    port {
+      name        = "tcp-postgresql"
+      port        = 5432
+      target_port = 5432
+    }
+
+    selector = {
+      app = "postgresql"
+    }
+  }
+}
+
+# PostgreSQL StatefulSet
+resource "kubernetes_stateful_set" "platform_pg" {
+  metadata {
+    name      = "postgresql"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+    labels = {
+      app = "postgresql"
+    }
+  }
+
+  spec {
+    service_name = kubernetes_service.platform_pg_headless.metadata[0].name
+    replicas     = 1
+
+    selector {
+      match_labels = {
+        app = "postgresql"
       }
-      primary = {
-        # NOTE: Additional databases (casdoor) are created by null_resource.casdoor_database
-        # initdb.scripts cannot use CREATE DATABASE (runs inside transaction context)
-        persistence = {
-          enabled      = true
-          storageClass = "local-path-retain"
-          size         = var.vault_postgres_storage
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "postgresql"
         }
-        resources = {
-          limits = {
-            cpu    = "500m"
-            memory = "512Mi"
+      }
+
+      spec {
+        container {
+          name  = "postgresql"
+          image = "postgres:17.2-alpine" # Official image, stable tags
+
+          port {
+            name           = "tcp-postgresql"
+            container_port = 5432
           }
+
+          env_from {
+            secret_ref {
+              name = kubernetes_secret.platform_pg.metadata[0].name
+            }
+          }
+
+          env {
+            name  = "POSTGRES_DB"
+            value = "vault"
+          }
+
+          env {
+            name  = "PGDATA"
+            value = "/var/lib/postgresql/data/pgdata"
+          }
+
+          volume_mount {
+            name       = "data"
+            mount_path = "/var/lib/postgresql/data"
+          }
+
+          resources {
+            limits = {
+              cpu    = "500m"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "100m"
+              memory = "128Mi"
+            }
+          }
+
+          liveness_probe {
+            exec {
+              command = ["pg_isready", "-U", "postgres", "-d", "vault"]
+            }
+            initial_delay_seconds = 30
+            period_seconds        = 10
+            timeout_seconds       = 5
+            failure_threshold     = 6
+          }
+
+          readiness_probe {
+            exec {
+              command = ["pg_isready", "-U", "postgres", "-d", "vault"]
+            }
+            initial_delay_seconds = 5
+            period_seconds        = 10
+            timeout_seconds       = 5
+            failure_threshold     = 6
+          }
+        }
+      }
+    }
+
+    volume_claim_template {
+      metadata {
+        name = "data"
+      }
+      spec {
+        access_modes       = ["ReadWriteOnce"]
+        storage_class_name = "local-path-retain"
+        resources {
           requests = {
-            cpu    = "100m"
-            memory = "128Mi"
+            storage = var.vault_postgres_storage
           }
         }
       }
-      # Disable metrics for now (can enable later for observability)
-      metrics = {
-        enabled = false
-      }
-    })
-  ]
+    }
+  }
 
   depends_on = [kubernetes_namespace.platform]
 }
 
-# Vault PostgreSQL Schema
-# Uses CREATE TABLE IF NOT EXISTS for idempotency
-# NOTE: Must run in L1 (CI runner has kubectl), not L2 (Atlantis pod lacks kubectl)
-resource "null_resource" "vault_pg_schema" {
-  depends_on = [helm_release.platform_pg]
+# Wait for PostgreSQL to be ready
+resource "null_resource" "platform_pg_ready" {
+  depends_on = [kubernetes_stateful_set.platform_pg]
 
   provisioner "local-exec" {
     environment = {
       KUBECONFIG = local.kubeconfig_path
     }
     command = <<-EOT
-      # Wait for PostgreSQL to be ready
-      sleep 10
-
-      # Create Vault tables if they don't exist (idempotent)
-      kubectl exec -n platform postgresql-0 -- bash -c "
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -d vault <<SQL
-          -- Vault KV store table
-          CREATE TABLE IF NOT EXISTS vault_kv_store (
-            parent_path TEXT COLLATE \"C\" NOT NULL,
-            path        TEXT COLLATE \"C\",
-            key         TEXT COLLATE \"C\",
-            value       BYTEA,
-            CONSTRAINT pkey PRIMARY KEY (path, key)
-          );
-          CREATE INDEX IF NOT EXISTS parent_path_idx ON vault_kv_store (parent_path);
-
-          -- Vault HA locks table
-          CREATE TABLE IF NOT EXISTS vault_ha_locks (
-            ha_key      TEXT COLLATE \"C\" NOT NULL,
-            ha_identity TEXT COLLATE \"C\" NOT NULL,
-            ha_value    TEXT COLLATE \"C\",
-            valid_until TIMESTAMP WITH TIME ZONE NOT NULL,
-            CONSTRAINT ha_key PRIMARY KEY (ha_key)
-          );
-
-          -- Verify tables exist
-          SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
-SQL
-      " || true
+      echo "Waiting for PostgreSQL pod to be ready..."
+      kubectl wait --for=condition=Ready pod/postgresql-0 -n platform --timeout=300s
     EOT
   }
 
-  # Only re-run if PostgreSQL release changes (new deployment)
   triggers = {
-    pg_release_revision = helm_release.platform_pg.metadata[0].revision
+    statefulset_uid = kubernetes_stateful_set.platform_pg.metadata[0].uid
+  }
+}
+
+# Vault PostgreSQL Schema
+# Uses CREATE TABLE IF NOT EXISTS for idempotency
+resource "null_resource" "vault_pg_schema" {
+  depends_on = [null_resource.platform_pg_ready]
+
+  provisioner "local-exec" {
+    environment = {
+      KUBECONFIG = local.kubeconfig_path
+    }
+    command = <<-EOT
+      # Create Vault tables if they don't exist (idempotent)
+      kubectl exec -n platform postgresql-0 -- psql -U postgres -d vault <<SQL
+        -- Vault KV store table
+        CREATE TABLE IF NOT EXISTS vault_kv_store (
+          parent_path TEXT COLLATE "C" NOT NULL,
+          path        TEXT COLLATE "C",
+          key         TEXT COLLATE "C",
+          value       BYTEA,
+          CONSTRAINT pkey PRIMARY KEY (path, key)
+        );
+        CREATE INDEX IF NOT EXISTS parent_path_idx ON vault_kv_store (parent_path);
+
+        -- Vault HA locks table
+        CREATE TABLE IF NOT EXISTS vault_ha_locks (
+          ha_key      TEXT COLLATE "C" NOT NULL,
+          ha_identity TEXT COLLATE "C" NOT NULL,
+          ha_value    TEXT COLLATE "C",
+          valid_until TIMESTAMP WITH TIME ZONE NOT NULL,
+          CONSTRAINT ha_key PRIMARY KEY (ha_key)
+        );
+
+        -- Verify tables exist
+        SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
+SQL
+    EOT
+  }
+
+  triggers = {
+    statefulset_uid = kubernetes_stateful_set.platform_pg.metadata[0].uid
   }
 }
 
 # Casdoor database - idempotent check-then-create pattern
-# Runs on every L1 apply, safe for both new and existing PG deployments
-# initdb.scripts handles NEW PG, this handles EXISTING PG
 resource "null_resource" "casdoor_database" {
-  depends_on = [helm_release.platform_pg]
+  depends_on = [null_resource.platform_pg_ready]
 
   provisioner "local-exec" {
     environment = {
       KUBECONFIG = local.kubeconfig_path
     }
     command = <<-EOT
-      # Wait for PostgreSQL to be ready
-      sleep 10
-
       # Idempotent: check if database exists, create if not
-      kubectl exec -n platform postgresql-0 -- bash -c "
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"CREATE DATABASE casdoor\"
-      " || true
+      kubectl exec -n platform postgresql-0 -- psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'casdoor'" | grep -q 1 || \
+      kubectl exec -n platform postgresql-0 -- psql -U postgres -c "CREATE DATABASE casdoor"
     EOT
   }
 
-  # Re-run when PG release changes (covers helm upgrade scenarios)
   triggers = {
-    pg_release_revision = helm_release.platform_pg.metadata[0].revision
+    statefulset_uid = kubernetes_stateful_set.platform_pg.metadata[0].uid
   }
 }
 
