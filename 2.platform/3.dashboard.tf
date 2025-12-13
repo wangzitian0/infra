@@ -87,11 +87,16 @@ resource "kubernetes_ingress_v1" "dashboard" {
   metadata {
     name      = "kubernetes-dashboard"
     namespace = data.kubernetes_namespace.platform.metadata[0].name
-    annotations = {
-      "cert-manager.io/cluster-issuer"                      = "letsencrypt-prod"
-      "traefik.ingress.kubernetes.io/router.tls"            = "true"
-      "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
-    }
+    annotations = merge(
+      {
+        "cert-manager.io/cluster-issuer"                      = "letsencrypt-prod"
+        "traefik.ingress.kubernetes.io/router.tls"            = "true"
+        "traefik.ingress.kubernetes.io/service.serversscheme" = "http"
+      },
+      local.portal_sso_gate_enabled ? {
+        "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-portal-auth@kubernetescrd"
+      } : {}
+    )
   }
 
   spec {

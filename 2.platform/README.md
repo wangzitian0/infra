@@ -17,6 +17,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 
 | File | Component | Purpose |
 |------|-----------|---------|
+| `1.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
@@ -58,9 +59,15 @@ L2 services use **app-level authentication** (no unified ingress gate):
 | **Vault** | Token / OIDC (planned) | Manual init/unseal required; OIDC via Casdoor (future) |
 | **Dashboard** | Token | Get token: `kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' \| base64 -d` |
 | **Kubero** | Session / OAuth2 (planned) | OAuth2 via Casdoor (future) |
-| **Casdoor** | Admin password | SSO provider itself; admin password from **1Password → GitHub Secret `CASDOOR_ADMIN_PASSWORD` → `TF_VAR_casdoor_admin_password`** (Terraform outputs exist but are not the SSOT) |
+| **Casdoor** | Admin password | SSO provider itself; admin password from `terraform output -raw casdoor_admin_password` |
+| **Portal SSO Gate** | Casdoor OIDC via OAuth2-Proxy | Optional：`enable_portal_sso_gate=true` 后为 Vault/Dashboard/Kubero 打开统一入口 |
 
 See [docs/ssot/auth.md](../docs/ssot/auth.md) for the full authentication architecture.
+
+#### Portal SSO Gate Rollout（前置变量 → 自动化 → 事后验证/切流）
+1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor，手工在 Casdoor 创建 Portal Gate 应用，获取 `casdoor_portal_client_id/secret`（建议存 Vault 或 GitHub Secrets）。
+2. **自动化执行**：在 2.platform 目录设置上述变量后，`terraform init && terraform apply`。开关置 `true` 时，Vault/Dashboard/Kubero Ingress 自动挂载 Traefik ForwardAuth（OAuth2-Proxy→Casdoor）。
+3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 302 → Casdoor 登录链路，若异常可立即将开关关回 `false` 并重跑 apply，避免锁死。
 
 ### Domain Configuration
 

@@ -64,6 +64,27 @@ graph TD
 
 ---
 
+## 门户级统一 SSO（Casdoor）
+
+L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提供的统一登录入口，减少各自的 Token 配置并提升运维一致性。
+
+| 服务 | 域名 | SSO 形态 | 当前状态 |
+|------|------|-----------|----------|
+| Vault UI | `https://secrets.<internal_domain>` | Casdoor OIDC 客户端（`vault-oidc`）+ Vault OIDC 提供者 | 🔜 注册客户端并更新 Helm 值 |
+| Kubernetes Dashboard | `https://kdashboard.<internal_domain>` | Traefik forward-auth 指向 Casdoor（Dashboard 依旧靠 token 登录） | ⚙️ 中间件 + `dashboard-oidc` 回调对齐 |
+| Kubero UI | `https://kcloud.<internal_domain>` | Casdoor OAuth2 客户端（`kubero-oidc`） | ⏳ 需 Casdoor 应用并下发 Client Secret |
+| Atlantis Web | `https://atlantis.<internal_domain>` | Basic Auth（继续当前机制） | ✅ 保持手动管理 |
+
+### 实施路径
+
+1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor，人工在 Casdoor 创建门户客户端（含 OAuth2-Proxy gate），拿到 `casdoor_portal_client_id/secret`（建议存 Vault/GitHub Secrets）。
+2. **自动化执行**：在 2.platform 设置上述变量后 `terraform init && terraform apply`，开关置 `true` 时 Ingress 自动挂 Traefik ForwardAuth（OAuth2-Proxy→Casdoor）。
+3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 登录链路。若异常可关回 `false` 并重跑 apply，避免锁死。随后为 Vault/Dashboard/Kubero 分别创建 OIDC/OAuth 客户端与回调，逐域名切换。
+
+这一部分的更多细节参考 BRN-008 中的“场景 5：所有 Portal 走 Casdoor”。
+
+---
+
 ## 根密钥管理
 
 | 服务 | 根密钥位置 | GitHub Secret | 用途 |
@@ -105,15 +126,23 @@ graph TD
 
 ---
 
+## 密钥策略（1Password Zero 依赖 / Vault-first）
+
+- **目标一：1Password 仅存储根密钥**（Atlantis 管理密码、Vault Root Token、Casdoor Admin 密码等），作为离线恢复点，日常操作尽量不直接依赖 `op`。
+- **目标二：其他凭据均由 Vault/Terraform 生成、动态注入或同步到 Vault，Casdoor client secret、Webhook Token、业务 token 等都有 Vault 副本，保持“Vault-first”。
+- 若某密钥必须同时存于 1Password 与 Vault，则让 Vault 成为 SSOT，1Password 仅做备份（“Vault-first, 1Password fallback”），明确区分“1Password 0 依赖”和“Vault 作为自动源”两条路径。
+
+---
+
 ## 实施状态
 
 | 组件 | 状态 |
 |------|------|
 | Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
 | GitHub OAuth | ⏳ Casdoor UI 中配置 |
-| Vault OIDC | ⏳ 待配置 |
-| Dashboard OIDC | ❌ 不支持原生 OIDC，使用 Token 认证 |
-| Kubero OAuth2 | ⏳ 待配置 |
+| Vault OIDC | ⚙️ Casdoor OIDC 客户端 + Vault OIDC Provider 正在调试 |
+| Dashboard SSO Gate | ⚙️ Traefik ForwardAuth 指向 Casdoor（dashboard/token 组合） |
+| Kubero OAuth2 | ⏳ Casdoor OAuth 客户端（`kubero-oidc`）待创建 |
 | OAuth2-Proxy | ✅ 已移除 (被 Casdoor 替代) |
 
 ---

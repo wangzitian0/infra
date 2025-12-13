@@ -13,8 +13,9 @@
 
 locals {
   # Use nonsensitive() to avoid tainting downstream outputs as sensitive.
-  casdoor_enabled = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
-  casdoor_domain  = "sso.${local.internal_domain}"
+  casdoor_enabled     = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
+  casdoor_domain      = "sso.${local.internal_domain}"
+  portal_gate_enabled = casdoor_enabled && var.enable_portal_sso_gate && var.casdoor_portal_client_secret != ""
 }
 
 # Casdoor admin password now comes from 1Password via var.casdoor_admin_password
@@ -61,24 +62,44 @@ resource "kubernetes_config_map" "casdoor_init_data" {
           isGlobalAdmin = true
         }
       ]
-      applications = [
-        {
-          owner          = "admin"
-          name           = "app-built-in"
-          createdTime    = "2025-01-01T00:00:00Z"
-          displayName    = "Built-in Application"
-          organization   = "built-in"
-          clientId       = "casdoor-builtin-app"
-          clientSecret   = var.casdoor_admin_password
-          redirectUris   = ["https://${local.casdoor_domain}/callback"]
-          enablePassword = true
-          providers      = []
-          signinMethods  = []
-          signupItems    = []
-          grantTypes     = []
-          tags           = []
-        }
-      ]
+      applications = concat(
+        [
+          {
+            owner          = "admin"
+            name           = "app-built-in"
+            createdTime    = "2025-01-01T00:00:00Z"
+            displayName    = "Built-in Application"
+            organization   = "built-in"
+            clientId       = "casdoor-builtin-app"
+            clientSecret   = var.casdoor_admin_password
+            redirectUris   = ["https://${local.casdoor_domain}/callback"]
+            enablePassword = true
+            providers      = []
+            signinMethods  = []
+            signupItems    = []
+            grantTypes     = []
+            tags           = []
+          }
+        ],
+        local.portal_gate_enabled ? [
+          {
+            owner          = "admin"
+            name           = "portal-gate"
+            createdTime    = "2025-01-01T00:00:00Z"
+            displayName    = "Portal SSO Gate"
+            organization   = "built-in"
+            clientId       = var.casdoor_portal_client_id
+            clientSecret   = var.casdoor_portal_client_secret
+            redirectUris   = ["https://auth.${local.internal_domain}/oauth2/callback"]
+            enablePassword = false
+            providers      = []
+            signinMethods  = []
+            signupItems    = []
+            grantTypes     = ["authorization_code", "refresh_token"]
+            tags           = []
+          }
+        ] : []
+      )
     })
   }
 }

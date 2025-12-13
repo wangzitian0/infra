@@ -37,6 +37,7 @@ graph LR
 | `PostgreSQL (Platform)` | VAULT_POSTGRES_PASSWORD | `VAULT_POSTGRES_PASSWORD` | PG 密码 |
 | `GitHub OAuth` | GH_OAUTH_CLIENT_ID | `GH_OAUTH_CLIENT_ID` | OAuth |
 | | GH_OAUTH_CLIENT_SECRET | `GH_OAUTH_CLIENT_SECRET` | OAuth |
+| `Casdoor Portal Gate` | client_secret | `CASDOOR_PORTAL_CLIENT_SECRET` | Portal SSO Gate OAuth |
 | `Atlantis` | ATLANTIS_WEBHOOK_SECRET | `ATLANTIS_WEBHOOK_SECRET` | Webhook |
 | | ATLANTIS_WEB_PASSWORD | `ATLANTIS_WEB_PASSWORD` | Web 密码 |
 | | ATLANTIS_GH_APP_ID | `ATLANTIS_GH_APP_ID` | App ID |
@@ -106,3 +107,8 @@ done
 | CI Auto-unseal | ✅ 已实现 |
 | Casdoor init_data.json | ✅ 正确挂载到 /init_data.json |
 
+## Vault-first 密钥策略
+
+- **1Password 仅存根密钥**（Atlantis 登录、Vault root token、Casdoor 管理密码），作为离线恢复源，不再做日常运维依赖。
+- **Vault 作为主库**：所有运行时凭据、Casdoor client secret、Webhook Token、Terraform `random_password` 等都优先写入 Vault，再由 Agent 注入或同步到 CI 环境，避免在 1Password 里频繁复制粘贴。
+- **Fallback 设计**：当需要同时保留 1Password 与 Vault 副本时，Vault 为 SSOT、1Password 仅做 backup（“Vault-first, 1Password fallback”），确保可以实现“1Password 0 依赖”或将全部凭据迁移到 Vault 的两条路径。
