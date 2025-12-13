@@ -149,6 +149,8 @@ jobs:
           # OAuth2-Proxy (GitHub OAuth for Dashboard protection)
           github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
           github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+          # L2/L3: Vault Access
+          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
 
       - name: Terraform plan (L2)
         working-directory: 2.platform
