@@ -148,6 +148,24 @@ Error: Inconsistent dependency lock file
 1. 本地 `terraform init -upgrade`
 2. 提交 `.terraform.lock.hcl`
 
+### Plugin Cache 竞争
+
+```
+Error: text file busy
+```
+
+**原因**：多项目并行 `init -upgrade`，同时写共享 cache
+**解决**：`atlantis unlock` → 重新 `atlantis plan`
+
+### Workspace 已存在
+
+```
+Error: Workspace "prod" already exists
+```
+
+**原因**：前次 plan 遗留的 workspace
+**解决**：`atlantis unlock` → `atlantis plan`
+
 ### 变量缺失
 
 ```
