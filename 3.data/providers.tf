@@ -1,6 +1,6 @@
 # L3 Data Layer Provider Configuration
 #
-# Providers: kubernetes, vault
+# Providers: kubernetes, helm, vault
 # Vault access: Uses root token from GitHub Secret (for initial setup)
 # Future: Migrate to Kubernetes auth method
 
@@ -9,6 +9,12 @@
 
 provider "kubernetes" {
   config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+}
+
+provider "helm" {
+  kubernetes {
+    config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+  }
 }
 
 # Vault provider for reading secrets
