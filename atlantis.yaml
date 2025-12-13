@@ -3,6 +3,11 @@
 
 version: 3
 
+# Allow parallel plan execution, apply remains serial
+# Prevents plan failure from blocking other PRs
+parallel_plan: true
+parallel_apply: false
+
 projects:
   # L1: Bootstrap (GitHub Actions only, NOT managed by Atlantis)
   # - name: bootstrap
@@ -67,9 +72,12 @@ workflows:
             EOF
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
-        # Remove namespace from L2 state (now managed by L1)
-        # This is idempotent - will succeed even if resource doesn't exist
-        - run: terraform state rm kubernetes_namespace.platform 2>/dev/null || true
+        # Remove stale resources from L2 state (idempotent)
+        - run: |
+            terraform state rm kubernetes_namespace.platform 2>/dev/null || true
+            terraform state rm vault_mount.database 2>/dev/null || true
+            terraform state rm vault_mount.kv 2>/dev/null || true
+            terraform state rm random_password.l3_postgres 2>/dev/null || true
         - plan
     apply:
       steps:
@@ -82,9 +90,12 @@ workflows:
             EOF
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
-        # Remove namespace from L2 state (now managed by L1)
-        # This is idempotent - will succeed even if resource doesn't exist
-        - run: terraform state rm kubernetes_namespace.platform 2>/dev/null || true
+        # Remove stale resources from L2 state (idempotent)
+        - run: |
+            terraform state rm kubernetes_namespace.platform 2>/dev/null || true
+            terraform state rm vault_mount.database 2>/dev/null || true
+            terraform state rm vault_mount.kv 2>/dev/null || true
+            terraform state rm random_password.l3_postgres 2>/dev/null || true
         - apply
 
   # L3: Data

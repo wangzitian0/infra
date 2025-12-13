@@ -42,6 +42,18 @@ resource "helm_release" "portal_auth" {
 
   values = [
     yamlencode({
+      # Wait for Casdoor OIDC to be ready before starting OAuth2-Proxy
+      initContainers = [
+        {
+          name  = "wait-for-casdoor"
+          image = "busybox:1.36"
+          command = [
+            "sh", "-c",
+            "until wget -q --spider http://casdoor.platform.svc.cluster.local:8000/; do echo 'waiting for Casdoor...'; sleep 2; done"
+          ]
+        }
+      ]
+
       config = {
         clientID     = var.casdoor_portal_client_id
         clientSecret = local.casdoor_portal_gate_client_secret

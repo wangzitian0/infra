@@ -43,7 +43,7 @@ graph LR
 | | ATLANTIS_GH_APP_ID | `ATLANTIS_GH_APP_ID` | App ID |
 | | ATLANTIS_GH_APP_KEY | `ATLANTIS_GH_APP_KEY` | App 私钥 |
 | `Vault (zitian.party)` | Unseal Key | `VAULT_UNSEAL_KEY` | 解封 |
-| | Root Token | *(不在 GH)* | 管理登录 |
+| | Root Token | `VAULT_ROOT_TOKEN` | L2/L3 TF Provider |
 | `Casdoor Admin` | password | `CASDOOR_ADMIN_PASSWORD` | SSO 管理员密码 |
 
 ### 额外 GitHub Secrets（非 1Password 管理）
