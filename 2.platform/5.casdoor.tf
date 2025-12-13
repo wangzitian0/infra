@@ -13,10 +13,10 @@
 
 locals {
   # Use nonsensitive() to avoid tainting downstream outputs as sensitive.
-  casdoor_enabled           = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
-  casdoor_domain            = "sso.${local.internal_domain}"
-  portal_gate_enabled       = local.casdoor_enabled && var.enable_portal_sso_gate
-  portal_gate_client_secret = var.casdoor_portal_client_secret != "" ? var.casdoor_portal_client_secret : (local.portal_gate_enabled ? random_password.portal_gate_client_secret[0].result : "")
+  casdoor_enabled                   = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
+  casdoor_domain                    = "sso.${local.internal_domain}"
+  portal_gate_enabled               = local.casdoor_enabled && var.enable_portal_sso_gate
+  casdoor_portal_gate_client_secret = var.casdoor_portal_client_secret != "" ? var.casdoor_portal_client_secret : (local.portal_gate_enabled ? random_password.portal_gate_client_secret[0].result : "")
 
   vault_oidc_client_secret     = local.portal_gate_enabled ? random_password.vault_oidc_client_secret[0].result : ""
   dashboard_oidc_client_secret = local.portal_gate_enabled ? random_password.dashboard_oidc_client_secret[0].result : ""
@@ -118,7 +118,7 @@ resource "kubernetes_config_map" "casdoor_init_data" {
             displayName    = "Portal SSO Gate"
             organization   = "built-in"
             clientId       = var.casdoor_portal_client_id
-            clientSecret   = local.portal_gate_client_secret
+            clientSecret   = local.casdoor_portal_gate_client_secret
             redirectUris   = ["https://auth.${local.internal_domain}/oauth2/callback"]
             enablePassword = false
             providers      = []

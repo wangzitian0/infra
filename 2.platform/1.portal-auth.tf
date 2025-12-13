@@ -7,10 +7,9 @@
 # 3) Set enable_portal_sso_gate=true and apply to gate the portals.
 
 locals {
-  casdoor_enabled_for_gate  = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
-  portal_auth_host          = "auth.${local.internal_domain}"
-  casdoor_issuer            = "https://sso.${local.internal_domain}"
-  portal_gate_client_secret = var.casdoor_portal_client_secret != "" ? var.casdoor_portal_client_secret : (var.enable_portal_sso_gate && local.casdoor_enabled_for_gate ? random_password.portal_gate_client_secret[0].result : "")
+  casdoor_enabled_for_gate = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
+  portal_auth_host         = "auth.${local.internal_domain}"
+  casdoor_issuer           = "https://sso.${local.internal_domain}"
 }
 
 resource "terraform_data" "portal_sso_precheck" {
@@ -45,7 +44,7 @@ resource "helm_release" "portal_auth" {
     yamlencode({
       config = {
         clientID     = var.casdoor_portal_client_id
-        clientSecret = local.portal_gate_client_secret
+        clientSecret = local.casdoor_portal_gate_client_secret
         cookieSecret = random_password.portal_cookie_secret[0].result
       }
 
