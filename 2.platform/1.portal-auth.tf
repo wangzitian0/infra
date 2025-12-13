@@ -1,5 +1,6 @@
 # Portal SSO Gate - OAuth2-Proxy backed by Casdoor OIDC
 # Provides a forward-auth middleware for Vault/Dashboard/Kubero Ingresses.
+# Fixed: PR #175 corrected oidc-issuer-url hyphenation
 #
 # Rollout guidance:
 # 1) Deploy Casdoor (with GitHub OAuth creds) and ensure https://sso.<internal_domain> works.

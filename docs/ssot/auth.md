@@ -139,11 +139,17 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 | 组件 | 状态 |
 |------|------|
 | Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
-| GitHub OAuth | ⏳ Casdoor UI 中配置 |
-| Vault OIDC | ⚙️ Casdoor OIDC 客户端 + Vault OIDC Provider 正在调试 |
-| Dashboard SSO Gate | ⚙️ Traefik ForwardAuth 指向 Casdoor（dashboard/token 组合） |
-| Kubero OAuth2 | ⏳ Casdoor OAuth 客户端（`kubero-oidc`）待创建 |
-| OAuth2-Proxy | ✅ 已移除 (被 Casdoor 替代) |
+| GitHub OAuth | ✅ 已配置 (Casdoor IdP) |
+| Vault OIDC | ✅ Sign in with OIDC 可用 |
+| Portal SSO Gate | ⚙️ OAuth2-Proxy 待部署 (`enable_portal_sso_gate=true`) |
+| Dashboard SSO | ⏳ 需 Portal Gate 保护 |
+| Kubero SSO | ⏳ 需 Portal Gate 保护 |
+
+### 当前阻塞
+
+Portal-Auth (OAuth2-Proxy) 未部署，原因：
+1. PR #175 修复了 `oidc-issuer-url` 参数错误
+2. 需要 L2 apply 来部署 Portal-Auth Pod
 
 ---
 
