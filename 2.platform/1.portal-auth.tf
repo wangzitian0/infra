@@ -51,7 +51,7 @@ resource "helm_release" "portal_auth" {
           image = "busybox:1.36"
           command = [
             "sh", "-c",
-            "t=120;e=0;until wget -q --spider http://casdoor.platform.svc.cluster.local:8000/;do echo \"wait Casdoor $e/$t\";sleep 2;e=$((e+2));[ $e -ge $t ]&&exit 1;done"
+            "t=120;e=0;until wget -q --spider http://casdoor.platform.svc.cluster.local:8000/;do echo \"waiting for Casdoor... ($e/$t s)\";sleep 2;e=$((e+2));[ $e -ge $t ]&&exit 1;done"
           ]
         }
       ]
