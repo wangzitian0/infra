@@ -101,7 +101,7 @@ workflows:
         # Set TF_VAR for environment (from workspace) and vault token
         - env:
             name: TF_VAR_environment
-            value: ${WORKSPACE}
+            command: 'echo $WORKSPACE'
         - env:
             name: TF_VAR_vault_root_token
             command: 'echo $VAULT_ROOT_TOKEN'
@@ -119,7 +119,7 @@ workflows:
             EOF
         - env:
             name: TF_VAR_environment
-            value: ${WORKSPACE}
+            command: 'echo $WORKSPACE'
         - env:
             name: TF_VAR_vault_root_token
             command: 'echo $VAULT_ROOT_TOKEN'
