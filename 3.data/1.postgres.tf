@@ -14,6 +14,10 @@
 # - L2 Vault database engine is singleton, expects postgresql.data.svc
 # - Single VPS MVP doesn't need DB-level env isolation
 # - L4 apps handle env isolation at app layer
+#
+# Architecture:
+# L2 generates password → stores in Vault KV
+# L3 reads password from Vault KV → deploys PostgreSQL
 
 # =============================================================================
 # Namespace (singular 'data' - L2 Vault connection expects this)
@@ -30,23 +34,12 @@ resource "kubernetes_namespace" "data" {
 
 # =============================================================================
 # Read Password from Vault (generated and stored by L2)
-# Note: Only reads when vault_root_token is provided; uses dummy for plan
+# Requires: TF_VAR_vault_root_token set in Atlantis Pod env
 # =============================================================================
 
-locals {
-  # Check if vault token is available (non-empty)
-  vault_token_available = var.vault_root_token != ""
-}
-
 data "vault_kv_secret_v2" "postgres" {
-  count = local.vault_token_available ? 1 : 0
   mount = "secret"
   name  = "data/postgres"
-}
-
-locals {
-  # Use Vault password if available, dummy for plan-time
-  postgres_password = local.vault_token_available ? data.vault_kv_secret_v2.postgres[0].data["password"] : "plan-time-dummy-will-be-replaced-at-apply"
 }
 
 # =============================================================================
@@ -72,7 +65,7 @@ resource "helm_release" "postgresql" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        postgresPassword = local.postgres_password
+        postgresPassword = data.vault_kv_secret_v2.postgres.data["password"]
         database         = "app"
       }
       primary = {
