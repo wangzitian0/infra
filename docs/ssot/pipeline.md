@@ -82,15 +82,80 @@ PostgreSQL ─┬─→ Vault       (initContainer 等待 PG)
 
 ### initContainer 实现状态
 
-| 组件 | 等待 | 状态 |
-|------|------|------|
-| Vault | PostgreSQL | ✅ |
-| Casdoor | PostgreSQL | ✅ |
-| Portal-Auth | Casdoor | ✅ |
+| 组件 | 等待 | 状态 | 超时 |
+|------|------|------|------|
+| Vault | PostgreSQL | ✅ | 120s |
+| Casdoor | PostgreSQL | ✅ | 120s |
+| Portal-Auth | Casdoor | ✅ | 120s |
+| L3 PostgreSQL | Platform PG | ✅ | 120s |
+| **L3 Redis** | **Vault KV** | **✅** | **120s** |
+| **L3 ClickHouse** | **Vault KV** | **✅** | **120s** |
+| **L3 ArangoDB Operator** | **Vault KV** | **✅** | **120s** |
 
 ---
 
-## 3. 部署流程
+## 3. 验证清单
+
+### CI 自动检查 (terraform-plan.yml)
+
+```bash
+# L1 Bootstrap
+cd 1.bootstrap
+terraform fmt -check -recursive
+terraform init -backend=false
+terraform validate
+
+# L2 Platform
+cd ../2.platform
+terraform fmt -check -recursive
+terraform init -backend=false
+terraform validate
+```
+
+**必需环境变量**:
+- `VAULT_ROOT_TOKEN` - Vault provider 认证
+- `VAULT_ADDR` - Vault 地址
+- `CLOUDFLARE_API_TOKEN` - Cloudflare provider
+
+### L3 Data Services 健康检查矩阵
+
+| 组件 | precondition | initContainer | validation | lifecycle | timeout |
+|------|--------------|---------------|------------|-----------|----------|
+| PostgreSQL | ✅ Platform PG ready | ✅ 120s | ✅ password | ✅ prevent_destroy | 300s |
+| **Redis** | **✅ Vault ready** | **✅ 120s** | **❌** | **✅ prevent_destroy** | **300s** |
+| **ClickHouse** | **✅ Vault ready** | **✅ 120s** | **❌** | **✅ prevent_destroy** | **300s** |
+| **ArangoDB** | **✅ Vault ready** | **❌** | **❌** | **✅ prevent_destroy** | **300s** |
+
+**待补齐项**:
+- [ ] 为新数据库添加 `validation` 块验证密码非空
+- [ ] ArangoDB Operator 添加 `initContainer` 等待命名空间创建
+
+### Terraform Provider 初始化检查
+
+```bash
+# 检查 provider 版本一致性
+terraform providers lock \
+  -platform=linux_amd64 \
+  -platform=darwin_amd64 \
+  -platform=darwin_arm64
+
+# 验证 .terraform.lock.hcl 提交到 Git
+git status .terraform.lock.hcl
+```
+
+### Namespace 环境隔离检查
+
+```bash
+# L3 必须使用 per-env namespace
+grep 'data-${terraform.workspace}' 3.data/*.tf
+
+# 验证输出使用动态生成
+grep 'local.namespace_name' 3.data/*.tf
+```
+
+---
+
+## 4. 部署流程
 
 ### L1 Bootstrap（GitHub Actions）
 
@@ -158,6 +223,53 @@ Error: No value for required variable
 1. GitHub Secrets 是否存在
 2. CI workflow 是否传递
 3. Atlantis Pod env 是否有
+
+### Vault Token 错误
+
+```
+Error: failed to lookup token, err=invalid character '<' looking for beginning of value
+
+with vault_mount.kv,
+on 6.vault-database.tf line 16
+```
+
+**原因**: `VAULT_ROOT_TOKEN` 环境变量未设置或无效
+
+**检查步骤**:
+1. **GitHub Secrets 存在性**:
+   ```bash
+   gh secret list --repo wangzitian0/infra | grep VAULT_ROOT_TOKEN
+   ```
+
+2. **CI Workflow 传递**:
+   查看 `.github/workflows/terraform-plan.yml`:
+   ```yaml
+   env:
+     VAULT_TOKEN: ${{ secrets.VAULT_ROOT_TOKEN }}  # ✅ 必须有
+     VAULT_ADDR: https://secrets.{domain}         # ✅ 必须有
+   ```
+
+3. **Vault 可访问性**:
+   ```bash
+   curl -I https://secrets.{domain}/v1/sys/health
+   # 应返回 200 OK (sealed) 或 503 (sealed)
+   ```
+
+**修复**:
+- Option A: 更新 GitHub Secret
+  ```bash
+  gh secret set VAULT_ROOT_TOKEN --body "$(op read 'op://Infrastructure/Vault Root Token/credential')" --repo wangzitian0/infra
+  ```
+  
+- Option B: CI 跳过 Vault provider
+  ```hcl
+  # 2.platform/providers.tf
+  provider "vault" {
+    # CI 时使用 fake token (仅 validate 语法)
+    address = var.vault_address != "" ? var.vault_address : "http://fake.local:8200"
+    token   = var.vault_root_token != "" ? var.vault_root_token : "fake-token-for-ci"
+  }
+  ```
 
 ---
 
