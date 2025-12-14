@@ -66,13 +66,14 @@ graph TD
 
 ## 门户级统一 SSO（Casdoor）
 
-L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提供的统一登录入口，减少各自的 Token 配置并提升运维一致性。
+L2 门户级服务通过 **Portal SSO Gate**（OAuth2-Proxy + Casdoor OIDC）实现统一登录，减少各自的 Token 配置并提升运维一致性。
 
 | 服务 | 域名 | SSO 形态 | 当前状态 |
 |------|------|-----------|----------|
-| Vault UI | `https://secrets.<internal_domain>` | Casdoor OIDC 客户端（`vault-oidc`）+ Vault OIDC 提供者 | 🔜 注册客户端并更新 Helm 值 |
-| Kubernetes Dashboard | `https://kdashboard.<internal_domain>` | Traefik forward-auth 指向 Casdoor（Dashboard 依旧靠 token 登录） | ⚙️ 中间件 + `dashboard-oidc` 回调对齐 |
-| Kubero UI | `https://kcloud.<internal_domain>` | Casdoor OAuth2 客户端（`kubero-oidc`） | ⏳ 需 Casdoor 应用并下发 Client Secret |
+| **Portal SSO Gate** | `https://auth.<internal_domain>` | OAuth2-Proxy → Casdoor OIDC | ✅ 已部署 |
+| Vault UI | `https://secrets.<internal_domain>` | Traefik ForwardAuth → Portal Gate | ✅ SSO Gate 保护 |
+| Kubernetes Dashboard | `https://kdashboard.<internal_domain>` | Traefik ForwardAuth → Portal Gate | ✅ SSO Gate 保护 |
+| Kubero UI | `https://kcloud.<internal_domain>` | Traefik ForwardAuth → Portal Gate | ✅ SSO Gate 保护 |
 | Atlantis Web | `https://atlantis.<internal_domain>` | Basic Auth（继续当前机制） | ✅ 保持手动管理 |
 
 ### 实施路径
@@ -102,16 +103,17 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 | Provider | 用途 | 状态 |
 |----------|------|------|
-| GitHub | 开发者登录 | ⏳ 待配置 |
-| Google | 备用登录 | ⏳ 待配置 |
+| GitHub | 开发者登录 | ✅ 已配置 (`TF_VAR_github_oauth_client_id/secret`) |
+| Google | 备用登录 | ⏳ 待配置（可选） |
 
-### OIDC Clients (待创建)
+### OIDC Clients (Casdoor init_data 自动创建)
 
-| 应用 | Client ID | Redirect URI |
-|------|-----------|--------------|
-| Vault | `vault-oidc` | `https://vault.zitian.party/ui/vault/auth/oidc/oidc/callback` |
-| Dashboard | `dashboard-oidc` | `https://dash.zitian.party/oauth2/callback` |
-| Kubero | `kubero-oidc` | `https://kubero.zitian.party/auth/callback` |
+| 应用 | Client ID | Redirect URI | 状态 |
+|------|-----------|--------------|------|
+| Portal Gate | `portal-gate` | `https://auth.<internal_domain>/oauth2/callback` | ✅ 已创建 |
+| Vault | `vault-oidc` | `https://secrets.<internal_domain>/ui/vault/auth/oidc/oidc/callback` | ✅ 已创建 |
+| Dashboard | `dashboard-oidc` | `https://kdashboard.<internal_domain>/oauth2/callback` | ✅ 已创建 |
+| Kubero | `kubero-oidc` | `https://kcloud.<internal_domain>/auth/callback` | ✅ 已创建 |
 
 ---
 
@@ -138,12 +140,13 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 | 组件 | 状态 |
 |------|------|
-| Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
-| GitHub OAuth | ⏳ Casdoor UI 中配置 |
-| Vault OIDC | ⚙️ Casdoor OIDC 客户端 + Vault OIDC Provider 正在调试 |
-| Dashboard SSO Gate | ⚙️ Traefik ForwardAuth 指向 Casdoor（dashboard/token 组合） |
-| Kubero OAuth2 | ⏳ Casdoor OAuth 客户端（`kubero-oidc`）待创建 |
-| OAuth2-Proxy | ✅ 已移除 (被 Casdoor 替代) |
+| Casdoor 部署 | ✅ 已部署 (`sso.zitian.party`) |
+| Portal SSO Gate | ✅ OAuth2-Proxy 已部署 (`auth.zitian.party`) |
+| GitHub OAuth | ✅ Casdoor Provider 已配置 |
+| Vault SSO Gate | ✅ Traefik ForwardAuth → Portal Gate |
+| Dashboard SSO Gate | ✅ Traefik ForwardAuth → Portal Gate |
+| Kubero SSO Gate | ✅ Traefik ForwardAuth → Portal Gate |
+| Atlantis | ✅ Basic Auth（不走 SSO，避免循环依赖） |
 
 ---
 
