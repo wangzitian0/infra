@@ -9,6 +9,11 @@ on:
       - "3.data/**"
       - ".github/workflows/terraform-*.yml"
 
+# Concurrency: cancel in-progress runs for same PR, allow different PRs to run in parallel
+concurrency:
+  group: terraform-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
