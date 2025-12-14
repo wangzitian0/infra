@@ -94,6 +94,108 @@ jobs:
           vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
 
       # ============================================================
+      # Environment Variable Validation (make errors readable)
+      # ============================================================
+      - name: "✅ Checker: Validate Required Environment Variables"
+        run: |
+          echo "=== Checking Required Environment Variables ==="
+          EXIT_CODE=0
+          
+          # Check Vault variables for L2
+          if [ -z "$VAULT_TOKEN" ]; then
+            echo "❌ VAULT_TOKEN is not set"
+            EXIT_CODE=1
+          else
+            echo "✅ VAULT_TOKEN is set (length: ${#VAULT_TOKEN})"
+          fi
+          
+          if [ -z "$VAULT_ADDR" ]; then
+            echo "❌ VAULT_ADDR is not set"
+            EXIT_CODE=1
+          else
+            echo "✅ VAULT_ADDR is set: $VAULT_ADDR"
+          fi
+          
+          # Check Cloudflare
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "❌ CLOUDFLARE_API_TOKEN is not set"
+            EXIT_CODE=1
+          else
+            echo "✅ CLOUDFLARE_API_TOKEN is set"
+          fi
+          
+          # Check AWS/R2
+          if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+            echo "❌ AWS_ACCESS_KEY_ID is not set"
+            EXIT_CODE=1
+          else
+            echo "✅ AWS_ACCESS_KEY_ID is set"
+          fi
+          
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "💡 Fix: Ensure GitHub Secrets are set and passed to terraform-setup action"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All required environment variables are set"
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          VAULT_ADDR: ${{ env.VAULT_ADDR }}
+          CLOUDFLARE_API_TOKEN: ${{ env.CLOUDFLARE_API_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+
+      - name: "✅ Checker: Test Vault Connectivity"
+        continue-on-error: true
+        run: |
+          echo "=== Testing Vault Connectivity ==="
+          echo "Vault Address: $VAULT_ADDR"
+          echo "Token Length: ${#VAULT_TOKEN}"
+          
+          # Try to reach Vault API
+          if curl -sf -o /dev/null "$VAULT_ADDR/v1/sys/health" 2>/dev/null; then
+            echo "✅ Vault is reachable at $VAULT_ADDR"
+          else
+            echo "⚠️  Vault is not reachable (expected in CI - Vault is in-cluster)"
+            echo "💡 This is normal for GitHub Actions CI"
+          fi
+          
+          echo ""
+          echo "✅ Vault credentials are configured"
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          VAULT_ADDR: ${{ env.VAULT_ADDR }}
+
+      - name: "✅ Checker: Terraform Provider Validation"
+        working-directory: 2.platform
+        run: |
+          echo "=== Validating Terraform Providers ==="
+          
+          # Check if providers are initialized
+          if [ ! -d ".terraform/providers" ]; then
+            echo "❌ Providers not initialized"
+            exit 1
+          fi
+          
+          echo "✅ Providers initialized:"
+          ls -la .terraform/providers/registry.terraform.io/ 2>/dev/null || echo "No providers found"
+          
+          # Validate configuration
+          terraform validate -no-color || {
+            echo ""
+            echo "❌ Terraform validation failed"
+            echo "💡 Check syntax errors in .tf files"
+            exit 1
+          }
+          
+          echo ""
+          echo "✅ Terraform configuration is valid"
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+          VAULT_ADDR: ${{ env.VAULT_ADDR }}
+
+      # ============================================================
       # Static Analysis (runs before plan to catch issues early)
       # ============================================================
       - name: Terraform Format Check
