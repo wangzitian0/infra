@@ -162,21 +162,21 @@ grep 'local.namespace_name' 3.data/*.tf
 ```
 push to main
      ↓
-terraform fmt/lint/validate
+terraform fmt/lint/validate (syntax only)
      ↓
-terraform plan (CI 预览)
-     ↓
-terraform apply (自动)
+terraform apply (auto)
 ```
+
+**Note**: CI **validates syntax only** (no `terraform plan`), since it cannot access in-cluster resources like Vault.
 
 ### L2-L4（Atlantis GitOps）
 
 ```
 PR 创建
      ↓
-CI plan (语法+安全检查)
+CI validate (语法检查)
      ↓
-atlantis plan (实际 plan)
+atlantis plan (唯一的真实 plan)
      ↓
 Review
      ↓
@@ -184,6 +184,11 @@ atlantis apply
      ↓
 Merge
 ```
+
+**架构决策**: 
+- CI: 只做 `terraform validate` - 快速语法检查
+- **Atlantis: 唯一的 plan/apply 入口** - 保证 Plan = Apply 强一致
+- 理由: CI 无法访问集群内资源（Vault, K8s），plan 会失败或产生误导性结果
 
 **Lock 策略**：
 - `parallel_plan: true` - 多 PR 并行 plan
