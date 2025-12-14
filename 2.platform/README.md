@@ -1,5 +1,7 @@
 # 2.platform (Platform Layer / Layer 2)
 
+<!-- Test: infra-flash bot PR comment system -->
+
 **Scope**:
 - **Secrets**: Vault (PostgreSQL storage backend, Agent Injector)
 - **Platform DB**: PostgreSQL (for Vault)
