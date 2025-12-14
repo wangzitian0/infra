@@ -38,9 +38,6 @@ graph LR
 | `GitHub OAuth` | GH_OAUTH_CLIENT_ID | `GH_OAUTH_CLIENT_ID` | OAuth |
 | | GH_OAUTH_CLIENT_SECRET | `GH_OAUTH_CLIENT_SECRET` | OAuth |
 | `Casdoor Portal Gate` | client_secret | `CASDOOR_PORTAL_CLIENT_SECRET` | Portal SSO Gate OAuth（留空则 TF 自动生成） |
-| `Casdoor Vault OIDC` | client_secret | `CASDOOR_VAULT_OIDC_CLIENT_SECRET` | Vault OIDC（留空则 TF 自动生成，**建议存 1Password 以防灾难恢复**） |
-| `Casdoor Dashboard OIDC` | client_secret | `CASDOOR_DASHBOARD_OIDC_CLIENT_SECRET` | Dashboard OIDC（留空则 TF 自动生成，**建议存 1Password 以防灾难恢复**） |
-| `Casdoor Kubero OIDC` | client_secret | `CASDOOR_KUBERO_OIDC_CLIENT_SECRET` | Kubero OIDC（留空则 TF 自动生成，**建议存 1Password 以防灾难恢复**） |
 | `Atlantis` | ATLANTIS_WEBHOOK_SECRET | `ATLANTIS_WEBHOOK_SECRET` | Webhook |
 | | ATLANTIS_WEB_PASSWORD | `ATLANTIS_WEB_PASSWORD` | Web 密码 |
 | | ATLANTIS_GH_APP_ID | `ATLANTIS_GH_APP_ID` | App ID |
@@ -109,58 +106,6 @@ done
 | 1P → GH 同步 | ✅ VAULT_POSTGRES_PASSWORD 已同步 |
 | CI Auto-unseal | ✅ 已实现 |
 | Casdoor init_data.json | ✅ 正确挂载到 /init_data.json |
-
----
-
-## Casdoor OIDC Secrets 灾难恢复策略
-
-### 问题背景
-
-Casdoor 的 `init_data.json` **仅在首次启动且数据库为空时**读取。这导致以下灾难场景的不一致性：
-
-| 场景 | Terraform State | Casdoor DB | 结果 |
-|------|----------------|------------|------|
-| **完全灾难** | ✅ R2 保留 | ❌ 丢失 | ✅ 一致（DB 重建时读取 init_data） |
-| **State 丢失** | ❌ 丢失 | ✅ 保留 | ❌ **不一致**（新 random_password ≠ DB 中旧值） |
-| **仅 DB 损坏** | ✅ 保留 | ❌ 丢失 | ✅ 一致（从 state 恢复 init_data） |
-
-### 解决方案
-
-**推荐做法**：将 Terraform 自动生成的 OIDC client secrets **手动保存到 1Password**，作为灾难恢复的备份。
-
-1. **首次部署后**，导出自动生成的 secrets：
-   ```bash
-   terraform output -json | jq -r '.casdoor_*_client_secret.value'
-   ```
-
-2. **保存到 1Password**（创建新项目或添加字段）：
-   - `Casdoor Vault OIDC` → client_secret
-   - `Casdoor Dashboard OIDC` → client_secret
-   - `Casdoor Kubero OIDC` → client_secret
-
-3. **灾难恢复时**，从 1Password 恢复到 GitHub Secrets：
-   ```bash
-   gh secret set CASDOOR_VAULT_OIDC_CLIENT_SECRET \
-     --body "$(op item get 'Casdoor Vault OIDC' --vault my_cloud --fields client_secret --reveal)"
-   ```
-
-4. **重新部署**时，Terraform 会优先使用这些手动设置的值，而不是重新生成。
-
-### 灾难恢复操作流程
-
-**场景：Terraform State 丢失，但 Casdoor DB 保留**
-
-1. 从 Casdoor UI 导出现有的 client secrets（或从 1Password 恢复）
-2. 设置 GitHub Secrets / TF 变量：
-   ```bash
-   export TF_VAR_casdoor_vault_oidc_client_secret="<from-casdoor>"
-   export TF_VAR_casdoor_dashboard_oidc_client_secret="<from-casdoor>"
-   export TF_VAR_casdoor_kubero_oidc_client_secret="<from-casdoor>"
-   ```
-3. 重新 `terraform import` 或 `terraform apply`
-4. Terraform 会使用这些手动值，与 Casdoor DB 保持一致
-
----
 
 ## Vault-first 密钥策略
 

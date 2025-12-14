@@ -152,27 +152,6 @@ variable "casdoor_portal_client_secret" {
   default     = ""
 }
 
-variable "casdoor_vault_oidc_client_secret" {
-  description = "Vault OIDC Client Secret in Casdoor. Leave blank to auto-generate. Store in 1Password for disaster recovery."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "casdoor_dashboard_oidc_client_secret" {
-  description = "Dashboard OIDC Client Secret in Casdoor. Leave blank to auto-generate. Store in 1Password for disaster recovery."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "casdoor_kubero_oidc_client_secret" {
-  description = "Kubero OIDC Client Secret in Casdoor. Leave blank to auto-generate. Store in 1Password for disaster recovery."
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
 # ============================================================
 # Vault Configuration
 # ============================================================
