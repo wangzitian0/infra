@@ -98,9 +98,40 @@ kubectl exec -n data postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 2. **Data Loss**: Restore from pg_dump backup
 3. **Full Recreation**: Delete namespace, re-apply L3
 
-## Scalability Notes
+## Health Checks & Validation
 
-All services are deployed in **single-node mode** for MVP:
+All L3 data services follow the health check matrix from [docs/ssot/dir.md](../docs/ssot/dir.md):
+
+### Terraform-native Validation
+
+Each service has **lifecycle preconditions** to ensure Vault KV availability:
+
+```hcl
+lifecycle {
+  prevent_destroy = true  # Prevent accidental data loss
+  
+  precondition {
+    condition     = can(data.vault_kv_secret_v2.{service}.data["password"]) && 
+                    length(data.vault_kv_secret_v2.{service}.data["password"]) >= 16
+    error_message = "{Service} password must be available in Vault KV and at least 16 characters."
+  }
+}
+```
+
+**Coverage**:
+- ✅ **PostgreSQL**: Password validation (16+ chars)
+- ✅ **Redis**: Password validation (16+ chars)  
+- ✅ **ClickHouse**: Password validation (16+ chars)
+- ✅ **ArangoDB**: Password validation (16+ chars) + JWT secret precondition
+
+### Helm Chart Configuration
+
+- **Timeout**: 300s (standardized across all releases)
+- **Wait**: `wait = true` ensures readiness before completion
+- **Lifecycle**: `prevent_destroy = true` on all database releases
+
+**Note**: initContainer and other Pod-level health checks are configured via Helm chart defaults, not in Terraform values per SSOT guidelines.
+Scalability for MVP:
 - **Redis**: Master-only (no replicas)
 - **ClickHouse**: Single shard, no ZooKeeper
 - **ArangoDB**: Single mode (not Cluster)
