@@ -172,23 +172,37 @@ terraform apply (auto)
 ### L2-L4（Atlantis GitOps）
 
 ```
-PR 创建
+PR 创建/更新
      ↓
-CI validate (语法检查)
+┌─────────────────────────────────────────┐
+│ CI Validate (terraform-plan.yml)        │
+│ - fmt/lint/validate (语法检查)          │
+│ - 发布 infra-flash 评论 (单条可更新)    │
+└─────────────────────────────────────────┘
+     ↓ (并行)
+┌─────────────────────────────────────────┐
+│ Atlantis autoplan (webhook)             │
+│ - 真实 terraform plan                   │
+│ - 发布 plan 结果评论                    │
+│ - 状态显示在 GitHub Checks              │
+└─────────────────────────────────────────┘
      ↓
-atlantis plan (唯一的真实 plan)
+Review (查看 Atlantis plan 输出)
      ↓
-Review
-     ↓
-atlantis apply
+atlantis apply (评论触发)
      ↓
 Merge
 ```
 
 **架构决策**: 
-- CI: 只做 `terraform validate` - 快速语法检查
+- **CI: 只做语法检查** (`fmt`/`lint`/`validate`)
 - **Atlantis: 唯一的 plan/apply 入口** - 保证 Plan = Apply 强一致
 - 理由: CI 无法访问集群内资源（Vault, K8s），plan 会失败或产生误导性结果
+
+**评论策略**：
+- **infra-flash 评论 (CI)**: 单条可更新，只显示 CI 状态
+- **Atlantis 评论**: 由 Atlantis 管理，显示 plan/apply 输出
+- **状态查看**: GitHub Checks tab 显示所有状态
 
 **Lock 策略**：
 - `parallel_plan: true` - 多 PR 并行 plan

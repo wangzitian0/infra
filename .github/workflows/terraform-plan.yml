@@ -155,32 +155,28 @@ jobs:
             
             const body = `#### Terraform CI Validation ${success ? '✅' : '❌'}
             
-            **Syntax Check L1**: \`${l1}\`
-            **Syntax Check L2**: \`${l2}\`
+            const sha = context.sha.substring(0, 7);
+            const branch = context.payload.pull_request.head.ref;
             
-            ${success ? '🚀 CI validation passed. Atlantis will run the actual plan.' : '❌ Fix syntax errors before Atlantis plan.'}
+            return `<!-- infra-flash -->
+            ## ⚡ CI Validate | \`${sha}\`
             
-            > **Note**: CI only validates syntax. Atlantis runs the actual \`terraform plan\` with real state and provider connections.
+            | Layer | Format | Lint | Validate |
+            |:------|:------:|:----:|:--------:|
+            | **L1** Bootstrap | ${icon(fmt_l1)} | ${icon(lint_l1)} | ${icon(validate_l1)} |
+            | **L2** Platform | ${icon(fmt_l2)} | ${icon(lint_l2)} | ${icon(validate_l2)} |
+            | **L3** Data | ${icon(fmt_l3)} | ${icon(lint_l3)} | ${icon(validate_l3)} |
+            
+            ${allPass ? `✅ **CI 通过** - Atlantis autoplan 已触发，查看 [Checks](../checks) 获取 plan 状态` : `❌ **CI 失败** - 修复后重新推送
+            \`\`\`bash
+            terraform fmt -recursive && terraform validate
+            \`\`\``}
             
             ---
-            <details>
-            <summary>📋 <b>Available Commands</b></summary>
+            <details><summary>Commands</summary>
             
-            | Command | Description |
-            |:---|:---|
-            | \`/review\` | Request AI code review |
-            | \`@claude <question>\` | Ask Claude a question about this PR |
-            | \`atlantis plan\` | Run terraform plan (auto-triggered on PR update) |
-            | \`atlantis apply\` | Apply terraform changes |
-            
-            </details>
-            `;
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+            \`atlantis plan\` · \`atlantis apply\` · \`atlantis unlock\`
+            </details>`;
 
       - name: Trigger Atlantis Plan
         if: github.event_name == 'pull_request' && steps.validate_l1.outcome == 'success' && steps.validate_l2.outcome == 'success'
