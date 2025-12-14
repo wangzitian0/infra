@@ -23,6 +23,27 @@ locals {
   vault_oidc_client_secret          = var.casdoor_vault_oidc_client_secret != "" ? var.casdoor_vault_oidc_client_secret : (local.portal_gate_enabled ? random_password.vault_oidc_client_secret[0].result : "")
   dashboard_oidc_client_secret      = var.casdoor_dashboard_oidc_client_secret != "" ? var.casdoor_dashboard_oidc_client_secret : (local.portal_gate_enabled ? random_password.dashboard_oidc_client_secret[0].result : "")
   kubero_oidc_client_secret         = var.casdoor_kubero_oidc_client_secret != "" ? var.casdoor_kubero_oidc_client_secret : (local.portal_gate_enabled ? random_password.kubero_oidc_client_secret[0].result : "")
+
+  # Common OAuth provider and signin methods for Casdoor applications
+  casdoor_oauth_providers = [
+    {
+      name      = "provider_github"
+      canSignUp = true
+      canSignIn = true
+      canUnlink = false
+      prompted  = false
+      alertType = ""
+      rule      = "None"
+      provider  = null
+    }
+  ]
+  casdoor_signin_methods = [
+    {
+      name        = "OAuth"
+      displayName = "OAuth"
+      rule        = "All"
+    }
+  ]
 }
 
 resource "random_password" "portal_gate_client_secret" {
@@ -87,6 +108,20 @@ resource "kubernetes_config_map" "casdoor_init_data" {
           mfaItems      = []
         }
       ]
+      providers = [
+        {
+          owner        = "built-in"
+          name         = "provider_github"
+          createdTime  = "2025-01-01T00:00:00Z"
+          displayName  = "GitHub"
+          category     = "OAuth"
+          type         = "GitHub"
+          clientId     = var.github_oauth_client_id
+          clientSecret = var.github_oauth_client_secret
+          host         = ""
+          port         = 0
+        }
+      ]
       users = [
         {
           owner         = "built-in"
@@ -130,8 +165,8 @@ resource "kubernetes_config_map" "casdoor_init_data" {
             clientSecret   = local.casdoor_portal_gate_client_secret
             redirectUris   = ["https://auth.${local.internal_domain}/oauth2/callback"]
             enablePassword = false
-            providers      = []
-            signinMethods  = []
+            providers      = local.casdoor_oauth_providers
+            signinMethods  = local.casdoor_signin_methods
             signupItems    = []
             grantTypes     = ["authorization_code", "refresh_token"]
             tags           = []
@@ -146,8 +181,8 @@ resource "kubernetes_config_map" "casdoor_init_data" {
             clientSecret   = local.vault_oidc_client_secret
             redirectUris   = ["https://secrets.${local.internal_domain}/ui/vault/auth/oidc/oidc/callback"]
             enablePassword = false
-            providers      = []
-            signinMethods  = []
+            providers      = local.casdoor_oauth_providers
+            signinMethods  = local.casdoor_signin_methods
             signupItems    = []
             grantTypes     = ["authorization_code", "refresh_token"]
             tags           = []
@@ -162,8 +197,8 @@ resource "kubernetes_config_map" "casdoor_init_data" {
             clientSecret   = local.dashboard_oidc_client_secret
             redirectUris   = ["https://kdashboard.${local.internal_domain}/oauth2/callback"]
             enablePassword = false
-            providers      = []
-            signinMethods  = []
+            providers      = local.casdoor_oauth_providers
+            signinMethods  = local.casdoor_signin_methods
             signupItems    = []
             grantTypes     = ["authorization_code", "refresh_token"]
             tags           = []
@@ -178,8 +213,8 @@ resource "kubernetes_config_map" "casdoor_init_data" {
             clientSecret   = local.kubero_oidc_client_secret
             redirectUris   = ["https://kcloud.${local.internal_domain}/auth/callback"]
             enablePassword = false
-            providers      = []
-            signinMethods  = []
+            providers      = local.casdoor_oauth_providers
+            signinMethods  = local.casdoor_signin_methods
             signupItems    = []
             grantTypes     = ["authorization_code", "refresh_token"]
             tags           = []
