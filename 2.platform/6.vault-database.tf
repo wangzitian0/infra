@@ -65,18 +65,20 @@ resource "vault_kv_secret_v2" "l3_postgres" {
 
 # Generate password for L3 Redis
 resource "random_password" "l3_redis" {
+  count   = local.vault_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 # Store L3 Redis credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_redis" {
-  mount               = vault_mount.kv.path
+  count               = local.vault_enabled ? 1 : 0
+  mount               = vault_mount.kv[0].path
   name                = "data/redis"
   delete_all_versions = true
 
   data_json = jsonencode({
-    password = random_password.l3_redis.result
+    password = random_password.l3_redis[0].result
     host     = "redis-master.data.svc.cluster.local"
     port     = "6379"
   })
@@ -88,19 +90,21 @@ resource "vault_kv_secret_v2" "l3_redis" {
 
 # Generate password for L3 ClickHouse
 resource "random_password" "l3_clickhouse" {
+  count   = local.vault_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 # Store L3 ClickHouse credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_clickhouse" {
-  mount               = vault_mount.kv.path
+  count               = local.vault_enabled ? 1 : 0
+  mount               = vault_mount.kv[0].path
   name                = "data/clickhouse"
   delete_all_versions = true
 
   data_json = jsonencode({
     username = "default"
-    password = random_password.l3_clickhouse.result
+    password = random_password.l3_clickhouse[0].result
     host     = "clickhouse.data.svc.cluster.local"
     port     = "9000"
     database = "default"
@@ -113,25 +117,28 @@ resource "vault_kv_secret_v2" "l3_clickhouse" {
 
 # Generate password for L3 ArangoDB
 resource "random_password" "l3_arangodb" {
+  count   = local.vault_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 # Generate JWT secret for ArangoDB (32 bytes minimum)
 resource "random_bytes" "l3_arangodb_jwt" {
+  count  = local.vault_enabled ? 1 : 0
   length = 32
 }
 
 # Store L3 ArangoDB credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_arangodb" {
-  mount               = vault_mount.kv.path
+  count               = local.vault_enabled ? 1 : 0
+  mount               = vault_mount.kv[0].path
   name                = "data/arangodb"
   delete_all_versions = true
 
   data_json = jsonencode({
     username   = "root"
-    password   = random_password.l3_arangodb.result
-    jwt_secret = random_bytes.l3_arangodb_jwt.base64
+    password   = random_password.l3_arangodb[0].result
+    jwt_secret = random_bytes.l3_arangodb_jwt[0].base64
     host       = "arangodb.data.svc.cluster.local"
     port       = "8529"
   })
@@ -231,16 +238,16 @@ output "l3_postgres_vault_path" {
 
 output "l3_redis_vault_path" {
   description = "Vault KV path for L3 Redis credentials"
-  value       = "${vault_mount.kv.path}/data/redis"
+  value       = local.vault_enabled ? "${vault_mount.kv[0].path}/data/redis" : null
 }
 
 output "l3_clickhouse_vault_path" {
   description = "Vault KV path for L3 ClickHouse credentials"
-  value       = "${vault_mount.kv.path}/data/clickhouse"
+  value       = local.vault_enabled ? "${vault_mount.kv[0].path}/data/clickhouse" : null
 }
 
 output "l3_arangodb_vault_path" {
   description = "Vault KV path for L3 ArangoDB credentials"
-  value       = "${vault_mount.kv.path}/data/arangodb"
+  value       = local.vault_enabled ? "${vault_mount.kv[0].path}/data/arangodb" : null
 }
 
