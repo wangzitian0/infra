@@ -3,7 +3,7 @@
 # Purpose: Multi-model database (document, graph, key-value) for L4 applications
 # Password: Read from Vault KV at secret/data/arangodb (generated in L2)
 # Pattern: ArangoDB official Operator + Custom Resource
-# Namespace: data (shared with PostgreSQL)
+# Namespace: per-env (data-staging, data-prod)
 #
 # Architecture:
 # L2 generates password → stores in Vault KV
@@ -25,20 +25,37 @@ data "vault_kv_secret_v2" "arangodb" {
 }
 
 # =============================================================================
+# Health Check: Vault Readiness
+# =============================================================================
+
+data "external" "vault_ready_arangodb" {
+  program = ["sh", "-c", "nc -z vault.platform.svc 8200 && echo '{\"ok\":\"true\"}' || echo '{\"ok\":\"false\"}' "]
+}
+
+# =============================================================================
 # ArangoDB Operator (kube-arangodb)
 # Must be deployed before creating ArangoDeployment CR
 # =============================================================================
 
 resource "helm_release" "arangodb_operator" {
   name             = "arangodb-operator"
-  namespace        = kubernetes_namespace.data.metadata[0].name
+  namespace        = local.namespace_name  # Per-env: data-staging, data-prod
   repository       = "https://arangodb.github.io/kube-arangodb"
   chart            = "kube-arangodb"
   version          = "1.2.43"
   create_namespace = false
-  timeout          = 600
+  timeout          = 300  # Consistent with PR #170 standard
   wait             = true
   wait_for_jobs    = true
+
+  lifecycle {
+    prevent_destroy = true  # Prevent accidental deletion
+
+    precondition {
+      condition     = data.external.vault_ready_arangodb.result.ok == "true"
+      error_message = "Vault not ready - ArangoDB needs Vault for password retrieval"
+    }
+  }
 
   values = [
     yamlencode({
@@ -63,17 +80,22 @@ resource "helm_release" "arangodb_operator" {
 
 # =============================================================================
 # JWT Secret for ArangoDB Authentication
-# ArangoDB uses JWT tokens; we derive from Vault password for consistency
+# ArangoDB requires a minimum 32-byte secret for JWT signing
 # =============================================================================
+
+# Generate secure JWT secret (not derived from password)
+resource "random_bytes" "arangodb_jwt" {
+  length = 32  # ArangoDB JWT requirement
+}
 
 resource "kubernetes_secret" "arangodb_jwt" {
   metadata {
     name      = "arangodb-jwt"
-    namespace = kubernetes_namespace.data.metadata[0].name
+    namespace = local.namespace_name
   }
 
   data = {
-    token = base64encode(data.vault_kv_secret_v2.arangodb.data["password"])
+    token = random_bytes.arangodb_jwt.base64
   }
 
   depends_on = [kubernetes_namespace.data]
@@ -94,7 +116,7 @@ resource "kubernetes_manifest" "arangodb_deployment" {
     }
     spec = {
       mode  = "Single" # Single-server mode for MVP (migrate to Cluster later)
-      image = "arangodb/arangodb:latest"
+      image = "arangodb/arangodb:3.11.8"  # Fixed version (was latest)
       auth = {
         jwtSecretName = kubernetes_secret.arangodb_jwt.metadata[0].name
       }
@@ -136,7 +158,7 @@ resource "kubernetes_manifest" "arangodb_deployment" {
 # =============================================================================
 
 output "arangodb_host" {
-  value       = "arangodb.data.svc.cluster.local"
+  value       = "${kubernetes_manifest.arangodb_deployment.manifest.metadata.name}.${local.namespace_name}.svc.cluster.local"
   description = "ArangoDB K8s service DNS for L4 applications"
 }
 

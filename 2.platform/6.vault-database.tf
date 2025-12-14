@@ -116,6 +116,11 @@ resource "random_password" "l3_arangodb" {
   special = false
 }
 
+# Generate JWT secret for ArangoDB (32 bytes minimum)
+resource "random_bytes" "l3_arangodb_jwt" {
+  length = 32
+}
+
 # Store L3 ArangoDB credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_arangodb" {
   mount               = vault_mount.kv.path
@@ -123,11 +128,13 @@ resource "vault_kv_secret_v2" "l3_arangodb" {
   delete_all_versions = true
 
   data_json = jsonencode({
-    username = "root"
-    password = random_password.l3_arangodb.result
-    host     = "arangodb.data.svc.cluster.local"
-    port     = "8529"
+    username   = "root"
+    password   = random_password.l3_arangodb.result
+    jwt_secret = random_bytes.l3_arangodb_jwt.base64
+    host       = "arangodb.data.svc.cluster.local"
+    port       = "8529"
   })
+}
 }
 
 
