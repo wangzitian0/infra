@@ -109,6 +109,7 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **Namespace ownership**: `platform` namespace is created in L1 (`1.bootstrap/5.platform_pg.tf`), not L2. The Atlantis workflow removes stale namespace refs from L2 state automatically.
 - **Casdoor login bug**: Requires `copyrequestbody = true` in `app.conf` to fix "unexpected end of JSON input" error. See [#3224](https://github.com/casdoor/casdoor/issues/3224).
 - **Casdoor REST API**: Applications/providers managed via `restapi` provider (not `casdoor/casdoor` which requires Casdoor running during plan).
+- **Vault conditional**: Vault resources only created when `vault_root_token` is set. CI can skip Vault config by leaving token empty.
 - **Kubero UI image pin**: Prefer pinning `kubero_ui_image_tag` to a fixed version and keep pull policy `IfNotPresent` for reproducible deploys.
 
 ### Disaster Recovery
