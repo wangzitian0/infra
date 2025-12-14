@@ -124,10 +124,51 @@ resource "helm_release" "vault" {
   }
 }
 
-# Ingress for Vault UI/API
-resource "kubernetes_ingress_v1" "vault" {
+# Ingress for Vault API (no SSO Gate - API uses token auth)
+# Separate from UI to allow programmatic access
+resource "kubernetes_ingress_v1" "vault_api" {
   metadata {
-    name      = "vault-ingress"
+    name      = "vault-api-ingress"
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
+    annotations = {
+      "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+    }
+  }
+
+  spec {
+    ingress_class_name = "traefik"
+
+    tls {
+      hosts       = ["secrets.${local.internal_domain}"]
+      secret_name = "vault-tls"
+    }
+
+    rule {
+      host = "secrets.${local.internal_domain}"
+      http {
+        path {
+          path      = "/v1"
+          path_type = "Prefix"
+          backend {
+            service {
+              name = "vault"
+              port {
+                number = 8200
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [helm_release.vault]
+}
+
+# Ingress for Vault UI (with optional SSO Gate)
+resource "kubernetes_ingress_v1" "vault_ui" {
+  metadata {
+    name      = "vault-ui-ingress"
     namespace = data.kubernetes_namespace.platform.metadata[0].name
     annotations = merge(
       {
@@ -151,8 +192,21 @@ resource "kubernetes_ingress_v1" "vault" {
       host = "secrets.${local.internal_domain}"
       http {
         path {
-          path      = "/"
+          path      = "/ui"
           path_type = "Prefix"
+          backend {
+            service {
+              name = "vault"
+              port {
+                number = 8200
+              }
+            }
+          }
+        }
+        # Root path for redirects and static assets
+        path {
+          path      = "/"
+          path_type = "Exact"
           backend {
             service {
               name = "vault"
