@@ -21,7 +21,9 @@ projects:
     workspace: default
     workflow: platform
     autoplan:
-      enabled: false
+      enabled: true
+      when_modified:
+        - "2.platform/**/*.tf"
 
   # L3: Data (per-env)
   - name: data-staging
@@ -30,7 +32,9 @@ projects:
     workspace: staging
     workflow: data
     autoplan:
-      enabled: false
+      enabled: true
+      when_modified:
+        - "3.data/**/*.tf"
 
   - name: data-prod
     dir: 3.data
@@ -38,7 +42,9 @@ projects:
     workspace: prod
     workflow: data
     autoplan:
-      enabled: false
+      enabled: true
+      when_modified:
+        - "3.data/**/*.tf"
 
   # L4: Apps (per-env)
   - name: apps-staging
@@ -47,7 +53,9 @@ projects:
     workspace: staging
     workflow: apps
     autoplan:
-      enabled: false
+      enabled: true
+      when_modified:
+        - "4.apps/**/*.tf"
 
   - name: apps-prod
     dir: 4.apps
@@ -55,7 +63,9 @@ projects:
     workspace: prod
     workflow: apps
     autoplan:
-      enabled: false
+      enabled: true
+      when_modified:
+        - "4.apps/**/*.tf"
 
 workflows:
   # L2: Platform

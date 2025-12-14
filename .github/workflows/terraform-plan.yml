@@ -277,26 +277,20 @@ jobs:
             ### 🔮 Pipeline Status
             
             ${allPass ? `
-            | Stage | Status | Action |
-            |:------|:------:|:-------|
-            | **CI Validate** | ✅ Pass | 语法检查完成 |
-            | **Atlantis Plan** | 🚀 Auto | 已自动触发 \`atlantis plan\` |
-            | **Review** | ⏳ Wait | 等待人工审核 Plan 结果 |
-            | **Apply** | ⏸️ Ready | Review 后评论 \`atlantis apply\` |
-            
-            > 💡 **Next**: 等待 Atlantis plan 完成，审核后 \`atlantis apply\` 或直接 Merge
+            | Stage | Status | Next |
+            |:------|:------:|:-----|
+            | **CI Validate** | ✅ | 语法检查完成 |
+            | **Atlantis Plan** | 🔄 | Webhook 自动触发 |
+            | **Review** | ⏳ | 审核 Plan 输出 |
+            | **Apply** | ⏸️ | \`atlantis apply\` 或 Merge |
             ` : `
-            | Stage | Status | Action |
-            |:------|:------:|:-------|
-            | **CI Validate** | ❌ Fail | 请修复语法错误 |
-            | **Atlantis Plan** | ⏸️ Block | CI 通过后自动触发 |
+            | Stage | Status | Next |
+            |:------|:------:|:-----|
+            | **CI Validate** | ❌ | 修复语法错误 |
+            | **Atlantis Plan** | ⏸️ | CI 通过后触发 |
             
             \`\`\`bash
-            # 修复格式
-            terraform fmt -recursive
-            
-            # 本地验证
-            terraform validate
+            terraform fmt -recursive && terraform validate
             \`\`\`
             `}
             
@@ -337,10 +331,9 @@ jobs:
           token: ${{ steps.app_token.outputs.token }}
 
       # ============================================================
-      # Check Results & Trigger Atlantis
+      # Final Check
       # ============================================================
       - name: Check Results
-        id: check_results
         run: |
           if [[ "${{ steps.fmt_l1.outcome }}" != "success" ]] || \
              [[ "${{ steps.fmt_l2.outcome }}" != "success" ]] || \
@@ -352,18 +345,6 @@ jobs:
              [[ "${{ steps.validate_l2.outcome }}" != "success" ]] || \
              [[ "${{ steps.validate_l3.outcome }}" != "success" ]]; then
             echo "❌ CI validation failed - fix errors above"
-            echo "all_pass=false" >> $GITHUB_OUTPUT
             exit 1
           fi
-          echo "✅ CI validation passed - triggering Atlantis plan"
-          echo "all_pass=true" >> $GITHUB_OUTPUT
-
-      # Auto-trigger Atlantis plan when CI passes
-      - name: Trigger Atlantis Plan
-        if: steps.check_results.outputs.all_pass == 'true'
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            atlantis plan
-          token: ${{ steps.app_token.outputs.token }}
+          echo "✅ CI validation passed - Atlantis autoplan will trigger"
