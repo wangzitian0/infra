@@ -71,6 +71,28 @@ See [docs/ssot/auth.md](../docs/ssot/auth.md) for the full authentication archit
 2. **自动化执行**：在 2.platform 目录设置变量后，`terraform init && terraform apply`。开关置 `true` 时，Terraform 自动生成/写入 Casdoor 应用（Portal/Vault/Dashboard/Kubero），Ingress 自动挂 Traefik ForwardAuth（OAuth2-Proxy→Casdoor）。
 3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 302 → Casdoor 登录链路，若异常可立即将开关关回 `false` 并重跑 apply，避免锁死。
 
+#### ForwardAuth 端点配置
+
+Portal SSO Gate 使用 **根路径 `/`** 作为 ForwardAuth 端点（而非 `/oauth2/auth` 或 `/oauth2/start`）：
+
+- **配置**：`upstream=static://202` + `reverse-proxy=true`
+- **行为**：已认证返回 202，未认证返回 302 重定向到 Casdoor
+- **优势**：无需 errors middleware，自动处理登录重定向
+- **参考**：https://farcaller.net/2024/oauth-and-traefik-how-to-protect-your-endpoints/
+
+#### OIDC Secrets 灾难恢复
+
+Casdoor 的 `init_data.json` **仅在首次启动且数据库为空时**读取。为确保灾难恢复时的一致性：
+
+1. **建议做法**：首次部署后，将自动生成的 OIDC client secrets 保存到 1Password
+2. **支持变量**：
+   - `TF_VAR_casdoor_vault_oidc_client_secret`
+   - `TF_VAR_casdoor_dashboard_oidc_client_secret`
+   - `TF_VAR_casdoor_kubero_oidc_client_secret`
+3. **灾难场景**：如果 Terraform state 丢失但 Casdoor DB 保留，从 1Password 恢复这些 secrets 到 GitHub Secrets / TF 变量
+
+详见 [docs/ssot/secrets.md](../docs/ssot/secrets.md#casdoor-oidc-secrets-灾难恢复策略)
+
 ### Domain Configuration
 
 The `internal_domain` variable controls all platform service hostnames:

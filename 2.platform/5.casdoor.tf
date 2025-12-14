@@ -13,14 +13,16 @@
 
 locals {
   # Use nonsensitive() to avoid tainting downstream outputs as sensitive.
-  casdoor_enabled                   = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
-  casdoor_domain                    = "sso.${local.internal_domain}"
-  portal_gate_enabled               = local.casdoor_enabled && var.enable_portal_sso_gate
-  casdoor_portal_gate_client_secret = var.casdoor_portal_client_secret != "" ? var.casdoor_portal_client_secret : (local.portal_gate_enabled ? random_password.portal_gate_client_secret[0].result : "")
+  casdoor_enabled     = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
+  casdoor_domain      = "sso.${local.internal_domain}"
+  portal_gate_enabled = local.casdoor_enabled && var.enable_portal_sso_gate
 
-  vault_oidc_client_secret     = local.portal_gate_enabled ? random_password.vault_oidc_client_secret[0].result : ""
-  dashboard_oidc_client_secret = local.portal_gate_enabled ? random_password.dashboard_oidc_client_secret[0].result : ""
-  kubero_oidc_client_secret    = local.portal_gate_enabled ? random_password.kubero_oidc_client_secret[0].result : ""
+  # OIDC Client Secrets: prefer manual values from 1Password, fallback to auto-generated
+  # This ensures disaster recovery consistency when Terraform state is lost
+  casdoor_portal_gate_client_secret = var.casdoor_portal_client_secret != "" ? var.casdoor_portal_client_secret : (local.portal_gate_enabled ? random_password.portal_gate_client_secret[0].result : "")
+  vault_oidc_client_secret          = var.casdoor_vault_oidc_client_secret != "" ? var.casdoor_vault_oidc_client_secret : (local.portal_gate_enabled ? random_password.vault_oidc_client_secret[0].result : "")
+  dashboard_oidc_client_secret      = var.casdoor_dashboard_oidc_client_secret != "" ? var.casdoor_dashboard_oidc_client_secret : (local.portal_gate_enabled ? random_password.dashboard_oidc_client_secret[0].result : "")
+  kubero_oidc_client_secret         = var.casdoor_kubero_oidc_client_secret != "" ? var.casdoor_kubero_oidc_client_secret : (local.portal_gate_enabled ? random_password.kubero_oidc_client_secret[0].result : "")
 }
 
 resource "random_password" "portal_gate_client_secret" {
@@ -30,19 +32,19 @@ resource "random_password" "portal_gate_client_secret" {
 }
 
 resource "random_password" "vault_oidc_client_secret" {
-  count   = local.portal_gate_enabled ? 1 : 0
+  count   = local.portal_gate_enabled && var.casdoor_vault_oidc_client_secret == "" ? 1 : 0
   length  = 32
   special = false
 }
 
 resource "random_password" "dashboard_oidc_client_secret" {
-  count   = local.portal_gate_enabled ? 1 : 0
+  count   = local.portal_gate_enabled && var.casdoor_dashboard_oidc_client_secret == "" ? 1 : 0
   length  = 32
   special = false
 }
 
 resource "random_password" "kubero_oidc_client_secret" {
-  count   = local.portal_gate_enabled ? 1 : 0
+  count   = local.portal_gate_enabled && var.casdoor_kubero_oidc_client_secret == "" ? 1 : 0
   length  = 32
   special = false
 }
@@ -52,6 +54,13 @@ resource "random_password" "kubero_oidc_client_secret" {
 
 # ConfigMap for Casdoor init_data.json
 # This file is loaded on first startup to initialize organization, user, and application
+#
+# DISASTER RECOVERY STRATEGY:
+# - init_data.json is ONLY read when Casdoor database is empty (first boot)
+# - For ongoing consistency, OIDC client secrets should be stored in 1Password
+# - If Terraform state is lost but Casdoor DB persists: export secrets from Casdoor,
+#   set TF_VAR_casdoor_*_client_secret, then re-apply
+# - If both state and DB are lost: secrets auto-regenerate from init_data on first boot
 resource "kubernetes_config_map" "casdoor_init_data" {
   count = local.casdoor_enabled ? 1 : 0
 

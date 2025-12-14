@@ -81,7 +81,7 @@ resource "helm_release" "portal_auth" {
         "redirect-url"       = "https://${local.portal_auth_host}/oauth2/callback"
         "whitelist-domain"   = ".${local.internal_domain}"
         # Reduce cookie size to avoid 4KB limit (was causing infinite redirect loop)
-        "pass-access-token"        = "false"
+        "pass-access-token"         = "false"
         "pass-authorization-header" = "false"
         "scope"                     = "openid email"
       }
@@ -131,7 +131,8 @@ resource "helm_release" "portal_auth" {
   ]
 }
 
-# ForwardAuth middleware: uses /oauth2/start which auto-redirects to login if not authenticated
+# ForwardAuth middleware: uses root path (/) with upstream=static://202 for smart auth
+# Reference: https://farcaller.net/2024/oauth-and-traefik-how-to-protect-your-endpoints/
 resource "kubernetes_manifest" "portal_auth_middleware_platform" {
   count = local.portal_sso_gate_enabled ? 1 : 0
 
@@ -144,8 +145,11 @@ resource "kubernetes_manifest" "portal_auth_middleware_platform" {
     }
     spec = {
       forwardAuth = {
-        # /oauth2/start returns 302 redirect to IdP if not authenticated, 202 if authenticated
-        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/start"
+        # Root path (/) with upstream=static://202 provides smart authentication:
+        # - Returns 202 if authenticated
+        # - Returns 302 redirect to IdP if not authenticated
+        # This avoids the need for a separate errors middleware
+        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
         trustForwardHeader  = true
         authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email", "X-Auth-Request-Access-Token"]
       }
@@ -169,8 +173,11 @@ resource "kubernetes_manifest" "portal_auth_middleware_kubero" {
     }
     spec = {
       forwardAuth = {
-        # /oauth2/start returns 302 redirect to IdP if not authenticated, 202 if authenticated
-        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/start"
+        # Root path (/) with upstream=static://202 provides smart authentication:
+        # - Returns 202 if authenticated
+        # - Returns 302 redirect to IdP if not authenticated
+        # This avoids the need for a separate errors middleware
+        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
         trustForwardHeader  = true
         authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email", "X-Auth-Request-Access-Token"]
       }
