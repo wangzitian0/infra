@@ -6,6 +6,7 @@ on:
     paths:
       - "1.bootstrap/**"
       - "2.platform/**"
+      - "3.data/**"
       - ".github/workflows/terraform-*.yml"
 
 env:
@@ -13,7 +14,8 @@ env:
   TF_INPUT: "false"
 
 jobs:
-  plan:
+  validate:
+    name: "CI Validate"
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -22,6 +24,17 @@ jobs:
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    outputs:
+      l1_fmt: ${{ steps.fmt_l1.outcome }}
+      l2_fmt: ${{ steps.fmt_l2.outcome }}
+      l3_fmt: ${{ steps.fmt_l3.outcome }}
+      l1_validate: ${{ steps.validate_l1.outcome }}
+      l2_validate: ${{ steps.validate_l2.outcome }}
+      l3_validate: ${{ steps.validate_l3.outcome }}
+      l1_lint: ${{ steps.lint_l1.outcome }}
+      l2_lint: ${{ steps.lint_l2.outcome }}
+      l3_lint: ${{ steps.lint_l3.outcome }}
 
     steps:
       - name: Checkout
@@ -90,110 +103,237 @@ jobs:
           internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
           github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
           github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
-          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-          vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
+          # Note: vault_root_token intentionally omitted - CI only validates syntax
+          # Atlantis (in-cluster) handles actual plan/apply with Vault access
+
+      - name: Setup Terraform Environment (L3)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "3.data"
+          terraform_version: 1.6.6
+          tf_state_key: "k3s/data.tfstate"
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          r2_bucket: ${{ secrets.R2_BUCKET }}
+          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          vps_host: ${{ secrets.VPS_HOST }}
+          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+          vps_user: ${{ secrets.VPS_USER }}
+          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
+          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
+          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
+          k3s_channel: ${{ secrets.K3S_CHANNEL }}
+          k3s_version: ${{ secrets.K3S_VERSION }}
+          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
+          github_token: ${{ secrets.GH_PAT || github.token }}
+          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          base_domain: ${{ secrets.BASE_DOMAIN }}
+          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
+          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
+          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
+          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
 
       # ============================================================
-      # Static Analysis (runs before plan to catch issues early)
+      # Format Check
       # ============================================================
-      - name: Terraform Format Check
-        run: |
-          # Check both directories
-          git ls-files '1.bootstrap/*.tf' '2.platform/*.tf' | xargs terraform fmt -check
+      - name: Format Check (L1)
+        id: fmt_l1
+        working-directory: 1.bootstrap
+        run: terraform fmt -check -recursive
+        continue-on-error: true
 
+      - name: Format Check (L2)
+        id: fmt_l2
+        working-directory: 2.platform
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Format Check (L3)
+        id: fmt_l3
+        working-directory: 3.data
+        run: terraform fmt -check -recursive
+        continue-on-error: true
+
+      # ============================================================
+      # TFLint
+      # ============================================================
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
         with:
           tflint_version: latest
 
       - name: TFLint (L1)
+        id: lint_l1
         working-directory: 1.bootstrap
         run: |
           tflint --init
           tflint --recursive --minimum-failure-severity=error
+        continue-on-error: true
 
       - name: TFLint (L2)
+        id: lint_l2
         working-directory: 2.platform
         run: |
           tflint --init
           tflint --recursive --minimum-failure-severity=error
+        continue-on-error: true
 
-      - name: Pre-flight Check (Helm URLs)
+      - name: TFLint (L3)
+        id: lint_l3
+        working-directory: 3.data
         run: |
-          chmod +x 0.tools/preflight-check.sh
-          0.tools/preflight-check.sh
+          tflint --init
+          tflint --recursive --minimum-failure-severity=error
+        continue-on-error: true
 
       # ============================================================
-      # Terraform Validation (Syntax & Config Only)
+      # Terraform Validate (Syntax Only)
       # ============================================================
       - name: Terraform validate (L1)
         id: validate_l1
         working-directory: 1.bootstrap
-        run: |
-          echo "=== Validating L1 Bootstrap Configuration ==="
-          terraform validate -no-color
-          echo "✅ L1 validation passed"
+        run: terraform validate -no-color
         continue-on-error: true
 
       - name: Terraform validate (L2)
         id: validate_l2
         working-directory: 2.platform
-        run: |
-          echo "=== Validating L2 Platform Configuration ==="
-          terraform validate -no-color
-          echo "✅ L2 validation passed"
+        run: terraform validate -no-color
         continue-on-error: true
 
-      - name: Comment PR
-        uses: actions/github-script@v7
-        if: github.event_name == 'pull_request'
+      - name: Terraform validate (L3)
+        id: validate_l3
+        working-directory: 3.data
+        run: terraform validate -no-color
+        continue-on-error: true
+
+      # ============================================================
+      # infra-flash Comment (Single, Updateable)
+      # ============================================================
+      - name: Find existing comment
+        uses: peter-evans/find-comment@v3
+        id: find_comment
         with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: '<!-- infra-flash -->'
+
+      - name: Generate infra-flash comment
+        id: comment_body
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
           script: |
-            const l1 = '${{ steps.validate_l1.outcome }}';
-            const l2 = '${{ steps.validate_l2.outcome }}';
-            const success = l1 === 'success' && l2 === 'success';
+            const fmt_l1 = '${{ steps.fmt_l1.outcome }}';
+            const fmt_l2 = '${{ steps.fmt_l2.outcome }}';
+            const fmt_l3 = '${{ steps.fmt_l3.outcome }}';
+            const lint_l1 = '${{ steps.lint_l1.outcome }}';
+            const lint_l2 = '${{ steps.lint_l2.outcome }}';
+            const lint_l3 = '${{ steps.lint_l3.outcome }}';
+            const validate_l1 = '${{ steps.validate_l1.outcome }}';
+            const validate_l2 = '${{ steps.validate_l2.outcome }}';
+            const validate_l3 = '${{ steps.validate_l3.outcome }}';
             
-            const body = `#### Terraform CI Validation ${success ? '✅' : '❌'}
+            const icon = (s) => s === 'success' ? '✅' : '❌';
+            const allPass = [fmt_l1, fmt_l2, fmt_l3, lint_l1, lint_l2, lint_l3, validate_l1, validate_l2, validate_l3]
+              .every(s => s === 'success');
             
-            **Syntax Check L1**: \`${l1}\`
-            **Syntax Check L2**: \`${l2}\`
+            const sha = context.sha.substring(0, 7);
+            const branch = context.payload.pull_request.head.ref;
+            const title = context.payload.pull_request.title;
             
-            ${success ? '🚀 CI validation passed. Atlantis will run the actual plan.' : '❌ Fix syntax errors before Atlantis plan.'}
+            return `<!-- infra-flash -->
+            ## ⚡ infra-flash | \`${branch}\`
             
-            > **Note**: CI only validates syntax. Atlantis runs the actual \`terraform plan\` with real state and provider connections.
+            ### 📍 Commit
+            \`${sha}\` - ${title}
+            
+            ### 🔍 CI Status (Syntax Only)
+            
+            | Layer | Format | Lint | Validate |
+            |:------|:------:|:----:|:--------:|
+            | **L1** Bootstrap | ${icon(fmt_l1)} | ${icon(lint_l1)} | ${icon(validate_l1)} |
+            | **L2** Platform | ${icon(fmt_l2)} | ${icon(lint_l2)} | ${icon(validate_l2)} |
+            | **L3** Data | ${icon(fmt_l3)} | ${icon(lint_l3)} | ${icon(validate_l3)} |
+            
+            ### 🔮 Atlantis (Real Plan/Apply)
+            
+            > CI 只检查语法。**Atlantis 是唯一的 plan/apply 入口**。
+            
+            ${allPass ? `
+            ✅ **CI 通过** - Atlantis 将自动运行 plan
+            
+            | 状态 | 说明 |
+            |:-----|:-----|
+            | ⏳ Plan | 等待 Atlantis webhook 触发 |
+            | ⏸️ Apply | Plan 完成后可执行 |
+            ` : `
+            ❌ **CI 失败** - 请修复语法错误
+            
+            \`\`\`bash
+            # 修复格式
+            terraform fmt -recursive
+            
+            # 本地验证
+            terraform validate
+            \`\`\`
+            `}
             
             ---
+            
             <details>
-            <summary>📋 <b>Available Commands</b></summary>
+            <summary>📋 <b>Commands</b></summary>
             
             | Command | Description |
-            |:---|:---|
-            | \`/review\` | Request AI code review |
-            | \`@claude <question>\` | Ask Claude a question about this PR |
-            | \`atlantis plan\` | Run terraform plan (auto-triggered on PR update) |
-            | \`atlantis apply\` | Apply terraform changes |
+            |:--------|:------------|
+            | \`atlantis plan\` | 运行 terraform plan |
+            | \`atlantis apply\` | 应用更改 (plan 后) |
+            | \`atlantis unlock\` | 解锁 workspace |
+            | \`/review\` | AI 代码审查 |
             
             </details>
-            `;
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: body
-            });
+            
+            <details>
+            <summary>🏗️ <b>Architecture</b></summary>
+            
+            \`\`\`
+            CI (GitHub Actions)     →  语法检查 (快速)
+            Atlantis (In-Cluster)   →  plan/apply (真实状态)
+            \`\`\`
+            
+            CI 无法访问 Vault/K8s，所以只做 validate。
+            Atlantis 在集群内运行，有完整访问权限。
+            
+            </details>`;
 
-      - name: Trigger Atlantis Plan
-        if: github.event_name == 'pull_request' && steps.validate_l1.outcome == 'success' && steps.validate_l2.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          echo "✅ CI validation passed - Atlantis will automatically run plan on PR update"
-          # Atlantis auto-triggers on PR, no manual comment needed
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: ${{ steps.comment_body.outputs.result }}
+          edit-mode: replace
 
-      - name: Validation Status
-        if: steps.validate_l1.outcome == 'failure' || steps.validate_l2.outcome == 'failure'
+      # ============================================================
+      # Final Status
+      # ============================================================
+      - name: Check Results
         run: |
-          echo "❌ Terraform validation failed"
-          echo ""
-          echo "CI validates syntax only. Fix errors above before Atlantis plan."
-          exit 1
+          if [[ "${{ steps.fmt_l1.outcome }}" != "success" ]] || \
+             [[ "${{ steps.fmt_l2.outcome }}" != "success" ]] || \
+             [[ "${{ steps.fmt_l3.outcome }}" != "success" ]] || \
+             [[ "${{ steps.lint_l1.outcome }}" != "success" ]] || \
+             [[ "${{ steps.lint_l2.outcome }}" != "success" ]] || \
+             [[ "${{ steps.lint_l3.outcome }}" != "success" ]] || \
+             [[ "${{ steps.validate_l1.outcome }}" != "success" ]] || \
+             [[ "${{ steps.validate_l2.outcome }}" != "success" ]] || \
+             [[ "${{ steps.validate_l3.outcome }}" != "success" ]]; then
+            echo "❌ CI validation failed - fix errors above"
+            exit 1
+          fi
+          echo "✅ CI validation passed - Atlantis will run plan"
