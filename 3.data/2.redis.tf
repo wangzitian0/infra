@@ -24,14 +24,6 @@ data "vault_kv_secret_v2" "redis" {
 }
 
 # =============================================================================
-# Health Check: Vault Readiness
-# =============================================================================
-
-data "external" "vault_ready_redis" {
-  program = ["sh", "-c", "nc -z vault.platform.svc 8200 && echo '{\"ok\":\"true\"}' || echo '{\"ok\":\"false\"}'"]
-}
-
-# =============================================================================
 # Redis via Bitnami Helm chart
 # =============================================================================
 
@@ -50,8 +42,8 @@ resource "helm_release" "redis" {
     prevent_destroy = true  # Prevent accidental data loss
 
     precondition {
-      condition     = data.external.vault_ready_redis.result.ok == "true"
-      error_message = "Vault not ready - Redis needs Vault for password retrieval"
+      condition     = can(data.vault_kv_secret_v2.redis.data["password"]) && length(data.vault_kv_secret_v2.redis.data["password"]) >= 16
+      error_message = "Redis password must be available in Vault KV and at least 16 characters."
     }
   }
 
@@ -66,14 +58,6 @@ resource "helm_release" "redis" {
         password = data.vault_kv_secret_v2.redis.data["password"]
       }
       master = {
-        # Wait for Vault before starting
-        initContainers = [
-          {
-            name    = "wait-for-vault"
-            image   = "busybox:1.36"
-            command = ["sh", "-c", "until nc -z vault.platform.svc 8200; do echo 'Waiting for Vault...'; sleep 2; done; echo 'Vault is ready'"]
-          }
-        ]
         persistence = {
           enabled      = true
           storageClass = "local-path-retain"

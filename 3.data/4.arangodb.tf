@@ -25,14 +25,6 @@ data "vault_kv_secret_v2" "arangodb" {
 }
 
 # =============================================================================
-# Health Check: Vault Readiness
-# =============================================================================
-
-data "external" "vault_ready_arangodb" {
-  program = ["sh", "-c", "nc -z vault.platform.svc 8200 && echo '{\"ok\":\"true\"}' || echo '{\"ok\":\"false\"}' "]
-}
-
-# =============================================================================
 # ArangoDB Operator (kube-arangodb)
 # Must be deployed before creating ArangoDeployment CR
 # =============================================================================
@@ -52,8 +44,8 @@ resource "helm_release" "arangodb_operator" {
     prevent_destroy = true  # Prevent accidental deletion
 
     precondition {
-      condition     = data.external.vault_ready_arangodb.result.ok == "true"
-      error_message = "Vault not ready - ArangoDB needs Vault for password retrieval"
+      condition     = can(data.vault_kv_secret_v2.arangodb.data["password"]) && length(data.vault_kv_secret_v2.arangodb.data["password"]) >= 16
+      error_message = "ArangoDB password must be available in Vault KV and at least 16 characters."
     }
   }
 
@@ -86,6 +78,13 @@ resource "helm_release" "arangodb_operator" {
 # Generate secure JWT secret (not derived from password)
 resource "random_bytes" "arangodb_jwt" {
   length = 32  # ArangoDB JWT requirement
+
+  lifecycle {
+    precondition {
+      condition     = can(data.vault_kv_secret_v2.arangodb.data["password"])
+      error_message = "ArangoDB password must be available in Vault before generating JWT secret."
+    }
+  }
 }
 
 resource "kubernetes_secret" "arangodb_jwt" {
