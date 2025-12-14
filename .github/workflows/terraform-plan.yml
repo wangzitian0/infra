@@ -215,13 +215,21 @@ jobs:
       # ============================================================
       # infra-flash Comment (Single, Updateable)
       # ============================================================
+      - name: Generate infra-flash App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
       - name: Find existing comment
         uses: peter-evans/find-comment@v3
         id: find_comment
         with:
           issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
+          comment-author: 'infra-flash[bot]'
           body-includes: '<!-- infra-flash -->'
+          token: ${{ steps.app_token.outputs.token }}
 
       - name: Generate infra-flash comment
         id: comment_body
@@ -318,6 +326,7 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           body: ${{ steps.comment_body.outputs.result }}
           edit-mode: replace
+          token: ${{ steps.app_token.outputs.token }}
 
       # ============================================================
       # Final Status
