@@ -106,14 +106,14 @@ L2 门户级服务通过 **Portal SSO Gate**（OAuth2-Proxy + Casdoor OIDC）实
 | GitHub | 开发者登录 | ✅ 已配置 (`TF_VAR_github_oauth_client_id/secret`) |
 | Google | 备用登录 | ⏳ 待配置（可选） |
 
-### OIDC Clients (Casdoor init_data 自动创建)
+### OIDC Clients (Casdoor REST API 管理)
 
 | 应用 | Client ID | Redirect URI | 状态 |
 |------|-----------|--------------|------|
-| Portal Gate | `portal-gate` | `https://auth.<internal_domain>/oauth2/callback` | ✅ 已创建 |
-| Vault | `vault-oidc` | `https://secrets.<internal_domain>/ui/vault/auth/oidc/oidc/callback` | ✅ 已创建 |
-| Dashboard | `dashboard-oidc` | `https://kdashboard.<internal_domain>/oauth2/callback` | ✅ 已创建 |
-| Kubero | `kubero-oidc` | `https://kcloud.<internal_domain>/auth/callback` | ✅ 已创建 |
+| Portal Gate | `portal-gate` | `https://auth.<internal_domain>/oauth2/callback` | ✅ REST API 管理 |
+| Vault | `vault-oidc` | `https://secrets.<internal_domain>/ui/vault/auth/oidc/oidc/callback` | ✅ REST API 管理 |
+| Dashboard | `dashboard-oidc` | `https://kdashboard.<internal_domain>/oauth2/callback` | ✅ REST API 管理 |
+| Kubero | `kubero-oidc` | `https://kcloud.<internal_domain>/auth/callback` | ✅ REST API 管理 |
 
 ---
 
@@ -153,5 +153,39 @@ L2 门户级服务通过 **Portal SSO Gate**（OAuth2-Proxy + Casdoor OIDC）实
 ## 相关文件
 
 - [secrets.md](secrets.md) - 密钥管理 SSOT
-- [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor 部署
+- [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor 部署 (Helm + REST API 管理)
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
+
+---
+
+## Casdoor REST API 管理
+
+### 为什么使用 REST API？
+
+`casdoor/casdoor` Terraform Provider 要求 Casdoor **在 `terraform plan` 时已经运行**。
+这导致首次部署时出现鸡生蛋问题：无法在 Casdoor 部署前 plan。
+
+**解决方案**：使用 `Mastercard/restapi` Provider 调用 Casdoor 的 REST API：
+- Provider 只在 `terraform apply` 时连接（非 plan）
+- `/api/add-provider` - 创建 OAuth Provider
+- `/api/add-application` - 创建应用
+- `/api/update-application` - 更新应用
+- `/api/delete-application` - 删除应用
+
+### 认证方式
+
+Casdoor API 使用 `clientId` + `clientSecret` 作为 query 参数进行认证：
+- `clientId`: `admin`（内置应用）
+- `clientSecret`: 与 `casdoor_admin_password` 相同
+
+### 管理的资源
+
+| 资源类型 | 名称 | 用途 |
+|----------|------|------|
+| Provider | `provider_github` | GitHub OAuth 登录 |
+| Application | `portal-gate` | OAuth2-Proxy 统一入口 |
+| Application | `vault-oidc` | Vault OIDC 登录 |
+| Application | `dashboard-oidc` | K8s Dashboard SSO |
+| Application | `kubero-oidc` | Kubero OAuth2 登录 |
+
+所有应用都带有 `terraform-managed` 标签，便于区分手动创建的应用。

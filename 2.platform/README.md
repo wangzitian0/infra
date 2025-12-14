@@ -21,7 +21,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
-| `5.casdoor.tf` | Casdoor SSO | Unified SSO (OIDC provider, uses `initData` for IaC initialization of org/user/app) |
+| `5.casdoor.tf` | Casdoor SSO | Unified SSO (OIDC provider, uses REST API for declarative application management) |
 | `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
 | `99.one-auth.tf` | One-Auth Gate | SSO gate switch and preconditions (controlled by `enable_one_auth`) |
 
@@ -82,7 +82,7 @@ Portal SSO Gate 使用 **根路径 `/`** 作为 ForwardAuth 端点（而非 `/oa
 
 #### OIDC Secrets 灾难恢复
 
-Casdoor 的 `init_data.json` **仅在首次启动且数据库为空时**读取。为确保灾难恢复时的一致性：
+REST API 管理模式下，OIDC client secrets 存储在 Terraform state 和 Casdoor DB 中。为确保一致性：
 
 1. **建议做法**：首次部署后，将自动生成的 OIDC client secrets 保存到 1Password
 2. **支持变量**：
@@ -108,6 +108,7 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **PostgreSQL upgrades**: `helm_release.postgresql` uses `force_update=true` to allow spec changes (e.g., auth tweaks). Expect pod recreation/downtime during upgrades.
 - **Namespace ownership**: `platform` namespace is created in L1 (`1.bootstrap/5.platform_pg.tf`), not L2. The Atlantis workflow removes stale namespace refs from L2 state automatically.
 - **Casdoor login bug**: Requires `copyrequestbody = true` in `app.conf` to fix "unexpected end of JSON input" error. See [#3224](https://github.com/casdoor/casdoor/issues/3224).
+- **Casdoor REST API**: Applications/providers managed via `restapi` provider (not `casdoor/casdoor` which requires Casdoor running during plan).
 - **Kubero UI image pin**: Prefer pinning `kubero_ui_image_tag` to a fixed version and keep pull policy `IfNotPresent` for reproducible deploys.
 
 ### Disaster Recovery
@@ -116,4 +117,4 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **Lost Admin Access**: Recover using stored root token/unseal keys.
 
 ---
-*Last updated: 2025-12-13*
+*Last updated: 2025-12-15*
