@@ -29,17 +29,17 @@ data "vault_kv_secret_v2" "redis" {
 
 resource "helm_release" "redis" {
   name             = "redis"
-  namespace        = local.namespace_name  # Per-env: data-staging, data-prod
+  namespace        = local.namespace_name # Per-env: data-staging, data-prod
   repository       = "oci://registry-1.docker.io/bitnamicharts"
   chart            = "redis"
   version          = "20.6.0"
   create_namespace = false
-  timeout          = 300  # Consistent with PR #170 standard
+  timeout          = 300 # Consistent with PR #170 standard
   wait             = true
   wait_for_jobs    = true
 
   lifecycle {
-    prevent_destroy = true  # Prevent accidental data loss
+    prevent_destroy = true # Prevent accidental data loss
 
     precondition {
       condition     = can(data.vault_kv_secret_v2.redis.data["password"]) && length(data.vault_kv_secret_v2.redis.data["password"]) >= 16
