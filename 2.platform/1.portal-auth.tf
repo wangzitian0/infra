@@ -68,20 +68,22 @@ resource "helm_release" "portal_auth" {
       }
 
       extraArgs = {
-        provider                    = "oidc"
-        "oidc-issuer-url"           = local.casdoor_issuer
-        email-domain                = "*"
-        cookie-domain               = ".${local.internal_domain}"
-        cookie-secure               = "true"
-        cookie-samesite             = "lax"
-        upstream                    = "static://202"
-        set-xauthrequest            = "true"
-        reverse-proxy               = "true"
-        skip-provider-button        = "true"
-        "redirect-url"              = "https://${local.portal_auth_host}/oauth2/callback"
-        "whitelist-domain"          = ".${local.internal_domain}"
-        "pass-authorization-header" = "true"
-        "scope"                     = "openid profile email"
+        provider             = "oidc"
+        "oidc-issuer-url"    = local.casdoor_issuer
+        email-domain         = "*"
+        cookie-domain        = ".${local.internal_domain}"
+        cookie-secure        = "true"
+        cookie-samesite      = "lax"
+        upstream             = "static://202"
+        set-xauthrequest     = "true"
+        reverse-proxy        = "true"
+        skip-provider-button = "true"
+        "redirect-url"       = "https://${local.portal_auth_host}/oauth2/callback"
+        "whitelist-domain"   = ".${local.internal_domain}"
+        # Reduce cookie size to avoid 4KB limit (was causing infinite redirect loop)
+        "pass-access-token"         = "false"
+        "pass-authorization-header" = "false"
+        "scope"                     = "openid email"
       }
 
       ingress = {
@@ -129,6 +131,8 @@ resource "helm_release" "portal_auth" {
   ]
 }
 
+# ForwardAuth middleware: uses /oauth2/start for automatic login redirect
+# /oauth2/start returns 302 to Casdoor if unauthenticated, 202 if authenticated
 resource "kubernetes_manifest" "portal_auth_middleware_platform" {
   count = local.portal_sso_gate_enabled ? 1 : 0
 
@@ -141,9 +145,11 @@ resource "kubernetes_manifest" "portal_auth_middleware_platform" {
     }
     spec = {
       forwardAuth = {
-        address             = "http://portal-auth.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
-        trustForwardHeader  = false
-        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
+        # /oauth2/start auto-redirects to Casdoor login if not authenticated
+        # Returns 302 redirect to IdP when unauthenticated, 202 when authenticated
+        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/start"
+        trustForwardHeader  = true
+        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email", "X-Auth-Request-Access-Token"]
       }
     }
   }
@@ -165,9 +171,11 @@ resource "kubernetes_manifest" "portal_auth_middleware_kubero" {
     }
     spec = {
       forwardAuth = {
-        address             = "http://portal-auth.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
-        trustForwardHeader  = false
-        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
+        # /oauth2/start auto-redirects to Casdoor login if not authenticated
+        # Returns 302 redirect to IdP when unauthenticated, 202 when authenticated
+        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/start"
+        trustForwardHeader  = true
+        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email", "X-Auth-Request-Access-Token"]
       }
     }
   }

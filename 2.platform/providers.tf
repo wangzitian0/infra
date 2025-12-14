@@ -37,4 +37,6 @@ provider "vault" {
 data "cloudflare_zone" "internal" {
   name = local.internal_domain
 }
-// trigger l2
+
+# REST API provider for Casdoor is configured in 5.casdoor.tf with alias
+# This allows conditional configuration based on casdoor_enabled

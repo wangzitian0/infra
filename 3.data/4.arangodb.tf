@@ -31,17 +31,17 @@ data "vault_kv_secret_v2" "arangodb" {
 
 resource "helm_release" "arangodb_operator" {
   name             = "arangodb-operator"
-  namespace        = local.namespace_name  # Per-env: data-staging, data-prod
+  namespace        = local.namespace_name # Per-env: data-staging, data-prod
   repository       = "https://arangodb.github.io/kube-arangodb"
   chart            = "kube-arangodb"
   version          = "1.2.43"
   create_namespace = false
-  timeout          = 300  # Consistent with PR #170 standard
+  timeout          = 300 # Consistent with PR #170 standard
   wait             = true
   wait_for_jobs    = true
 
   lifecycle {
-    prevent_destroy = true  # Prevent accidental deletion
+    prevent_destroy = true # Prevent accidental deletion
 
     precondition {
       condition     = can(data.vault_kv_secret_v2.arangodb.data["password"]) && length(data.vault_kv_secret_v2.arangodb.data["password"]) >= 16
@@ -77,7 +77,7 @@ resource "helm_release" "arangodb_operator" {
 
 # Generate secure JWT secret (not derived from password)
 resource "random_bytes" "arangodb_jwt" {
-  length = 32  # ArangoDB JWT requirement
+  length = 32 # ArangoDB JWT requirement
 
   lifecycle {
     precondition {
@@ -114,8 +114,8 @@ resource "kubernetes_manifest" "arangodb_deployment" {
       namespace = kubernetes_namespace.data.metadata[0].name
     }
     spec = {
-      mode  = "Single" # Single-server mode for MVP (migrate to Cluster later)
-      image = "arangodb/arangodb:3.11.8"  # Fixed version (was latest)
+      mode  = "Single"                   # Single-server mode for MVP (migrate to Cluster later)
+      image = "arangodb/arangodb:3.11.8" # Fixed version (was latest)
       auth = {
         jwtSecretName = kubernetes_secret.arangodb_jwt.metadata[0].name
       }
