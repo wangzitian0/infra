@@ -124,22 +124,24 @@ jobs:
           0.tools/preflight-check.sh
 
       # ============================================================
-      # Terraform Plan
+      # Terraform Validation (Syntax & Config Only)
       # ============================================================
-      - name: Terraform plan (L1)
-        id: plan_l1
+      - name: Terraform validate (L1)
+        id: validate_l1
         working-directory: 1.bootstrap
-        run: terraform plan -no-color -out=tfplan
+        run: |
+          echo "=== Validating L1 Bootstrap Configuration ==="
+          terraform validate -no-color
+          echo "✅ L1 validation passed"
         continue-on-error: true
 
-      - name: Terraform plan (L2)
-        id: plan_l2
+      - name: Terraform validate (L2)
+        id: validate_l2
         working-directory: 2.platform
-        # Need KUBECONFIG for L2 plan? L2 provider checks kubeconfig validness if path provided
-        # Or if in-cluster. Here we are in runner. Setup-setup fetches kubeconfig.
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: terraform plan -no-color -out=tfplan
+        run: |
+          echo "=== Validating L2 Platform Configuration ==="
+          terraform validate -no-color
+          echo "✅ L2 validation passed"
         continue-on-error: true
 
       - name: Comment PR
@@ -147,30 +149,30 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           script: |
-            const l1 = '${{ steps.plan_l1.outcome }}';
-            const l2 = '${{ steps.plan_l2.outcome }}';
+            const l1 = '${{ steps.validate_l1.outcome }}';
+            const l2 = '${{ steps.validate_l2.outcome }}';
             const success = l1 === 'success' && l2 === 'success';
             
             const body = `#### Terraform CI Validation ${success ? '✅' : '❌'}
-
-            **Status L1**: \`${l1}\`
-            **Status L2**: \`${l2}\`
-
-            ${success ? '🚀 Triggering Atlantis plan...' : '❌ Fix CI errors before Atlantis plan.'}
-
-            > Full plan output available in the workflow logs.
-
+            
+            **Syntax Check L1**: \`${l1}\`
+            **Syntax Check L2**: \`${l2}\`
+            
+            ${success ? '🚀 CI validation passed. Atlantis will run the actual plan.' : '❌ Fix syntax errors before Atlantis plan.'}
+            
+            > **Note**: CI only validates syntax. Atlantis runs the actual \`terraform plan\` with real state and provider connections.
+            
             ---
             <details>
             <summary>📋 <b>Available Commands</b></summary>
-
+            
             | Command | Description |
             |:---|:---|
             | \`/review\` | Request AI code review |
             | \`@claude <question>\` | Ask Claude a question about this PR |
-            | \`atlantis plan\` | Re-run terraform plan |
+            | \`atlantis plan\` | Run terraform plan (auto-triggered on PR update) |
             | \`atlantis apply\` | Apply terraform changes |
-
+            
             </details>
             `;
             await github.rest.issues.createComment({
@@ -181,12 +183,17 @@ jobs:
             });
 
       - name: Trigger Atlantis Plan
-        if: github.event_name == 'pull_request' && steps.plan_l1.outcome == 'success' && steps.plan_l2.outcome == 'success'
+        if: github.event_name == 'pull_request' && steps.validate_l1.outcome == 'success' && steps.validate_l2.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "atlantis plan"
+          echo "✅ CI validation passed - Atlantis will automatically run plan on PR update"
+          # Atlantis auto-triggers on PR, no manual comment needed
 
-      - name: Plan Status
-        if: steps.plan_l1.outcome == 'failure' || steps.plan_l2.outcome == 'failure'
-        run: exit 1
+      - name: Validation Status
+        if: steps.validate_l1.outcome == 'failure' || steps.validate_l2.outcome == 'failure'
+        run: |
+          echo "❌ Terraform validation failed"
+          echo ""
+          echo "CI validates syntax only. Fix errors above before Atlantis plan."
+          exit 1

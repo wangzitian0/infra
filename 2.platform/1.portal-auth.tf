@@ -31,6 +31,11 @@ resource "random_password" "portal_cookie_secret" {
   special = false
 }
 
+import {
+  to = helm_release.portal_auth[0]
+  id = "platform/portal-auth"
+}
+
 resource "helm_release" "portal_auth" {
   count = local.portal_sso_gate_enabled ? 1 : 0
 

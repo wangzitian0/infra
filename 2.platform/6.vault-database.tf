@@ -59,6 +59,85 @@ resource "vault_kv_secret_v2" "l3_postgres" {
 }
 
 # =============================================================================
+# L3 Redis Password (generated in L2, consumed by L3)
+# =============================================================================
+
+# Generate password for L3 Redis
+resource "random_password" "l3_redis" {
+  length  = 32
+  special = false
+}
+
+# Store L3 Redis credentials in Vault KV
+resource "vault_kv_secret_v2" "l3_redis" {
+  mount               = vault_mount.kv.path
+  name                = "data/redis"
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    password = random_password.l3_redis.result
+    host     = "redis-master.data.svc.cluster.local"
+    port     = "6379"
+  })
+}
+
+# =============================================================================
+# L3 ClickHouse Password (generated in L2, consumed by L3)
+# =============================================================================
+
+# Generate password for L3 ClickHouse
+resource "random_password" "l3_clickhouse" {
+  length  = 32
+  special = false
+}
+
+# Store L3 ClickHouse credentials in Vault KV
+resource "vault_kv_secret_v2" "l3_clickhouse" {
+  mount               = vault_mount.kv.path
+  name                = "data/clickhouse"
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    username = "default"
+    password = random_password.l3_clickhouse.result
+    host     = "clickhouse.data.svc.cluster.local"
+    port     = "9000"
+    database = "default"
+  })
+}
+
+# =============================================================================
+# L3 ArangoDB Password (generated in L2, consumed by L3)
+# =============================================================================
+
+# Generate password for L3 ArangoDB
+resource "random_password" "l3_arangodb" {
+  length  = 32
+  special = false
+}
+
+# Generate JWT secret for ArangoDB (32 bytes minimum)
+resource "random_bytes" "l3_arangodb_jwt" {
+  length = 32
+}
+
+# Store L3 ArangoDB credentials in Vault KV
+resource "vault_kv_secret_v2" "l3_arangodb" {
+  mount               = vault_mount.kv.path
+  name                = "data/arangodb"
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    username   = "root"
+    password   = random_password.l3_arangodb.result
+    jwt_secret = random_bytes.l3_arangodb_jwt.base64
+    host       = "arangodb.data.svc.cluster.local"
+    port       = "8529"
+  })
+}
+
+
+# =============================================================================
 # Vault Database Connection for L3 PostgreSQL
 # NOTE: Enable only after L3 PostgreSQL is deployed (set enable_postgres_backend=true)
 # =============================================================================
@@ -148,3 +227,19 @@ output "l3_postgres_vault_path" {
   description = "Vault KV path for L3 PostgreSQL credentials"
   value       = "${vault_mount.kv.path}/data/postgres"
 }
+
+output "l3_redis_vault_path" {
+  description = "Vault KV path for L3 Redis credentials"
+  value       = "${vault_mount.kv.path}/data/redis"
+}
+
+output "l3_clickhouse_vault_path" {
+  description = "Vault KV path for L3 ClickHouse credentials"
+  value       = "${vault_mount.kv.path}/data/clickhouse"
+}
+
+output "l3_arangodb_vault_path" {
+  description = "Vault KV path for L3 ArangoDB credentials"
+  value       = "${vault_mount.kv.path}/data/arangodb"
+}
+
