@@ -274,20 +274,24 @@ jobs:
             | **L2** Platform | ${icon(fmt_l2)} | ${icon(lint_l2)} | ${icon(validate_l2)} |
             | **L3** Data | ${icon(fmt_l3)} | ${icon(lint_l3)} | ${icon(validate_l3)} |
             
-            ### 🔮 Pipeline Status
+            ### 🔮 Atlantis Status
             
             ${allPass ? `
-            | Stage | Status | Next |
-            |:------|:------:|:-----|
-            | **CI Validate** | ✅ | 语法检查完成 |
-            | **Atlantis Plan** | 🔄 | Webhook 自动触发 |
-            | **Review** | ⏳ | 审核 Plan 输出 |
-            | **Apply** | ⏸️ | \`atlantis apply\` 或 Merge |
+            | Project | Plan | Apply |
+            |:--------|:----:|:-----:|
+            | **platform** | ⏳ | ⏸️ |
+            | **data-staging** | ⏳ | ⏸️ |
+            | **data-prod** | ⏳ | ⏸️ |
+            
+            > ⏳ Atlantis autoplan 触发中...
             ` : `
-            | Stage | Status | Next |
-            |:------|:------:|:-----|
-            | **CI Validate** | ❌ | 修复语法错误 |
-            | **Atlantis Plan** | ⏸️ | CI 通过后触发 |
+            | Project | Plan | Apply |
+            |:--------|:----:|:-----:|
+            | **platform** | ⏸️ | ⏸️ |
+            | **data-staging** | ⏸️ | ⏸️ |
+            | **data-prod** | ⏸️ | ⏸️ |
+            
+            > ❌ CI 失败，修复后 Atlantis 将自动触发
             
             \`\`\`bash
             terraform fmt -recursive && terraform validate
