@@ -230,8 +230,11 @@ runs:
 
         # L3: Vault Access
         echo "TF_VAR_vault_root_token=${VAULT_ROOT_TOKEN}" >> "$GITHUB_ENV"
+        # Vault provider also reads VAULT_TOKEN directly (in addition to token parameter)
+        echo "VAULT_TOKEN=${VAULT_ROOT_TOKEN}" >> "$GITHUB_ENV"
         if [ -n "${VAULT_ADDRESS}" ]; then
           echo "TF_VAR_vault_address=${VAULT_ADDRESS}" >> "$GITHUB_ENV"
+          echo "VAULT_ADDR=${VAULT_ADDRESS}" >> "$GITHUB_ENV"
         fi
 
         # Multiline Secrets
