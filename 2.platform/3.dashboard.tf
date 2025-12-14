@@ -18,6 +18,8 @@ resource "helm_release" "kubernetes_dashboard" {
   chart      = "kubernetes-dashboard"
   version    = "7.10.0"
   namespace  = data.kubernetes_namespace.platform.metadata[0].name
+  timeout    = 300
+  wait       = true
 
   values = [
     yamlencode({

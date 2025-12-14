@@ -44,17 +44,19 @@ resource "helm_release" "portal_auth" {
   chart      = "oauth2-proxy"
   version    = "7.12.7"
   namespace  = data.kubernetes_namespace.platform.metadata[0].name
+  timeout    = 300
+  wait       = true
 
   values = [
     yamlencode({
-      # Wait for Casdoor OIDC to be ready before starting OAuth2-Proxy
+      # Wait for Casdoor OIDC to be ready (max 120s timeout)
       initContainers = [
         {
           name  = "wait-for-casdoor"
           image = "busybox:1.36"
           command = [
             "sh", "-c",
-            "until wget -q --spider http://casdoor.platform.svc.cluster.local:8000/; do echo 'waiting for Casdoor...'; sleep 2; done"
+            "t=120;e=0;until wget -q --spider http://casdoor.platform.svc.cluster.local:8000/;do echo \"waiting for Casdoor... ($e/$t s)\";sleep 2;e=$((e+2));[ $e -ge $t ]&&exit 1;done"
           ]
         }
       ]
@@ -67,7 +69,7 @@ resource "helm_release" "portal_auth" {
 
       extraArgs = {
         provider                    = "oidc"
-        oidc_issuer_url             = local.casdoor_issuer
+        "oidc-issuer-url"           = local.casdoor_issuer
         email-domain                = "*"
         cookie-domain               = ".${local.internal_domain}"
         cookie-secure               = "true"
@@ -106,6 +108,16 @@ resource "helm_release" "portal_auth" {
           cpu    = "100m"
           memory = "128Mi"
         }
+      }
+
+      # Health probes
+      livenessProbe = {
+        enabled = true
+        path    = "/ping"
+      }
+      readinessProbe = {
+        enabled = true
+        path    = "/ping"
       }
     })
   ]

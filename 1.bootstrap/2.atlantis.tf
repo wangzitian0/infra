@@ -21,6 +21,8 @@ resource "helm_release" "atlantis" {
   repository = "https://runatlantis.github.io/helm-charts"
   chart      = "atlantis"
   version    = "4.25.0"
+  timeout    = 300
+  wait       = true
 
   values = [
     yamlencode(merge(
@@ -156,6 +158,17 @@ resource "helm_release" "atlantis" {
   ]
 
   depends_on = [kubernetes_namespace.bootstrap]
+
+  lifecycle {
+    precondition {
+      condition     = var.github_app_id != "" || var.github_token != ""
+      error_message = "Either github_app_id or github_token must be set for Atlantis GitHub integration."
+    }
+    precondition {
+      condition     = var.atlantis_webhook_secret != ""
+      error_message = "atlantis_webhook_secret is required for secure webhook verification."
+    }
+  }
 }
 
 output "atlantis_service" {

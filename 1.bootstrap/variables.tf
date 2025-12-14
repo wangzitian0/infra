@@ -17,6 +17,11 @@
 variable "vps_host" {
   description = "Public IP or DNS name of the VPS where k3s will be installed"
   type        = string
+
+  validation {
+    condition     = length(var.vps_host) > 0
+    error_message = "vps_host is required (IP address or DNS name)."
+  }
 }
 
 # L1 Bootstrap: R2 State Backend
@@ -29,12 +34,22 @@ variable "aws_access_key_id" {
   description = "AWS Access Key ID for R2 (S3-compatible)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.aws_access_key_id) >= 16
+    error_message = "aws_access_key_id must be at least 16 characters."
+  }
 }
 
 variable "aws_secret_access_key" {
   description = "AWS Secret Access Key for R2 (S3-compatible)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.aws_secret_access_key) >= 32
+    error_message = "aws_secret_access_key must be at least 32 characters."
+  }
 }
 
 variable "vps_user" {
@@ -53,6 +68,11 @@ variable "ssh_private_key" {
   description = "Private key used for SSH (contents of the key, not a path)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.ssh_private_key) > 100 && can(regex("-----BEGIN", var.ssh_private_key))
+    error_message = "ssh_private_key must be a valid PEM private key."
+  }
 }
 
 variable "cluster_name" {
@@ -127,7 +147,11 @@ variable "vault_postgres_password" {
   description = "PostgreSQL password for Vault storage backend (REQUIRED - no default for security)"
   type        = string
   sensitive   = true
-  # No default - must be provided via tfvars or -var flag
+
+  validation {
+    condition     = length(var.vault_postgres_password) >= 16
+    error_message = "vault_postgres_password must be at least 16 characters for security."
+  }
 }
 
 variable "vault_postgres_storage" {
@@ -136,12 +160,12 @@ variable "vault_postgres_storage" {
   default     = "10Gi"
 }
 
-# Redis
+# Redis (L3 - not yet implemented)
 variable "redis_password" {
-  description = "Redis password"
+  description = "Redis password (REQUIRED when enabling Redis)"
   type        = string
   sensitive   = true
-  default     = "CHANGE_ME"
+  default     = "" # No default - must be provided when Redis is enabled
 }
 
 variable "redis_storage" {
@@ -150,12 +174,12 @@ variable "redis_storage" {
   default     = "20Gi"
 }
 
-# Neo4j
+# Neo4j (L3 - not yet implemented)
 variable "neo4j_password" {
-  description = "Neo4j password"
+  description = "Neo4j password (REQUIRED when enabling Neo4j)"
   type        = string
   sensitive   = true
-  default     = "CHANGE_ME"
+  default     = "" # No default - must be provided when Neo4j is enabled
 }
 
 variable "neo4j_storage" {
@@ -242,6 +266,11 @@ variable "atlantis_web_password" {
   description = "Password for Atlantis Web UI Basic Auth (REQUIRED - no default for security)"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.atlantis_web_password) >= 12
+    error_message = "atlantis_web_password must be at least 12 characters for security."
+  }
 }
 
 variable "r2_account_id" {
@@ -254,6 +283,11 @@ variable "cloudflare_api_token" {
   description = "Cloudflare API token for DNS and Certs"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.cloudflare_api_token) > 0
+    error_message = "cloudflare_api_token is required for DNS management."
+  }
 }
 
 variable "cloudflare_zone_id" {

@@ -5,7 +5,7 @@
 !*.tfvars.example
 !terraform/envs/*.tfvars
 .terraform/
-.terraform.lock.hcl
+# .terraform.lock.hcl should be committed - removed from ignore
 terraform/**/output/
 terraform/output/
 crash.log

@@ -49,7 +49,7 @@ resource "helm_release" "vault" {
   chart            = "vault"
   version          = var.vault_chart_version
   create_namespace = false
-  timeout          = 120
+  timeout          = 300 # Increased: Vault depends on PG which may take time
   wait             = true
   wait_for_jobs    = true
 
@@ -65,14 +65,14 @@ resource "helm_release" "vault" {
           repository = "hashicorp/vault"
           tag        = var.vault_image_tag
         }
-        # Wait for PostgreSQL before starting Vault
+        # Wait for PostgreSQL before starting Vault (max 120s timeout)
         extraInitContainers = [
           {
             name  = "wait-for-postgres"
             image = "busybox:1.36"
             command = [
               "sh", "-c",
-              "until nc -z postgresql.platform.svc.cluster.local 5432; do echo 'waiting for PostgreSQL...'; sleep 2; done"
+              "timeout=120; elapsed=0; until nc -z postgresql.platform.svc.cluster.local 5432; do echo \"waiting for PostgreSQL... ($elapsed/$timeout s)\"; sleep 2; elapsed=$((elapsed+2)); if [ $elapsed -ge $timeout ]; then echo 'TIMEOUT: PostgreSQL not available'; exit 1; fi; done"
             ]
           }
         ]
@@ -97,6 +97,16 @@ resource "helm_release" "vault" {
         service = {
           type = "ClusterIP"
         }
+        # Health probes for Vault
+        readinessProbe = {
+          enabled = true
+          path    = "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
+        }
+        livenessProbe = {
+          enabled             = true
+          path                = "/v1/sys/health?standbyok=true"
+          initialDelaySeconds = 60
+        }
       }
       injector = {
         enabled = true
@@ -105,6 +115,13 @@ resource "helm_release" "vault" {
   ]
 
   depends_on = [data.kubernetes_namespace.platform]
+
+  lifecycle {
+    precondition {
+      condition     = length(var.vault_postgres_password) >= 16
+      error_message = "vault_postgres_password must be at least 16 characters."
+    }
+  }
 }
 
 # Ingress for Vault UI/API
