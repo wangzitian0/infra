@@ -73,10 +73,6 @@ jobs:
           # L3: Vault Access
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
 
-      - name: Terraform plan (L1)
-        working-directory: 1.bootstrap
-        run: terraform plan -input=false
-
       # Pre-flight check: Validate Helm URLs and other common issues
       - name: Pre-flight Check
         run: |
@@ -178,13 +174,6 @@ jobs:
             echo "Importing vault_mount.database..."
             terraform import vault_mount.database database || true
           fi
-
-      - name: Terraform plan (L2)
-        working-directory: 2.platform
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          TF_VAR_vault_address: "http://localhost:8200"
-        run: terraform plan -input=false
 
       - name: Apply Infrastructure (L2)
         if: github.event_name == 'push'

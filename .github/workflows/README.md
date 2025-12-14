@@ -43,43 +43,10 @@ This workflow ensures that the `main` branch is always consistent with the live 
 | Workflow | Trigger | Description | Consistency Mechanism |
 | :--- | :--- | :--- | :--- |
 | **Deploy K3s** (`deploy-k3s.yml`) | `push: [main]` | **The Enforcer**. Applies `terraform/` to production. Bootstraps K3s, deploys Helm charts. | **SSOT Convergence**. Ensures `main` = `Live State`. Uses state locking. |
-| **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs syntax-only checks (`terraform fmt`, `tflint`, `validate`). Posts **infra-flash** comment with status matrix. **Does NOT run plan** - Atlantis does. | **Syntax Check** + **Status Dashboard**. |
-| **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. **Sole plan/apply authority**. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
+| **Terraform Plan** (`terraform-plan.yml`) | `pull_request` | **The Validator**. Runs static analysis (`terraform fmt`, `tflint`), **pre-flight URL check**, then `terraform plan` on PRs. **Triggers Atlantis** via comment on success. Shows available commands. | **Dry Run** + **Atlantis Trigger**. |
+| **Atlantis** (Self-Hosted) | `issue_comment` | **The Operator**. Runs inside the cluster. Uses **GitHub App** (`infra-flash`) for bot auth. Autoplan disabled. | **Locking**. Locks the directory during plan/apply to prevent conflicts. |
 | **Claude** (`claude.yml`) | `/review`, `@claude`, `PTAL`, `infra-flash[bot]` Atlantis success comment | **The Reviewer**. AI code review via Claude. Checks structure, doc consistency, and SSOT. Includes Documentation Guard. Auto-triggered when Atlantis (infra-flash[bot]) reports a successful plan (after `terraform-plan.yml` kicks Atlantis). | **Quality Gate**. Runs after CI + successful Atlantis plan. |
 | **Dig** (`dig.yml`) | `/dig` comment on PR | **The Health Checker**. Tests connectivity to all documented services and posts a live-updating table with status. | **Observability**. Quick service status check. |
-
-## infra-flash Comment
-
-The `terraform-plan.yml` workflow posts a single, updateable **infra-flash** comment on each PR:
-
-```
-## ⚡ infra-flash | `feature-branch`
-
-### 📍 Commit
-`abc1234` - feat: add new feature
-
-### 🔍 CI Status (Syntax Only)
-
-| Layer | Format | Lint | Validate |
-|:------|:------:|:----:|:--------:|
-| **L1** Bootstrap | ✅ | ✅ | ✅ |
-| **L2** Platform | ✅ | ✅ | ✅ |
-| **L3** Data | ✅ | ✅ | ✅ |
-
-### 🔮 Atlantis (Real Plan/Apply)
-
-> CI 只检查语法。**Atlantis 是唯一的 plan/apply 入口**。
-```
-
-### Why CI Only Validates Syntax
-
-1. **CI runs outside the cluster** - no access to Vault, K8s APIs
-2. **Atlantis runs inside the cluster** - has full access to all resources
-3. **Plan = Apply consistency** - only one system does both
-
-This architecture ensures that `terraform plan` output always matches what `terraform apply` will do.
-
----
 
 ## Handling Multi-Environment & Modules
 

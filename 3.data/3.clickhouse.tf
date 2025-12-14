@@ -29,17 +29,17 @@ data "vault_kv_secret_v2" "clickhouse" {
 
 resource "helm_release" "clickhouse" {
   name             = "clickhouse"
-  namespace        = local.namespace_name # Per-env: data-staging, data-prod
+  namespace        = local.namespace_name  # Per-env: data-staging, data-prod
   repository       = "oci://registry-1.docker.io/bitnamicharts"
   chart            = "clickhouse"
   version          = "6.2.17"
   create_namespace = false
-  timeout          = 300 # Consistent with PR #170 standard (was 600s)
+  timeout          = 300  # Consistent with PR #170 standard (was 600s)
   wait             = true
   wait_for_jobs    = true
 
   lifecycle {
-    prevent_destroy = true # Prevent accidental data loss
+    prevent_destroy = true  # Prevent accidental data loss
 
     precondition {
       condition     = can(data.vault_kv_secret_v2.clickhouse.data["password"]) && length(data.vault_kv_secret_v2.clickhouse.data["password"]) >= 16
@@ -58,10 +58,10 @@ resource "helm_release" "clickhouse" {
         username = "default"
         password = data.vault_kv_secret_v2.clickhouse.data["password"]
       }
-      shards       = 1 # Single VPS MVP: single shard (can scale later)
-      replicaCount = 1 # Single VPS MVP: no replication (can scale later)
+      shards       = 1     # Single VPS MVP: single shard (can scale later)
+      replicaCount = 1     # Single VPS MVP: no replication (can scale later)
       zookeeper = {
-        enabled = false # Disable ZooKeeper for single-node setup
+        enabled = false    # Disable ZooKeeper for single-node setup
       }
       persistence = {
         enabled      = true

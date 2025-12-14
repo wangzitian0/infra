@@ -7,8 +7,6 @@
 # 3. Dynamic credential roles for L4 applications
 #
 # Note: L3 namespaces (data-staging, data-prod) are created by L3 workspaces
-# Note: All resources are conditional on vault_root_token being set (local.vault_enabled)
-#       This allows CI to skip Vault config when Vault server is unreachable
 
 # =============================================================================
 # Vault Secrets Engines (IaC - replaces manual vault secrets enable)
@@ -16,17 +14,20 @@
 
 # KV v2 secrets engine for static secrets (L3 PostgreSQL root password)
 resource "vault_mount" "kv" {
-  count = local.vault_enabled ? 1 : 0
-
   path        = "secret"
   type        = "kv-v2"
   description = "KV v2 secrets engine for L3 static secrets"
+
+  lifecycle {
+    precondition {
+      condition     = var.vault_root_token != ""
+      error_message = "vault_root_token is required for Vault secrets engine configuration."
+    }
+  }
 }
 
 # Database secrets engine for dynamic credentials
 resource "vault_mount" "database" {
-  count = local.vault_enabled ? 1 : 0
-
   path        = "database"
   type        = "database"
   description = "Database secrets engine for L3 PostgreSQL dynamic credentials"
@@ -38,21 +39,19 @@ resource "vault_mount" "database" {
 
 # Generate password for L3 PostgreSQL root user
 resource "random_password" "l3_postgres" {
-  count   = local.vault_enabled ? 1 : 0
   length  = 24
   special = false
 }
 
 # Store L3 PostgreSQL credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_postgres" {
-  count               = local.vault_enabled ? 1 : 0
-  mount               = vault_mount.kv[0].path
+  mount               = vault_mount.kv.path
   name                = "data/postgres"
   delete_all_versions = true
 
   data_json = jsonencode({
     username = "postgres"
-    password = random_password.l3_postgres[0].result
+    password = random_password.l3_postgres.result
     host     = "postgresql.data-staging.svc.cluster.local"
     port     = "5432"
     database = "app"
@@ -65,20 +64,18 @@ resource "vault_kv_secret_v2" "l3_postgres" {
 
 # Generate password for L3 Redis
 resource "random_password" "l3_redis" {
-  count   = local.vault_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 # Store L3 Redis credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_redis" {
-  count               = local.vault_enabled ? 1 : 0
-  mount               = vault_mount.kv[0].path
+  mount               = vault_mount.kv.path
   name                = "data/redis"
   delete_all_versions = true
 
   data_json = jsonencode({
-    password = random_password.l3_redis[0].result
+    password = random_password.l3_redis.result
     host     = "redis-master.data.svc.cluster.local"
     port     = "6379"
   })
@@ -90,21 +87,19 @@ resource "vault_kv_secret_v2" "l3_redis" {
 
 # Generate password for L3 ClickHouse
 resource "random_password" "l3_clickhouse" {
-  count   = local.vault_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 # Store L3 ClickHouse credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_clickhouse" {
-  count               = local.vault_enabled ? 1 : 0
-  mount               = vault_mount.kv[0].path
+  mount               = vault_mount.kv.path
   name                = "data/clickhouse"
   delete_all_versions = true
 
   data_json = jsonencode({
     username = "default"
-    password = random_password.l3_clickhouse[0].result
+    password = random_password.l3_clickhouse.result
     host     = "clickhouse.data.svc.cluster.local"
     port     = "9000"
     database = "default"
@@ -117,28 +112,25 @@ resource "vault_kv_secret_v2" "l3_clickhouse" {
 
 # Generate password for L3 ArangoDB
 resource "random_password" "l3_arangodb" {
-  count   = local.vault_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 # Generate JWT secret for ArangoDB (32 bytes minimum)
 resource "random_bytes" "l3_arangodb_jwt" {
-  count  = local.vault_enabled ? 1 : 0
   length = 32
 }
 
 # Store L3 ArangoDB credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_arangodb" {
-  count               = local.vault_enabled ? 1 : 0
-  mount               = vault_mount.kv[0].path
+  mount               = vault_mount.kv.path
   name                = "data/arangodb"
   delete_all_versions = true
 
   data_json = jsonencode({
     username   = "root"
-    password   = random_password.l3_arangodb[0].result
-    jwt_secret = random_bytes.l3_arangodb_jwt[0].base64
+    password   = random_password.l3_arangodb.result
+    jwt_secret = random_bytes.l3_arangodb_jwt.base64
     host       = "arangodb.data.svc.cluster.local"
     port       = "8529"
   })
@@ -151,13 +143,13 @@ resource "vault_kv_secret_v2" "l3_arangodb" {
 # =============================================================================
 
 resource "vault_database_secret_backend_connection" "l3_postgres" {
-  count         = local.vault_enabled && var.enable_postgres_backend ? 1 : 0
-  backend       = vault_mount.database[0].path
+  count         = var.enable_postgres_backend ? 1 : 0
+  backend       = vault_mount.database.path
   name          = "l3-postgres"
   allowed_roles = ["app-readonly", "app-readwrite"]
 
   postgresql {
-    connection_url = "postgres://postgres:${random_password.l3_postgres[0].result}@postgresql.data-staging.svc.cluster.local:5432/app?sslmode=disable"
+    connection_url = "postgres://postgres:${random_password.l3_postgres.result}@postgresql.data-staging.svc.cluster.local:5432/app?sslmode=disable"
   }
 
   depends_on = [vault_kv_secret_v2.l3_postgres]
@@ -169,8 +161,8 @@ resource "vault_database_secret_backend_connection" "l3_postgres" {
 
 # Readonly role for app queries
 resource "vault_database_secret_backend_role" "app_readonly" {
-  count       = local.vault_enabled && var.enable_postgres_backend ? 1 : 0
-  backend     = vault_mount.database[0].path
+  count       = var.enable_postgres_backend ? 1 : 0
+  backend     = vault_mount.database.path
   name        = "app-readonly"
   db_name     = vault_database_secret_backend_connection.l3_postgres[0].name
   default_ttl = 3600  # 1 hour
@@ -190,8 +182,8 @@ resource "vault_database_secret_backend_role" "app_readonly" {
 
 # Readwrite role for app CRUD operations
 resource "vault_database_secret_backend_role" "app_readwrite" {
-  count       = local.vault_enabled && var.enable_postgres_backend ? 1 : 0
-  backend     = vault_mount.database[0].path
+  count       = var.enable_postgres_backend ? 1 : 0
+  backend     = vault_mount.database.path
   name        = "app-readwrite"
   db_name     = vault_database_secret_backend_connection.l3_postgres[0].name
   default_ttl = 3600  # 1 hour
@@ -217,37 +209,37 @@ resource "vault_database_secret_backend_role" "app_readwrite" {
 
 output "vault_db_roles" {
   description = "Available Vault database roles for L3 PostgreSQL"
-  value = local.vault_enabled ? {
+  value = {
     readonly  = "vault read database/creds/app-readonly"
     readwrite = "vault read database/creds/app-readwrite"
-  } : null
+  }
 }
 
 output "vault_mounts" {
   description = "Vault secrets engine mount paths"
-  value = local.vault_enabled ? {
-    kv       = vault_mount.kv[0].path
-    database = vault_mount.database[0].path
-  } : null
+  value = {
+    kv       = vault_mount.kv.path
+    database = vault_mount.database.path
+  }
 }
 
 output "l3_postgres_vault_path" {
   description = "Vault KV path for L3 PostgreSQL credentials"
-  value       = local.vault_enabled ? "${vault_mount.kv[0].path}/data/postgres" : null
+  value       = "${vault_mount.kv.path}/data/postgres"
 }
 
 output "l3_redis_vault_path" {
   description = "Vault KV path for L3 Redis credentials"
-  value       = local.vault_enabled ? "${vault_mount.kv[0].path}/data/redis" : null
+  value       = "${vault_mount.kv.path}/data/redis"
 }
 
 output "l3_clickhouse_vault_path" {
   description = "Vault KV path for L3 ClickHouse credentials"
-  value       = local.vault_enabled ? "${vault_mount.kv[0].path}/data/clickhouse" : null
+  value       = "${vault_mount.kv.path}/data/clickhouse"
 }
 
 output "l3_arangodb_vault_path" {
   description = "Vault KV path for L3 ArangoDB credentials"
-  value       = local.vault_enabled ? "${vault_mount.kv[0].path}/data/arangodb" : null
+  value       = "${vault_mount.kv.path}/data/arangodb"
 }
 

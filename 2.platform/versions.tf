@@ -30,11 +30,5 @@ terraform {
       source  = "hashicorp/vault"
       version = "~> 4.0"
     }
-    # REST API provider for Casdoor application management
-    # Replaces casdoor/casdoor provider which requires Casdoor to be running during plan
-    restapi = {
-      source  = "Mastercard/restapi"
-      version = "~> 1.19"
-    }
   }
 }
