@@ -2,9 +2,9 @@
 
 **Scope**:
 - **Relational**: Business PostgreSQL (Application data)
-- **Cache**: Redis (planned)
-- **Graph**: Neo4j (planned)
-- **OLAP**: ClickHouse (planned)
+- **Cache**: Redis
+- **Multi-model**: ArangoDB (Document, Graph, Key-Value)
+- **OLAP**: ClickHouse
 - **Namespace**: `data`
 
 ## Architecture
@@ -35,6 +35,9 @@ graph LR
 | File | Component | Purpose |
 |------|-----------|---------|
 | `1.postgres.tf` | PostgreSQL | Business database, creds from Vault KV |
+| `2.redis.tf` | Redis | Cache and session storage |
+| `3.clickhouse.tf` | ClickHouse | OLAP analytics database |
+| `4.arangodb.tf` | ArangoDB | Multi-model database (document/graph/KV) |
 
 ### Deployment Order
 
@@ -49,6 +52,9 @@ graph LR
 |---------|------------|------|
 | PostgreSQL root | `secret/data/postgres` | Static (L2 generated) |
 | PostgreSQL app users | `database/creds/app-*` | Dynamic (short-lived) |
+| Redis | `secret/data/redis` | Static (L2 generated) |
+| ClickHouse | `secret/data/clickhouse` | Static (L2 generated) |
+| ArangoDB | `secret/data/arangodb` | Static (L2 generated) |
 
 ## Design Decisions
 
@@ -92,6 +98,15 @@ kubectl exec -n data postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 2. **Data Loss**: Restore from pg_dump backup
 3. **Full Recreation**: Delete namespace, re-apply L3
 
+## Scalability Notes
+
+All services are deployed in **single-node mode** for MVP:
+- **Redis**: Master-only (no replicas)
+- **ClickHouse**: Single shard, no ZooKeeper
+- **ArangoDB**: Single mode (not Cluster)
+
+For multi-replica migration guide, see [implementation_plan.md](file:///Users/SP14016/.gemini/antigravity/brain/04f7e0b4-6bcb-4853-b1c1-e19760c5160f/implementation_plan.md#未来扩展-单节点到多读副本迁移).
+
 ---
-*Last updated: 2025-12-13*
+*Last updated: 2025-12-15*
 # L3 Data Deploy Sun Dec 14 00:36:06 +08 2025
