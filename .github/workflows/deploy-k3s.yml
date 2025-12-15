@@ -226,7 +226,7 @@ jobs:
           kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=postgresql --timeout=${TIMEOUT}s || echo "⚠️ PostgreSQL wait timeout"
           kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=redis --timeout=${TIMEOUT}s || echo "⚠️ Redis wait timeout"
           kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=clickhouse --timeout=${TIMEOUT}s || echo "⚠️ ClickHouse wait timeout"
-          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=arangodb --timeout=${TIMEOUT}s || echo "⚠️ ArangoDB wait timeout"
+          kubectl wait --for=condition=Ready pod -n $NS -l arango_deployment=arangodb --timeout=${TIMEOUT}s || echo "⚠️ ArangoDB wait timeout"
           
           echo ""
           echo "=== 2. Application Layer Connectivity Checks ==="
