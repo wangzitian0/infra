@@ -196,7 +196,7 @@ jobs:
         continue-on-error: true
 
       # ============================================================
-      # infra-flash Comment (Single, Updateable)
+      # infra-flash Comment (Per-commit, new comment for each commit)
       # ============================================================
       - name: Generate App Token
         if: always()
@@ -206,17 +206,7 @@ jobs:
           app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
-      - name: Find existing comment
-        if: always()
-        uses: peter-evans/find-comment@v3
-        id: find_comment
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'infra-flash[bot]'
-          body-includes: '<!-- infra-flash-ci -->'
-          token: ${{ steps.app_token.outputs.token }}
-
-      - name: Post infra-flash comment
+      - name: Create infra-flash comment
         if: always()
         uses: actions/github-script@v7
         with:
@@ -233,59 +223,40 @@ jobs:
             const icon = (s) => s === 'success' ? '✅' : (s === 'skipped' ? '⏭️' : '❌');
             const allPass = [fmt, lint_l1, lint_l2, lint_l3, validate_l1, validate_l2, validate_l3]
               .every(s => s === 'success' || s === 'skipped');
-            // Use PR head SHA, not merge commit SHA
             const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             
-            // 新 commit 时清除旧的 Atlantis 状态，只保留 CI 部分
-            const body = `<!-- infra-flash-ci -->
-            <!-- commit:${sha} -->
-            ## ⚡ infra-flash | \`${sha}\`
+            const nextStep = allPass 
+              ? '👉 **Next:** Comment `atlantis plan` to run plan'
+              : '👉 **Next:** Fix errors locally, then `git push`';
             
-            ### CI Validate ${allPass ? '✅' : '❌'} | ${timestamp}
+            const fixCmd = '```bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n```';
             
-            | Layer | Format | Lint | Validate |
-            |:------|:------:|:----:|:--------:|
-            | L1 Bootstrap | ${icon(fmt)} | ${icon(lint_l1)} | ${icon(validate_l1)} |
-            | L2 Platform | ${icon(fmt)} | ${icon(lint_l2)} | ${icon(validate_l2)} |
-            | L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |
+            const body = [
+              `<!-- infra-flash-commit:${sha} -->`,
+              `## ⚡ Commit \`${sha}\``,
+              '',
+              `### CI Validate ${allPass ? '✅' : '❌'} | ${timestamp}`,
+              '',
+              '| Layer | Format | Lint | Validate |',
+              '|:------|:------:|:----:|:--------:|',
+              `| L1 Bootstrap | ${icon(fmt)} | ${icon(lint_l1)} | ${icon(validate_l1)} |`,
+              `| L2 Platform | ${icon(fmt)} | ${icon(lint_l2)} | ${icon(validate_l2)} |`,
+              `| L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |`,
+              '',
+              !allPass ? fixCmd : '',
+              '',
+              nextStep
+            ].join('\n');
             
-            ${allPass ? '👉 **Comment `atlantis plan` to run plan**' : `\`\`\`bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n\`\`\``}
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
             
-            ---
-            
-            <details>
-            <summary>📖 Commands & Troubleshooting</summary>
-            
-            | Command | Description |
-            |:--------|:------------|
-            | \`atlantis plan\` | Re-run plan |
-            | \`atlantis apply\` | Apply after review |
-            | \`atlantis unlock\` | Unlock project |
-            
-            | Error | Solution |
-            |:------|:---------|
-            | \`403 permission denied\` | Vault token expired → Update secret, apply L1 |
-            | \`state lock\` | \`atlantis unlock\` |
-            
-            </details>`;
-            
-            const commentId = '${{ steps.find_comment.outputs.comment-id }}';
-            if (commentId) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: commentId,
-                body: body
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: body
-              });
-            }
+            console.log(`Created new comment for commit ${sha}`);
 
       # ============================================================
       # Final Status (fail if any check failed)
