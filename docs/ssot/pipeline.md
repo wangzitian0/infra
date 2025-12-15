@@ -1,12 +1,249 @@
-# 流程 SSOT
+# Pipeline SSOT
 
-> **核心问题**：如何保证 Plan = Apply = 实际状态？
-
-**答案**：变量一致性 + 版本锁定 + 分层检查
+> **核心原则**：CI 做语法检查，Atlantis 做 Plan/Apply
 
 ---
 
-## 1. 一致性保证
+## 1. 整体架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            PR 创建/更新                                  │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+          ┌────────────────────┴────────────────────┐
+          │                                         │
+          ▼                                         ▼
+┌─────────────────────┐                   ┌─────────────────────┐
+│   GitHub Actions    │                   │      Atlantis       │
+│   (terraform-ci)    │                   │    (via webhook)    │
+├─────────────────────┤                   ├─────────────────────┤
+│ • terraform fmt     │                   │ • terraform plan    │
+│ • terraform lint    │                   │ • terraform apply   │
+│ • terraform validate│                   │ • state management  │
+├─────────────────────┤                   ├─────────────────────┤
+│ 输出: infra-flash   │                   │ 输出: Atlantis      │
+│       评论 (单条)   │                   │       评论 (per project) │
+└─────────────────────┘                   └─────────────────────┘
+          │                                         │
+          ▼                                         ▼
+┌─────────────────────┐                   ┌─────────────────────┐
+│  GitHub Checks ✓/✗  │                   │  GitHub Checks ✓/✗  │
+└─────────────────────┘                   └─────────────────────┘
+```
+
+### 为什么分离？
+
+| 组件 | 职责 | 环境 |
+|:-----|:-----|:-----|
+| **CI** | 语法检查 (fmt/lint/validate) | GitHub Actions Runner |
+| **Atlantis** | 真正的 plan/apply | 集群内 Pod（可访问 Vault/K8s） |
+
+**CI 无法做 plan** 的原因：
+- 无法访问 Kubernetes API（集群内）
+- 无法访问 Vault（集群内 + SSO Gate）
+- Provider 初始化会失败
+
+---
+
+## 2. 流程详解
+
+### 正常流程 (Happy Path)
+
+```
+PR 创建
+    │
+    ├──► CI: fmt ✅ → lint ✅ → validate ✅
+    │         │
+    │         └──► infra-flash 评论: "CI Passed"
+    │
+    └──► Atlantis: autoplan ✅
+              │
+              └──► Atlantis 评论: plan 输出
+                        │
+                        ▼
+                  Review plan
+                        │
+                        ▼
+            ┌───────────┴───────────┐
+            │                       │
+            ▼                       ▼
+    "atlantis apply"          Merge PR
+            │                       │
+            ▼                       ▼
+      Apply 执行              (可选 auto-apply)
+```
+
+### CI 失败分支
+
+```
+PR 创建
+    │
+    └──► CI: fmt ❌
+              │
+              └──► infra-flash 评论: "CI Failed"
+                        │
+                        ▼
+                   本地修复
+                   terraform fmt -recursive
+                        │
+                        ▼
+                   git push
+                        │
+                        └──► CI 重新运行
+```
+
+### Atlantis Plan 失败分支
+
+```
+PR 创建
+    │
+    ├──► CI: ✅
+    │
+    └──► Atlantis: plan ❌
+              │
+              ├──► "403 permission denied"
+              │         │
+              │         └──► Vault token 过期
+              │                   │
+              │                   ▼
+              │              更新 VAULT_ROOT_TOKEN
+              │                   │
+              │                   ▼
+              │              手动 apply L1
+              │              (cd 1.bootstrap && terraform apply)
+              │                   │
+              │                   └──► "atlantis plan" 重试
+              │
+              ├──► "state lock"
+              │         │
+              │         └──► "atlantis unlock"
+              │
+              └──► "provider mismatch"
+                        │
+                        ▼
+                   terraform init -upgrade
+                   git add .terraform.lock.hcl
+                   git push
+```
+
+---
+
+## 3. infra-flash 评论设计
+
+### 单条可更新评论
+
+每个 PR 只有**一条** infra-flash 评论，每次 push 更新：
+
+```markdown
+<!-- infra-flash-ci -->
+## ⚡ CI Validate | `abc1234`
+
+| Layer | Format | Lint | Validate |
+|:------|:------:|:----:|:--------:|
+| L1 Bootstrap | ✅ | ✅ | ✅ |
+| L2 Platform | ✅ | ✅ | ✅ |
+| L3 Data | ✅ | ⏭️ | ⏭️ |
+
+### ✅ CI Passed
+
+**Atlantis autoplan** will run automatically via webhook.
+
+---
+
+<details>
+<summary>📖 Atlantis Commands</summary>
+
+| Command | Description |
+|:--------|:------------|
+| `atlantis plan` | Re-run plan |
+| `atlantis apply` | Apply after review |
+| `atlantis unlock` | Unlock project |
+
+</details>
+
+<details>
+<summary>🔧 Troubleshooting</summary>
+
+| Error | Solution |
+|:------|:---------|
+| `403 permission denied` | Vault token expired → Update secret, apply L1 |
+| `state lock` | `atlantis unlock` |
+| `provider mismatch` | `terraform init -upgrade`, commit lock file |
+
+</details>
+```
+
+### CI 失败时的评论
+
+```markdown
+<!-- infra-flash-ci -->
+## ⚡ CI Validate | `abc1234`
+
+| Layer | Format | Lint | Validate |
+|:------|:------:|:----:|:--------:|
+| L1 Bootstrap | ❌ | ⏭️ | ⏭️ |
+| L2 Platform | ❌ | ⏭️ | ⏭️ |
+| L3 Data | ❌ | ⏭️ | ⏭️ |
+
+### ❌ CI Failed
+
+```bash
+# Fix locally:
+terraform fmt -recursive
+terraform validate
+git push
+```
+```
+
+---
+
+## 4. Workflows 清单
+
+| Workflow | 触发 | 作用 |
+|:---------|:-----|:-----|
+| `terraform-plan.yml` | PR 创建/更新 | CI 语法检查 + infra-flash 评论 |
+| `deploy-k3s.yml` | 手动 | 初始 K3s 集群部署 |
+| `dig.yml` | 手动 | DNS 调试 |
+| `claude.yml` | 手动 | AI 代码审查 |
+
+**已删除**：
+- ~~`sync-l1.yml`~~ - 不需要自动同步，Vault token 过期时手动 apply L1
+
+---
+
+## 5. Atlantis 配置
+
+### atlantis.yaml
+
+```yaml
+version: 3
+parallel_plan: true    # 多 PR 并行 plan
+parallel_apply: false  # apply 串行避免冲突
+
+projects:
+  - name: bootstrap
+    dir: 1.bootstrap
+    autoplan:
+      enabled: true
+      when_modified: ["1.bootstrap/**/*.tf"]
+
+  - name: platform
+    dir: 2.platform
+    autoplan:
+      enabled: true
+      when_modified: ["2.platform/**/*.tf"]
+
+  - name: data
+    dir: 3.data
+    autoplan:
+      enabled: true
+      when_modified: ["3.data/**/*.tf"]
+```
+
+---
+
+## 6. 变量一致性
 
 ### 变量流
 
@@ -14,332 +251,88 @@
 1Password (SSOT)
      ↓ op item get + gh secret set
 GitHub Secrets
-     ├─→ CI (terraform-plan.yml)     → TF_VAR_*
-     └─→ Atlantis Pod (deploy-k3s)   → TF_VAR_*
-              ↓
-         terraform plan/apply
-              ↓
-         Kubernetes 资源
+     │
+     ├──► CI (terraform-plan.yml)
+     │         └──► TF_VAR_* (语法检查用)
+     │
+     └──► Atlantis Pod (helm_release)
+               └──► TF_VAR_* (plan/apply 用)
 ```
 
-### 变量一致性检查表
+### 重要变量
 
-| 变量 | CI 来源 | Atlantis 来源 | 验证 |
-|------|---------|---------------|------|
-| `vault_postgres_password` | `secrets.VAULT_POSTGRES_PASSWORD` | Pod env | ✅ |
-| `vault_root_token` | `secrets.VAULT_ROOT_TOKEN` | Pod env | ✅ |
-| `vault_address` | 外部 URL | 内部 DNS | **不同但正确** |
-| `cloudflare_api_token` | `secrets.CLOUDFLARE_API_TOKEN` | Pod env | ✅ |
-
-**vault_address 差异说明**：
-- CI：`https://secrets.{domain}` （外部访问）
-- Atlantis：`http://vault.platform.svc:8200` （集群内）
-- 两者都能正确连接 Vault
-
-### 版本锁定
-
-```hcl
-# versions.tf - 固定 provider 版本
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    kubernetes = { version = "~> 2.25" }
-    helm       = { version = "~> 2.12" }
-    vault      = { version = "~> 4.2" }
-  }
-}
-```
-
-```
-# .terraform.lock.hcl 提交到 Git
-# 确保 CI 和 Atlantis 用相同 provider 版本
-```
+| 变量 | CI 需要 | Atlantis 需要 | 说明 |
+|:-----|:-------:|:-------------:|:-----|
+| `VAULT_ROOT_TOKEN` | ❌ | ✅ | CI 不做 plan，不需要 |
+| `CLOUDFLARE_API_TOKEN` | ✅ | ✅ | validate 需要 |
+| `AWS_ACCESS_KEY_ID` | ✅ | ✅ | backend 初始化 |
 
 ---
 
-## 2. 健康检查分层
+## 7. 故障恢复
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  时机        │  能力                │  作用                 │
-├─────────────────────────────────────────────────────────────┤
-│  Plan       │  variable.validation │  拒绝无效输入          │
-│  Apply 前   │  precondition        │  验证依赖就绪          │
-│  Pod 启动   │  initContainer       │  等待依赖可用          │
-│  运行时     │  readiness/liveness  │  流量控制 / 自动重启   │
-│  Apply 后   │  postcondition       │  验证部署成功          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 依赖拓扑
-
-```
-PostgreSQL ─┬─→ Vault       (initContainer 等待 PG)
-            ├─→ Casdoor     (initContainer 等待 PG)
-            │       └─→ Portal-Auth (initContainer 等待 Casdoor)
-            └─→ L3 Postgres (initContainer 等待 PG)
-```
-
-### initContainer 实现状态
-
-| 组件 | 等待 | 状态 | 超时 |
-|------|------|------|------|
-| Vault | PostgreSQL | ✅ | 120s |
-| Casdoor | PostgreSQL | ✅ | 120s |
-| Portal-Auth | Casdoor | ✅ | 120s |
-| L3 PostgreSQL | Platform PG | ✅ | 120s |
-| **L3 Redis** | **Vault KV** | **✅** | **120s** |
-| **L3 ClickHouse** | **Vault KV** | **✅** | **120s** |
-| **L3 ArangoDB Operator** | **Vault KV** | **✅** | **120s** |
-
----
-
-## 3. 验证清单
-
-### CI 自动检查 (terraform-plan.yml)
+### Vault Token 过期
 
 ```bash
-# L1 Bootstrap
+# 1. 获取新 token
+op read 'op://Infrastructure/Vault Root Token/credential'
+
+# 2. 更新 GitHub Secret
+gh secret set VAULT_ROOT_TOKEN --body "<token>" --repo wangzitian0/infra
+
+# 3. Apply L1 (更新 Atlantis Pod)
 cd 1.bootstrap
-terraform fmt -check -recursive
-terraform init -backend=false
-terraform validate
+terraform apply
 
-# L2 Platform
-cd ../2.platform
-terraform fmt -check -recursive
-terraform init -backend=false
-terraform validate
+# 4. 重试 Atlantis plan
+# 在 PR 评论: atlantis plan
 ```
 
-**必需环境变量**:
-- `VAULT_ROOT_TOKEN` - Vault provider 认证
-- `VAULT_ADDR` - Vault 地址
-- `CLOUDFLARE_API_TOKEN` - Cloudflare provider
+### State Lock
 
-### L3 Data Services 健康检查矩阵
+```
+# PR 评论
+atlantis unlock
+atlantis plan
+```
 
-| 组件 | precondition | initContainer | validation | lifecycle | timeout |
-|------|--------------|---------------|------------|-----------|----------|
-| PostgreSQL | ✅ Platform PG ready | ✅ 120s | ✅ password | ✅ prevent_destroy | 300s |
-| **Redis** | **✅ Vault ready** | **✅ 120s** | **❌** | **✅ prevent_destroy** | **300s** |
-| **ClickHouse** | **✅ Vault ready** | **✅ 120s** | **❌** | **✅ prevent_destroy** | **300s** |
-| **ArangoDB** | **✅ Vault ready** | **❌** | **❌** | **✅ prevent_destroy** | **300s** |
-
-**待补齐项**:
-- [ ] 为新数据库添加 `validation` 块验证密码非空
-- [ ] ArangoDB Operator 添加 `initContainer` 等待命名空间创建
-
-### Terraform Provider 初始化检查
+### Provider 版本不匹配
 
 ```bash
-# 检查 provider 版本一致性
+terraform init -upgrade
 terraform providers lock \
   -platform=linux_amd64 \
   -platform=darwin_amd64 \
   -platform=darwin_arm64
-
-# 验证 .terraform.lock.hcl 提交到 Git
-git status .terraform.lock.hcl
-```
-
-### Namespace 环境隔离检查
-
-```bash
-# L3 必须使用 per-env namespace
-grep 'data-${terraform.workspace}' 3.data/*.tf
-
-# 验证输出使用动态生成
-grep 'local.namespace_name' 3.data/*.tf
+git add .terraform.lock.hcl
+git commit -m "chore: update provider lock"
+git push
 ```
 
 ---
 
-## 4. 部署流程
-
-### L1 Bootstrap（GitHub Actions）
+## 8. 健康检查分层
 
 ```
-push to main
-     ↓
-terraform fmt/lint/validate (syntax only)
-     ↓
-terraform apply (auto)
+┌─────────────────────────────────────────────────────────────┐
+│  时机        │  机制                │  作用                 │
+├─────────────────────────────────────────────────────────────┤
+│  CI         │  fmt/lint/validate   │  语法正确性           │
+│  Plan       │  variable.validation │  拒绝无效输入          │
+│  Apply 前   │  precondition        │  验证依赖就绪          │
+│  Pod 启动   │  initContainer       │  等待依赖可用          │
+│  运行时     │  readiness/liveness  │  流量控制 / 自动重启   │
+└─────────────────────────────────────────────────────────────┘
 ```
-
-**Note**: CI **validates syntax only** (no `terraform plan`), since it cannot access in-cluster resources like Vault.
-
-### L2-L4（Atlantis GitOps）
-
-```
-PR 创建/更新
-     ↓
-┌─────────────────────────────────────────┐
-│ CI Validate (terraform-plan.yml)        │
-│ - fmt/lint/validate (语法检查)          │
-│ - 发布 infra-flash 评论 (单条可更新)    │
-└─────────────────────────────────────────┘
-     ↓ (并行)
-┌─────────────────────────────────────────┐
-│ Atlantis autoplan (webhook)             │
-│ - 真实 terraform plan                   │
-│ - 发布 plan 结果评论                    │
-│ - 状态显示在 GitHub Checks              │
-└─────────────────────────────────────────┘
-     ↓
-Review (查看 Atlantis plan 输出)
-     ↓
-atlantis apply (评论触发)
-     ↓
-Merge
-```
-
-**架构决策**: 
-- **CI: 只做语法检查** (`fmt`/`lint`/`validate`)
-- **Atlantis: 唯一的 plan/apply 入口** - 保证 Plan = Apply 强一致
-- 理由: CI 无法访问集群内资源（Vault, K8s），plan 会失败或产生误导性结果
-
-**评论策略**：
-- **infra-flash 评论 (CI)**: 单条可更新，只显示 CI 状态
-- **Atlantis 评论**: 由 Atlantis 管理，显示 plan/apply 输出
-- **状态查看**: GitHub Checks tab 显示所有状态
-
-**Lock 策略**：
-- `parallel_plan: true` - 多 PR 并行 plan
-- `parallel_apply: false` - apply 串行，避免冲突
-
----
-
-## 4. Plan/Apply 常见问题
-
-### State Stale
-
-```
-Error: Saved plan is stale
-```
-
-**原因**：Plan 后 state 被其他操作修改
-**解决**：重新 `atlantis plan`
-
-### Provider 不匹配
-
-```
-Error: Inconsistent dependency lock file
-```
-
-**原因**：`.terraform.lock.hcl` 变更
-**解决**：
-1. 本地 `terraform init -upgrade`
-2. 提交 `.terraform.lock.hcl`
-
-### 变量缺失
-
-```
-Error: No value for required variable
-```
-
-**检查**：
-1. GitHub Secrets 是否存在
-2. CI workflow 是否传递
-3. Atlantis Pod env 是否有
-
-### Vault Token 错误
-
-```
-Error: failed to lookup token, err=invalid character '<' looking for beginning of value
-
-with vault_mount.kv,
-on 6.vault-database.tf line 16
-```
-
-**原因**: `VAULT_ROOT_TOKEN` 环境变量未设置或无效
-
-**检查步骤**:
-1. **GitHub Secrets 存在性**:
-   ```bash
-   gh secret list --repo wangzitian0/infra | grep VAULT_ROOT_TOKEN
-   ```
-
-2. **CI Workflow 传递**:
-   查看 `.github/workflows/terraform-plan.yml`:
-   ```yaml
-   env:
-     VAULT_TOKEN: ${{ secrets.VAULT_ROOT_TOKEN }}  # ✅ 必须有
-     VAULT_ADDR: https://secrets.{domain}         # ✅ 必须有
-   ```
-
-3. **Vault 可访问性**:
-   ```bash
-   curl -I https://secrets.{domain}/v1/sys/health
-   # 应返回 200 OK (sealed) 或 503 (sealed)
-   ```
-
-**修复**:
-- Option A: 更新 GitHub Secret
-  ```bash
-  gh secret set VAULT_ROOT_TOKEN --body "$(op read 'op://Infrastructure/Vault Root Token/credential')" --repo wangzitian0/infra
-  ```
-  
-- Option B: CI 跳过 Vault provider
-  ```hcl
-  # 2.platform/providers.tf
-  provider "vault" {
-    # CI 时使用 fake token (仅 validate 语法)
-    address = var.vault_address != "" ? var.vault_address : "http://fake.local:8200"
-    token   = var.vault_root_token != "" ? var.vault_root_token : "fake-token-for-ci"
-  }
-  ```
-
----
-
-## 5. Secret 同步自动化
-
-### 问题
-Atlantis Pod 的环境变量在部署时固化，GitHub Secret 更新后不会自动同步。
-
-### 解决方案：每次 CI 自动同步
-
-```
-PR 创建/更新
-     ↓
-CI Validate 通过
-     ↓ (并行)
-├─→ 触发 sync-l1.yml (后台)  →  terraform apply L1  →  Atlantis 更新
-└─→ 触发 atlantis plan       →  Atlantis 执行 plan
-```
-
-**每次 CI 通过都会同步**，确保 Atlantis 始终有最新 secrets。
-
-**零人工干预，零等待**。
-
----
-
-## 6. 灾难恢复
-
-| 场景 | 恢复 |
-|------|------|
-| Pod 挂 | K8s 自动重建 |
-| 依赖未就绪 | initContainer 等待 |
-| Vault sealed | `vault operator unseal <key>` |
-| PG 数据丢失 | 删 PVC → apply → reinit |
-| VPS 丢失 | 1Password → 新 VPS → L1 → L2 |
-
-### 1Password 密钥
-
-- `Vault Unseal Keys` - unseal
-- `Vault Root Token` - TF provider
-- `Casdoor Admin` - SSO 管理
-- `VPS SSH Key` - 服务器访问
-- `R2 Credentials` - TF state
 
 ---
 
 ## 相关文件
 
 | 文件 | 用途 |
-|------|------|
-| `docs/ssot/secrets.md` | 密钥 SSOT |
+|:-----|:-----|
+| `.github/workflows/terraform-plan.yml` | CI workflow |
+| `atlantis.yaml` | Atlantis 项目配置 |
+| `1.bootstrap/2.atlantis.tf` | Atlantis 部署定义 |
+| `docs/ssot/secrets.md` | 密钥管理 |
 | `docs/ssot/vars.md` | 变量定义 |
-| `.github/actions/terraform-setup/` | CI 变量注入 |
-| `1.bootstrap/2.atlantis.tf` | Atlantis Pod env |
-| `atlantis.yaml` | GitOps 配置 |
