@@ -111,10 +111,11 @@ resource "kubernetes_secret" "arangodb_jwt" {
 # =============================================================================
 # ArangoDB Deployment CR (Single Mode)
 # Creates a single-server ArangoDB instance
+# Using kubectl_manifest to avoid plan-time CRD validation
 # =============================================================================
 
-resource "kubernetes_manifest" "arangodb_deployment" {
-  manifest = {
+resource "kubectl_manifest" "arangodb_deployment" {
+  yaml_body = yamlencode({
     apiVersion = "database.arangodb.com/v1"
     kind       = "ArangoDeployment"
     metadata = {
@@ -122,13 +123,13 @@ resource "kubernetes_manifest" "arangodb_deployment" {
       namespace = kubernetes_namespace.data.metadata[0].name
     }
     spec = {
-      mode  = "Single"                   # Single-server mode for MVP (migrate to Cluster later)
-      image = "arangodb/arangodb:3.11.8" # Fixed version (was latest)
+      mode  = "Single"
+      image = "arangodb/arangodb:3.11.8"
       auth = {
         jwtSecretName = kubernetes_secret.arangodb_jwt.metadata[0].name
       }
       single = {
-        count = 1 # Single instance
+        count = 1
         resources = {
           limits = {
             cpu    = "500m"
@@ -152,7 +153,7 @@ resource "kubernetes_manifest" "arangodb_deployment" {
         }
       }
     }
-  }
+  })
 
   depends_on = [
     time_sleep.wait_for_arangodb_crd,
@@ -165,7 +166,7 @@ resource "kubernetes_manifest" "arangodb_deployment" {
 # =============================================================================
 
 output "arangodb_host" {
-  value       = "${kubernetes_manifest.arangodb_deployment.manifest.metadata.name}.${local.namespace_name}.svc.cluster.local"
+  value       = "arangodb.${local.namespace_name}.svc.cluster.local"
   description = "ArangoDB K8s service DNS for L4 applications"
 }
 
