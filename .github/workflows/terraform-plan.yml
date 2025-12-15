@@ -8,7 +8,8 @@ on:
       - "2.platform/**"
       - "3.data/**"
       - "4.apps/**"
-      - ".github/workflows/terraform-*.yml"
+      - "4.apps/**"
+      - ".github/workflows/**"
 
 # Cancel in-progress runs for same PR
 concurrency:
