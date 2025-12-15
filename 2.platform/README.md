@@ -1,5 +1,7 @@
 # 2.platform (Platform Layer / Layer 2)
 
+<!-- Test: infra-flash bot PR comment system -->
+
 **Scope**:
 - **Secrets**: Vault (PostgreSQL storage backend, Agent Injector)
 - **Platform DB**: PostgreSQL (for Vault)
@@ -95,3 +97,6 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 
 ---
 *Last updated: 2025-12-13*
+# test update
+# test 1
+# test 2

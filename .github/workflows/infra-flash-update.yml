@@ -1,0 +1,114 @@
+name: Update infra-flash Comment
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  update:
+    # 只处理 Atlantis bot 在 PR 上的评论
+    if: |
+      github.event.issue.pull_request &&
+      github.event.comment.user.login == 'infra-flash[bot]' &&
+      (contains(github.event.comment.body, 'Ran Plan') || 
+       contains(github.event.comment.body, 'Ran Apply'))
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Get PR head SHA
+        id: pr_sha
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          result-encoding: string
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.issue.number
+            });
+            return pr.data.head.sha.substring(0, 7);
+
+      - name: Update infra-flash comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            const prNumber = context.payload.issue.number;
+            const atlantisBody = context.payload.comment.body;
+            const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+            const currentSha = '${{ steps.pr_sha.outputs.result }}';
+            
+            // 判断是 plan 还是 apply
+            const isPlan = atlantisBody.includes('Ran Plan');
+            const isApply = atlantisBody.includes('Ran Apply');
+            const isSuccess = !atlantisBody.includes('failed') && !atlantisBody.includes('Error');
+            
+            const stage = isPlan ? 'Plan' : 'Apply';
+            const icon = isSuccess ? '✅' : '❌';
+            const atlantisCommentUrl = context.payload.comment.html_url;
+            
+            // 找到 infra-flash 评论
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100
+            });
+            
+            const flashComment = comments.data.find(c => 
+              c.user.login === 'infra-flash[bot]' && 
+              c.body.includes('<!-- infra-flash-ci -->')
+            );
+            
+            if (!flashComment) {
+              console.log('infra-flash comment not found');
+              return;
+            }
+            
+            // 检查评论是否是当前 commit 的
+            const commentShaMatch = flashComment.body.match(/<!-- commit:(\w+) -->/);
+            const commentSha = commentShaMatch ? commentShaMatch[1] : null;
+            
+            if (commentSha && commentSha !== currentSha) {
+              console.log(`Skipping: comment is for ${commentSha}, current PR is at ${currentSha}`);
+              return;
+            }
+            
+            // 移除 "Comment atlantis plan..." 提示
+            let updatedBody = flashComment.body.replace(/👉 \*\*Comment `atlantis plan` to run plan\*\*/, '');
+            
+            // 构建新的 Atlantis 状态块
+            const newSection = `
+
+---
+
+### Atlantis ${stage} ${icon} | ${timestamp}
+
+[View full output](${atlantisCommentUrl})`;
+            
+            // 移除旧的同类型状态（避免重复）
+            const sectionRegex = new RegExp(`\\n---\\n+### Atlantis ${stage}[\\s\\S]*?(?=\\n---|$)`, 'g');
+            updatedBody = updatedBody.replace(sectionRegex, '');
+            
+            // 追加新状态
+            updatedBody = updatedBody.trim() + newSection;
+            
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: flashComment.id,
+              body: updatedBody
+            });
+            
+            console.log(`Updated infra-flash comment with ${stage} ${icon} for commit ${currentSha}`);
+
