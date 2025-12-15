@@ -292,7 +292,36 @@ on 6.vault-database.tf line 16
 
 ---
 
-## 5. 灾难恢复
+## 5. Secret 同步自动化
+
+### 问题
+Atlantis Pod 的环境变量在部署时固化，GitHub Secret 更新后不会自动同步。
+
+### 解决方案：完全自动
+
+| 触发条件 | 作用 |
+|:---------|:-----|
+| **任何 PR merge 到 main** | 自动 apply L1，同步 secrets |
+| **每小时定时** | 确保 GitHub Secret 更新后 1 小时内生效 |
+
+**流程**：
+```
+更新 GitHub Secret (VAULT_ROOT_TOKEN 等)
+     ↓ (最多等 1 小时)
+sync-l1.yml 定时触发
+     ↓
+terraform apply L1
+     ↓
+Atlantis Pod 更新
+     ↓
+下次 atlantis plan 使用新 token
+```
+
+**无需手动操作**。
+
+---
+
+## 6. 灾难恢复
 
 | 场景 | 恢复 |
 |------|------|

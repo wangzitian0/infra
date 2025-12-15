@@ -1,0 +1,73 @@
+name: Sync L1 Bootstrap
+
+on:
+  push:
+    branches: [main]
+    # 任何 PR merge 都触发，确保 Atlantis 始终同步
+  schedule:
+    # 每小时同步一次，确保 secrets 更新后自动生效
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  sync:
+    name: Apply L1 Bootstrap
+    runs-on: ubuntu-latest
+    environment: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Setup Terraform Environment
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "1.bootstrap"
+          terraform_version: 1.6.6
+          tf_state_key: "k3s/terraform.tfstate"
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          r2_bucket: ${{ secrets.R2_BUCKET }}
+          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          vps_host: ${{ secrets.VPS_HOST }}
+          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+          vps_user: ${{ secrets.VPS_USER }}
+          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
+          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
+          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
+          k3s_channel: ${{ secrets.K3S_CHANNEL }}
+          k3s_version: ${{ secrets.K3S_VERSION }}
+          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
+          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
+          github_token: ${{ secrets.GH_PAT }}
+          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          base_domain: ${{ secrets.BASE_DOMAIN }}
+          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
+          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
+          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
+          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+          casdoor_admin_password: ${{ secrets.CASDOOR_ADMIN_PASSWORD }}
+
+      - name: Terraform Apply
+        working-directory: 1.bootstrap
+        run: |
+          echo "🚀 Applying L1 Bootstrap..."
+          echo "Trigger: ${{ github.event_name }}"
+          terraform apply -auto-approve -no-color
+        env:
+          TF_VAR_vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
+
