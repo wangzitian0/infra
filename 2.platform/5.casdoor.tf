@@ -350,17 +350,9 @@ EOT
   }
 }
 
-# DNS Record for Casdoor
-resource "cloudflare_record" "casdoor" {
-  count = local.casdoor_enabled && var.vps_host != "" ? 1 : 0
-
-  zone_id = data.cloudflare_zone.internal.id
-  name    = "sso"
-  content = var.vps_host
-  type    = "A"
-  ttl     = 300
-  proxied = false
-}
+# DNS Record for Casdoor is managed in L1 (1.bootstrap/3.dns_and_cert.tf)
+# to ensure it exists regardless of L2 state/variables.
+# See infra_dns_records in L1.
 
 # Output
 output "casdoor_url" {

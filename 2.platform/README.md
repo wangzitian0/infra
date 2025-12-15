@@ -25,7 +25,6 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
 | `5.casdoor.tf` | Casdoor SSO | Unified SSO (OIDC provider, uses `initData` for IaC initialization of org/user/app) |
 | `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
-| `99.one-auth.tf` | One-Auth Gate | SSO gate switch and preconditions (controlled by `enable_one_auth`) |
 
 ### Secrets Strategy
 
