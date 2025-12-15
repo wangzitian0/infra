@@ -102,6 +102,10 @@ kubectl exec -n data postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 
 All L3 data services follow the health check matrix from [docs/ssot/dir.md](../docs/ssot/dir.md):
 
+### Atlantis (In-Cluster Providers)
+
+When `TF_VAR_kubeconfig_path` is empty (Atlantis in-cluster), the `kubectl` provider must set `load_config_file=false` to avoid defaulting to `http://localhost` and failing CRD applies (e.g., `kubectl_manifest`).
+
 ### Terraform-native Validation
 
 Each service has **lifecycle preconditions** to ensure Vault KV availability:
