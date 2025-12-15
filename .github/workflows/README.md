@@ -22,7 +22,7 @@ PR 创建/更新
 
 | Workflow | 触发 | 用途 |
 |:---------|:-----|:-----|
-| [`terraform-plan.yml`](#terraform-ci) | PR push | CI 语法检查，创建/更新 infra-flash 评论 |
+| [`terraform-plan.yml`](#terraform-ci) | PR push | CI 语法检查，为每个 commit 新建 infra-flash 评论 |
 | [`infra-flash-update.yml`](#infra-flash-update) | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
 | [`deploy-k3s.yml`](#deploy-k3s) | 手动 | 初始 K3s 集群部署 |
 | [`dig.yml`](#health-check) | `/dig` 评论 | 服务连通性检查 |
@@ -39,14 +39,19 @@ PR 创建/更新
 1. `terraform fmt -check -recursive` - 格式检查
 2. `tflint` - Lint 检查 (L1/L2/L3)
 3. `terraform validate` - 语法验证 (L1/L2/L3)
-4. 发布 infra-flash 评论（单条可更新）
+4. **发布 infra-flash 评论**：每个 commit push 新建一条评论，记录 CI 结果和下一步指引
 
-### infra-flash 评论
+### infra-flash 评论（Per-Commit）
 
-每个 PR 只有一条 infra-flash 评论，每次 push 自动更新：
+- PR 中**每个 commit**都会生成独立评论：`<!-- infra-flash-commit:abc1234 -->`
+- 评论包含 CI 表格、失败时的修复命令、以及下一步动作（例如 `atlantis plan`）
+- 新 commit push 不会覆盖旧评论，形成完整审计链
 
 ```markdown
-## ⚡ CI Validate | `abc1234`
+<!-- infra-flash-commit:abc1234 -->
+## ⚡ Commit `abc1234`
+
+### CI Validate ✅ | 12:30 UTC
 
 | Layer | Format | Lint | Validate |
 |:------|:------:|:----:|:--------:|
@@ -54,16 +59,14 @@ PR 创建/更新
 | L2 Platform | ✅ | ✅ | ✅ |
 | L3 Data | ✅ | ⏭️ | ⏭️ |
 
-### ✅ CI Passed
-
-**Atlantis autoplan** will run automatically via webhook.
+👉 **Next:** Comment `atlantis plan` to run plan
 ```
 
-### Atlantis Autoplan
+### Atlantis（本仓库为手动触发）
 
-CI 通过后，Atlantis 通过 webhook 自动触发 plan：
-- 无需手动 `atlantis plan`
-- Atlantis 发布独立评论显示 plan 结果
+本仓库 `atlantis.yaml` 将 `autoplan.enabled=false`（避免误触发与并行噪音），因此 CI 通过后需要手动评论触发：
+- `atlantis plan`：生成 plan 并由 `infra-flash-update.yml` 追加状态到对应 commit 评论
+- `atlantis apply`：review plan 后执行 apply，成功后提示可合并
 
 ---
 
@@ -71,7 +74,7 @@ CI 通过后，Atlantis 通过 webhook 自动触发 plan：
 
 **触发**: Atlantis (`infra-flash[bot]`) 发布评论
 
-监听 Atlantis 的 plan/apply 评论，追加状态到 infra-flash 主评论：
+监听 Atlantis 的 plan/apply 评论，追加状态到**当前 commit**的 infra-flash 评论：
 
 ```
 Atlantis 评论 "Ran Plan for..."
@@ -82,7 +85,9 @@ Atlantis 评论 "Ran Plan for..."
                         "### Atlantis Plan ✅ | 12:32 UTC"
 ```
 
-**Per-commit 追踪**：只追加到当前 commit 的评论，新 commit 会重置状态。
+- 通过 `<!-- infra-flash-commit:abc1234 -->` 锚点定位评论
+- 自动附带触发者评论 & Atlantis 输出链接
+- 成功时追加下一步（Plan → Apply → Merge），失败则指向修复操作
 
 ---
 

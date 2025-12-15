@@ -52,13 +52,13 @@ jobs:
             // 判断是 plan 还是 apply
             const isPlan = atlantisBody.includes('Ran Plan');
             const isApply = atlantisBody.includes('Ran Apply');
-            const isSuccess = !atlantisBody.includes('failed') && !atlantisBody.includes('Error') && !atlantisBody.includes('Plan Error');
+            const isSuccess = !/(failed|error|panic:)/i.test(atlantisBody);
             
             const stage = isPlan ? 'Plan' : 'Apply';
             const icon = isSuccess ? '✅' : '❌';
             
-            // 获取所有评论，找触发命令的人类评论
-            const comments = await github.rest.issues.listComments({
+            // 获取所有评论（分页），找触发命令的人类评论
+            const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
@@ -67,22 +67,36 @@ jobs:
             
             // 找到触发此操作的人类评论（在 Atlantis 评论之前，包含 atlantis plan/apply）
             const atlantisCommentTime = new Date(context.payload.comment.created_at);
-            const triggerComment = comments.data
-              .filter(c => c.user.login !== 'infra-flash[bot]')
+            const triggerComment = comments
+              .filter(c => c.user?.type !== 'Bot')
               .filter(c => new Date(c.created_at) < atlantisCommentTime)
-              .filter(c => c.body.toLowerCase().includes(`atlantis ${stage.toLowerCase()}`))
+              .filter(c => (c.body || '').toLowerCase().includes(`atlantis ${stage.toLowerCase()}`))
               .pop();  // 取最近的一条
             
             const triggerUrl = triggerComment ? triggerComment.html_url : null;
             
-            // 找到当前 commit 的 infra-flash 评论
-            const flashComment = comments.data.find(c => 
-              c.user.login === 'infra-flash[bot]' && 
+            // 找到当前操作对应的 infra-flash 评论：
+            // - 优先：用触发评论时间对齐最近一次 CI 评论（避免 Atlantis 执行期间 PR 又 push 导致 head SHA 漂移）
+            // - 兜底：用 PR head SHA marker 精确匹配
+            const triggerTime = triggerComment ? new Date(triggerComment.created_at) : null;
+            const flashCommentByTriggerTime = triggerTime
+              ? comments
+                  .filter(c => c.user.login === 'infra-flash[bot]')
+                  .filter(c => c.body.includes('<!-- infra-flash-commit:'))
+                  .filter(c => new Date(c.created_at) <= triggerTime)
+                  .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+                  .pop()
+              : null;
+            
+            const flashCommentByHeadSha = comments.find(c =>
+              c.user.login === 'infra-flash[bot]' &&
               c.body.includes(`<!-- infra-flash-commit:${currentSha} -->`)
             );
             
+            const flashComment = flashCommentByTriggerTime || flashCommentByHeadSha;
+            
             if (!flashComment) {
-              console.log(`No infra-flash comment found for commit ${currentSha}`);
+              console.log(`No infra-flash comment found (triggerSha=${triggerTime ? 'by-time' : 'none'}, headSha=${currentSha})`);
               return;
             }
             
@@ -93,7 +107,7 @@ jobs:
             } else if (isApply && isSuccess) {
               nextStep = '\n\n✅ **Ready to merge!**';
             } else if (!isSuccess) {
-              nextStep = '\n\n👉 **Next:** Fix errors, then `atlantis plan`';
+              nextStep = '\n\n👉 **Next:** Fix errors (push if needed), then `atlantis plan`';
             }
             
             // 移除旧的 next step 提示
