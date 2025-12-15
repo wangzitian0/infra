@@ -233,7 +233,8 @@ jobs:
             const icon = (s) => s === 'success' ? '✅' : (s === 'skipped' ? '⏭️' : '❌');
             const allPass = [fmt, lint_l1, lint_l2, lint_l3, validate_l1, validate_l2, validate_l3]
               .every(s => s === 'success' || s === 'skipped');
-            const sha = context.sha.substring(0, 7);
+            // Use PR head SHA, not merge commit SHA
+            const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             
             // 新 commit 时清除旧的 Atlantis 状态，只保留 CI 部分
