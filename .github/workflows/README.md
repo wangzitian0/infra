@@ -104,6 +104,9 @@ Atlantis 评论 "Ran Plan for..."
 
 用于部署/更新 L1 Bootstrap（k3s + Atlantis 等）。L2+ 日常变更通过 Atlantis 处理。
 
+一致性策略：
+- CI 不做破坏性 “自愈”（不 `terraform state rm`、不删集群内资源）；仅在需要时 `terraform import` 以把已存在的资源纳入 state 管理（例如 `helm_release.atlantis`）。
+
 ---
 
 ## dig.yml {#health-check}
