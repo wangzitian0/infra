@@ -52,7 +52,7 @@ resource "helm_release" "clickhouse" {
   values = [
     yamlencode({
       image = {
-        tag        = "24.7.3-debian-12" # Rolling tag to avoid ImagePullBackOff on specific deleted revisions (e.g. r0)
+        tag        = "24.8.5-debian-12" # Validated existing tag to resolve ImagePullBackOff
         pullPolicy = "IfNotPresent"
       }
       auth = {
