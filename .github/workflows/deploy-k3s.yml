@@ -144,7 +144,10 @@ jobs:
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           r2_bucket: ${{ secrets.R2_BUCKET }}
           r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          # Pass only necessary secrets
+          vps_host: ${{ secrets.VPS_HOST }}
+          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+          vps_user: ${{ secrets.VPS_USER }}
+          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
           github_token: ${{ secrets.GH_PAT || github.token }}
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -189,6 +192,10 @@ jobs:
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           r2_bucket: ${{ secrets.R2_BUCKET }}
           r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          vps_host: ${{ secrets.VPS_HOST }}
+          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+          vps_user: ${{ secrets.VPS_USER }}
+          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
 
       - name: Pre-flight Image Check (L3)
@@ -229,16 +236,21 @@ jobs:
           kubectl wait --for=condition=Ready pod -n $NS -l arango_deployment=arangodb --timeout=${TIMEOUT}s || echo "⚠️ ArangoDB wait timeout"
           
           echo ""
+          
           echo "=== 2. Application Layer Connectivity Checks ==="
           
+          # Retrieve Secrets for Health Checks
+          REDIS_PASS=$(kubectl get secret -n $NS redis -o jsonpath="{.data.redis-password}" | base64 -d)
+          CH_PASS=$(kubectl get secret -n $NS clickhouse -o jsonpath="{.data.admin-password}" | base64 -d)
+
           echo "Checking PostgreSQL..."
           kubectl exec -n $NS postgresql-0 -- pg_isready -U postgres && echo "✅ PostgreSQL: Ready" || echo "❌ PostgreSQL: Not Ready"
           
           echo "Checking Redis..."
-          kubectl exec -n $NS redis-master-0 -- redis-cli ping && echo "✅ Redis: PONG" || echo "❌ Redis: Not Ready"
+          kubectl exec -n $NS redis-master-0 -- redis-cli -a "$REDIS_PASS" ping && echo "✅ Redis: PONG" || echo "❌ Redis: Not Ready"
           
           echo "Checking ClickHouse..."
-          kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --query "SELECT 1" && echo "✅ ClickHouse: Ready" || echo "❌ ClickHouse: Not Ready"
+          kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --user default --password "$CH_PASS" --query "SELECT 1" && echo "✅ ClickHouse: Ready" || echo "❌ ClickHouse: Not Ready"
           
           echo "Checking Keeper..."
           kubectl exec -n $NS clickhouse-keeper-0 -- bash -c 'echo ruok | nc localhost 9181' && echo "✅ Keeper: imok" || echo "❌ Keeper: Not Ready"
@@ -263,7 +275,10 @@ jobs:
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           r2_bucket: ${{ secrets.R2_BUCKET }}
           r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          # App secrets
+          vps_host: ${{ secrets.VPS_HOST }}
+          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+          vps_user: ${{ secrets.VPS_USER }}
+          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
           base_domain: ${{ secrets.BASE_DOMAIN }}
 
