@@ -1,6 +1,6 @@
 # 2.platform (Platform Layer / Layer 2)
 
-<!-- Test: infra-flash bot PR comment system -->
+<!-- Smoke: validate infra-flash per-commit comment stream (post-merge) -->
 
 **Scope**:
 - **Secrets**: Vault (PostgreSQL storage backend, Agent Injector)
