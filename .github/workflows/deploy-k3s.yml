@@ -95,6 +95,15 @@ jobs:
             echo "Importing local-path-config ConfigMap..."
             terraform import kubernetes_config_map_v1.local_path_config kube-system/local-path-config || true
           fi
+          
+          # Fix orphaned Atlantis state: remove from state if release doesn't exist in cluster
+          # This handles cases where Helm release was deleted but Terraform state wasn't updated
+          if terraform state show helm_release.atlantis 2>/dev/null; then
+            if ! helm status atlantis -n platform 2>/dev/null; then
+              echo "Atlantis exists in state but not in cluster, removing from state..."
+              terraform state rm helm_release.atlantis || true
+            fi
+          fi
 
       # Apply all infrastructure (moved blocks require full apply, not targeted)
       # Note: -target=module.nodep fails when moved.tf has pending resource moves
