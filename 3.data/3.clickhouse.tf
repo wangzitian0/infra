@@ -78,24 +78,8 @@ resource "helm_release" "clickhouse" {
           memory = "256Mi"
         }
       }
-      # Resource limits to prevent runaway queries
-      extraOverrides = <<-EOT
-        <profiles>
-          <default>
-            <max_memory_usage>800000000</max_memory_usage>
-            <max_execution_time>300</max_execution_time>
-            <max_concurrent_queries>10</max_concurrent_queries>
-          </default>
-        </profiles>
-        <quotas>
-          <default>
-            <interval>
-              <duration>3600</duration>
-              <queries>1000</queries>
-            </interval>
-          </default>
-        </quotas>
-      EOT
+      # Note: Custom profiles/quotas removed for MVP stability
+      # TODO: Add custom configs via usersFiles if needed per Bitnami docs
     })
   ]
 }
