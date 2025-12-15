@@ -3,7 +3,7 @@
 locals {
   infra_dns_records = {
     atlantis   = true  # HTTPS via proxy
-    secrets    = true  # HTTPS via proxy
+    secrets    = false # Vault - DNS only (avoid Cloudflare caching issues with OIDC)
     kdashboard = true  # HTTPS via proxy
     kcloud     = true  # HTTPS via proxy
     kapi       = true  # HTTPS via proxy
