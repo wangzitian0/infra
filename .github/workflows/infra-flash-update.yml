@@ -45,19 +45,19 @@ jobs:
           script: |
             const prNumber = context.payload.issue.number;
             const atlantisBody = context.payload.comment.body;
+            const atlantisCommentUrl = context.payload.comment.html_url;
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const currentSha = '${{ steps.pr_sha.outputs.result }}';
             
             // 判断是 plan 还是 apply
             const isPlan = atlantisBody.includes('Ran Plan');
             const isApply = atlantisBody.includes('Ran Apply');
-            const isSuccess = !atlantisBody.includes('failed') && !atlantisBody.includes('Error');
+            const isSuccess = !atlantisBody.includes('failed') && !atlantisBody.includes('Error') && !atlantisBody.includes('Plan Error');
             
             const stage = isPlan ? 'Plan' : 'Apply';
             const icon = isSuccess ? '✅' : '❌';
-            const atlantisCommentUrl = context.payload.comment.html_url;
             
-            // 找到当前 commit 的 infra-flash 评论
+            // 获取所有评论，找触发命令的人类评论
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -65,7 +65,17 @@ jobs:
               per_page: 100
             });
             
-            // 查找匹配当前 commit 的评论
+            // 找到触发此操作的人类评论（在 Atlantis 评论之前，包含 atlantis plan/apply）
+            const atlantisCommentTime = new Date(context.payload.comment.created_at);
+            const triggerComment = comments.data
+              .filter(c => c.user.login !== 'infra-flash[bot]')
+              .filter(c => new Date(c.created_at) < atlantisCommentTime)
+              .filter(c => c.body.toLowerCase().includes(`atlantis ${stage.toLowerCase()}`))
+              .pop();  // 取最近的一条
+            
+            const triggerUrl = triggerComment ? triggerComment.html_url : null;
+            
+            // 找到当前 commit 的 infra-flash 评论
             const flashComment = comments.data.find(c => 
               c.user.login === 'infra-flash[bot]' && 
               c.body.includes(`<!-- infra-flash-commit:${currentSha} -->`)
@@ -79,16 +89,21 @@ jobs:
             // 确定下一步操作
             let nextStep = '';
             if (isPlan && isSuccess) {
-              nextStep = '\n\n👉 **Next:** Review plan output, then comment `atlantis apply`';
+              nextStep = '\n\n👉 **Next:** Review plan, then comment `atlantis apply`';
             } else if (isApply && isSuccess) {
-              nextStep = '\n\n👉 **Next:** Merge PR ✅';
+              nextStep = '\n\n✅ **Ready to merge!**';
             } else if (!isSuccess) {
-              nextStep = '\n\n👉 **Next:** Fix errors and re-run `atlantis plan`';
+              nextStep = '\n\n👉 **Next:** Fix errors, then `atlantis plan`';
             }
             
             // 移除旧的 next step 提示
             let updatedBody = flashComment.body
-              .replace(/\n*👉 \*\*Next:\*\*.*/g, '');
+              .replace(/\n*👉 \*\*Next:\*\*.*/g, '')
+              .replace(/\n*✅ \*\*Ready to merge!\*\*/g, '');
+            
+            // 构建链接
+            const triggerLink = triggerUrl ? `[Triggered by](${triggerUrl})` : 'Manual trigger';
+            const outputLink = `[View output](${atlantisCommentUrl})`;
             
             // 构建新的 Atlantis 状态块
             const newSection = `
@@ -97,7 +112,7 @@ jobs:
 
 ### Atlantis ${stage} ${icon} | ${timestamp}
 
-[View full output](${atlantisCommentUrl})${nextStep}`;
+📎 ${triggerLink} → ${outputLink}${nextStep}`;
             
             // 移除旧的同类型状态（避免重复）
             const sectionRegex = new RegExp(`\\n---\\n+### Atlantis ${stage}[\\s\\S]*?(?=\\n---|$)`, 'g');
