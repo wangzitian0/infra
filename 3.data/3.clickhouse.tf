@@ -32,7 +32,7 @@ resource "helm_release" "clickhouse" {
   namespace        = local.namespace_name # Per-env: data-staging, data-prod
   repository       = "oci://registry-1.docker.io/bitnamicharts"
   chart            = "clickhouse"
-  version          = "6.2.17"
+  version          = "9.4.4" # Upgraded from 6.2.17 to resolve image availability issues
   create_namespace = false
   timeout          = 300 # Consistent with PR #170 standard (was 600s)
   wait             = true
@@ -51,10 +51,7 @@ resource "helm_release" "clickhouse" {
 
   values = [
     yamlencode({
-      image = {
-        tag        = "24.8.5-debian-12" # Validated existing tag to resolve ImagePullBackOff
-        pullPolicy = "IfNotPresent"
-      }
+      # Removed manual image config to use chart defaults (verified valid images for chart 9.4.4)
       auth = {
         username = "default"
         password = data.vault_kv_secret_v2.clickhouse.data["password"]
