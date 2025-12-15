@@ -55,7 +55,7 @@ resource "helm_release" "clickhouse" {
       image = {
         registry   = "docker.io"
         repository = "bitnamilegacy/clickhouse"
-        tag        = "25.7.5-debian-12-r0"  # Matches Chart 9.4.4 default
+        tag        = "25.7.5-debian-12-r0" # Matches Chart 9.4.4 default
         pullPolicy = "IfNotPresent"
       }
       auth = {
@@ -73,7 +73,7 @@ resource "helm_release" "clickhouse" {
           # Bitnami moved clickhouse-keeper to bitnamilegacy repo (bitnami/ is empty)
           registry   = "docker.io"
           repository = "bitnamilegacy/clickhouse-keeper"
-          tag        = "25.7.5-debian-12-r0"  # Matches Chart 9.4.4 default
+          tag        = "25.7.5-debian-12-r0" # Matches Chart 9.4.4 default
           pullPolicy = "IfNotPresent"
         }
       }
