@@ -51,9 +51,11 @@ resource "helm_release" "clickhouse" {
 
   values = [
     yamlencode({
-      # Pin both main and keeper images to avoid ImagePullBackOff
+      # Bitnami moved all images to bitnamilegacy repo (bitnami/ is empty)
       image = {
-        tag        = "24.8.5-debian-12" # Pin to valid rolling tag
+        registry   = "docker.io"
+        repository = "bitnamilegacy/clickhouse"
+        tag        = "25.7.5-debian-12-r0"  # Matches Chart 9.4.4 default
         pullPolicy = "IfNotPresent"
       }
       auth = {
