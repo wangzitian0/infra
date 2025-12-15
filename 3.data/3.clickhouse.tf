@@ -52,10 +52,8 @@ resource "helm_release" "clickhouse" {
   values = [
     yamlencode({
       # Bitnami deletes old tags; use latest + IfNotPresent to reduce drift
-      image = {
-        tag        = "latest"
-        pullPolicy = "IfNotPresent"
-      }
+      # Use chart default image tag (validated by Bitnami) to avoid ImagePullBackOff with 'latest'
+      # image node removed to fallback to values.yaml defaults
       auth = {
         username = "default"
         password = data.vault_kv_secret_v2.clickhouse.data["password"]
