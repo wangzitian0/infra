@@ -32,19 +32,19 @@ PR 创建/更新
 
 ## terraform-plan.yml {#terraform-ci}
 
-**触发**: PR 修改 `1.bootstrap/`, `2.platform/`, `3.data/`
+**触发**: PR 修改 `1.bootstrap/`, `2.platform/`, `3.data/`, `4.apps/`
 
 ### 执行步骤
 
 1. `terraform fmt -check -recursive` - 格式检查
 2. `tflint` - Lint 检查 (L1/L2/L3)
-3. `terraform validate` - 语法验证 (L1/L2/L3)
+3. `terraform validate` - 语法验证 (L1/L2/L3/L4, `init -backend=false`)
 4. **发布 infra-flash 评论**：每个 commit push 新建一条评论，记录 CI 结果和下一步指引
 
 ### infra-flash 评论（Per-Commit）
 
 - PR 中**每个 commit**都会生成独立评论：`<!-- infra-flash-commit:abc1234 -->`
-- 评论包含 CI 表格、失败时的修复命令、以及下一步动作（例如 `atlantis plan`）
+- 评论包含 CI 表格、失败时的修复命令、以及下一步动作（例如 review plan 后 `atlantis apply`）
 - 新 commit push 不会覆盖旧评论，形成完整审计链
 
 ```markdown
@@ -59,14 +59,16 @@ PR 创建/更新
 | L2 Platform | ✅ | ✅ | ✅ |
 | L3 Data | ✅ | ⏭️ | ⏭️ |
 
-👉 **Next:** Comment `atlantis plan` to run plan
+⏳ **Atlantis autoplan** will run automatically. After plan is posted, review it then comment `atlantis apply`.
 ```
 
-### Atlantis（本仓库为手动触发）
+### Atlantis（本仓库开启 autoplan）
 
-本仓库 `atlantis.yaml` 将 `autoplan.enabled=false`（避免误触发与并行噪音），因此 CI 通过后需要手动评论触发：
-- `atlantis plan`：生成 plan 并由 `infra-flash-update.yml` 追加状态到对应 commit 评论
-- `atlantis apply`：review plan 后执行 apply，成功后提示可合并
+本仓库 `atlantis.yaml` 将 `autoplan.enabled=true`，因此每次 PR 更新（push 新 commit）都会自动触发 `atlantis plan`：
+- Plan：Atlantis 自动评论 plan，并由 `infra-flash-update.yml` 追加状态到对应 commit 的 infra-flash 评论
+- Apply：仍需人工 review plan 后评论 `atlantis apply`
+  
+`atlantis plan` 仍可用于失败后的手动重试。
 
 ---
 
@@ -88,6 +90,7 @@ Atlantis 评论 "Ran Plan for..."
 - 通过 `<!-- infra-flash-commit:abc1234 -->` 锚点定位评论
 - 自动附带触发者评论 & Atlantis 输出链接
 - 成功时追加下一步（Plan → Apply → Merge），失败则指向修复操作
+- 通过 Atlantis 输出的 `infra-flash-commit:xxxxxxx` 标记精确定位对应 commit 评论（`atlantis.yaml` workflow step 注入）
 - 权限：需要 `issues: write`（更新评论）与 `pull-requests: write`（读取 PR 信息）
 - 兼容性：使用 `"on":` 而不是 `on:`，避免 YAML 解析把 `on` 误判为布尔值导致 workflow 无法触发
 
@@ -95,9 +98,9 @@ Atlantis 评论 "Ran Plan for..."
 
 ## deploy-k3s.yml {#deploy-k3s}
 
-**触发**: `workflow_dispatch` (手动)
+**触发**: `push` to `main` 或 `workflow_dispatch` (手动)
 
-用于首次部署 K3s 集群。日常变更通过 Atlantis 处理。
+用于部署/更新 L1 Bootstrap（k3s + Atlantis 等）。L2+ 日常变更通过 Atlantis 处理。
 
 ---
 

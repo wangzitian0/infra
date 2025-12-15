@@ -21,7 +21,7 @@ projects:
     workspace: default
     workflow: platform
     autoplan:
-      enabled: false
+      enabled: true
 
   # L3: Data (per-env)
   - name: data-staging
@@ -30,7 +30,7 @@ projects:
     workspace: staging
     workflow: data
     autoplan:
-      enabled: false
+      enabled: true
 
   - name: data-prod
     dir: 3.data
@@ -38,7 +38,7 @@ projects:
     workspace: prod
     workflow: data
     autoplan:
-      enabled: false
+      enabled: true
 
   # L4: Apps (per-env)
   - name: apps-staging
@@ -47,7 +47,7 @@ projects:
     workspace: staging
     workflow: apps
     autoplan:
-      enabled: false
+      enabled: true
 
   - name: apps-prod
     dir: 4.apps
@@ -55,7 +55,7 @@ projects:
     workspace: prod
     workflow: apps
     autoplan:
-      enabled: false
+      enabled: true
 
 workflows:
   # L2: Platform
@@ -63,6 +63,7 @@ workflows:
   platform:
     plan:
       steps:
+        - run: echo "infra-flash-commit:$(git rev-parse --short HEAD)"
         - run: rm -rf .terraform
         - run: |
             cat > backend.tfvars <<EOF
@@ -81,6 +82,7 @@ workflows:
         - plan
     apply:
       steps:
+        - run: echo "infra-flash-commit:$(git rev-parse --short HEAD)"
         - run: rm -rf .terraform
         - run: |
             cat > backend.tfvars <<EOF
@@ -102,6 +104,7 @@ workflows:
   data:
     plan:
       steps:
+        - run: echo "infra-flash-commit:$(git rev-parse --short HEAD)"
         - run: rm -rf .terraform
         - run: |
             cat > backend.tfvars <<EOF
@@ -109,27 +112,20 @@ workflows:
             key       = "k3s/data-${WORKSPACE}.tfstate"
             endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
             EOF
-        # Debug: verify TF_VAR_vault_root_token is in environment
-        - run: |
-            echo "=== TF_VAR Debug ==="
-            echo "TF_VAR_vault_root_token length: ${#TF_VAR_vault_root_token}"
-            if [ -n "$TF_VAR_vault_root_token" ]; then
-              echo "TF_VAR_vault_root_token is SET"
-            else
-              echo "TF_VAR_vault_root_token is EMPTY or NOT SET"
-            fi
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
         - plan
     apply:
       steps:
         # Reuse .terraform from plan step to avoid state lineage mismatch
+        - run: echo "infra-flash-commit:$(git rev-parse --short HEAD)"
         - apply
 
   # L4: Apps
   apps:
     plan:
       steps:
+        - run: echo "infra-flash-commit:$(git rev-parse --short HEAD)"
         - run: rm -rf .terraform
         - run: |
             cat > backend.tfvars <<EOF
@@ -143,4 +139,5 @@ workflows:
     apply:
       steps:
         # Reuse .terraform from plan step to avoid state lineage mismatch
+        - run: echo "infra-flash-commit:$(git rev-parse --short HEAD)"
         - apply

@@ -39,7 +39,7 @@
 | **CI** | 语法检查 (fmt/lint/validate) | GitHub Actions Runner |
 | **Atlantis** | 真正的 plan/apply | 集群内 Pod（可访问 Vault/K8s） |
 
-**CI 无法做 plan** 的原因：
+**CI 不做 plan** 的原因：
 - 无法访问 Kubernetes API（集群内）
 - 无法访问 Vault（集群内 + SSO Gate）
 - Provider 初始化会失败
@@ -57,10 +57,9 @@ Commit abc1234 push
               │
               └──► 新建 Comment 1:
                         "CI ✅ | abc1234"
-                        "👉 Next: atlantis plan"
                         │
                         ▼
-              人: "atlantis plan"
+              Atlantis autoplan 自动触发
                         │
                         ▼
               Atlantis plan 完成
@@ -88,12 +87,12 @@ Commit abc1234 push
 ```
 Commit abc1234 push  →  新建 Comment 1
     │
-    └──► CI ✅ → Plan ✅ → Apply ❌ (失败)
+    └──► CI ✅ → (autoplan) Plan ✅ → Apply ❌ (失败)
               │
               ▼
 Commit def5678 push  →  新建 Comment 2 (新评论)
     │
-    └──► CI ✅ → Plan ✅ → Apply ✅
+    └──► CI ✅ → (autoplan) Plan ✅ → Apply ✅
               │
               └──► "👉 Next: Merge PR"
 ```
@@ -137,7 +136,7 @@ PR 创建
               │              手动 apply L1
               │              (cd 1.bootstrap && terraform apply)
               │                   │
-              │                   └──► "atlantis plan" 重试
+              │                   └──► 评论 "atlantis plan" 重试（或 push 触发 autoplan）
               │
               ├──► "state lock"
               │         │
@@ -161,6 +160,7 @@ PR 创建
 - 每个 commit push 创建**新评论**
 - 同一个 commit 的所有操作（CI、plan、apply）追加到**同一条评论**
 - 每条评论包含**下一步指引**
+- Atlantis workflow 会输出 `infra-flash-commit:xxxxxxx` 标记，供 `infra-flash-update.yml` 精确定位对应 commit 评论
 
 ```markdown
 <!-- infra-flash-commit:abc1234 -->
@@ -173,6 +173,7 @@ PR 创建
 | L1 Bootstrap | ✅ | ✅ | ✅ |
 | L2 Platform | ✅ | ✅ | ✅ |
 | L3 Data | ✅ | ⏭️ | ⏭️ |
+| L4 Apps | ✅ | ⏭️ | ⏭️ |
 
 ---
 
@@ -193,8 +194,8 @@ PR 创建
 
 | 事件 | 评论变化 |
 |:-----|:---------|
-| Commit 1 push | **新建** Comment 1: CI 状态 + "👉 Next: atlantis plan" |
-| `atlantis plan` | **追加** Plan 状态 + "👉 Next: atlantis apply" |
+| Commit 1 push | **新建** Comment 1: CI 状态 + "⏳ Atlantis autoplan" |
+| Atlantis autoplan | **追加** Plan 状态 + "👉 Next: atlantis apply" |
 | `atlantis apply` | **追加** Apply 状态 + "👉 Next: Merge PR" |
 | Commit 2 push | **新建** Comment 2: 新 CI 状态 |
 
@@ -224,7 +225,7 @@ PR #123
 |:---------|:-----|:-----|
 | `terraform-plan.yml` | PR push | CI 语法检查，创建/更新 infra-flash 评论 |
 | `infra-flash-update.yml` | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
-| `deploy-k3s.yml` | 手动 | 初始 K3s 集群部署 |
+| `deploy-k3s.yml` | main push / 手动 | L1 Bootstrap 部署/更新（k3s + Atlantis） |
 | `dig.yml` | `/dig` 评论 | 服务连通性检查 |
 | `claude.yml` | `/review` 评论 | AI 代码审查 |
 
@@ -245,22 +246,22 @@ projects:
   - name: platform       # L2
     dir: 2.platform
     autoplan:
-      enabled: false     # 手动触发: atlantis plan -p platform
+      enabled: true      # PR 更新自动触发 plan
 
   - name: data-staging   # L3
     dir: 3.data
     workspace: staging
     autoplan:
-      enabled: false     # 手动触发: atlantis plan -p data-staging
+      enabled: true      # PR 更新自动触发 plan
 
   - name: data-prod      # L3
     dir: 3.data
     workspace: prod
     autoplan:
-      enabled: false     # 手动触发: atlantis plan -p data-prod
+      enabled: true      # PR 更新自动触发 plan
 ```
 
-> **Note**: `autoplan: false` 意味着需要手动评论 `atlantis plan` 触发
+> **Note**: `autoplan: true` 会在每次 PR 更新（push 新 commit）时自动触发 `atlantis plan`；`atlantis apply` 仍需人工评论触发
 
 ---
 
@@ -306,7 +307,7 @@ cd 1.bootstrap
 terraform apply
 
 # 4. 重试 Atlantis plan
-# 在 PR 评论: atlantis plan
+# 在 PR 评论: atlantis plan（或 push 触发 autoplan）
 ```
 
 ### State Lock
