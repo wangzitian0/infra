@@ -1,7 +1,7 @@
 # infra — k3s + Kubero 基础设施引导
 
-> 基于 [BRN-004 EaaS 设计](./docs/BRN-004.env_eaas_design.md) 的三层架构（IaC → k3s 平台 → Apps）。
-> 当前只做一件事：用 **Terraform + GitHub Actions** 把 k3s 装到你的 VPS，并为后续 Kubero/Kubero UI 提供底座。
+> 基于 [BRN-004](../docs/project/BRN-004.md) 的分层架构（L1 Bootstrap → L2 Platform → L3 Data → L4 Apps）。
+> 现状：用 **Terraform + GitHub Actions + Atlantis** 在单 VPS 上部署/更新 k3s 平台，并用 PR 流程可审计地推进变更。
 
 ## 快速开始
 
@@ -24,61 +24,66 @@
 | `VPS_SSH_KEY` | SSH 私钥内容 | ✅ |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API Token (DNS/Cert) | ✅ |
 | `CLOUDFLARE_ZONE_ID` | Cloudflare Zone ID | ✅ |
+| `BASE_DOMAIN` | 业务域名（例如 `truealpha.club`） | ✅ |
+| `VAULT_POSTGRES_PASSWORD` | Vault 存储用 PostgreSQL 密码 | ✅ |
+| `VAULT_ROOT_TOKEN` | Vault Root Token（L2+ apply / Atlantis 运行期密钥） | ✅ |
+| `ATLANTIS_WEBHOOK_SECRET` | Atlantis Webhook Secret | ✅ |
+| `ATLANTIS_WEB_PASSWORD` | Atlantis Web UI Basic Auth 密码 | ✅ |
+| `ATLANTIS_GH_APP_ID` | GitHub App ID（infra-flash/Atlantis 集成） | ✅ |
+| `ATLANTIS_GH_APP_KEY` | GitHub App Private Key（PEM） | ✅ |
 | `VPS_USER` | SSH 用户（默认 root） | |
 | `VPS_SSH_PORT` | SSH 端口（默认 22） | |
 | `K3S_API_ENDPOINT` | API 地址（默认 VPS_HOST） | |
 | `K3S_CHANNEL` | 安装渠道（默认 stable） | |
 | `K3S_VERSION` | 指定版本（留空跟随 channel） | |
 | `K3S_CLUSTER_NAME` | 集群名称（默认 truealpha-k3s） | |
+| `GH_PAT` | GitHub PAT（可选，用于 Atlantis；优先用 GitHub App） | |
+| `GH_OAUTH_CLIENT_ID` | GitHub OAuth Client ID（可选，用于 OAuth2-Proxy） | |
+| `GH_OAUTH_CLIENT_SECRET` | GitHub OAuth Client Secret（可选，用于 OAuth2-Proxy） | |
+| `INTERNAL_DOMAIN` | Infra 域名（可选，默认同 `BASE_DOMAIN`） | |
+| `INTERNAL_ZONE_ID` | Infra 域名 Zone ID（可选） | |
 
-Push 到 main 或手动触发 `Deploy k3s to VPS` 工作流（`.github/workflows/deploy-k3s.yml`）。
+Push 到 main（匹配 workflow 的 paths filter）或手动触发 `Deploy k3s to VPS`（`.github/workflows/deploy-k3s.yml`）。
+
+当前 `deploy-k3s.yml` 为 bootstrap/recovery pipeline：按顺序 apply L1→L2→L3→L4（L3/L4 的 apply/verify 仅在 `push` 事件执行）。
 
 **PR Workflow**:
-1. Open PR → CI runs `fmt/lint/validate` and posts per-commit infra-flash comment.
+1. Open PR → CI runs `fmt/tflint/validate` and posts per-commit infra-flash comment.
 2. PR 更新（push 新 commit）→ Atlantis autoplan 自动运行 `terraform plan` 并评论结果。
 3. Review plan 后评论 `atlantis apply`。
 
-### 3. 本地部署（可选）
+### 3. 本地部署（高级）
 
-```bash
-# 1. 设置环境变量
-export AWS_ACCESS_KEY_ID="<your-r2-access-key>"
-export AWS_SECRET_ACCESS_KEY="<your-r2-secret-key>"
-export R2_BUCKET="<your-bucket-name>"
-export R2_ACCOUNT_ID="<your-cloudflare-account-id>"
-export VPS_HOST="<your-vps-ip>"
-export INFISICAL_POSTGRES_PASSWORD="<strong-password>"
+Terraform 以 layer 目录为单位运行：`1.bootstrap/2.platform/3.data/4.apps`。
 
-# 2. 初始化 Terraform（一键）
-cd terraform && terraform init \
-  -backend-config="bucket=$R2_BUCKET" \
-  -backend-config="endpoints={s3=\"https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com\"}"
+- L1-L4 的变量/密钥以 `TF_VAR_*` 注入为主，参考各 layer 的 README：
+  - `../1.bootstrap/README.md`
+  - `../2.platform/README.md`
+  - `../3.data/README.md`
+  - `../4.apps/README.md`
 
-# 3. 创建 tfvars（填入 VPS/SSH 信息）
-cp terraform.tfvars.example terraform.tfvars
-# 编辑 terraform.tfvars 填入 vps_host, ssh_private_key 等
-
-# 4. 部署
-terraform plan && terraform apply
-```
+> **TODO（理想态）**
+> - 提供本地一键脚本（与 CI 的 state key / workspace 映射完全一致）。
 
 ## 目录结构
 
 ```
 .
 ├── AGENTS.md                          # [SSOT] AI Agent 行为准则
-├── 0.check_now.md -> docs/change_log  # [SSOT] 当前待办 (Symlink)
-├── README.md                          # [SSOT] 项目入口
+├── 0.check_now.md                     # [SSOT] 当前待办（5W1H + 验证）
 ├── apps/                              # [SSOT] 业务代码 (Submodule)
+├── 0.tools/                           # [SSOT] 本地工具/脚本
+├── 1.bootstrap/                       # [SSOT] L1 Bootstrap
+├── 2.platform/                        # [SSOT] L2 Platform
+├── 3.data/                            # [SSOT] L3 Data
+├── 4.apps/                            # [SSOT] L4 Apps
+├── tools/                             # [SSOT] 辅助脚本（CI/校验）
 ├── project/                           # [SSOT] 实施状态与进度
 │   ├── README.md
 │   └── BRN-004.md                     # Staging 部署实施
 ├── docs/                              # [SSOT] 架构设计与文档
 │   ├── README.md
 │   ├── dir.md                         # 目录结构详解
-│   └── ...
-├── terraform/                         # [SSOT] 基础设施状态 (IaC)
-│   ├── README.md
 │   └── ...
 └── .github/                           # [SSOT] 自动化工作流
 ```
@@ -90,11 +95,12 @@ terraform plan && terraform apply
 | 方式 | kubeconfig 位置 | 获取方法 |
 |------|-----------------|----------|
 | **CI** | GitHub Artifact | Actions → 对应 Run → Artifacts → `kubeconfig` 下载 |
-| **本地** | `terraform/output/<cluster>-kubeconfig.yaml` | apply 后自动生成 |
+| **本地** | `1.bootstrap/output/<cluster>-kubeconfig.yaml` | `cd 1.bootstrap && terraform apply` 后自动生成 |
 
 ```bash
 # 本地验证
-export KUBECONFIG=~/zitian/infra/terraform/output/truealpha-k3s-kubeconfig.yaml
+cd 1.bootstrap
+export KUBECONFIG="$(terraform output -raw kubeconfig_path)"
 kubectl get nodes   # 应返回 truealpha-k3s Ready
 kubectl get pods -A # 查看所有 pods
 ```
@@ -107,8 +113,10 @@ kubectl get pods -A # 查看所有 pods
 
 ## 贡献者提示
 
-- 每次变更必须更新 `0.check_now.md`，并同步修改所涉目录的 `README.md`（CI `Documentation Guard` 会检查）。
-- 本地执行 `./tools/docs-guard.sh origin/main` 可提前验证。
+- 约定：每次变更更新 `../0.check_now.md`，并同步修改所涉目录的 `README.md`。
+
+> **TODO（理想态）**
+> - 增加 `docs-guard`（CI + 本地脚本）强制校验 `0.check_now.md` / README 更新。
 
 ## 后续演进
 
@@ -128,6 +136,8 @@ kubectl get pods -A # 查看所有 pods
 
 ## 相关文档
 
-- [BRN-004: EaaS 设计理念](./docs/BRN-004.env_eaas_design.md)
-- [AGENTS.md](./AGENTS.md): AI Agent 工作规范
-- [0.check_now.md](./0.check_now.md): 待办与验证清单
+- [Pipeline SSOT](../docs/ssot/pipeline.md)
+- [Workflows README](./workflows/README.md)
+- [BRN-004](../docs/project/BRN-004.md)
+- [AGENTS.md](../AGENTS.md): AI Agent 工作规范
+- [0.check_now.md](../0.check_now.md): 待办与验证清单
