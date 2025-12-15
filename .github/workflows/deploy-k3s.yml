@@ -6,6 +6,7 @@ on:
     paths:
       - "1.bootstrap/**"
       - "2.platform/**"
+      - "3.data/**"
       - ".github/workflows/deploy-k3s.yml"
       - ".github/actions/**"
   pull_request:
@@ -13,6 +14,7 @@ on:
     paths:
       - "1.bootstrap/**"
       - "2.platform/**"
+      - "3.data/**"
       - ".github/workflows/deploy-k3s.yml"
       - ".github/actions/**"
 
@@ -220,6 +222,80 @@ jobs:
 
           # Show final status
           kubectl exec -n platform vault-0 -- vault status || true
+
+      # =============================================================================
+      # L3 Data Layer Deployment
+      # =============================================================================
+      
+      - name: Setup Terraform Environment (L3)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "3.data"
+          terraform_version: 1.6.6
+          tf_state_key: "k3s/data.tfstate"
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          r2_bucket: ${{ secrets.R2_BUCKET }}
+          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          vps_host: ${{ secrets.VPS_HOST }}
+          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+          vps_user: ${{ secrets.VPS_USER }}
+          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
+          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
+          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
+          k3s_channel: ${{ secrets.K3S_CHANNEL }}
+          k3s_version: ${{ secrets.K3S_VERSION }}
+          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
+          github_token: ${{ secrets.GH_PAT || github.token }}
+          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          base_domain: ${{ secrets.BASE_DOMAIN }}
+          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
+          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
+          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
+          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
+
+      - name: Apply Infrastructure (L3 Data Services)
+        if: github.event_name == 'push'
+        working-directory: 3.data
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          TF_VAR_vault_address: "http://localhost:8200"
+          TF_LOG: INFO
+        run: |
+          terraform apply -auto-approve || {
+            echo "::error::L3 Apply failed. Checking data services status..."
+            kubectl get pods -n data -o wide 2>/dev/null || true
+            kubectl get pods -n data-staging -o wide 2>/dev/null || true
+            kubectl get pods -n data-prod -o wide 2>/dev/null || true
+            kubectl describe pods -n data-staging 2>/dev/null | tail -100 || true
+            exit 1
+          }
+
+      # Verify L3 deployment
+      - name: Verify Data Services
+        if: github.event_name == 'push'
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          echo "=== L3 Data Services Health Check ==="
+          echo ""
+          echo "Namespaces:"
+          kubectl get ns | grep data || true
+          echo ""
+          echo "Pods (data-staging):"
+          kubectl get pods -n data-staging -o wide || true
+          echo ""
+          echo "PVCs (data-staging):"
+          kubectl get pvc -n data-staging || true
+          echo ""
+          echo "Services (data-staging):"
+          kubectl get svc -n data-staging || true
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
