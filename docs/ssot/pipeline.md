@@ -55,21 +55,19 @@ Commit abc1234 push
     │
     └──► CI 完成
               │
-              └──► infra-flash 评论:
+              └──► 新建 Comment 1:
                         "CI ✅ | abc1234"
-                        "👉 Comment `atlantis plan` to run"
+                        "👉 Next: atlantis plan"
                         │
                         ▼
-              人: "atlantis plan"  ← 手动触发
+              人: "atlantis plan"
                         │
                         ▼
               Atlantis plan 完成
                         │
-                        └──► infra-flash 评论追加:
-                                  "Atlantis Plan ✅"
-                                  │
-                                  ▼
-                            Review plan
+                        └──► 追加到 Comment 1:
+                                  "Plan ✅"
+                                  "👉 Next: atlantis apply"
                                   │
                                   ▼
                         人: "atlantis apply"
@@ -77,21 +75,27 @@ Commit abc1234 push
                                   ▼
                         Atlantis apply 完成
                                   │
-                                  └──► infra-flash 评论追加:
-                                            "Atlantis Apply ✅"
+                                  └──► 追加到 Comment 1:
+                                            "Apply ✅"
+                                            "👉 Next: Merge PR"
                                             │
                                             ▼
                                       Merge PR
 ```
 
-### 新 Commit 时
+### 多 Commit 场景
 
 ```
-Commit def5678 push (新 commit)
+Commit abc1234 push  →  新建 Comment 1
     │
-    └──► infra-flash 评论重置:
-              "CI ✅ | def5678"                    ← 新 commit
-              "👉 Comment atlantis plan to run"   ← 清除旧 plan 状态
+    └──► CI ✅ → Plan ✅ → Apply ❌ (失败)
+              │
+              ▼
+Commit def5678 push  →  新建 Comment 2 (新评论)
+    │
+    └──► CI ✅ → Plan ✅ → Apply ✅
+              │
+              └──► "👉 Next: Merge PR"
 ```
 
 ### CI 失败分支
@@ -151,14 +155,16 @@ PR 创建
 
 ## 3. infra-flash 评论设计
 
-### 单条评论，per-commit 追踪
+### 每个 commit 一条评论
 
-每个 PR **一条评论**，随流程**追加更新**：
+**设计原则**：
+- 每个 commit push 创建**新评论**
+- 同一个 commit 的所有操作（CI、plan、apply）追加到**同一条评论**
+- 每条评论包含**下一步指引**
 
 ```markdown
-<!-- infra-flash-ci -->
-<!-- commit:abc1234 -->
-## ⚡ infra-flash | `abc1234`
+<!-- infra-flash-commit:abc1234 -->
+## ⚡ Commit `abc1234`
 
 ### CI Validate ✅ | 12:30 UTC
 
@@ -179,36 +185,35 @@ PR 创建
 ### Atlantis Apply ✅ | 12:45 UTC
 
 [View full output](#link)
+
+👉 **Next:** Merge PR ✅
 ```
 
 ### 状态流转
 
 | 事件 | 评论变化 |
 |:-----|:---------|
-| CI 完成 | 更新 CI 状态，显示 "⏳ Waiting for Atlantis..." |
-| 人: `atlantis plan` | (等待 Atlantis 执行) |
-| Atlantis plan 完成 | 追加 Plan 状态 |
-| 人: `atlantis apply` | (等待 Atlantis 执行) |
-| Atlantis apply 完成 | 追加 Apply 状态 |
-| 新 commit push | **重置**：新 CI 状态，清除旧 Atlantis 状态 |
+| Commit 1 push | **新建** Comment 1: CI 状态 + "👉 Next: atlantis plan" |
+| `atlantis plan` | **追加** Plan 状态 + "👉 Next: atlantis apply" |
+| `atlantis apply` | **追加** Apply 状态 + "👉 Next: Merge PR" |
+| Commit 2 push | **新建** Comment 2: 新 CI 状态 |
 
-### CI 失败时
+### 审计清晰
 
-```markdown
-## ⚡ infra-flash | `abc1234`
-
-### CI Validate ❌ | 12:30 UTC
-
-| Layer | Format | Lint | Validate |
-|:------|:------:|:----:|:--------:|
-| L1 Bootstrap | ❌ | ⏭️ | ⏭️ |
-
-```bash
-# Fix locally:
-terraform fmt -recursive
-terraform validate
-git push
 ```
+PR #123
+├─ Comment 1 (Commit abc1234)
+│   ├─ CI ✅
+│   ├─ Plan ✅
+│   └─ Apply ❌ (failed, fixed in next commit)
+│
+├─ Comment 2 (Commit def5678)  ← 修复后的 commit
+│   ├─ CI ✅
+│   ├─ Plan ✅
+│   └─ Apply ✅
+│       └─ 👉 Next: Merge PR
+│
+└─ Merged ✅
 ```
 
 ---

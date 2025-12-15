@@ -57,7 +57,7 @@ jobs:
             const icon = isSuccess ? '✅' : '❌';
             const atlantisCommentUrl = context.payload.comment.html_url;
             
-            // 找到 infra-flash 评论
+            // 找到当前 commit 的 infra-flash 评论
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -65,27 +65,30 @@ jobs:
               per_page: 100
             });
             
+            // 查找匹配当前 commit 的评论
             const flashComment = comments.data.find(c => 
               c.user.login === 'infra-flash[bot]' && 
-              c.body.includes('<!-- infra-flash-ci -->')
+              c.body.includes(`<!-- infra-flash-commit:${currentSha} -->`)
             );
             
             if (!flashComment) {
-              console.log('infra-flash comment not found');
+              console.log(`No infra-flash comment found for commit ${currentSha}`);
               return;
             }
             
-            // 检查评论是否是当前 commit 的
-            const commentShaMatch = flashComment.body.match(/<!-- commit:(\w+) -->/);
-            const commentSha = commentShaMatch ? commentShaMatch[1] : null;
-            
-            if (commentSha && commentSha !== currentSha) {
-              console.log(`Skipping: comment is for ${commentSha}, current PR is at ${currentSha}`);
-              return;
+            // 确定下一步操作
+            let nextStep = '';
+            if (isPlan && isSuccess) {
+              nextStep = '\n\n👉 **Next:** Review plan output, then comment `atlantis apply`';
+            } else if (isApply && isSuccess) {
+              nextStep = '\n\n👉 **Next:** Merge PR ✅';
+            } else if (!isSuccess) {
+              nextStep = '\n\n👉 **Next:** Fix errors and re-run `atlantis plan`';
             }
             
-            // 移除 "Comment atlantis plan..." 提示
-            let updatedBody = flashComment.body.replace(/👉 \*\*Comment `atlantis plan` to run plan\*\*/, '');
+            // 移除旧的 next step 提示
+            let updatedBody = flashComment.body
+              .replace(/\n*👉 \*\*Next:\*\*.*/g, '');
             
             // 构建新的 Atlantis 状态块
             const newSection = `
@@ -94,7 +97,7 @@ jobs:
 
 ### Atlantis ${stage} ${icon} | ${timestamp}
 
-[View full output](${atlantisCommentUrl})`;
+[View full output](${atlantisCommentUrl})${nextStep}`;
             
             // 移除旧的同类型状态（避免重复）
             const sectionRegex = new RegExp(`\\n---\\n+### Atlantis ${stage}[\\s\\S]*?(?=\\n---|$)`, 'g');
@@ -110,5 +113,4 @@ jobs:
               body: updatedBody
             });
             
-            console.log(`Updated infra-flash comment with ${stage} ${icon} for commit ${currentSha}`);
-
+            console.log(`Updated comment for commit ${currentSha} with ${stage} ${icon}`);
