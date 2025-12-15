@@ -233,9 +233,14 @@ jobs:
             const allPass = [fmt, lint_l1, lint_l2, lint_l3, validate_l1, validate_l2, validate_l3]
               .every(s => s === 'success' || s === 'skipped');
             const sha = context.sha.substring(0, 7);
+            const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             
+            // 新 commit 时清除旧的 Atlantis 状态，只保留 CI 部分
             const body = `<!-- infra-flash-ci -->
-            ## ⚡ CI Validate | \`${sha}\`
+            <!-- commit:${sha} -->
+            ## ⚡ infra-flash | \`${sha}\`
+            
+            ### CI Validate ${allPass ? '✅' : '❌'} | ${timestamp}
             
             | Layer | Format | Lint | Validate |
             |:------|:------:|:----:|:--------:|
@@ -243,12 +248,12 @@ jobs:
             | L2 Platform | ${icon(fmt)} | ${icon(lint_l2)} | ${icon(validate_l2)} |
             | L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |
             
-            ${allPass ? '### ✅ CI Passed\n\n**Atlantis autoplan** will run automatically via webhook.' : `### ❌ CI Failed\n\n\`\`\`bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n\`\`\``}
+            ${allPass ? '⏳ **Waiting for Atlantis plan...**' : `\`\`\`bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n\`\`\``}
             
             ---
             
             <details>
-            <summary>📖 Atlantis Commands</summary>
+            <summary>📖 Commands & Troubleshooting</summary>
             
             | Command | Description |
             |:--------|:------------|
@@ -256,16 +261,10 @@ jobs:
             | \`atlantis apply\` | Apply after review |
             | \`atlantis unlock\` | Unlock project |
             
-            </details>
-            
-            <details>
-            <summary>🔧 Troubleshooting</summary>
-            
             | Error | Solution |
             |:------|:---------|
-            | \`403 permission denied\` | Vault token expired → Update \`VAULT_ROOT_TOKEN\` secret, then manually apply L1 |
-            | \`state lock\` | Another plan running → \`atlantis unlock\` |
-            | \`provider mismatch\` | Run \`terraform init -upgrade\` locally, commit lock file |
+            | \`403 permission denied\` | Vault token expired → Update secret, apply L1 |
+            | \`state lock\` | \`atlantis unlock\` |
             
             </details>`;
             

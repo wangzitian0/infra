@@ -22,7 +22,8 @@ PR 创建/更新
 
 | Workflow | 触发 | 用途 |
 |:---------|:-----|:-----|
-| [`terraform-plan.yml`](#terraform-ci) | PR 创建/更新 | CI 语法检查 + infra-flash 评论 |
+| [`terraform-plan.yml`](#terraform-ci) | PR push | CI 语法检查，创建/更新 infra-flash 评论 |
+| [`infra-flash-update.yml`](#infra-flash-update) | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
 | [`deploy-k3s.yml`](#deploy-k3s) | 手动 | 初始 K3s 集群部署 |
 | [`dig.yml`](#health-check) | `/dig` 评论 | 服务连通性检查 |
 | [`claude.yml`](#claude-review) | `/review` 评论 | AI 代码审查 |
@@ -63,6 +64,25 @@ PR 创建/更新
 CI 通过后，Atlantis 通过 webhook 自动触发 plan：
 - 无需手动 `atlantis plan`
 - Atlantis 发布独立评论显示 plan 结果
+
+---
+
+## infra-flash-update.yml {#infra-flash-update}
+
+**触发**: Atlantis (`infra-flash[bot]`) 发布评论
+
+监听 Atlantis 的 plan/apply 评论，追加状态到 infra-flash 主评论：
+
+```
+Atlantis 评论 "Ran Plan for..."
+    │
+    └──► infra-flash-update.yml
+              │
+              └──► 追加到 infra-flash 评论:
+                        "### Atlantis Plan ✅ | 12:32 UTC"
+```
+
+**Per-commit 追踪**：只追加到当前 commit 的评论，新 commit 会重置状态。
 
 ---
 

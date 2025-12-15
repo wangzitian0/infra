@@ -51,27 +51,43 @@
 ### 正常流程 (Happy Path)
 
 ```
-PR 创建
+Commit abc1234 push
     │
-    ├──► CI: fmt ✅ → lint ✅ → validate ✅
+    ├──► CI 完成
     │         │
-    │         └──► infra-flash 评论: "CI Passed"
+    │         └──► infra-flash 评论更新:
+    │                   "CI ✅ | abc1234"
+    │                   "⏳ Waiting for Atlantis..."
     │
-    └──► Atlantis: autoplan ✅
+    └──► Atlantis plan 完成
               │
-              └──► Atlantis 评论: plan 输出
+              └──► infra-flash 评论追加:
+                        "Atlantis Plan ✅"
                         │
                         ▼
                   Review plan
                         │
                         ▼
-            ┌───────────┴───────────┐
-            │                       │
-            ▼                       ▼
-    "atlantis apply"          Merge PR
-            │                       │
-            ▼                       ▼
-      Apply 执行              (可选 auto-apply)
+              人: "atlantis apply"
+                        │
+                        ▼
+              Atlantis apply 完成
+                        │
+                        └──► infra-flash 评论追加:
+                                  "Atlantis Apply ✅"
+                                  │
+                                  ▼
+                            Merge PR
+```
+
+### 新 Commit 时
+
+```
+Commit def5678 push (新 commit)
+    │
+    └──► infra-flash 评论重置:
+              "CI ✅ | def5678"        ← 新 commit
+              "⏳ Waiting for Atlantis..."  ← 清除旧 plan 状态
 ```
 
 ### CI 失败分支
@@ -131,13 +147,16 @@ PR 创建
 
 ## 3. infra-flash 评论设计
 
-### 单条可更新评论
+### 单条评论，per-commit 追踪
 
-每个 PR 只有**一条** infra-flash 评论，每次 push 更新：
+每个 PR **一条评论**，随流程**追加更新**：
 
 ```markdown
 <!-- infra-flash-ci -->
-## ⚡ CI Validate | `abc1234`
+<!-- commit:abc1234 -->
+## ⚡ infra-flash | `abc1234`
+
+### CI Validate ✅ | 12:30 UTC
 
 | Layer | Format | Lint | Validate |
 |:------|:------:|:----:|:--------:|
@@ -145,48 +164,38 @@ PR 创建
 | L2 Platform | ✅ | ✅ | ✅ |
 | L3 Data | ✅ | ⏭️ | ⏭️ |
 
-### ✅ CI Passed
+---
 
-**Atlantis autoplan** will run automatically via webhook.
+### Atlantis Plan ✅ | 12:32 UTC
+
+[View full output](#link)
 
 ---
 
-<details>
-<summary>📖 Atlantis Commands</summary>
+### Atlantis Apply ✅ | 12:45 UTC
 
-| Command | Description |
-|:--------|:------------|
-| `atlantis plan` | Re-run plan |
-| `atlantis apply` | Apply after review |
-| `atlantis unlock` | Unlock project |
-
-</details>
-
-<details>
-<summary>🔧 Troubleshooting</summary>
-
-| Error | Solution |
-|:------|:---------|
-| `403 permission denied` | Vault token expired → Update secret, apply L1 |
-| `state lock` | `atlantis unlock` |
-| `provider mismatch` | `terraform init -upgrade`, commit lock file |
-
-</details>
+[View full output](#link)
 ```
 
-### CI 失败时的评论
+### 状态流转
+
+| 事件 | 评论变化 |
+|:-----|:---------|
+| CI 完成 | 更新 CI 状态，显示 "⏳ Waiting for Atlantis..." |
+| Atlantis plan 完成 | 追加 Plan 状态 |
+| Atlantis apply 完成 | 追加 Apply 状态 |
+| 新 commit push | **重置**：新 CI 状态，清除旧 Atlantis 状态 |
+
+### CI 失败时
 
 ```markdown
-<!-- infra-flash-ci -->
-## ⚡ CI Validate | `abc1234`
+## ⚡ infra-flash | `abc1234`
+
+### CI Validate ❌ | 12:30 UTC
 
 | Layer | Format | Lint | Validate |
 |:------|:------:|:----:|:--------:|
 | L1 Bootstrap | ❌ | ⏭️ | ⏭️ |
-| L2 Platform | ❌ | ⏭️ | ⏭️ |
-| L3 Data | ❌ | ⏭️ | ⏭️ |
-
-### ❌ CI Failed
 
 ```bash
 # Fix locally:
@@ -202,13 +211,11 @@ git push
 
 | Workflow | 触发 | 作用 |
 |:---------|:-----|:-----|
-| `terraform-plan.yml` | PR 创建/更新 | CI 语法检查 + infra-flash 评论 |
+| `terraform-plan.yml` | PR push | CI 语法检查，创建/更新 infra-flash 评论 |
+| `infra-flash-update.yml` | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
 | `deploy-k3s.yml` | 手动 | 初始 K3s 集群部署 |
-| `dig.yml` | 手动 | DNS 调试 |
-| `claude.yml` | 手动 | AI 代码审查 |
-
-**已删除**：
-- ~~`sync-l1.yml`~~ - 不需要自动同步，Vault token 过期时手动 apply L1
+| `dig.yml` | `/dig` 评论 | 服务连通性检查 |
+| `claude.yml` | `/review` 评论 | AI 代码审查 |
 
 ---
 
