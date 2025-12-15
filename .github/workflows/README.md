@@ -89,6 +89,7 @@ Atlantis 评论 "Ran Plan for..."
 - 自动附带触发者评论 & Atlantis 输出链接
 - 成功时追加下一步（Plan → Apply → Merge），失败则指向修复操作
 - 权限：需要 `issues: write`（更新评论）与 `pull-requests: write`（读取 PR 信息）
+- 兼容性：使用 `"on":` 而不是 `on:`，避免 YAML 解析把 `on` 误判为布尔值导致 workflow 无法触发
 
 ---
 

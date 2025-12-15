@@ -1,6 +1,6 @@
 name: Update infra-flash Comment
 
-on:
+"on":
   issue_comment:
     types: [created]
 
