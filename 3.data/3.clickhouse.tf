@@ -59,7 +59,10 @@ resource "helm_release" "clickhouse" {
       shards       = 1 # Single VPS MVP: single shard (can scale later)
       replicaCount = 1 # Single VPS MVP: no replication (can scale later)
       zookeeper = {
-        enabled = false # Disable ZooKeeper for single-node setup
+        enabled = false # Disable external ZooKeeper
+      }
+      keeper = {
+        enabled = false # Disable bundled ClickHouse Keeper (new in chart 9.x) for single-node
       }
       persistence = {
         enabled      = true
