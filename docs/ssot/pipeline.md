@@ -1,6 +1,6 @@
 # Pipeline SSOT
 
-> **核心原则**：CI 做语法检查，Atlantis 做 Plan/Apply
+> **现状**：PR CI 做语法检查与 infra-flash；PR 的 plan/apply 由 Atlantis 驱动；`deploy-k3s.yml` 作为 bootstrap/recovery pipeline（包含 apply）。
 
 ---
 
@@ -16,14 +16,14 @@
           ▼                                         ▼
 ┌─────────────────────┐                   ┌─────────────────────┐
 │   GitHub Actions    │                   │      Atlantis       │
-│   (terraform-ci)    │                   │    (via webhook)    │
+│ (terraform-plan.yml)│                   │    (via webhook)    │
 ├─────────────────────┤                   ├─────────────────────┤
 │ • terraform fmt     │                   │ • terraform plan    │
-│ • terraform lint    │                   │ • terraform apply   │
+│ • tflint            │                   │ • terraform apply   │
 │ • terraform validate│                   │ • state management  │
 ├─────────────────────┤                   ├─────────────────────┤
 │ 输出: infra-flash   │                   │ 输出: Atlantis      │
-│       评论 (单条)   │                   │       评论 (per project) │
+│     评论 (per-commit)│                  │       评论 (per project) │
 └─────────────────────┘                   └─────────────────────┘
           │                                         │
           ▼                                         ▼
@@ -40,9 +40,9 @@
 | **Atlantis** | 真正的 plan/apply | 集群内 Pod（可访问 Vault/K8s） |
 
 **CI 不做 plan** 的原因：
-- 无法访问 Kubernetes API（集群内）
-- 无法访问 Vault（集群内 + SSO Gate）
-- Provider 初始化会失败
+- PR CI 仅做 `init -backend=false` + `validate`（不访问远端 backend / K8s / Vault）
+- 真正的 plan/apply 需要访问 Kubernetes API（集群内）
+- 真正的 plan/apply 需要访问 Vault（集群内 + SSO Gate）
 
 ---
 
@@ -223,11 +223,11 @@ PR #123
 
 | Workflow | 触发 | 作用 |
 |:---------|:-----|:-----|
-| `terraform-plan.yml` | PR push | CI 语法检查，创建/更新 infra-flash 评论 |
+| `terraform-plan.yml` | `pull_request` (paths filter) | CI 语法检查，每个 commit **新建** infra-flash 评论 |
 | `infra-flash-update.yml` | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
-| `deploy-k3s.yml` | main push / 手动 | L1 Bootstrap 部署/更新（k3s + Atlantis） |
+| `deploy-k3s.yml` | main push (paths filter) / `workflow_dispatch` | Bootstrap/恢复：按顺序 apply L1→L2→L3→L4（部分步骤仅在 push 执行） |
 | `dig.yml` | `/dig` 评论 | 服务连通性检查 |
-| `claude.yml` | `/review` 评论 | AI 代码审查 |
+| `claude.yml` | 评论/Review/Issue/Autoplan | AI 代码审查（best-effort） |
 
 ---
 
@@ -267,27 +267,33 @@ projects:
 
 ## 6. 变量一致性
 
-### 变量流
+### 变量与密钥来源（事实）
 
 ```
 1Password (SSOT)
      ↓ op item get + gh secret set
 GitHub Secrets
      │
-     ├──► CI (terraform-plan.yml)
-     │         └──► TF_VAR_* (语法检查用)
+     ├──► PR CI (`terraform-plan.yml`)
+     │         └──► 仅需 GitHub App 凭据（发 infra-flash 评论）
      │
-     └──► Atlantis Pod (helm_release)
-               └──► TF_VAR_* (plan/apply 用)
+     ├──► Deploy (`deploy-k3s.yml`)
+     │         └──► 通过 `.github/actions/terraform-setup` 导出 TF_VAR_* + backend init + apply（L1-L4；L3/L4 仅 push）
+     │
+     └──► Atlantis Pod
+               └──► 集群内运行 plan/apply（从 K8s Secret / Vault 获取运行期密钥）
 ```
 
-### 重要变量
+### 关键点
 
-| 变量 | CI 需要 | Atlantis 需要 | 说明 |
-|:-----|:-------:|:-------------:|:-----|
-| `VAULT_ROOT_TOKEN` | ❌ | ✅ | CI 不做 plan，不需要 |
-| `CLOUDFLARE_API_TOKEN` | ✅ | ✅ | validate 需要 |
-| `AWS_ACCESS_KEY_ID` | ✅ | ✅ | backend 初始化 |
+- PR CI 不注入业务/基础设施密钥：`terraform validate` 使用 `init -backend=false`，只做语法与静态检查。
+- PR CI 写评论使用 GitHub App token（`ATLANTIS_GH_APP_ID/ATLANTIS_GH_APP_KEY`）。
+- 真正需要 backend / provider 凭据的是：`deploy-k3s.yml`（apply）与 Atlantis（plan/apply）。
+
+> **TODO（理想态）**
+> - CI/Deploy/Atlantis 统一 Terraform 版本，并在关键步骤输出 `terraform version` 做断言。
+> - `deploy-k3s.yml` 的“破坏性清理”改为显式开关（`workflow_dispatch` input），默认只做 `terraform import` 或直接失败提示人工处理。
+> - L2/L3/L4 的日常变更只通过 Atlantis；`deploy-k3s.yml` 默认只跑 L1 bootstrap（需要全量恢复时再显式开启）。
 
 ---
 

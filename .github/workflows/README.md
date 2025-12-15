@@ -22,26 +22,26 @@ PR 创建/更新
 
 | Workflow | 触发 | 用途 |
 |:---------|:-----|:-----|
-| [`terraform-plan.yml`](#terraform-ci) | PR push | CI 语法检查，为每个 commit 新建 infra-flash 评论 |
+| [`terraform-plan.yml`](#terraform-ci) | `pull_request` (paths filter) | CI 语法检查，为每个 commit 新建 infra-flash 评论 |
 | [`infra-flash-update.yml`](#infra-flash-update) | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
-| [`deploy-k3s.yml`](#deploy-k3s) | 手动 | 初始 K3s 集群部署 |
+| [`deploy-k3s.yml`](#deploy-k3s) | main push (paths filter) / 手动 | Bootstrap/恢复：按顺序 apply L1→L2→L3→L4（部分步骤仅在 push 执行） |
 | [`dig.yml`](#health-check) | `/dig` 评论 | 服务连通性检查 |
-| [`claude.yml`](#claude-review) | `/review` 评论 | AI 代码审查 |
+| [`claude.yml`](#claude-review) | 评论/Review/Issue/Autoplan | AI 代码审查（best-effort） |
 
 ---
 
 ## terraform-plan.yml {#terraform-ci}
 
-**触发**: PR 修改 `1.bootstrap/`, `2.platform/`, `3.data/`, `4.apps/`
+**触发**: PR 修改 `1.bootstrap/`, `2.platform/`, `3.data/`, `4.apps/` 或 `.github/workflows/`
 
 ### 执行步骤
 
-1. `terraform fmt -check -recursive` - 格式检查
-2. `tflint` - Lint 检查 (L1/L2/L3)
+1. `terraform fmt -check -recursive -diff` - 格式检查
+2. `tflint` - Lint 检查 (L1/L2/L3/L4)
 3. `terraform validate` - 语法验证 (L1/L2/L3/L4, `init -backend=false`)
 4. **发布 infra-flash 评论**：每个 commit push 新建一条评论，记录 CI 结果和下一步指引
 
-> CI 里调用 `hashicorp/setup-terraform@v3` 时将 `terraform_wrapper: false`，避免 wrapper 在我们用 `if ! terraform state show`/`state rm` 等命令处理缺失资源时把失败直接上抛，确保脚本可以按逻辑处理 exit code。
+> CI 里调用 `hashicorp/setup-terraform@v3` 时将 `terraform_wrapper: false`，避免 wrapper 把 `terraform state show` 这类“资源不存在 → exit code 1”的场景上抛成 workflow error，确保 Bash 的 `if ! ...; then ...` 能按预期处理退出码。
 
 ### infra-flash 评论（Per-Commit）
 
@@ -102,10 +102,15 @@ Atlantis 评论 "Ran Plan for..."
 
 **触发**: `push` to `main` 或 `workflow_dispatch` (手动)
 
-用于部署/更新 L1 Bootstrap（k3s + Atlantis 等）。L2+ 日常变更通过 Atlantis 处理。
+用于 bootstrap/恢复：按顺序 apply L1→L2→L3→L4（当前 L3/L4 的 apply/verify 仅在 `push` 事件执行；`workflow_dispatch` 会跳过这些 step）。
 
 一致性策略：
-- CI 不做破坏性 “自愈”（不 `terraform state rm`、不删集群内资源）；仅在需要时 `terraform import` 以把已存在的资源纳入 state 管理（例如 `helm_release.atlantis`）。
+- workflow 会尝试 `terraform import` 把已存在的资源纳入 state 管理（例如 `helm_release.atlantis`）。
+- 为修复 Helm `cannot re-use a name` 这类“集群残留但 state 缺失”的冲突，当前会清理 `platform` 命名空间下 Atlantis 的 Helm release secrets（按 `sh.helm.release.v1.atlantis*` 模式匹配），并删除相关 `deployment/svc/statefulset`（见 `Import Existing Resources` step）。
+
+> **TODO（理想态）**
+> - 默认不做任何自动删除；需要清理时改为显式开关（`workflow_dispatch` input）+ 输出将删除的资源清单供人工确认。
+> - L2/L3/L4 的日常变更只通过 Atlantis；`deploy-k3s.yml` 默认只跑 L1 bootstrap（需要全量恢复时再显式开启）。
 
 ---
 
@@ -129,7 +134,10 @@ Atlantis 评论 "Ran Plan for..."
 
 ## claude.yml {#claude-review}
 
-**触发**: PR 评论 `/review`, `@claude`, `PTAL`
+**触发**: 多事件触发（见 `.github/workflows/claude.yml`），包括：
+- PR/Review/Issue 评论：`/review`、`@claude`、`PTAL`（非 Bot）
+- Atlantis plan 成功后的 `infra-flash[bot]` 评论（自动触发）
+- `issues` / `pull_request_review` 等事件（包含 `@claude` 时）
 
 AI 代码审查：
 - 检查 Terraform 结构
