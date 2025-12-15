@@ -71,6 +71,11 @@ jobs:
           chmod +x 0.tools/preflight-check.sh
           0.tools/preflight-check.sh
 
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.28.4
+
       # Import existing k8s resources that Terraform wants to manage
       # This prevents "already exists" errors when adopting existing resources
       - name: Import Existing Resources
@@ -85,22 +90,14 @@ jobs:
             terraform import kubernetes_config_map_v1.local_path_config kube-system/local-path-config || true
           fi
           
-          # Fix orphaned Atlantis state: remove from state to allow fresh install
-          # The helm command might not be available here, so we skip the check
-          # Fix orphaned Atlantis state: remove from state to allow fresh install
-          # The helm command might not be available here, so we skip the check
+          # If Atlantis already exists in cluster but was lost from state, import it.
+          # Never remove state or delete in-cluster resources automatically from CI.
           if terraform state show helm_release.atlantis 2>/dev/null; then
-              echo "Cleaning up Atlantis state to fix Helm conflict..."
-              terraform state rm helm_release.atlantis || true
+            echo "Atlantis helm_release already tracked in Terraform state."
+          else
+            echo "Attempting to import existing Atlantis helm release (if present)..."
+            terraform import helm_release.atlantis bootstrap/atlantis || true
           fi
-          
-          # Force clean Helm secrets to prevent "cannot re-use a name" error
-          # This handles the case where Terraform state is clean but Cluster has lingering Helm release
-          echo "Force cleaning lingering Helm secrets..."
-          kubectl delete secret -n platform -l name=atlantis -l owner=helm || true
-          kubectl delete deployment -n platform atlantis || true
-          kubectl delete svc -n platform atlantis || true
-          kubectl delete statefulset -n platform atlantis || true
 
       # Apply all infrastructure (moved blocks require full apply, not targeted)
       # Note: -target=module.nodep fails when moved.tf has pending resource moves
@@ -115,10 +112,6 @@ jobs:
             kubectl describe pods -n platform 2>/dev/null | tail -50 || true
             exit 1
           }
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-        with:
-          version: v1.28.4
 
       - name: Smoke test
         env:
