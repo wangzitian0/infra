@@ -66,12 +66,9 @@ resource "helm_release" "clickhouse" {
         enabled = false # Disable external ZooKeeper
       }
       keeper = {
-        enabled = true # Enable bundled ClickHouse Keeper
-        image = {
-          # Bitnami removed versioned tags after Aug 2025, only 'latest' available
-          tag        = "latest"
-          pullPolicy = "IfNotPresent"
-        }
+        # bitnami/clickhouse-keeper image has been REMOVED from Docker Hub entirely
+        # Single-node ClickHouse works without Keeper for MVP
+        enabled = false
       }
       persistence = {
         enabled      = true
