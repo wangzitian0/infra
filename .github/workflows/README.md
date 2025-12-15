@@ -135,6 +135,7 @@ AI 代码审查：
 - 检查 Terraform 结构
 - 验证 SSOT 一致性
 - 识别潜在问题
+- 可靠性：该 workflow 为 best-effort（`continue-on-error: true`），失败不会阻塞主流水线
 
 ---
 
