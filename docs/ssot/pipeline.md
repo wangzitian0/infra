@@ -53,31 +53,35 @@
 ```
 Commit abc1234 push
     │
-    ├──► CI 完成
-    │         │
-    │         └──► infra-flash 评论更新:
-    │                   "CI ✅ | abc1234"
-    │                   "⏳ Waiting for Atlantis..."
-    │
-    └──► Atlantis plan 完成
+    └──► CI 完成
               │
-              └──► infra-flash 评论追加:
-                        "Atlantis Plan ✅"
+              └──► infra-flash 评论:
+                        "CI ✅ | abc1234"
+                        "👉 Comment `atlantis plan` to run"
                         │
                         ▼
-                  Review plan
+              人: "atlantis plan"  ← 手动触发
                         │
                         ▼
-              人: "atlantis apply"
-                        │
-                        ▼
-              Atlantis apply 完成
+              Atlantis plan 完成
                         │
                         └──► infra-flash 评论追加:
-                                  "Atlantis Apply ✅"
+                                  "Atlantis Plan ✅"
                                   │
                                   ▼
-                            Merge PR
+                            Review plan
+                                  │
+                                  ▼
+                        人: "atlantis apply"
+                                  │
+                                  ▼
+                        Atlantis apply 完成
+                                  │
+                                  └──► infra-flash 评论追加:
+                                            "Atlantis Apply ✅"
+                                            │
+                                            ▼
+                                      Merge PR
 ```
 
 ### 新 Commit 时
@@ -86,8 +90,8 @@ Commit abc1234 push
 Commit def5678 push (新 commit)
     │
     └──► infra-flash 评论重置:
-              "CI ✅ | def5678"        ← 新 commit
-              "⏳ Waiting for Atlantis..."  ← 清除旧 plan 状态
+              "CI ✅ | def5678"                    ← 新 commit
+              "👉 Comment atlantis plan to run"   ← 清除旧 plan 状态
 ```
 
 ### CI 失败分支
@@ -182,7 +186,9 @@ PR 创建
 | 事件 | 评论变化 |
 |:-----|:---------|
 | CI 完成 | 更新 CI 状态，显示 "⏳ Waiting for Atlantis..." |
+| 人: `atlantis plan` | (等待 Atlantis 执行) |
 | Atlantis plan 完成 | 追加 Plan 状态 |
+| 人: `atlantis apply` | (等待 Atlantis 执行) |
 | Atlantis apply 完成 | 追加 Apply 状态 |
 | 新 commit push | **重置**：新 CI 状态，清除旧 Atlantis 状态 |
 
@@ -229,24 +235,27 @@ parallel_plan: true    # 多 PR 并行 plan
 parallel_apply: false  # apply 串行避免冲突
 
 projects:
-  - name: bootstrap
-    dir: 1.bootstrap
-    autoplan:
-      enabled: true
-      when_modified: ["1.bootstrap/**/*.tf"]
-
-  - name: platform
+  # L1 由 GitHub Actions 管理，不在 Atlantis
+  
+  - name: platform       # L2
     dir: 2.platform
     autoplan:
-      enabled: true
-      when_modified: ["2.platform/**/*.tf"]
+      enabled: false     # 手动触发: atlantis plan -p platform
 
-  - name: data
+  - name: data-staging   # L3
     dir: 3.data
+    workspace: staging
     autoplan:
-      enabled: true
-      when_modified: ["3.data/**/*.tf"]
+      enabled: false     # 手动触发: atlantis plan -p data-staging
+
+  - name: data-prod      # L3
+    dir: 3.data
+    workspace: prod
+    autoplan:
+      enabled: false     # 手动触发: atlantis plan -p data-prod
 ```
+
+> **Note**: `autoplan: false` 意味着需要手动评论 `atlantis plan` 触发
 
 ---
 

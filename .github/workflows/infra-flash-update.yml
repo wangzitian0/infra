@@ -84,8 +84,8 @@ jobs:
               return;
             }
             
-            // 移除 "Waiting for Atlantis..." 提示
-            let updatedBody = flashComment.body.replace(/⏳ \*\*Waiting for Atlantis plan\.\.\.\*\*/, '');
+            // 移除 "Comment atlantis plan..." 提示
+            let updatedBody = flashComment.body.replace(/👉 \*\*Comment `atlantis plan` to run plan\*\*/, '');
             
             // 构建新的 Atlantis 状态块
             const newSection = `

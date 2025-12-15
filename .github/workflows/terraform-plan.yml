@@ -7,6 +7,7 @@ on:
       - "1.bootstrap/**"
       - "2.platform/**"
       - "3.data/**"
+      - "4.apps/**"
       - ".github/workflows/terraform-*.yml"
 
 # Cancel in-progress runs for same PR
@@ -248,7 +249,7 @@ jobs:
             | L2 Platform | ${icon(fmt)} | ${icon(lint_l2)} | ${icon(validate_l2)} |
             | L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |
             
-            ${allPass ? '⏳ **Waiting for Atlantis plan...**' : `\`\`\`bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n\`\`\``}
+            ${allPass ? '👉 **Comment `atlantis plan` to run plan**' : `\`\`\`bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n\`\`\``}
             
             ---
             
