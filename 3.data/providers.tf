@@ -18,11 +18,12 @@ provider "helm" {
 }
 
 # Vault provider for reading secrets
-# Address: internal K8s service DNS
+# Address: configurable to support both in-cluster (Atlantis) and port-forward (GitHub runner)
 provider "vault" {
-  address = "http://vault.platform.svc.cluster.local:8200"
+  address = var.vault_address
   token   = var.vault_root_token
 
   # Skip TLS verification for internal communication
   skip_tls_verify = true
 }
+
