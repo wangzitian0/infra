@@ -3,11 +3,10 @@ name: Sync L1 Bootstrap
 on:
   push:
     branches: [main]
-    # 任何 PR merge 都触发，确保 Atlantis 始终同步
-  schedule:
-    # 每小时同步一次，确保 secrets 更新后自动生效
-    - cron: '0 * * * *'
+    paths:
+      - "1.bootstrap/**"
   workflow_dispatch:
+  # Also triggered by terraform-plan.yml on every CI pass
 
 env:
   TF_IN_AUTOMATION: "true"

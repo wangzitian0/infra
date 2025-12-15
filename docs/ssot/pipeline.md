@@ -297,27 +297,20 @@ on 6.vault-database.tf line 16
 ### 问题
 Atlantis Pod 的环境变量在部署时固化，GitHub Secret 更新后不会自动同步。
 
-### 解决方案：完全自动
+### 解决方案：每次 CI 自动同步
 
-| 触发条件 | 作用 |
-|:---------|:-----|
-| **任何 PR merge 到 main** | 自动 apply L1，同步 secrets |
-| **每小时定时** | 确保 GitHub Secret 更新后 1 小时内生效 |
-
-**流程**：
 ```
-更新 GitHub Secret (VAULT_ROOT_TOKEN 等)
-     ↓ (最多等 1 小时)
-sync-l1.yml 定时触发
+PR 创建/更新
      ↓
-terraform apply L1
-     ↓
-Atlantis Pod 更新
-     ↓
-下次 atlantis plan 使用新 token
+CI Validate 通过
+     ↓ (并行)
+├─→ 触发 sync-l1.yml (后台)  →  terraform apply L1  →  Atlantis 更新
+└─→ 触发 atlantis plan       →  Atlantis 执行 plan
 ```
 
-**无需手动操作**。
+**每次 CI 通过都会同步**，确保 Atlantis 始终有最新 secrets。
+
+**零人工干预，零等待**。
 
 ---
 

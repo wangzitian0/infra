@@ -237,7 +237,31 @@ jobs:
           token: ${{ steps.app_token.outputs.token }}
 
       # ============================================================
-      # Auto-trigger Atlantis Plan (CI 通过后自动触发)
+      # Sync secrets to Atlantis (background, no wait)
+      # ============================================================
+      - name: Sync secrets to Atlantis
+        if: |
+          steps.fmt.outcome == 'success' &&
+          steps.lint_l1.outcome == 'success' &&
+          steps.lint_l2.outcome == 'success' &&
+          steps.validate_l1.outcome == 'success' &&
+          steps.validate_l2.outcome == 'success'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GH_PAT }}
+          script: |
+            // Trigger L1 sync in background - ensures Atlantis has latest secrets
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'sync-l1.yml',
+              ref: 'main'
+            });
+            console.log('L1 sync triggered (background)');
+
+      # ============================================================
+      # Auto-trigger Atlantis Plan
       # ============================================================
       - name: Trigger Atlantis Plan
         if: |
