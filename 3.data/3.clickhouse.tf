@@ -51,7 +51,11 @@ resource "helm_release" "clickhouse" {
 
   values = [
     yamlencode({
-      # Removed manual image config to use chart defaults (verified valid images for chart 9.4.4)
+      # Pin both main and keeper images to avoid ImagePullBackOff
+      image = {
+        tag        = "24.8.5-debian-12" # Pin to valid rolling tag
+        pullPolicy = "IfNotPresent"
+      }
       auth = {
         username = "default"
         password = data.vault_kv_secret_v2.clickhouse.data["password"]
@@ -62,7 +66,11 @@ resource "helm_release" "clickhouse" {
         enabled = false # Disable external ZooKeeper
       }
       keeper = {
-        enabled = false # Disable bundled ClickHouse Keeper (new in chart 9.x) for single-node
+        enabled = true # Enable bundled ClickHouse Keeper
+        image = {
+          tag        = "24.8.5-debian-12" # Pin to valid rolling tag to avoid ImagePullBackOff
+          pullPolicy = "IfNotPresent"
+        }
       }
       persistence = {
         enabled      = true
