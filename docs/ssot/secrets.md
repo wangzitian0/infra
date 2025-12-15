@@ -42,14 +42,14 @@ graph LR
 | `PostgreSQL (Platform)` | VAULT_POSTGRES_PASSWORD | `VAULT_POSTGRES_PASSWORD` | PG 密码 |
 | `GitHub OAuth` | GH_OAUTH_CLIENT_ID | `GH_OAUTH_CLIENT_ID` | OAuth |
 | | GH_OAUTH_CLIENT_SECRET | `GH_OAUTH_CLIENT_SECRET` | OAuth |
-| `Casdoor Portal Gate` | client_secret | `CASDOOR_PORTAL_CLIENT_SECRET` | Portal SSO Gate OAuth |
+| `Casdoor Portal Gate` | CASDOOR_PORTAL_CLIENT_SECRET | `CASDOOR_PORTAL_CLIENT_SECRET` | Portal SSO Gate |
 | `Atlantis` | ATLANTIS_WEBHOOK_SECRET | `ATLANTIS_WEBHOOK_SECRET` | Webhook |
 | | ATLANTIS_WEB_PASSWORD | `ATLANTIS_WEB_PASSWORD` | Web 密码 |
 | | ATLANTIS_GH_APP_ID | `ATLANTIS_GH_APP_ID` | App ID |
 | | ATLANTIS_GH_APP_KEY | `ATLANTIS_GH_APP_KEY` | App 私钥 |
-| `Vault (zitian.party)` | Unseal Key | `VAULT_UNSEAL_KEY` | 解封密钥 |
-| | Root Token | `VAULT_ROOT_TOKEN` | L2/L3 TF Provider |
-| `Casdoor Admin` | password | `CASDOOR_ADMIN_PASSWORD` | SSO 管理员密码 |
+| `Vault (zitian.party)` | VAULT_UNSEAL_KEY | `VAULT_UNSEAL_KEY` | 解封密钥 |
+| | VAULT_ROOT_TOKEN | `VAULT_ROOT_TOKEN` | L2/L3 TF Provider |
+| `Casdoor Admin` | CASDOOR_ADMIN_PASSWORD | `CASDOOR_ADMIN_PASSWORD` | SSO 管理员密码 |
 
 ### 额外 GitHub Secrets（非 1Password 管理）
 
