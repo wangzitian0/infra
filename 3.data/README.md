@@ -140,4 +140,3 @@ For multi-replica migration guide, see [implementation_plan.md](file:///Users/SP
 
 ---
 *Last updated: 2025-12-15*
-# L3 Data Deploy Sun Dec 14 00:36:06 +08 2025
