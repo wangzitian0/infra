@@ -39,7 +39,9 @@ resource "helm_release" "clickhouse" {
   wait_for_jobs    = true
 
   lifecycle {
-    prevent_destroy = true # Prevent accidental data loss
+    # Temporarily disabled to allow re-deployment after failed release
+    # TODO: Re-enable after initial deployment succeeds
+    prevent_destroy = false
 
     precondition {
       condition     = can(data.vault_kv_secret_v2.clickhouse.data["password"]) && length(data.vault_kv_secret_v2.clickhouse.data["password"]) >= 16
