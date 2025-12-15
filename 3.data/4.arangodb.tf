@@ -70,6 +70,14 @@ resource "helm_release" "arangodb_operator" {
   depends_on = [kubernetes_namespace.data]
 }
 
+# Wait for ArangoDB Operator CRD to be established
+# Helm wait=true only waits for Deployment ready, not CRD availability
+resource "time_sleep" "wait_for_arangodb_crd" {
+  create_duration = "30s"
+
+  depends_on = [helm_release.arangodb_operator]
+}
+
 # =============================================================================
 # JWT Secret for ArangoDB Authentication
 # ArangoDB requires a minimum 32-byte secret for JWT signing
@@ -147,7 +155,7 @@ resource "kubernetes_manifest" "arangodb_deployment" {
   }
 
   depends_on = [
-    helm_release.arangodb_operator,
+    time_sleep.wait_for_arangodb_crd,
     kubernetes_secret.arangodb_jwt
   ]
 }
