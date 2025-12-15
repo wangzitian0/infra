@@ -109,10 +109,88 @@ jobs:
           kubectl delete svc -n platform atlantis || true
           kubectl delete statefulset -n platform atlantis || true
 
-      # Apply all infrastructure (moved blocks require full apply, not targeted)
-      # Note: -target=module.nodep fails when moved.tf has pending resource moves
-      # Pre-flight Image Safety Check (L3)
-      # Prevents deploying with missing/invalid images which causes CrashLoopBackOff
+      # =========================================================
+      # 1. Bootstrap Layer (L1): K3s, Atlantis, Cert-Manager
+      # =========================================================
+      - name: Apply Infrastructure (L1)
+        working-directory: 1.bootstrap
+        env:
+          TF_LOG: INFO
+        run: |
+          terraform apply -auto-approve || {
+            echo "::error::L1 Apply failed. Checking pod status..."
+            kubectl get pods -A -o wide 2>/dev/null || true
+            kubectl describe pods -n platform 2>/dev/null | tail -50 || true
+            exit 1
+          }
+
+      - name: Verify L1 (Smoke Test)
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          kubectl version --client
+          kubectl get nodes -o wide
+
+      # =========================================================
+      # 2. Platform Layer (L2): Vault, Observability, Ingress
+      # =========================================================
+      - name: Setup Terraform Environment (L2)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "2.platform"
+          terraform_version: 1.6.6
+          tf_state_key: "k3s/platform.tfstate"
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          r2_bucket: ${{ secrets.R2_BUCKET }}
+          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          # Pass only necessary secrets
+          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
+          github_token: ${{ secrets.GH_PAT || github.token }}
+          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          base_domain: ${{ secrets.BASE_DOMAIN }}
+          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
+          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
+          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
+          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
+
+      - name: Apply Infrastructure (L2 - Platform)
+        working-directory: 2.platform
+        env:
+          TF_LOG: INFO
+        run: |
+          # Ensure platform workspace is default
+          terraform workspace select default || terraform workspace new default
+          terraform apply -auto-approve || {
+             echo "::error::L2 Platform Apply failed."
+             exit 1
+          }
+
+      - name: Verify L2 (Vault Status)
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          echo "Checking Vault Status..."
+          kubectl -n platform get pods -l app.kubernetes.io/name=vault
+          # Simple check if Vault is running and accessible inside cluster
+          # (Detailed check requires init, which is handled by raft join in L2 setup)
+
+      # =========================================================
+      # 3. Data Layer (L3): Databases
+      # =========================================================
+      - name: Setup Terraform Environment (L3)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "3.data"
+          terraform_version: 1.6.6
+          tf_state_key: "k3s/data-prod.tfstate" # Hardcoded for main branch -> prod
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          r2_bucket: ${{ secrets.R2_BUCKET }}
+          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
+
       - name: Pre-flight Image Check (L3)
         if: github.event_name == 'push'
         run: |
@@ -136,29 +214,15 @@ jobs:
              exit 1
           }
 
-      - name: Apply Infrastructure (L1)
-        working-directory: 1.bootstrap
-        env:
-          TF_LOG: INFO
-        run: |
-          terraform apply -auto-approve || {
-            echo "::error::L1 Apply failed. Checking pod status..."
-            kubectl get pods -A -o wide 2>/dev/null || true
-            kubectl describe pods -n platform 2>/dev/null | tail -50 || true
-            exit 1
-          }
-
-      # Deep Health Check: Verify not just "Running", but "Service Ready"
-      - name: Verify Data Services Health
+      - name: Verify Data Services Health (L3)
         if: github.event_name == 'push'
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
           NS="data-prod" # Mapping main branch to prod env
-          TIMEOUT=180    # Increased timeout for initial pull/startup
+          TIMEOUT=180
           
           echo "=== 1. Waiting for Pod Readiness (K8s Layer) ==="
-          # 'Ready' condition means Liveness/Readiness probes defined in Helm passed
           kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=postgresql --timeout=${TIMEOUT}s || echo "⚠️ PostgreSQL wait timeout"
           kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=redis --timeout=${TIMEOUT}s || echo "⚠️ Redis wait timeout"
           kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=clickhouse --timeout=${TIMEOUT}s || echo "⚠️ ClickHouse wait timeout"
@@ -168,26 +232,59 @@ jobs:
           echo "=== 2. Application Layer Connectivity Checks ==="
           
           echo "Checking PostgreSQL..."
-          kubectl exec -n $NS postgresql-0 -- pg_isready -U postgres && echo "✅ PostgreSQL: Ready to accept connections" || echo "❌ PostgreSQL: Not Ready"
+          kubectl exec -n $NS postgresql-0 -- pg_isready -U postgres && echo "✅ PostgreSQL: Ready" || echo "❌ PostgreSQL: Not Ready"
           
           echo "Checking Redis..."
-          kubectl exec -n $NS redis-master-0 -- redis-cli ping && echo "✅ Redis: PONG (Ready)" || echo "❌ Redis: Not Ready"
+          kubectl exec -n $NS redis-master-0 -- redis-cli ping && echo "✅ Redis: PONG" || echo "❌ Redis: Not Ready"
           
           echo "Checking ClickHouse..."
-          # Select 1 confirms SQL interface is up
-          kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --query "SELECT 1" && echo "✅ ClickHouse: SQL Ready" || echo "❌ ClickHouse: Not Ready"
+          kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --query "SELECT 1" && echo "✅ ClickHouse: Ready" || echo "❌ ClickHouse: Not Ready"
           
-          echo "Checking ClickHouse Keeper..."
-          # 'ruok' is the ZooKeeper 4-letter word for health
-          kubectl exec -n $NS clickhouse-keeper-0 -- bash -c 'echo ruok | nc localhost 9181' && echo "✅ Keeper: imok (Ready)" || echo "❌ Keeper: Not Ready"
+          echo "Checking Keeper..."
+          kubectl exec -n $NS clickhouse-keeper-0 -- bash -c 'echo ruok | nc localhost 9181' && echo "✅ Keeper: imok" || echo "❌ Keeper: Not Ready"
           
           echo "Checking ArangoDB..."
-          # Check API version endpoint
-          kubectl exec -n $NS -l arango_deployment=arangodb -- curl -sf http://localhost:8529/_api/version && echo "✅ ArangoDB: API Ready" || echo "❌ ArangoDB: Not Ready"
+          kubectl exec -n $NS -l arango_deployment=arangodb -- curl -sf http://localhost:8529/_api/version && echo "✅ ArangoDB: Ready" || echo "❌ ArangoDB: Not Ready"
           
           echo ""
           echo "=== Summary ==="
           kubectl get pods -n $NS -o wide
+
+      # =========================================================
+      # 4. App Layer (L4): Applications
+      # =========================================================
+      - name: Setup Terraform Environment (L4)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "4.apps"
+          terraform_version: 1.6.6
+          tf_state_key: "k3s/apps-prod.tfstate" # Hardcoded for main branch -> prod
+          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          r2_bucket: ${{ secrets.R2_BUCKET }}
+          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          # App secrets
+          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
+          base_domain: ${{ secrets.BASE_DOMAIN }}
+
+      - name: Apply Infrastructure (L4 - Apps)
+        if: github.event_name == 'push'
+        working-directory: 4.apps
+        env:
+          TF_LOG: INFO
+        run: |
+          terraform workspace select prod || terraform workspace new prod
+          terraform apply -auto-approve || {
+             echo "::error::L4 Apps Apply failed."
+             exit 1
+          }
+
+      - name: Verify L4 (Endpoint Check)
+        if: github.event_name == 'push'
+        run: |
+          echo "Verifying L4 Applications..."
+          # Placeholder for specific app checks (e.g., curl endpoints)
+          kubectl get pods -n apps-prod || true
 
       - name: Upload kubeconfig
         uses: actions/upload-artifact@v4
