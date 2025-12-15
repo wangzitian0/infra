@@ -15,6 +15,8 @@ CI/CD and bot configuration live here. Workflows under `workflows/` drive Terraf
 
 Documentation guard enforces updating `0.check_now.md` and directory `README.md` files whenever code changes land.
 
+Per-commit infra-flash 评论流（CI → Plan/Apply 追加）见 `docs/ssot/pipeline.md`。
+
 For detailed CI/CD design philosophy, plan/apply/revert workflows, see [workflows/README.md](./workflows/README.md).
 
 ---
