@@ -41,6 +41,8 @@ PR 创建/更新
 3. `terraform validate` - 语法验证 (L1/L2/L3/L4, `init -backend=false`)
 4. **发布 infra-flash 评论**：每个 commit push 新建一条评论，记录 CI 结果和下一步指引
 
+> CI 里调用 `hashicorp/setup-terraform@v3` 时将 `terraform_wrapper: false`，避免 wrapper 在我们用 `if ! terraform state show`/`state rm` 等命令处理缺失资源时把失败直接上抛，确保脚本可以按逻辑处理 exit code。
+
 ### infra-flash 评论（Per-Commit）
 
 - PR 中**每个 commit**都会生成独立评论：`<!-- infra-flash-commit:abc1234 -->`

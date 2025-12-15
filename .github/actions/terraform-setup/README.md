@@ -8,6 +8,7 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 2. **tfvars Rendering**: Generates `terraform.tfvars` from GitHub Secrets.
 3. **Terraform Init**: Initializes Terraform with R2 backend configuration.
 4. **Kubeconfig Fetch**: Retrieves kubeconfig from VPS for Helm provider.
+5. **Terraform Wrapper**: Runs `hashicorp/setup-terraform@v3` with `terraform_wrapper: false` so wrapper instrumentation does not intercept `terraform` exit codes and scripts can safely catch failed `state show`/`state rm` checks.
 
 ## Inputs
 

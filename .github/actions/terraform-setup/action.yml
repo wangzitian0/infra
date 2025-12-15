@@ -112,6 +112,7 @@ runs:
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ inputs.terraform_version }}
+        terraform_wrapper: false
 
     - name: Validate secrets
       shell: bash
