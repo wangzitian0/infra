@@ -273,7 +273,15 @@ jobs:
             kubectl get pods -n data -o wide 2>/dev/null || true
             kubectl get pods -n data-staging -o wide 2>/dev/null || true
             kubectl get pods -n data-prod -o wide 2>/dev/null || true
-            kubectl describe pods -n data-staging 2>/dev/null | tail -100 || true
+            # Debug data-default (where ClickHouse is actually running in CI)
+            echo "--- Pods in data-default ---"
+            kubectl get pods -n data-default -o wide 2>/dev/null || true
+            echo "--- Describe ClickHouse Pods ---"
+            kubectl describe pods -n data-default -l app.kubernetes.io/name=clickhouse 2>/dev/null || true
+            echo "--- Describe ClickHouse StatefulSet ---"
+            kubectl describe statefulset clickhouse-shard0 -n data-default 2>/dev/null || true
+            echo "--- ClickHouse Logs ---"
+            kubectl logs -n data-default -l app.kubernetes.io/name=clickhouse --tail=100 --all-containers 2>/dev/null || true
             exit 1
           }
 
