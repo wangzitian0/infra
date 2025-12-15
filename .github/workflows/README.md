@@ -88,6 +88,7 @@ Atlantis 评论 "Ran Plan for..."
 - 通过 `<!-- infra-flash-commit:abc1234 -->` 锚点定位评论
 - 自动附带触发者评论 & Atlantis 输出链接
 - 成功时追加下一步（Plan → Apply → Merge），失败则指向修复操作
+- 权限：需要 `issues: write`（更新评论）与 `pull-requests: write`（读取 PR 信息）
 
 ---
 
