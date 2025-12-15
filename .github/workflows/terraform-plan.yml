@@ -187,6 +187,22 @@ jobs:
             const sha = context.sha.substring(0, 7);
             const jobStatus = '${{ job.status }}';
             
+            // 根据状态推荐下一步
+            const nextSteps = allPass 
+              ? `### 🚀 Next Steps
+            
+            1. 等待 Atlantis plan 完成（已自动触发）
+            2. Review plan 输出
+            3. \`atlantis apply\` 或 Merge PR`
+              : `### 🔧 Fix Required
+            
+            \`\`\`bash
+            # 本地修复
+            terraform fmt -recursive
+            terraform validate
+            git push
+            \`\`\``;
+            
             return `<!-- infra-flash-ci -->
             ## ⚡ CI Validate | \`${sha}\`
             
@@ -196,14 +212,18 @@ jobs:
             | Lint | ${icon(lint_l1)} | ${icon(lint_l2)} |
             | Validate | ${icon(validate_l1)} | ${icon(validate_l2)} |
             
-            ${allPass 
-              ? '✅ **CI 通过** - 查看 [Checks](../checks) 获取 Atlantis plan 状态' 
-              : `❌ **CI 失败** (${jobStatus}) - 修复后重新推送\n\`\`\`bash\nterraform fmt -recursive && terraform validate\n\`\`\``}
+            ${allPass ? '✅ **CI 通过**' : `❌ **CI 失败** (${jobStatus})`}
+            
+            ${nextSteps}
             
             ---
-            <details><summary>Commands</summary>
+            <details><summary>All Commands</summary>
             
-            \`atlantis plan\` · \`atlantis apply\` · \`atlantis unlock\`
+            | Command | When to Use |
+            |:--------|:------------|
+            | \`atlantis plan\` | 重新运行 plan |
+            | \`atlantis apply\` | Plan 通过后应用 |
+            | \`atlantis unlock\` | 解锁被锁定的 project |
             </details>`;
 
       - name: Create or update comment
@@ -214,6 +234,23 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           body: ${{ steps.comment_body.outputs.result }}
           edit-mode: replace
+          token: ${{ steps.app_token.outputs.token }}
+
+      # ============================================================
+      # Auto-trigger Atlantis Plan (CI 通过后自动触发)
+      # ============================================================
+      - name: Trigger Atlantis Plan
+        if: |
+          steps.fmt.outcome == 'success' &&
+          steps.lint_l1.outcome == 'success' &&
+          steps.lint_l2.outcome == 'success' &&
+          steps.validate_l1.outcome == 'success' &&
+          steps.validate_l2.outcome == 'success'
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            atlantis plan
           token: ${{ steps.app_token.outputs.token }}
 
       # ============================================================
@@ -229,4 +266,4 @@ jobs:
             echo "❌ CI validation failed"
             exit 1
           fi
-          echo "✅ CI validation passed"
+          echo "✅ CI validation passed - Atlantis plan triggered"
