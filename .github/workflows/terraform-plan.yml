@@ -230,27 +230,25 @@ jobs:
               ? '👉 **Next:** Comment `atlantis plan` to run plan'
               : '👉 **Next:** Fix errors locally, then `git push`';
             
-            const body = `<!-- infra-flash-commit:${sha} -->
-## ⚡ Commit \`${sha}\`
-
-### CI Validate ${allPass ? '✅' : '❌'} | ${timestamp}
-
-| Layer | Format | Lint | Validate |
-|:------|:------:|:----:|:--------:|
-| L1 Bootstrap | ${icon(fmt)} | ${icon(lint_l1)} | ${icon(validate_l1)} |
-| L2 Platform | ${icon(fmt)} | ${icon(lint_l2)} | ${icon(validate_l2)} |
-| L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |
-
-${!allPass ? `\`\`\`bash
-# Fix locally:
-terraform fmt -recursive
-terraform validate
-git push
-\`\`\`` : ''}
-
-${nextStep}`;
+            const fixCmd = '```bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n```';
             
-            // Always create new comment for each commit
+            const body = [
+              `<!-- infra-flash-commit:${sha} -->`,
+              `## ⚡ Commit \`${sha}\``,
+              '',
+              `### CI Validate ${allPass ? '✅' : '❌'} | ${timestamp}`,
+              '',
+              '| Layer | Format | Lint | Validate |',
+              '|:------|:------:|:----:|:--------:|',
+              `| L1 Bootstrap | ${icon(fmt)} | ${icon(lint_l1)} | ${icon(validate_l1)} |`,
+              `| L2 Platform | ${icon(fmt)} | ${icon(lint_l2)} | ${icon(validate_l2)} |`,
+              `| L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |`,
+              '',
+              !allPass ? fixCmd : '',
+              '',
+              nextStep
+            ].join('\n');
+            
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
