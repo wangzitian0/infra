@@ -13,7 +13,8 @@ provider "kubernetes" {
 
 # kubectl provider for CRD-based resources (avoids plan-time API validation)
 provider "kubectl" {
-  config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+  config_path      = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+  load_config_file = var.kubeconfig_path != ""
 }
 
 provider "helm" {
