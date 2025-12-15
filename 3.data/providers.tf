@@ -1,6 +1,6 @@
 # L3 Data Layer Provider Configuration
 #
-# Providers: kubernetes, helm, vault
+# Providers: kubernetes, kubectl, helm, vault
 # Vault access: Uses root token from GitHub Secret (for initial setup)
 # Future: Migrate to Kubernetes auth method
 
@@ -8,6 +8,11 @@
 # Providers will auto-detect in-cluster ServiceAccount credentials.
 
 provider "kubernetes" {
+  config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+}
+
+# kubectl provider for CRD-based resources (avoids plan-time API validation)
+provider "kubectl" {
   config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
 }
 
@@ -26,4 +31,3 @@ provider "vault" {
   # Skip TLS verification for internal communication
   skip_tls_verify = true
 }
-
