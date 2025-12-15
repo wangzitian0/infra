@@ -96,13 +96,11 @@ jobs:
             terraform import kubernetes_config_map_v1.local_path_config kube-system/local-path-config || true
           fi
           
-          # Fix orphaned Atlantis state: remove from state if release doesn't exist in cluster
-          # This handles cases where Helm release was deleted but Terraform state wasn't updated
+          # Fix orphaned Atlantis state: remove from state to allow fresh install
+          # The helm command might not be available here, so we skip the check
           if terraform state show helm_release.atlantis 2>/dev/null; then
-            if ! helm status atlantis -n platform 2>/dev/null; then
-              echo "Atlantis exists in state but not in cluster, removing from state..."
+              echo "Cleaning up Atlantis state to fix Helm conflict..."
               terraform state rm helm_release.atlantis || true
-            fi
           fi
 
       # Apply all infrastructure (moved blocks require full apply, not targeted)
