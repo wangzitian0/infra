@@ -87,10 +87,20 @@ jobs:
           
           # Fix orphaned Atlantis state: remove from state to allow fresh install
           # The helm command might not be available here, so we skip the check
+          # Fix orphaned Atlantis state: remove from state to allow fresh install
+          # The helm command might not be available here, so we skip the check
           if terraform state show helm_release.atlantis 2>/dev/null; then
               echo "Cleaning up Atlantis state to fix Helm conflict..."
               terraform state rm helm_release.atlantis || true
           fi
+          
+          # Force clean Helm secrets to prevent "cannot re-use a name" error
+          # This handles the case where Terraform state is clean but Cluster has lingering Helm release
+          echo "Force cleaning lingering Helm secrets..."
+          kubectl delete secret -n platform -l name=atlantis -l owner=helm || true
+          kubectl delete deployment -n platform atlantis || true
+          kubectl delete svc -n platform atlantis || true
+          kubectl delete statefulset -n platform atlantis || true
 
       # Apply all infrastructure (moved blocks require full apply, not targeted)
       # Note: -target=module.nodep fails when moved.tf has pending resource moves
