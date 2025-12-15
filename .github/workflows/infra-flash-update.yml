@@ -1,6 +1,6 @@
 name: Update infra-flash Comment
 
-on:
+"on":
   issue_comment:
     types: [created]
 
@@ -121,14 +121,15 @@ jobs:
             const triggerLink = triggerUrl ? `[Triggered by](${triggerUrl})` : 'Manual trigger';
             const outputLink = `[View output](${atlantisCommentUrl})`;
             
-            // 构建新的 Atlantis 状态块
-            const newSection = `
-
----
-
-### Atlantis ${stage} ${icon} | ${timestamp}
-
-📎 ${triggerLink} → ${outputLink}${nextStep}`;
+            // 构建新的 Atlantis 状态块（注意：不要在 YAML 的 script block 里输出未缩进的纯文本行）
+            const newSection = [
+              '',
+              '---',
+              '',
+              `### Atlantis ${stage} ${icon} | ${timestamp}`,
+              '',
+              `📎 ${triggerLink} → ${outputLink}${nextStep}`
+            ].join('\n');
             
             // 移除旧的同类型状态（避免重复）
             const sectionRegex = new RegExp(`\\n---\\n+### Atlantis ${stage}[\\s\\S]*?(?=\\n---|$)`, 'g');
