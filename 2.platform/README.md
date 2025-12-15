@@ -96,4 +96,19 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **Lost Admin Access**: Recover using stored root token/unseal keys.
 
 ---
-*Last updated: 2025-12-13*
+
+### Portal SSO Gate Deployment
+
+**Status**: Ready to deploy (enable_portal_sso_gate=true in Atlantis config)
+
+To deploy Portal SSO Gate for Vault/Dashboard/Kubero:
+1. This PR triggers Atlantis to run `terraform plan -d 2.platform`
+2. Review the plan (should show portal-auth resources and Ingress middleware annotations)
+3. Comment `atlantis apply -d 2.platform` to deploy
+4. Verify SSO login at:
+   - https://secrets.zitian.party (Vault)
+   - https://kdashboard.zitian.party (Dashboard)
+   - https://kcloud.zitian.party (Kubero)
+
+---
+*Last updated: 2025-12-15*
