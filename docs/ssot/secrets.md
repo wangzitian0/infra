@@ -21,8 +21,13 @@ graph LR
 
 ### 1Password → GitHub Secrets 映射
 
-| 1Password 项目 | 字段 | GitHub Secret | 用途 |
-|----------------|------|---------------|------|
+> **重要**：1Password 字段名必须与下表完全一致，区分大小写！读取时使用：
+> ```bash
+> op item get "<项目名>" --vault my_cloud --fields "<字段名>" --reveal
+> ```
+
+| 1Password 项目 | 字段（区分大小写） | GitHub Secret | 用途 |
+|----------------|---------------------|---------------|------|
 | `Cloudflare API` | BASE_DOMAIN | `BASE_DOMAIN` | 主域名 |
 | | CLOUDFLARE_ZONE_ID | `CLOUDFLARE_ZONE_ID` | 主 Zone |
 | | INTERNAL_DOMAIN | `INTERNAL_DOMAIN` | 内部域名 |
@@ -37,12 +42,12 @@ graph LR
 | `PostgreSQL (Platform)` | VAULT_POSTGRES_PASSWORD | `VAULT_POSTGRES_PASSWORD` | PG 密码 |
 | `GitHub OAuth` | GH_OAUTH_CLIENT_ID | `GH_OAUTH_CLIENT_ID` | OAuth |
 | | GH_OAUTH_CLIENT_SECRET | `GH_OAUTH_CLIENT_SECRET` | OAuth |
-| `Casdoor Portal Gate` | client_secret | `CASDOOR_PORTAL_CLIENT_SECRET` | Portal SSO Gate OAuth（留空则 TF 自动生成） |
+| `Casdoor Portal Gate` | client_secret | `CASDOOR_PORTAL_CLIENT_SECRET` | Portal SSO Gate OAuth |
 | `Atlantis` | ATLANTIS_WEBHOOK_SECRET | `ATLANTIS_WEBHOOK_SECRET` | Webhook |
 | | ATLANTIS_WEB_PASSWORD | `ATLANTIS_WEB_PASSWORD` | Web 密码 |
 | | ATLANTIS_GH_APP_ID | `ATLANTIS_GH_APP_ID` | App ID |
 | | ATLANTIS_GH_APP_KEY | `ATLANTIS_GH_APP_KEY` | App 私钥 |
-| `Vault (zitian.party)` | Unseal Key | `VAULT_UNSEAL_KEY` | 解封 |
+| `Vault (zitian.party)` | Unseal Key | `VAULT_UNSEAL_KEY` | 解封密钥 |
 | | Root Token | `VAULT_ROOT_TOKEN` | L2/L3 TF Provider |
 | `Casdoor Admin` | password | `CASDOOR_ADMIN_PASSWORD` | SSO 管理员密码 |
 
