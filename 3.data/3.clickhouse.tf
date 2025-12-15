@@ -68,7 +68,8 @@ resource "helm_release" "clickhouse" {
       keeper = {
         enabled = true # Enable bundled ClickHouse Keeper
         image = {
-          tag        = "24.8.5-debian-12" # Pin to valid rolling tag to avoid ImagePullBackOff
+          # Bitnami removed versioned tags after Aug 2025, only 'latest' available
+          tag        = "latest"
           pullPolicy = "IfNotPresent"
         }
       }
