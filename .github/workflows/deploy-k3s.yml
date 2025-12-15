@@ -260,6 +260,15 @@ jobs:
           github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
 
+      # Pre-flight check: Verify all L3 database images exist before deployment
+      - name: Pre-flight Image Check (L3)
+        if: github.event_name == 'push'
+        run: |
+          python3 tools/check_images.py \
+            "bitnamilegacy/clickhouse:25.7.5-debian-12-r0" \
+            "bitnamilegacy/clickhouse-keeper:25.7.5-debian-12-r0" \
+            "arangodb/arangodb:3.11.8"
+
       - name: Apply Infrastructure (L3 Data Services)
         if: github.event_name == 'push'
         working-directory: 3.data
@@ -285,25 +294,56 @@ jobs:
             exit 1
           }
 
-      # Verify L3 deployment
-      - name: Verify Data Services
+      # Verify L3 deployment with comprehensive health checks
+      - name: Verify Data Services Health
         if: github.event_name == 'push'
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          NS="data-default"
+          TIMEOUT=120
+          
           echo "=== L3 Data Services Health Check ==="
           echo ""
-          echo "Namespaces:"
-          kubectl get ns | grep data || true
+          
+          echo "--- Waiting for Pods to be Ready ---"
+          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=postgresql --timeout=${TIMEOUT}s 2>/dev/null && echo "✅ PostgreSQL pod ready" || echo "⚠️ PostgreSQL wait timeout"
+          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=redis --timeout=${TIMEOUT}s 2>/dev/null && echo "✅ Redis pod ready" || echo "⚠️ Redis wait timeout"
+          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=clickhouse --timeout=${TIMEOUT}s 2>/dev/null && echo "✅ ClickHouse pod ready" || echo "⚠️ ClickHouse wait timeout"
+          # ArangoDB uses different label
+          kubectl wait --for=condition=Ready pod -n $NS -l arango_deployment=arangodb --timeout=${TIMEOUT}s 2>/dev/null && echo "✅ ArangoDB pod ready" || echo "⚠️ ArangoDB wait timeout"
+          
           echo ""
-          echo "Pods (data-staging):"
-          kubectl get pods -n data-staging -o wide || true
+          echo "--- Database Connectivity Tests ---"
+          
           echo ""
-          echo "PVCs (data-staging):"
-          kubectl get pvc -n data-staging || true
+          echo "[PostgreSQL]"
+          kubectl exec -n $NS postgresql-0 -- pg_isready -U postgres 2>/dev/null && echo "✅ PostgreSQL: Accepting connections" || echo "❌ PostgreSQL: Not ready"
+          
           echo ""
-          echo "Services (data-staging):"
-          kubectl get svc -n data-staging || true
+          echo "[Redis]"
+          kubectl exec -n $NS redis-master-0 -- redis-cli ping 2>/dev/null && echo "✅ Redis: PONG received" || echo "❌ Redis: Not responding"
+          
+          echo ""
+          echo "[ClickHouse]"
+          kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --query "SELECT 1" 2>/dev/null && echo "✅ ClickHouse: Query OK" || echo "❌ ClickHouse: Query failed"
+          
+          echo ""
+          echo "[ClickHouse Keeper]"
+          kubectl exec -n $NS clickhouse-keeper-0 -- bash -c 'echo ruok | nc localhost 9181' 2>/dev/null && echo "✅ ClickHouse Keeper: imok" || echo "⚠️ ClickHouse Keeper: check manually"
+          
+          echo ""
+          echo "[ArangoDB]"
+          ARANGO_POD=$(kubectl get pods -n $NS -l arango_deployment=arangodb -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          if [ -n "$ARANGO_POD" ]; then
+            kubectl exec -n $NS $ARANGO_POD -- curl -sf http://localhost:8529/_api/version 2>/dev/null && echo "✅ ArangoDB: API responding" || echo "❌ ArangoDB: API not responding"
+          else
+            echo "⚠️ ArangoDB: Pod not found"
+          fi
+          
+          echo ""
+          echo "--- Summary ---"
+          kubectl get pods -n $NS -o wide
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
