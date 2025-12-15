@@ -7,7 +7,12 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TF_DIR="${SCRIPT_DIR}/../terraform"
+SEARCH_DIRS=(
+  "${SCRIPT_DIR}/../1.bootstrap"
+  "${SCRIPT_DIR}/../2.platform"
+  "${SCRIPT_DIR}/../3.data"
+  "${SCRIPT_DIR}/../4.apps"
+)
 
 echo "=== Pre-flight Checks ==="
 
@@ -18,7 +23,7 @@ echo ""
 echo "📦 Checking Helm repository URLs..."
 
 # Extract all repository URLs from .tf files (excluding commented lines)
-HELM_URLS=$(grep -rh 'repository\s*=' "$TF_DIR" --include="*.tf" 2>/dev/null | \
+HELM_URLS=$(grep -rh 'repository\s*=' "${SEARCH_DIRS[@]}" --include="*.tf" 2>/dev/null | \
   grep -v '^\s*#' | \
   grep -oE 'https?://[^"]+' | \
   sort -u || true)

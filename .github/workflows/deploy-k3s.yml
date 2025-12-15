@@ -5,18 +5,9 @@ on:
     branches: [main]
     paths:
       - "1.bootstrap/**"
-      - "2.platform/**"
-      - "3.data/**"
       - ".github/workflows/deploy-k3s.yml"
       - ".github/actions/**"
-  pull_request:
-    branches: [main]
-    paths:
-      - "1.bootstrap/**"
-      - "2.platform/**"
-      - "3.data/**"
-      - ".github/workflows/deploy-k3s.yml"
-      - ".github/actions/**"
+  workflow_dispatch: {}
 
 env:
   TF_IN_AUTOMATION: "true"
@@ -27,8 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read     # Required for checkout and plan
-      pull-requests: read # Required for Atlantis check (optional but good practice)
+      contents: read
 
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -84,7 +74,6 @@ jobs:
       # Import existing k8s resources that Terraform wants to manage
       # This prevents "already exists" errors when adopting existing resources
       - name: Import Existing Resources
-        if: github.event_name == 'push'
         working-directory: 1.bootstrap
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
@@ -106,7 +95,6 @@ jobs:
       # Apply all infrastructure (moved blocks require full apply, not targeted)
       # Note: -target=module.nodep fails when moved.tf has pending resource moves
       - name: Apply Infrastructure (L1)
-        if: github.event_name == 'push'
         working-directory: 1.bootstrap
         env:
           TF_LOG: INFO
@@ -117,241 +105,6 @@ jobs:
             kubectl describe pods -n platform 2>/dev/null | tail -50 || true
             exit 1
           }
-
-      # =============================================================================
-      # L2 Platform Deployment
-      # =============================================================================
-      
-      - name: Setup Terraform Environment (L2)
-        uses: ./.github/actions/terraform-setup
-        with:
-          working_directory: "2.platform"
-          terraform_version: 1.6.6
-          tf_state_key: "k3s/platform.tfstate"
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          r2_bucket: ${{ secrets.R2_BUCKET }}
-          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          vps_host: ${{ secrets.VPS_HOST }}
-          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
-          vps_user: ${{ secrets.VPS_USER }}
-          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
-          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
-          k3s_channel: ${{ secrets.K3S_CHANNEL }}
-          k3s_version: ${{ secrets.K3S_VERSION }}
-          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
-          github_token: ${{ secrets.GH_PAT || github.token }}
-          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          base_domain: ${{ secrets.BASE_DOMAIN }}
-          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
-          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
-          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
-          atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
-          # OAuth2-Proxy (GitHub OAuth for Dashboard protection)
-          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
-          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
-          # L2/L3: Vault Access
-          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-
-      # Port-forward Vault for L2 Terraform (runner is outside cluster, can't use internal DNS)
-      - name: Port-forward Vault
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: |
-          kubectl port-forward svc/vault -n platform 8200:8200 &
-          sleep 3
-          echo "VAULT_PORT_FORWARD_PID=$!" >> $GITHUB_ENV
-
-      # Import existing Vault mounts if they exist but not in state
-      - name: Import Existing Vault Mounts (L2)
-        working-directory: 2.platform
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          TF_VAR_vault_address: "http://localhost:8200"
-        run: |
-          # Import vault_mount.kv if not in state
-          if ! terraform state show vault_mount.kv 2>/dev/null; then
-            echo "Importing vault_mount.kv..."
-            terraform import vault_mount.kv secret || true
-          fi
-          # Import vault_mount.database if not in state
-          if ! terraform state show vault_mount.database 2>/dev/null; then
-            echo "Importing vault_mount.database..."
-            terraform import vault_mount.database database || true
-          fi
-
-      - name: Apply Infrastructure (L2)
-        if: github.event_name == 'push'
-        working-directory: 2.platform
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          TF_VAR_vault_address: "http://localhost:8200"
-          TF_LOG: INFO
-        run: |
-          terraform apply -auto-approve || {
-            echo "::error::L2 Apply failed. Checking pod status..."
-            kubectl get pods -n platform -o wide 2>/dev/null || true
-            kubectl describe pods -n platform 2>/dev/null | tail -80 || true
-            kubectl logs -n platform -l app.kubernetes.io/name=vault --tail=30 2>/dev/null || true
-            exit 1
-          }
-
-      # Auto-unseal Vault after L2 deployment
-      # Vault starts sealed after every pod restart, this ensures CI keeps it running
-      - name: Auto-unseal Vault
-        if: github.event_name == 'push'
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          VAULT_UNSEAL_KEY: ${{ secrets.VAULT_UNSEAL_KEY }}
-        run: |
-          echo "Checking Vault seal status..."
-          # Wait for Vault pod to be running
-          for i in {1..30}; do
-            if kubectl get pod vault-0 -n platform -o jsonpath='{.status.phase}' 2>/dev/null | grep -q "Running"; then
-              break
-            fi
-            echo "Waiting for Vault pod... ($i/30)"
-            sleep 5
-          done
-
-          # Check if sealed and unseal if needed
-          if kubectl exec -n platform vault-0 -- vault status 2>/dev/null | grep -q "Sealed.*true"; then
-            echo "Vault is sealed, unsealing..."
-            kubectl exec -n platform vault-0 -- vault operator unseal "$VAULT_UNSEAL_KEY"
-            echo "Vault unsealed successfully"
-          else
-            echo "Vault is already unsealed or not initialized"
-          fi
-
-          # Show final status
-          kubectl exec -n platform vault-0 -- vault status || true
-
-      # =============================================================================
-      # L3 Data Layer Deployment
-      # =============================================================================
-      
-      - name: Setup Terraform Environment (L3)
-        uses: ./.github/actions/terraform-setup
-        with:
-          working_directory: "3.data"
-          terraform_version: 1.6.6
-          tf_state_key: "k3s/data.tfstate"
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          r2_bucket: ${{ secrets.R2_BUCKET }}
-          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          vps_host: ${{ secrets.VPS_HOST }}
-          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
-          vps_user: ${{ secrets.VPS_USER }}
-          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
-          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
-          k3s_channel: ${{ secrets.K3S_CHANNEL }}
-          k3s_version: ${{ secrets.K3S_VERSION }}
-          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
-          github_token: ${{ secrets.GH_PAT || github.token }}
-          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          base_domain: ${{ secrets.BASE_DOMAIN }}
-          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
-          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
-          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
-          atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
-          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
-          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
-          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-
-      # Pre-flight check: Verify all L3 database images exist before deployment
-      - name: Pre-flight Image Check (L3)
-        if: github.event_name == 'push'
-        run: |
-          python3 tools/check_images.py \
-            "bitnamilegacy/clickhouse:25.7.5-debian-12-r0" \
-            "bitnamilegacy/clickhouse-keeper:25.7.5-debian-12-r0" \
-            "arangodb/arangodb:3.11.8"
-
-      - name: Apply Infrastructure (L3 Data Services)
-        if: github.event_name == 'push'
-        working-directory: 3.data
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          TF_VAR_vault_address: "http://localhost:8200"
-          TF_LOG: INFO
-        run: |
-          terraform apply -auto-approve || {
-            echo "::error::L3 Apply failed. Checking data services status..."
-            kubectl get pods -n data -o wide 2>/dev/null || true
-            kubectl get pods -n data-staging -o wide 2>/dev/null || true
-            kubectl get pods -n data-prod -o wide 2>/dev/null || true
-            # Debug data-default (where ClickHouse is actually running in CI)
-            echo "--- Pods in data-default ---"
-            kubectl get pods -n data-default -o wide 2>/dev/null || true
-            echo "--- Describe ClickHouse Pods ---"
-            kubectl describe pods -n data-default -l app.kubernetes.io/name=clickhouse 2>/dev/null || true
-            echo "--- Describe ClickHouse StatefulSet ---"
-            kubectl describe statefulset clickhouse-shard0 -n data-default 2>/dev/null || true
-            echo "--- ClickHouse Logs ---"
-            kubectl logs -n data-default -l app.kubernetes.io/name=clickhouse --tail=100 --all-containers 2>/dev/null || true
-            exit 1
-          }
-
-      # Verify L3 deployment with comprehensive health checks
-      - name: Verify Data Services Health
-        if: github.event_name == 'push'
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: |
-          NS="data-default"
-          TIMEOUT=120
-          
-          echo "=== L3 Data Services Health Check ==="
-          echo ""
-          
-          echo "--- Waiting for Pods to be Ready ---"
-          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=postgresql --timeout=${TIMEOUT}s 2>/dev/null && echo "✅ PostgreSQL pod ready" || echo "⚠️ PostgreSQL wait timeout"
-          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=redis --timeout=${TIMEOUT}s 2>/dev/null && echo "✅ Redis pod ready" || echo "⚠️ Redis wait timeout"
-          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=clickhouse --timeout=${TIMEOUT}s 2>/dev/null && echo "✅ ClickHouse pod ready" || echo "⚠️ ClickHouse wait timeout"
-          # ArangoDB uses different label
-          kubectl wait --for=condition=Ready pod -n $NS -l arango_deployment=arangodb --timeout=${TIMEOUT}s 2>/dev/null && echo "✅ ArangoDB pod ready" || echo "⚠️ ArangoDB wait timeout"
-          
-          echo ""
-          echo "--- Database Connectivity Tests ---"
-          
-          echo ""
-          echo "[PostgreSQL]"
-          kubectl exec -n $NS postgresql-0 -- pg_isready -U postgres 2>/dev/null && echo "✅ PostgreSQL: Accepting connections" || echo "❌ PostgreSQL: Not ready"
-          
-          echo ""
-          echo "[Redis]"
-          kubectl exec -n $NS redis-master-0 -- redis-cli ping 2>/dev/null && echo "✅ Redis: PONG received" || echo "❌ Redis: Not responding"
-          
-          echo ""
-          echo "[ClickHouse]"
-          kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --query "SELECT 1" 2>/dev/null && echo "✅ ClickHouse: Query OK" || echo "❌ ClickHouse: Query failed"
-          
-          echo ""
-          echo "[ClickHouse Keeper]"
-          kubectl exec -n $NS clickhouse-keeper-0 -- bash -c 'echo ruok | nc localhost 9181' 2>/dev/null && echo "✅ ClickHouse Keeper: imok" || echo "⚠️ ClickHouse Keeper: check manually"
-          
-          echo ""
-          echo "[ArangoDB]"
-          ARANGO_POD=$(kubectl get pods -n $NS -l arango_deployment=arangodb -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-          if [ -n "$ARANGO_POD" ]; then
-            kubectl exec -n $NS $ARANGO_POD -- curl -sf http://localhost:8529/_api/version 2>/dev/null && echo "✅ ArangoDB: API responding" || echo "❌ ArangoDB: API not responding"
-          else
-            echo "⚠️ ArangoDB: Pod not found"
-          fi
-          
-          echo ""
-          echo "--- Summary ---"
-          kubectl get pods -n $NS -o wide
-
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
