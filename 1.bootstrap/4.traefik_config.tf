@@ -3,7 +3,7 @@
 
 resource "null_resource" "traefik_config" {
   triggers = {
-    host = var.vps_host
+    host           = var.vps_host
     config_content = sha256(local.traefik_config_yaml)
   }
 
