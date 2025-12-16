@@ -20,6 +20,7 @@ This layer deploys business applications. All non-production environments go to 
 
 | Component | Purpose |
 |-----------|---------|
+| Kubero | GitOps PaaS UI (L4 Controller) |
 | Frontend | User-facing web app |
 | Backend API | Business logic |
 | Workers | Background jobs |

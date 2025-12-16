@@ -23,7 +23,7 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 |---|---|---|
 | **L0 Root** | [`0.tools`](0.tools/README.md) / [`docs`](docs/README.md) | Scripts, CI Automation, Documentation |
 | **L1 Bootstrap** | [`1.bootstrap`](1.bootstrap/README.md) | Raw VPS provisioning, k3s installation, DNS/Cert, Atlantis |
-| **L2 Platform** | [`2.platform`](2.platform/README.md) | Secrets (Vault), K8s Dashboard, Kubero |
+| **L2 Platform** | [`2.platform`](2.platform/README.md) | Secrets (Vault), K8s Dashboard, Casdoor |
 | **L3 Data** | [`3.data`](3.data/README.md) | Business DBs (Postgres, Redis, Neo4j, ClickHouse) |
 | **L4 Apps** | [`4.apps`](4.apps/README.md) | Applications (prod/staging) |
 

@@ -77,9 +77,9 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 ### 实施路径
 
-1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor。门户客户端可手动创建并填入 `casdoor_portal_client_id/secret`；若留空，开关开启时 Terraform 自动生成 secret 并写入 Casdoor `init_data`（同时生成 Vault/Dashboard/Kubero 客户端）。
+1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor。门户客户端可手动创建并填入 `casdoor_portal_client_id/secret`；若留空，开关开启时 Terraform 自动生成 secret 并写入 Casdoor `init_data`（同时生成 Vault/Dashboard 客户端）。
 2. **自动化执行**：在 2.platform 设置变量后 `terraform init && terraform apply`，开关置 `true` 时 Ingress 自动挂 Traefik ForwardAuth（OAuth2-Proxy→Casdoor），相关 Casdoor 应用与凭据自动创建。
-3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 登录链路。若异常可关回 `false` 并重跑 apply，避免锁死。随后按需启用 Vault/Dashboard/Kubero 的 OIDC/OAuth 回调。
+3. **事后验证/切流**：依次验证 `secrets/kdashboard` 登录链路。若异常可关回 `false` 并重跑 apply，避免锁死。随后按需启用 Vault/Dashboard 的 OIDC/OAuth 回调。
 
 这一部分的更多细节参考 BRN-008 中的“场景 5：所有 Portal 走 Casdoor”。
 
