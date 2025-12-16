@@ -150,30 +150,7 @@ resource "kubernetes_manifest" "portal_auth_middleware_platform" {
   ]
 }
 
-resource "kubernetes_manifest" "portal_auth_middleware_kubero" {
-  count = local.portal_sso_gate_enabled ? 1 : 0
 
-  manifest = {
-    apiVersion = "traefik.io/v1alpha1"
-    kind       = "Middleware"
-    metadata = {
-      name      = "portal-auth"
-      namespace = kubernetes_namespace.kubero.metadata[0].name
-    }
-    spec = {
-      forwardAuth = {
-        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
-        trustForwardHeader  = false
-        authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
-      }
-    }
-  }
-
-  depends_on = [
-    helm_release.portal_auth,
-    kubernetes_namespace.kubero
-  ]
-}
 
 output "portal_sso_gate_enabled" {
   value       = local.portal_sso_gate_enabled
