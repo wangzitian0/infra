@@ -209,6 +209,6 @@ cd 1.bootstrap && terraform apply
 
 ## 相关文档
 
-- [Pipeline SSOT](../../docs/ssot/pipeline.md) - 完整流程设计
-- [Secrets SSOT](../../docs/ssot/secrets.md) - 密钥管理
+- [ops.pipeline.md](../../docs/ssot/ops.pipeline.md) - 完整流程设计
+- [platform.secrets.md](../../docs/ssot/platform.secrets.md) - 密钥管理
 - [Atlantis Docs](https://www.runatlantis.io/docs/using-atlantis.html)

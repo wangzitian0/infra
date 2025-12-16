@@ -11,7 +11,7 @@
 | **Helm Values** | chart versions | `variables.tf` | TF → Helm |
 | **Runtime Env** | `NODE_ENV` | L4 App 定义 | K8s ConfigMap |
 
-> 环境语义（environment/workspace/namespace/domain）与 tfvars 的边界，见：[`env.md`](./env.md)
+> 环境语义（environment/workspace/namespace/domain）与 tfvars 的边界，见：[core.env.md](./core.env.md)
 
 ## L1 Bootstrap 变量
 
@@ -46,10 +46,3 @@
 
 ---
 
-## Used by（反向链接）
-
-- [docs/ssot/README.md](./README.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)
-- [docs/ssot/env.md](./env.md)
-- [docs/ssot/observability.md](./observability.md)
-- [docs/ssot/pipeline.md](./pipeline.md)

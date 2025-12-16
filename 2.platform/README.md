@@ -66,7 +66,7 @@ L2 services use **app-level authentication** (no unified ingress gate):
 | **Casdoor** | Admin password | SSO provider itself; admin password from `terraform output -raw casdoor_admin_password` |
 | **Portal SSO Gate** | Casdoor OIDC via OAuth2-Proxy | Optional：`enable_portal_sso_gate=true` 后为 Vault/Dashboard/Kubero 打开统一入口 |
 
-See [docs/ssot/auth.md](../docs/ssot/auth.md) for the full authentication architecture.
+See [platform.auth.md](../docs/ssot/platform.auth.md) for the full authentication architecture.
 
 #### Portal SSO Gate Rollout（前置变量 → 自动化 → 事后验证/切流）
 1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor。Portal Gate 客户端可选手动创建并填入 `casdoor_portal_client_id/secret`；若留空，开关开启时 Terraform 会自动生成 secret。
@@ -84,7 +84,7 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 ### Known Issues
 
 - **Vault init/unseal**: Manual init/unseal required after deploy; store keys outside Terraform.
-- **PostgreSQL storage**: Uses `local-path-retain` StorageClass (reclaimPolicy=Retain) to keep PV data after PVC deletion. See [docs/ssot/storage.md](../docs/ssot/storage.md).
+- **PostgreSQL storage**: Uses `local-path-retain` StorageClass (reclaimPolicy=Retain) to keep PV data after PVC deletion. See [ops.storage.md](../docs/ssot/ops.storage.md).
 - **PostgreSQL upgrades**: `helm_release.postgresql` uses `force_update=true` to allow spec changes (e.g., auth tweaks). Expect pod recreation/downtime during upgrades.
 - **Namespace ownership**: `platform` namespace is created in L1 (`1.bootstrap/5.platform_pg.tf`), not L2. The Atlantis workflow removes stale namespace refs from L2 state automatically.
 - **Casdoor login bug**: Requires `copyrequestbody = true` in `app.conf` to fix "unexpected end of JSON input" error. See [#3224](https://github.com/casdoor/casdoor/issues/3224).

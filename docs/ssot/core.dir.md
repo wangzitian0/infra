@@ -8,13 +8,43 @@
 
 ```
 L0 Tools     ─  0.tools/, docs/          ─  脚本、文档
-L1 Bootstrap ─  1.bootstrap/             ─  K3s, Atlantis, DNS/Cert, PG
-L2 Platform  ─  2.platform/              ─  Vault, Dashboard, Kubero, Casdoor
+L1 Bootstrap ─  1.bootstrap/             ─  K3s, Atlantis, DNS/Cert, Platform PG
+L2 Platform  ─  2.platform/              ─  Vault, Casdoor, Dashboard + 预置 L3/L4 契约
 L3 Data      ─  3.data/                  ─  业务数据库 (per-env)
-L4 Apps      ─  4.apps/                  ─  业务应用 (per-env)
+L4 Apps      ─  4.apps/                  ─  Kubero, SigNoz, 业务应用 (per-env)
 ```
 
+### 层级职责详解
+
+| 层级 | 核心职责 | 关键组件 |
+|------|----------|----------|
+| **L1 Bootstrap** | Trust Anchor，最小可用集群 | K3s, Atlantis, Platform PG, DNS/Cert |
+| **L2 Platform** | 能力提供层 (密钥/SSO/DNS) | Vault, Casdoor, Dashboard |
+| **L3 Data** | 数据层 (staging/prod) | PostgreSQL, Redis, ClickHouse, ArangoDB |
+| **L4 Apps** | 应用层 (消费 L2+L3) | Kubero (PaaS), SigNoz, 业务应用 |
+
+### L2 预置契约
+
+L2 在部署时为 L3/L4 提前准备：
+- **Vault 密钥路径** (`secret/data/signoz`, `secret/data/postgresql`)
+- **Casdoor OIDC 客户端** (`signoz-oidc`, `kubero-oidc`)
+- **Cloudflare DNS 记录** (`signoz.<domain>`, `kcloud.<domain>`)
+- **Traefik 中间件** (SSO ForwardAuth)
+
+### 依赖 vs 数据流
+
+```
+依赖方向 (部署顺序):      数据流方向 (日志/指标):
+L1 → L2 → L3 → L4          L1 ──┐
+                           L2 ──┼──→ SigNoz (L4)
+                           L3 ──┤
+                           L4 ──┘
+```
+
+> 可观测性数据从 L1-L4 流向 SigNoz，这是**数据流**而非代码依赖，不破坏 DAG。
+
 ---
+
 
 ## 完整目录树
 
@@ -34,15 +64,19 @@ root/
 │   ├── README.md                # (!) 设计概念
 │   ├── ssot/
 │   │   ├── README.md            # (!) SSOT 索引
-│   │   ├── dir.md               # (!) 本文件
-│   │   ├── env.md               # (!) 环境模型
-│   │   ├── pipeline.md          # (!) 部署流程
-│   │   ├── network.md           # 网络/域名
-│   │   ├── db.md                # 数据库分布
-│   │   ├── k3s.md               # K3s/PaaS
-│   │   ├── vars.md              # 变量定义
-│   │   ├── secrets.md           # 密钥管理
-│   │   └── auth.md              # 认证架构
+│   │   ├── core.dir.md          # (!) 本文件
+│   │   ├── core.env.md          # (!) 环境模型
+│   │   ├── core.vars.md         # 变量定义
+│   │   ├── platform.auth.md     # 认证架构
+│   │   ├── platform.secrets.md  # 密钥管理
+│   │   ├── platform.network.md  # 网络/域名
+│   │   ├── platform.ai.md       # AI 接入
+│   │   ├── db.*.md              # 各数据库 SSOT
+│   │   ├── ops.pipeline.md      # (!) 部署流程
+│   │   ├── ops.recovery.md      # 故障恢复
+│   │   ├── ops.storage.md       # 存储备份
+│   │   ├── ops.observability.md # 可观测
+│   │   └── ops.alerting.md      # 告警
 │   ├── project/
 │   │   ├── README.md            # BRN 索引
 │   │   └── BRN-*.md             # 设计文档
@@ -105,76 +139,17 @@ root/
 | L1 | `kube-system` | K3s 系统组件 |
 | L1 | `bootstrap` | Atlantis |
 | L2 | `platform` | Vault, Dashboard, Casdoor |
-| L2 | `kubero` | Kubero UI |
-| L2 | `kubero-operator-system` | Kubero Operator |
 | L3 | `data-staging` | Staging 数据库 |
 | L3 | `data-prod` | Prod 数据库 |
+| L4 | `kubero` | Kubero UI |
+| L4 | `kubero-operator-system` | Kubero Operator |
+| L4 | `observability` | SigNoz, OTel Collector |
 | L4 | `apps-staging` | Staging 应用 |
 | L4 | `apps-prod` | Prod 应用 |
 
----
+> **持久化**: L1/L3 有状态组件用 PVC (`local-path-retain`)，L2/L4 无状态或依赖下层
 
-## 持久化
-
-| 层级 | 组件 | 存储 |
-|------|------|------|
-| L1 | PostgreSQL | PVC on `/data` |
-| L2 | Vault | 使用 L1 PG |
-| L2 | Casdoor | 使用 L1 PG |
-| L3 | 业务 DB | PVC on `/data` |
-| L4 | Apps | 无状态，用 L3 |
+> **健康检查**: 见 [ops.pipeline.md](./ops.pipeline.md#8-健康检查分层)
 
 ---
 
-## 组件健康检查规范
-
-### 强制要求
-
-| 检查类型 | 适用场景 | 强制 |
-|----------|----------|------|
-| **initContainer** | 有外部依赖的 Pod | ✅ 必须 (120s 超时) |
-| **Probes** | 所有长期运行 Pod | ✅ 必须 |
-| **validation** | 敏感变量（密码/密钥/URL） | ✅ 必须 |
-| **precondition** | 依赖其他 TF 资源的组件 | ✅ 必须 |
-| **Helm timeout** | 所有 Helm release | ✅ 必须 (300s) |
-| **postcondition** | Helm release | 建议 |
-
-### 覆盖度矩阵
-
-| 层级 | 组件 | 依赖 | initContainer | Probes | validation | precondition | timeout |
-|------|------|------|---------------|--------|------------|--------------|---------|
-| **L1** | k3s | 无 | N/A | N/A | N/A | N/A | 5m |
-| | Atlantis | k3s | N/A | ✅ R+L | ✅ | ✅ | 300s |
-| | DNS/Cert | k3s | N/A | N/A | ✅ | N/A | 300s |
-| | Storage | k3s | N/A | N/A | N/A | N/A | 2m |
-| | Platform PG | storage | N/A | ✅ Helm | ✅ | ✅ | 300s |
-| **L2** | Vault | PG | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
-| | Casdoor | PG | ✅ 120s | ✅ S+R+L | ✅ | ✅ | 300s |
-| | Portal-Auth | Casdoor | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
-| | Dashboard | namespace | N/A | ✅ Helm | N/A | N/A | 300s |
-| | Kubero | namespace | N/A | ✅ R+L | N/A | N/A | N/A (manifest) |
-| | Vault-DB | Vault | N/A | N/A | ✅ | ✅ | N/A |
-| **L3** | L3 Postgres | Vault KV | ✅ 120s | ✅ Helm | ✅ | ✅ | 300s |
-
-**图例**：R=readiness, L=liveness, S=startup, Helm=Chart 默认, N/A=不适用, 120s=initContainer 超时
-
----
-
-## 相关文件
-
-| 文件 | 用途 |
-|------|------|
-| `docs/ssot/env.md` | 环境模型 |
-| `docs/ssot/pipeline.md` | 部署流程 |
-
----
-
-## Used by（反向链接）
-
-- [docs/ssot/README.md](./README.md)
-- [README.md](../../README.md)
-- [docs/README.md](../README.md)
-- [docs/dir.md](../dir.md)
-- [3.data/README.md](../../3.data/README.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)
-- [docs/ssot/storage.md](./storage.md)

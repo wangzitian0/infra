@@ -39,9 +39,9 @@ Managed by **GitHub Actions only** (not Atlantis).
 - Certificates: wildcard for `BASE_DOMAIN`; wildcard for `INTERNAL_DOMAIN` when distinct (separate secret). Ingresses also request per-host certs via cert-manager ingress shim.
 
 SSOT:
-- [docs/ssot/env.md](../docs/ssot/env.md) (environment semantics)
-- [docs/ssot/network.md](../docs/ssot/network.md) (domain rules and service mapping)
-- [docs/ssot/storage.md](../docs/ssot/storage.md) (StorageClass and data retention)
+- [core.env.md](../docs/ssot/core.env.md) (environment semantics)
+- [platform.network.md](../docs/ssot/platform.network.md) (domain rules and service mapping)
+- [ops.storage.md](../docs/ssot/ops.storage.md) (StorageClass and data retention)
 
 ## Bootstrap Command
 

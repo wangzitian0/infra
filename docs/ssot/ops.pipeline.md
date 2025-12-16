@@ -299,43 +299,7 @@ GitHub Secrets
 
 ## 7. 故障恢复
 
-### Vault Token 过期
-
-```bash
-# 1. 获取新 token
-op read 'op://Infrastructure/Vault Root Token/credential'
-
-# 2. 更新 GitHub Secret
-gh secret set VAULT_ROOT_TOKEN --body "<token>" --repo wangzitian0/infra
-
-# 3. Apply L1 (更新 Atlantis Pod)
-cd 1.bootstrap
-terraform apply
-
-# 4. 重试 Atlantis plan
-# 在 PR 评论: atlantis plan（或 push 触发 autoplan）
-```
-
-### State Lock
-
-```
-# PR 评论
-atlantis unlock
-atlantis plan
-```
-
-### Provider 版本不匹配
-
-```bash
-terraform init -upgrade
-terraform providers lock \
-  -platform=linux_amd64 \
-  -platform=darwin_amd64 \
-  -platform=darwin_arm64
-git add .terraform.lock.hcl
-git commit -m "chore: update provider lock"
-git push
-```
+> 详见 [ops.recovery.md](./ops.recovery.md)
 
 ---
 
@@ -355,6 +319,38 @@ git push
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### 组件健康检查规范
+
+#### 强制要求
+
+| 检查类型 | 适用场景 | 强制 |
+|----------|----------|------|
+| **initContainer** | 有外部依赖的 Pod | ✅ 必须 (120s 超时) |
+| **Probes** | 所有长期运行 Pod | ✅ 必须 |
+| **validation** | 敏感变量（密码/密钥/URL） | ✅ 必须 |
+| **precondition** | 依赖其他 TF 资源的组件 | ✅ 必须 |
+| **Helm timeout** | 所有 Helm release | ✅ 必须 (300s) |
+| **postcondition** | Helm release | 建议 |
+
+#### 覆盖度矩阵
+
+| 层级 | 组件 | 依赖 | initContainer | Probes | validation | precondition | timeout |
+|------|------|------|---------------|--------|------------|--------------|---------|
+| **L1** | k3s | 无 | N/A | N/A | N/A | N/A | 5m |
+| | Atlantis | k3s | N/A | ✅ R+L | ✅ | ✅ | 300s |
+| | DNS/Cert | k3s | N/A | N/A | ✅ | N/A | 300s |
+| | Storage | k3s | N/A | N/A | N/A | N/A | 2m |
+| | Platform PG | storage | N/A | ✅ Helm | ✅ | ✅ | 300s |
+| **L2** | Vault | PG | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
+| | Casdoor | PG | ✅ 120s | ✅ S+R+L | ✅ | ✅ | 300s |
+| | Portal-Auth | Casdoor | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
+| | Dashboard | namespace | N/A | ✅ Helm | N/A | N/A | 300s |
+| | Kubero | namespace | N/A | ✅ R+L | N/A | N/A | N/A (manifest) |
+| | Vault-DB | Vault | N/A | N/A | ✅ | ✅ | N/A |
+| **L3** | L3 Postgres | Vault KV | ✅ 120s | ✅ Helm | ✅ | ✅ | 300s |
+
+**图例**：R=readiness, L=liveness, S=startup, Helm=Chart 默认, N/A=不适用, 120s=initContainer 超时
+
 ---
 
 ## 相关文件
@@ -369,15 +365,3 @@ git push
 
 ---
 
-## Used by（反向链接）
-
-- [docs/ssot/README.md](./README.md)
-- [0.check_now.md](../../0.check_now.md)
-- [README.md](../../README.md)
-- [.github/README.md](../../.github/README.md)
-- [.github/workflows/README.md](../../.github/workflows/README.md)
-- [4.apps/README.md](../../4.apps/README.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)
-- [docs/change_log/2025-12-15.infra_flash_per_commit.md](../change_log/2025-12-15.infra_flash_per_commit.md)
-- [docs/change_log/2025-12-15.pipeline_simplify_scheme_a.md](../change_log/2025-12-15.pipeline_simplify_scheme_a.md)
-- [docs/ssot/dir.md](./dir.md)

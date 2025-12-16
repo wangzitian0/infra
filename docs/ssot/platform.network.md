@@ -20,10 +20,9 @@
 | Atlantis | `atlantis.<internal_domain>` | L1 | ✅ |
 | Vault | `secrets.<internal_domain>` | L2 | ✅ |
 | Dashboard | `kdashboard.<internal_domain>` | L2 | ✅ |
-| Kubero | `kcloud.<internal_domain>` | L2 | ✅ |
-| OAuth2-Proxy | `auth.<internal_domain>` | L2 | ✅ |
-| Casdoor (未来) | `sso.<internal_domain>` | L2 | ✅ |
-| SigNoz (未来) | `signoz.<internal_domain>` | L4 | ✅ |
+| Casdoor | `sso.<internal_domain>` | L2 | ✅ |
+| Kubero | `kcloud.<internal_domain>` | L4 | ✅ |
+| SigNoz | `signoz.<internal_domain>` | L4 | 🔜 待部署 |
 
 ### 业务应用域名（L4，多环境）
 
@@ -58,12 +57,3 @@ nginx.ingress.kubernetes.io/whitelist-source-range: "140.82.112.0/20,185.199.108
 
 ---
 
-## Used by（反向链接）
-
-- [docs/ssot/README.md](./README.md)
-- [1.bootstrap/README.md](../../1.bootstrap/README.md)
-- [4.apps/README.md](../../4.apps/README.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)
-- [docs/ssot/alerting.md](./alerting.md)
-- [docs/ssot/env.md](./env.md)
-- [docs/ssot/observability.md](./observability.md)

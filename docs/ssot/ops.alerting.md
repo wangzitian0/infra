@@ -33,6 +33,9 @@
 - **全局规则**：平台/数据库类告警由 Infra-Ops 维护。
 - **环境**：仅 staging/prod 开启，test/ci/dev 默认关闭。
 
+> TODO(alerting): 配置 SigNoz Alert Rules
+> TODO(alerting): 配置通知通道 (Email/Webhook)
+
 ## 实施状态
 
 | 项目 | 状态 |
@@ -42,12 +45,8 @@
 
 ## 相关文件
 
-- 可观测性选型：`docs/ssot/observability.md`
-- 域名规则：`docs/ssot/network.md`
+- 可观测性选型：[ops.observability.md](./ops.observability.md)
+- 域名规则：[platform.network.md](./platform.network.md)
 
 ---
 
-## Used by（反向链接）
-
-- [docs/ssot/README.md](./README.md)
-- [docs/ssot/observability.md](./observability.md)

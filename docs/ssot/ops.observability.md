@@ -50,6 +50,9 @@
 - 建议从 7 天留存起步，按实际日志/trace 量调大 PV。
 - 超过单机容量时，独立 ClickHouse 或迁移到独立 VPS（见 BRN-004 长期路径）。
 
+> TODO(observability): 落地 SigNoz Helm/TF 模块
+> TODO(observability): Apps OTel SDK 接入
+
 ## 实施状态
 
 | 项目 | 状态 |
@@ -60,12 +63,9 @@
 ## 相关文件
 
 - 选型：`docs/project/BRN-004.md`
-- Feature flags：`docs/ssot/vars.md`
-- 域名规则：`docs/ssot/network.md`
+- Feature flags：[core.vars.md](./core.vars.md)
+- 域名规则：[platform.network.md](./platform.network.md)
+- 告警：[ops.alerting.md](./ops.alerting.md)
 
 ---
 
-## Used by（反向链接）
-
-- [docs/ssot/README.md](./README.md)
-- [docs/ssot/alerting.md](./alerting.md)

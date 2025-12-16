@@ -100,6 +100,8 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 ### Identity Providers
 
+> TODO(auth): 在 Casdoor UI 配置 GitHub/Google OAuth Provider
+
 | Provider | 用途 | 状态 |
 |----------|------|------|
 | GitHub | 开发者登录 | ⏳ 待配置 |
@@ -152,15 +154,10 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 ## 相关文件
 
-- [secrets.md](secrets.md) - 密钥管理 SSOT
+- [platform.secrets.md](./platform.secrets.md) - 密钥管理 SSOT
 - [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor Helm release + Bootstrap
 - [98.casdoor-apps.tf](../../2.platform/98.casdoor-apps.tf) - OIDC 应用 (local-exec API)
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
 
 ---
 
-## Used by（反向链接）
-
-- [docs/ssot/README.md](./README.md)
-- [2.platform/README.md](../../2.platform/README.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)

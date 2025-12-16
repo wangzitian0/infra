@@ -26,9 +26,9 @@ This layer deploys business applications. All non-production environments go to 
 
 ## SSOT Links
 
-- [docs/ssot/env.md](../docs/ssot/env.md) - Environment ↔ workspace/namespace/domain model
-- [docs/ssot/network.md](../docs/ssot/network.md) - Domain rules and routing
-- [docs/ssot/pipeline.md](../docs/ssot/pipeline.md) - PR → Plan/Apply workflow (Atlantis + infra-flash)
+- [core.env.md](../docs/ssot/core.env.md) - Environment ↔ workspace/namespace/domain model
+- [platform.network.md](../docs/ssot/platform.network.md) - Domain rules and routing
+- [ops.pipeline.md](../docs/ssot/ops.pipeline.md) - PR → Plan/Apply workflow (Atlantis + infra-flash)
 
 ### Usage
 
