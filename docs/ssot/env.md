@@ -137,3 +137,12 @@
 3. **以为 L2 也是多环境**  
    - 当前 SSOT 明确：L2 是单例（platform workspace）。
 
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [1.bootstrap/README.md](../../1.bootstrap/README.md)
+- [4.apps/README.md](../../4.apps/README.md)
+- [envs/README.md](../../envs/README.md)
+- [docs/ssot/dir.md](./dir.md)

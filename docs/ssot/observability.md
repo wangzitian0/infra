@@ -35,6 +35,7 @@
 | SigNoz UI | `https://signoz.<internal_domain>` | 通过 Cloudflare proxy + cert-manager |
 
 > 域名 SSOT 见 `docs/ssot/network.md`。
+> 告警 SSOT 见 `docs/ssot/alerting.md`。
 
 ## 接入规范（Apps → OTel）
 
@@ -61,3 +62,10 @@
 - 选型：`docs/project/BRN-004.md`
 - Feature flags：`docs/ssot/vars.md`
 - 域名规则：`docs/ssot/network.md`
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [docs/ssot/alerting.md](./alerting.md)

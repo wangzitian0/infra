@@ -1,6 +1,6 @@
 # Network & Domain Architecture
 
-> Aligned with [AGENTS.md](../../AGENTS.md) 4-Layer Design (L1-L4).
+> Aligned with [AGENTS.md](../AGENTS.md) 4-Layer Design (L1-L4).
 
 ## 1. DNS Architecture
 

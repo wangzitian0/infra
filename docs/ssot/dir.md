@@ -64,7 +64,7 @@ root/
 │   ├── locals.tf                # 本地变量
 │   ├── 1.k3s.tf                 # K3s 安装
 │   ├── 2.atlantis.tf            # Atlantis
-│   ├── 3.dns_cert.tf            # DNS + Cert-Manager
+│   ├── 3.dns_and_cert.tf        # DNS + Cert-Manager
 │   ├── 4.storage.tf             # 存储类
 │   └── 5.platform_pg.tf         # Platform PostgreSQL
 │
@@ -166,3 +166,15 @@ root/
 |------|------|
 | `docs/ssot/env.md` | 环境模型 |
 | `docs/ssot/pipeline.md` | 部署流程 |
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [README.md](../../README.md)
+- [docs/README.md](../README.md)
+- [docs/dir.md](../dir.md)
+- [3.data/README.md](../../3.data/README.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)
+- [docs/ssot/storage.md](./storage.md)

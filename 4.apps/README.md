@@ -24,6 +24,12 @@ This layer deploys business applications. All non-production environments go to 
 | Backend API | Business logic |
 | Workers | Background jobs |
 
+## SSOT Links
+
+- [docs/ssot/env.md](../docs/ssot/env.md) - Environment ↔ workspace/namespace/domain model
+- [docs/ssot/network.md](../docs/ssot/network.md) - Domain rules and routing
+- [docs/ssot/pipeline.md](../docs/ssot/pipeline.md) - PR → Plan/Apply workflow (Atlantis + infra-flash)
+
 ### Usage
 
 ```bash
@@ -37,4 +43,4 @@ atlantis apply -p apps-prod
 ```
 
 ---
-*Last updated: 2025-12-09*
+*Last updated: 2025-12-16*

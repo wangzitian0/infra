@@ -57,6 +57,8 @@ graph LR
 |--------|------|------|
 | `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code 集成 | 单独管理 |
 
+AI 接入相关的变量/密钥与注入方式见：`docs/ssot/ai.md`。
+
 ---
 
 ## 同步命令
@@ -117,3 +119,13 @@ done
 - **1Password 仅存根密钥**（Atlantis 登录、Vault root token、Casdoor 管理密码），作为离线恢复源，不再做日常运维依赖。
 - **Vault 作为主库**：所有运行时凭据、Casdoor client secret、Webhook Token、Terraform `random_password` 等都优先写入 Vault，再由 Agent 注入或同步到 CI 环境，避免在 1Password 里频繁复制粘贴。
 - **Fallback 设计**：当需要同时保留 1Password 与 Vault 副本时，Vault 为 SSOT、1Password 仅做 backup（“Vault-first, 1Password fallback”），确保可以实现“1Password 0 依赖”或将全部凭据迁移到 Vault 的两条路径。
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [.github/workflows/README.md](../../.github/workflows/README.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)
+- [docs/ssot/ai.md](./ai.md)
+- [docs/ssot/pipeline.md](./pipeline.md)

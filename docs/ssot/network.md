@@ -55,3 +55,15 @@ nginx.ingress.kubernetes.io/whitelist-source-range: "140.82.112.0/20,185.199.108
 - DNS 配置: [`1.bootstrap/3.dns_and_cert.tf`](../../1.bootstrap/3.dns_and_cert.tf)
 - Atlantis Ingress: [`1.bootstrap/2.atlantis.tf`](../../1.bootstrap/2.atlantis.tf)
 - Network 详情: [`1.bootstrap/network.md`](../../1.bootstrap/network.md)
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [1.bootstrap/README.md](../../1.bootstrap/README.md)
+- [4.apps/README.md](../../4.apps/README.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)
+- [docs/ssot/alerting.md](./alerting.md)
+- [docs/ssot/env.md](./env.md)
+- [docs/ssot/observability.md](./observability.md)

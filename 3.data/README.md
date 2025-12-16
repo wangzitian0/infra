@@ -5,7 +5,7 @@
 - **Cache**: Redis
 - **Multi-model**: ArangoDB (Document, Graph, Key-Value)
 - **OLAP**: ClickHouse
-- **Namespace**: `data`
+- **Namespace**: `data-<env>` (e.g. `data-staging`, `data-prod`)
 
 ## Architecture
 
@@ -60,11 +60,11 @@ graph LR
 
 ### Namespace Ownership
 
-The `data` namespace is **owned by L3** (`3.data/1.postgres.tf`). This follows the pattern:
+The `data-<env>` namespaces are **owned by L3** (`3.data/1.postgres.tf`, per Terraform workspace). This follows the pattern:
 - L1 owns `kube-system`, `platform` (namespace created in L1)
 - L2 operates within `platform` (namespace passed from L1)
-- **L3 owns `data`** (namespace created in L3)
-- L4 operates within `data` or creates app-specific namespaces
+- **L3 owns `data-<env>`** (namespace created in L3)
+- L4 operates within `apps-<env>` (and may create app-specific namespaces)
 
 ### Dual-SSOT Password Rationale
 
@@ -86,17 +86,18 @@ Password is stored in **both Vault KV and Helm values**:
 
 ```bash
 # Backup L3 PostgreSQL (run on VPS)
-kubectl exec -n data postgresql-0 -- pg_dump -U postgres app > l3_backup.sql
+NS="data-staging" # or data-prod
+kubectl exec -n "$NS" postgresql-0 -- pg_dump -U postgres app > l3_backup.sql
 
 # Restore
-kubectl exec -n data postgresql-0 -- psql -U postgres -d app < l3_backup.sql
+kubectl exec -n "$NS" postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 ```
 
 ### Recovery Steps
 
 1. **Password Lost**: Re-run L2 apply (regenerates password, updates Vault KV)
 2. **Data Loss**: Restore from pg_dump backup
-3. **Full Recreation**: Delete namespace, re-apply L3
+3. **Full Recreation**: Delete `data-<env>` namespace, re-apply L3
 
 ## Health Checks & Validation
 
@@ -133,6 +134,7 @@ lifecycle {
 - **Timeout**: 300s (standardized across all releases)
 - **Wait**: `wait = true` ensures readiness before completion
 - **Lifecycle**: `prevent_destroy = true` on all database releases
+- **Storage**: follow [docs/ssot/storage.md](../docs/ssot/storage.md) (`local-path-retain`, reclaim policy, /data conventions)
 
 **Note**: initContainer and other Pod-level health checks are configured via Helm chart defaults, not in Terraform values per SSOT guidelines.
 Scalability for MVP:
@@ -140,7 +142,9 @@ Scalability for MVP:
 - **ClickHouse**: Single shard, no ZooKeeper
 - **ArangoDB**: Single mode (not Cluster)
 
-For multi-replica migration guide, see [implementation_plan.md](file:///Users/SP14016/.gemini/antigravity/brain/04f7e0b4-6bcb-4853-b1c1-e19760c5160f/implementation_plan.md#未来扩展-单节点到多读副本迁移).
+Scale-out / multi-replica migration notes are tracked in:
+- [docs/project/README.md](../docs/project/README.md) (execution plan / backlog)
+- [docs/ssot/db.md](../docs/ssot/db.md) (database capability SSOT)
 
 ---
-*Last updated: 2025-12-15*
+*Last updated: 2025-12-16*

@@ -38,6 +38,11 @@ Managed by **GitHub Actions only** (not Atlantis).
 - DNS inputs: `CLOUDFLARE_ZONE_ID` for `BASE_DOMAIN`; `INTERNAL_ZONE_ID` optionally overrides infra zone (falls back to `CLOUDFLARE_ZONE_ID`). Infra records are explicit A records with per-host proxy (443 services proxied, `k3s` DNS-only).
 - Certificates: wildcard for `BASE_DOMAIN`; wildcard for `INTERNAL_DOMAIN` when distinct (separate secret). Ingresses also request per-host certs via cert-manager ingress shim.
 
+SSOT:
+- [docs/ssot/env.md](../docs/ssot/env.md) (environment semantics)
+- [docs/ssot/network.md](../docs/ssot/network.md) (domain rules and service mapping)
+- [docs/ssot/storage.md](../docs/ssot/storage.md) (StorageClass and data retention)
+
 ## Bootstrap Command
 
 ```bash
@@ -73,4 +78,4 @@ L1 Atlantis passes the following variables to L2/L3:
 - **Image Pin**: Use the chart default image tag (pinned via chart version). Do **NOT** override to `latest` (breaks reproducibility).
 
 ---
-*Last updated: 2025-12-13*
+*Last updated: 2025-12-16*

@@ -212,4 +212,13 @@ EOF
 
 - Platform PG: [1.bootstrap/5.platform_pg.tf](../../1.bootstrap/5.platform_pg.tf)
 - L3 Data: [3.data/](../../3.data/)
-- Vault Config: [2.platform/2.vault.tf](../../2.platform/2.vault.tf)
+- Vault Config: [2.platform/2.secret.tf](../../2.platform/2.secret.tf)
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [3.data/README.md](../../3.data/README.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)
+- [docs/ssot/storage.md](./storage.md)

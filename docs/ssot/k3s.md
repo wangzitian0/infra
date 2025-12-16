@@ -74,3 +74,11 @@ Kubero 是 L2 平台的 PaaS 组件，用于部署应用：
 - K3s: [`1.bootstrap/1.k3s.tf`](../../1.bootstrap/1.k3s.tf)
 - 存储: [`1.bootstrap/4.storage.tf`](../../1.bootstrap/4.storage.tf)
 - Kubero: [`2.platform/4.kubero.tf`](../../2.platform/4.kubero.tf)
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [docs/ssot/storage.md](./storage.md)
+- [docs/change_log/2025-12-12.brn_008_infrastructure_ssot.md](../change_log/2025-12-12.brn_008_infrastructure_ssot.md)

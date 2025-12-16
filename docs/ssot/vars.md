@@ -43,3 +43,13 @@
 
 - L1 Bootstrap: [`1.bootstrap/variables.tf`](../../1.bootstrap/variables.tf)
 - L2 Platform: [`2.platform/variables.tf`](../../2.platform/variables.tf)
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)
+- [docs/ssot/env.md](./env.md)
+- [docs/ssot/observability.md](./observability.md)
+- [docs/ssot/pipeline.md](./pipeline.md)
