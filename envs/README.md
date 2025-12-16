@@ -9,7 +9,7 @@ This directory documents **how we represent environments** via `*.tfvars` files.
 | Layer | Name | Scope | Managed By | Description |
 |-------|------|-------|------------|-------------|
 | **L1** | **Bootstrap** | **Shared** (Singleton) | GitHub Actions | K3s Cluster, Atlantis, DNS/Cert, Storage, Platform PG |
-| **L2** | **Platform** | **Shared** (Singleton) | Atlantis (`platform`) | Vault, Dashboard, Kubero, Casdoor |
+| **L2** | **Platform** | **Shared** (Singleton) | Atlantis (`platform`) | Vault, Dashboard, Casdoor |
 | **L3** | **Data** | **Isolated** (Per-env) | Atlantis (`data-<env>`) | Business databases in `data-<env>` |
 | **L4** | **Apps** | **Isolated** (Per-env) | Atlantis (`apps-<env>`) | Business apps in `apps-<env>` |
 

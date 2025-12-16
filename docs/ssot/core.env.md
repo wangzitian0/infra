@@ -24,7 +24,7 @@
 
 ### 2.1 单例（Shared / Singleton）
 - **L1 Bootstrap**：单例（一个集群、一套基础设施），由 GitHub Actions `deploy-k3s.yml` 管理。
-- **L2 Platform**：单例（Vault/Dashboard/Kubero/Casdoor），由 Atlantis project `platform`（`2.platform`, `workspace=default`）管理。
+- **L2 Platform**：单例（Vault/Dashboard/Casdoor），由 Atlantis project `platform`（`2.platform`, `workspace=default`）管理。
 
 > 结论：**L1/L2 不做 workspace 级多环境**。它们是“平台底座”，staging/prod 共享同一套 L1/L2（单 VPS MVP）。
 
@@ -47,7 +47,7 @@
 | Layer | Namespace（固定/模式） | 说明 |
 |---|---|---|
 | L1 | `kube-system`, `cert-manager`, `bootstrap` | 集群核心 + Atlantis（代码：`1.bootstrap/3.dns_and_cert.tf`, `1.bootstrap/2.atlantis.tf`） |
-| L2 | `platform`, `kubero`, `kubero-operator-system` | 平台服务（单例）（代码：`1.bootstrap/5.platform_pg.tf`, `2.platform/4.kubero.tf`, `2.platform/2.secret.tf`） |
+| L2 | `platform` | 平台服务（单例）（代码：`1.bootstrap/5.platform_pg.tf`, `2.platform/2.secret.tf`） |
 | L3 | `data-<env>` | 业务数据库（`data-staging` / `data-prod`） |
 | L4 | `apps-<env>` | 业务应用（`apps-staging` / `apps-prod`） |
 
@@ -82,7 +82,7 @@
   - Frontend：`<base_domain>`
   - Backend：`api.<base_domain>`
 
-> 约束：`env_prefix` 只描述“业务域名前缀”，**不用于** Vault/Kubero/Atlantis 等平台域名。
+> 约束：`env_prefix` 只描述“业务域名前缀”，**不用于** Vault/Atlantis 等平台域名。
 
 ### 4.3 Cloudflare Proxy（Orange/Grey）
 

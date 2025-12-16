@@ -345,9 +345,9 @@ GitHub Secrets
 | | Casdoor | PG | ✅ 120s | ✅ S+R+L | ✅ | ✅ | 300s |
 | | Portal-Auth | Casdoor | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
 | | Dashboard | namespace | N/A | ✅ Helm | N/A | N/A | 300s |
-| | Kubero | namespace | N/A | ✅ R+L | N/A | N/A | N/A (manifest) |
 | | Vault-DB | Vault | N/A | N/A | ✅ | ✅ | N/A |
 | **L3** | L3 Postgres | Vault KV | ✅ 120s | ✅ Helm | ✅ | ✅ | 300s |
+| **L4** | Kubero | namespace | N/A | ✅ R+L | N/A | N/A | N/A (manifest) |
 
 **图例**：R=readiness, L=liveness, S=startup, Helm=Chart 默认, N/A=不适用, 120s=initContainer 超时
 

@@ -7,8 +7,8 @@
 - **Platform DB**: PostgreSQL (for Vault)
 - **Dashboard**: Kubernetes Dashboard (cluster web UI)
 - **SSO**: Casdoor (OIDC provider for L2+ services)
-- **PaaS**: Kubero (Heroku-like GitOps)
-- **Namespaces**: `platform` (main), `kubero`, `kubero-operator-system`
+- **SSO**: Casdoor (OIDC provider for L2+ services)
+- **Namespaces**: `platform` (main), `kubero-operator-system` (Operator only)
 
 ## Architecture
 
@@ -22,10 +22,10 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `1.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
-| `4.kubero.tf` | Kubero | GitOps PaaS (uses kubectl provider for CRD deployment) |
+| `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `5.casdoor.tf` | Casdoor SSO | Helm release + bootstrap init_data (org, admin, builtin-app only) |
 | `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
-| `98.casdoor-apps.tf` | Casdoor Apps | OIDC applications via local-exec API calls (portal-gate, vault-oidc, dashboard-oidc, kubero-oidc) |
+| `98.casdoor-apps.tf` | Casdoor Apps | OIDC applications via local-exec API calls (portal-gate, vault-oidc, dashboard-oidc) |
 
 ### Secrets Strategy
 
@@ -51,7 +51,7 @@ terraform apply
 
 - **Vault**: `https://secrets.<internal_domain>` (e.g., `secrets.zitian.party`) - HTTPS via cert-manager; manual init/unseal required
 - **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager
-- **Kubero**: `https://kcloud.<internal_domain>` (e.g., `kcloud.zitian.party`) - GitOps PaaS UI
+- **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager
 - **Casdoor**: `https://sso.<internal_domain>` (e.g., `sso.zitian.party`) - Unified SSO
 
 ### Authentication Model
@@ -62,16 +62,16 @@ L2 services use **app-level authentication** (no unified ingress gate):
 |---------|-------------|-------|
 | **Vault** | Token / OIDC (planned) | Manual init/unseal required; OIDC via Casdoor (future) |
 | **Dashboard** | Token | Get token: `kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' \| base64 -d` |
-| **Kubero** | Session / OAuth2 (planned) | OAuth2 via Casdoor (future) |
+| **Dashboard** | Token | Get token: `kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' \| base64 -d` |
 | **Casdoor** | Admin password | SSO provider itself; admin password from `terraform output -raw casdoor_admin_password` |
-| **Portal SSO Gate** | Casdoor OIDC via OAuth2-Proxy | Optional：`enable_portal_sso_gate=true` 后为 Vault/Dashboard/Kubero 打开统一入口 |
+| **Portal SSO Gate** | Casdoor OIDC via OAuth2-Proxy | Optional：`enable_portal_sso_gate=true` 后为 Vault/Dashboard 打开统一入口 |
 
 See [platform.auth.md](../docs/ssot/platform.auth.md) for the full authentication architecture.
 
 #### Portal SSO Gate Rollout（前置变量 → 自动化 → 事后验证/切流）
 1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor。Portal Gate 客户端可选手动创建并填入 `casdoor_portal_client_id/secret`；若留空，开关开启时 Terraform 会自动生成 secret。
-2. **自动化执行**：在 2.platform 目录设置变量后，`terraform init && terraform apply`。开关置 `true` 时，Terraform 自动生成/写入 Casdoor 应用（Portal/Vault/Dashboard/Kubero），Ingress 自动挂 Traefik ForwardAuth（OAuth2-Proxy→Casdoor）。
-3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 302 → Casdoor 登录链路，若异常可立即将开关关回 `false` 并重跑 apply，避免锁死。
+2. **自动化执行**：在 2.platform 目录设置变量后，`terraform init && terraform apply`。开关置 `true` 时，Terraform 自动生成/写入 Casdoor 应用（Portal/Vault/Dashboard），Ingress 自动挂 Traefik ForwardAuth（OAuth2-Proxy→Casdoor）。
+3. **事后验证/切流**：依次验证 `secrets/kdashboard` 302 → Casdoor 登录链路，若异常可立即将开关关回 `false` 并重跑 apply，避免锁死。
 
 ### Domain Configuration
 
@@ -89,7 +89,7 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **Namespace ownership**: `platform` namespace is created in L1 (`1.bootstrap/5.platform_pg.tf`), not L2. The Atlantis workflow removes stale namespace refs from L2 state automatically.
 - **Casdoor login bug**: Requires `copyrequestbody = true` in `app.conf` to fix "unexpected end of JSON input" error. See [#3224](https://github.com/casdoor/casdoor/issues/3224).
 - **Casdoor init_data**: Only loads on first startup. If `casdoor_admin_password` changes, manually update `casdoor-builtin-app` clientSecret via Casdoor UI or API. For disaster recovery (fresh install), init_data re-creates all bootstrap entities.
-- **Kubero UI image pin**: Prefer pinning `kubero_ui_image_tag` to a fixed version and keep pull policy `IfNotPresent` for reproducible deploys.
+
 
 ### Disaster Recovery
 
@@ -102,14 +102,14 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 
 **Status**: Ready to deploy (enable_portal_sso_gate=true in Atlantis config)
 
-To deploy Portal SSO Gate for Vault/Dashboard/Kubero:
+To deploy Portal SSO Gate for Vault/Dashboard:
 1. This PR triggers Atlantis to run `terraform plan -d 2.platform`
 2. Review the plan (should show portal-auth resources and Ingress middleware annotations)
 3. Comment `atlantis apply -d 2.platform` to deploy
 4. Verify SSO login at:
    - https://secrets.zitian.party (Vault)
    - https://kdashboard.zitian.party (Dashboard)
-   - https://kcloud.zitian.party (Kubero)
+   - https://kdashboard.zitian.party (Dashboard)
 
 ---
 *Last updated: 2025-12-16*

@@ -111,15 +111,15 @@ root/
 │   ├── 1.portal-auth.tf         # Portal SSO Gate
 │   ├── 2.secret.tf              # Vault
 │   ├── 3.dashboard.tf           # K8s Dashboard
-│   ├── 4.kubero.tf              # Kubero PaaS
 │   └── 5.casdoor.tf             # Casdoor SSO
 │
 ├── 3.data/                      # L3: Atlantis 部署 (per-env)
 │   ├── README.md                # (!) L3 文档
-│   └── *.tf                     # Redis, Neo4j, PG, ClickHouse
+│   └── *.tf                     # Redis, PG, ClickHouse, ArangoDB
 │
 ├── 4.apps/                      # L4: Atlantis 部署 (per-env)
 │   ├── README.md                # (!) L4 文档
+│   ├── 1.kubero.tf              # Kubero PaaS
 │   └── *.tf                     # 业务应用
 │
 └── envs/                        # 环境配置

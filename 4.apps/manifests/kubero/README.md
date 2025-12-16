@@ -15,7 +15,7 @@ To update the operator manifest:
 
 ```bash
 curl -sL "https://raw.githubusercontent.com/kubero-dev/kubero-operator/main/deploy/operator.yaml" \
-  -o terraform/2.platform/manifests/kubero/operator.yaml
+  -o 4.apps/manifests/kubero/operator.yaml
 ```
 
 ## Source
