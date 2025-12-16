@@ -135,14 +135,11 @@ workflows:
             EOF
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
-        # Pass environment via TF_VAR (shell interpolation works in run steps)
-        - run: terraform plan -input=false -refresh -out=$PLANFILE -var="environment=${WORKSPACE}"
-      env:
-        name: TF_VAR_environment
-        value: $WORKSPACE
+        # Export environment and run plan with variable
+        - run: export TF_VAR_environment="${WORKSPACE}" && terraform plan -input=false -refresh -out=$PLANFILE -var="environment=${WORKSPACE}"
     apply:
       steps:
-        # Reuse .terraform from plan step to avoid state lineage mismatch
         - run: echo "infra-flash-commit:$(git rev-parse --short HEAD)"
-        - run: terraform apply -input=false $PLANFILE
+        - run: export TF_VAR_environment="${WORKSPACE}" && terraform apply -input=false $PLANFILE
+
 
