@@ -142,6 +142,7 @@ jobs:
               .every(s => s === 'success' || s === 'skipped');
             const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}`;
             
             const nextStep = allPass
               ? '⏳ **Atlantis autoplan** will run automatically. After plan is posted, review it then comment `atlantis apply`.'
@@ -149,19 +150,22 @@ jobs:
             
             const fixCmd = '```bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n```';
             
-            // Find existing infra-flash comment
-            const MARKER = '<!-- infra-flash-ci -->';
+            // Per-commit marker (unique per commit SHA)
+            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+            
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               per_page: 100
             });
+            
+            // Check if comment for THIS commit already exists
             const existing = comments.data.find(c => c.body.includes(MARKER));
             
-            // Build current status section
-            const currentStatus = [
-              `### CI Validate ${allPass ? '✅' : '❌'} | \`${sha}\` | ${timestamp}`,
+            // Build CI status section
+            const ciSection = [
+              `### CI Validate ${allPass ? '✅' : '❌'} | [${sha}](${runUrl}) | ${timestamp}`,
               '',
               '| Layer | Format | Lint | Validate |',
               '|:------|:------:|:----:|:--------:|',
@@ -170,53 +174,36 @@ jobs:
               `| L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |`,
               `| L4 Apps | ${icon(fmt)} | ${icon(lint_l4)} | ${icon(validate_l4)} |`,
               '',
-              !allPass ? fixCmd : '',
+              !allPass ? fixCmd : ''
+            ].join('\n');
+            
+            const body = [
+              MARKER,
+              `## ⚡ Commit \`${sha}\``,
+              '',
+              ciSection,
               '',
               nextStep
             ].join('\n');
             
-            // Extract history from existing comment (if any)
-            let history = '';
             if (existing) {
-              const historyMatch = existing.body.match(/<!-- history-start -->([\s\S]*?)<!-- history-end -->/);
-              if (historyMatch) {
-                history = historyMatch[1].trim();
+              // Update existing comment for this commit (CI re-run case)
+              // Preserve Atlantis sections if any
+              let updatedBody = body;
+              const atlantisMatch = existing.body.match(/(---\n### Atlantis[\s\S]*)/);
+              if (atlantisMatch) {
+                updatedBody = body.replace(/⏳ \*\*Atlantis.*/, '') + '\n\n' + atlantisMatch[1];
               }
-            }
-            
-            // Add current to history (keep last 5)
-            const historyEntry = `| \`${sha}\` | ${timestamp} | ${allPass ? '✅' : '❌'} |`;
-            const historyLines = history ? history.split('\n').filter(l => l.startsWith('|') && !l.includes('---')) : [];
-            historyLines.unshift(historyEntry);
-            const recentHistory = historyLines.slice(0, 5).join('\n');
-            
-            const body = [
-              MARKER,
-              '## ⚡ CI Status',
-              '',
-              currentStatus,
-              '',
-              '---',
-              '<details><summary>📜 Commit History (last 5)</summary>',
-              '',
-              '| Commit | Time | Status |',
-              '|:-------|:-----|:------:|',
-              '<!-- history-start -->',
-              recentHistory,
-              '<!-- history-end -->',
-              '',
-              '</details>'
-            ].join('\n');
-            
-            if (existing) {
+              
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: existing.id,
-                body: body
+                body: updatedBody
               });
               console.log(`Updated existing comment for commit ${sha}`);
             } else {
+              // Create NEW comment for this commit
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,

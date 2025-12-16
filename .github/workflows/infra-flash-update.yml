@@ -82,15 +82,15 @@ jobs:
             const triggerUrl = triggerComment ? triggerComment.html_url : null;
             const triggeredBy = triggerComment ? `@${triggerComment.user.login}` : 'autoplan';
             
-            // Find infra-flash comment using new marker
-            const MARKER = '<!-- infra-flash-ci -->';
+            // Find infra-flash comment for CURRENT commit using per-commit marker
+            const MARKER = `<!-- infra-flash-commit:${currentSha} -->`;
             const flashComment = comments.find(c =>
               c.user.login === 'infra-flash[bot]' &&
               c.body.includes(MARKER)
             );
             
             if (!flashComment) {
-              console.log(`No infra-flash comment found with marker`);
+              console.log(`No infra-flash comment found for commit ${currentSha}`);
               return;
             }
             

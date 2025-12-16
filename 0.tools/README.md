@@ -39,3 +39,4 @@ python3 0.tools/check_images.py nginx:1.27 postgres:16
 ```
 
 > Requires internet access to `auth.docker.io` and `registry-1.docker.io`.# CI Path Fix
+# Test per-commit comments
