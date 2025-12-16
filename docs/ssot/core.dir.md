@@ -8,13 +8,43 @@
 
 ```
 L0 Tools     ─  0.tools/, docs/          ─  脚本、文档
-L1 Bootstrap ─  1.bootstrap/             ─  K3s, Atlantis, DNS/Cert, PG
-L2 Platform  ─  2.platform/              ─  Vault, Dashboard, Kubero, Casdoor
+L1 Bootstrap ─  1.bootstrap/             ─  K3s, Atlantis, DNS/Cert, Platform PG
+L2 Platform  ─  2.platform/              ─  Vault, Casdoor, Dashboard + 预置 L3/L4 契约
 L3 Data      ─  3.data/                  ─  业务数据库 (per-env)
-L4 Apps      ─  4.apps/                  ─  业务应用 (per-env)
+L4 Apps      ─  4.apps/                  ─  Kubero, SigNoz, 业务应用 (per-env)
 ```
 
+### 层级职责详解
+
+| 层级 | 核心职责 | 关键组件 |
+|------|----------|----------|
+| **L1 Bootstrap** | Trust Anchor，最小可用集群 | K3s, Atlantis, Platform PG, DNS/Cert |
+| **L2 Platform** | 能力提供层 (密钥/SSO/DNS) | Vault, Casdoor, Dashboard |
+| **L3 Data** | 数据层 (staging/prod) | PostgreSQL, Redis, ClickHouse, ArangoDB |
+| **L4 Apps** | 应用层 (消费 L2+L3) | Kubero (PaaS), SigNoz, 业务应用 |
+
+### L2 预置契约
+
+L2 在部署时为 L3/L4 提前准备：
+- **Vault 密钥路径** (`secret/data/signoz`, `secret/data/postgresql`)
+- **Casdoor OIDC 客户端** (`signoz-oidc`, `kubero-oidc`)
+- **Cloudflare DNS 记录** (`signoz.<domain>`, `kcloud.<domain>`)
+- **Traefik 中间件** (SSO ForwardAuth)
+
+### 依赖 vs 数据流
+
+```
+依赖方向 (部署顺序):      数据流方向 (日志/指标):
+L1 → L2 → L3 → L4          L1 ──┐
+                           L2 ──┼──→ SigNoz (L4)
+                           L3 ──┤
+                           L4 ──┘
+```
+
+> 可观测性数据从 L1-L4 流向 SigNoz，这是**数据流**而非代码依赖，不破坏 DAG。
+
 ---
+
 
 ## 完整目录树
 
@@ -105,10 +135,11 @@ root/
 | L1 | `kube-system` | K3s 系统组件 |
 | L1 | `bootstrap` | Atlantis |
 | L2 | `platform` | Vault, Dashboard, Casdoor |
-| L2 | `kubero` | Kubero UI |
-| L2 | `kubero-operator-system` | Kubero Operator |
 | L3 | `data-staging` | Staging 数据库 |
 | L3 | `data-prod` | Prod 数据库 |
+| L4 | `kubero` | Kubero UI |
+| L4 | `kubero-operator-system` | Kubero Operator |
+| L4 | `observability` | SigNoz, OTel Collector |
 | L4 | `apps-staging` | Staging 应用 |
 | L4 | `apps-prod` | Prod 应用 |
 

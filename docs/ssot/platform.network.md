@@ -20,10 +20,9 @@
 | Atlantis | `atlantis.<internal_domain>` | L1 | ✅ |
 | Vault | `secrets.<internal_domain>` | L2 | ✅ |
 | Dashboard | `kdashboard.<internal_domain>` | L2 | ✅ |
-| Kubero | `kcloud.<internal_domain>` | L2 | ✅ |
-| OAuth2-Proxy | `auth.<internal_domain>` | L2 | ✅ |
-| Casdoor (未来) | `sso.<internal_domain>` | L2 | ✅ |
-| SigNoz (未来) | `signoz.<internal_domain>` | L4 | ✅ |
+| Casdoor | `sso.<internal_domain>` | L2 | ✅ |
+| Kubero | `kcloud.<internal_domain>` | L4 | ✅ |
+| SigNoz | `signoz.<internal_domain>` | L4 | 🔜 待部署 |
 
 ### 业务应用域名（L4，多环境）
 
