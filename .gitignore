@@ -92,3 +92,6 @@ env/
 .wrangler/
 **/output/*.yaml
 **/output/*.yaml-e
+
+# MkDocs
+.site/

@@ -1,0 +1,41 @@
+site_name: codex_infra
+site_description: 单 VPS、自托管基础设施文档站点（由 MkDocs 生成）
+repo_url: https://github.com/wangzitian0/infra
+repo_name: wangzitian0/infra
+edit_uri: edit/main/
+
+docs_dir: mkdocs
+site_dir: .site
+
+exclude_docs: |
+  !repo/.github/
+  !repo/.github/**
+
+theme:
+  name: material
+  language: zh
+  features:
+    - content.action.edit
+    - content.code.copy
+    - navigation.instant
+    - navigation.tracking
+    - navigation.top
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - mkdocs_gen_repo_pages.py
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: true

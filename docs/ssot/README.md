@@ -57,6 +57,7 @@
 - **固定格式**：每个 SSOT 页面最后包含 `Used by（反向链接）`，用于双向链接（类似 "What links here"）。
 - **避免漂移**：一处信息 SSOT 化后，其他文档只保留摘要并链接到该 SSOT 页面。
 - **稳定链接**：如需调整路径，优先保留旧路径的入口页（redirect），避免外部引用 404。
+- **Legacy 链接**：`dir.md` / `pipeline.md` 仅作 redirect；实际 SSOT 内容在 `core.dir.md` / `ops.pipeline.md`，请直接引用后者。
 - **TODO 标注**：未完成事项使用 `> TODO(module): 描述` 格式标注。
 
 ---

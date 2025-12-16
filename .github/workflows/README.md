@@ -26,6 +26,7 @@ PR 创建/更新
 | [`infra-flash-update.yml`](#infra-flash-update) | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
 | [`deploy-k3s.yml`](#deploy-k3s) | main push (paths filter) / 手动 | Bootstrap/恢复：按顺序 apply L1→L2→L3→L4（部分步骤仅在 push 执行） |
 | [`dig.yml`](#health-check) | `/dig` 评论 | 服务连通性检查 |
+| [`docs-site.yml`](#docs-site) | PR / main push / 手动 | 构建 MkDocs 文档站点；main 自动部署到 GitHub Pages |
 | [`claude.yml`](#claude-review) | 评论/Review/Issue/Autoplan | AI 代码审查（best-effort） |
 
 ---
@@ -146,6 +147,25 @@ AI 代码审查：
 - 可靠性：该 workflow 为 best-effort（`continue-on-error: true`），失败不会阻塞主流水线
 
 ---
+
+## docs-site.yml {#docs-site}
+
+**触发**: PR / `push` to `main` (paths filter) / `workflow_dispatch`
+
+用途：
+- 构建静态文档站点（`mkdocs.yml`；`docs_dir: mkdocs`）
+- 文档来源：`mkdocs_gen_repo_pages.py` 仅从 git 管控的 `*.md` 生成 `repo/` 页面（含 submodule）
+- 注意：新增文档需先 `git add`（生成脚本基于 `git ls-files`）
+- `main` 分支 push 自动部署到 GitHub Pages（GitHub Actions → Pages）
+
+本地运行：
+
+```bash
+python3.12 -m venv .venv  # 或 python3.11
+.venv/bin/python -m pip install -r requirements-mkdocs.txt
+git submodule update --init --recursive  # 如果需要 apps 文档
+.venv/bin/mkdocs serve
+```
 
 ## Atlantis 命令
 
