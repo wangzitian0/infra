@@ -15,7 +15,10 @@
 # ============================================================
 locals {
   # Read and split the operator.yaml into individual documents
-  operator_yaml_raw = file("${path.module}/manifests/kubero/operator.yaml")
+  operator_yaml_raw_content = file("${path.module}/manifests/kubero/operator.yaml")
+  
+  # Replace namespace in the manifest content to allow multi-tenant deployment
+  operator_yaml_raw = replace(local.operator_yaml_raw_content, "kubero-operator-system", "kubero-operator-system-${var.environment}")
 
   # Split by document separator and filter empty docs
   operator_docs = [
@@ -41,7 +44,7 @@ locals {
 # ============================================================
 resource "kubernetes_namespace" "kubero_operator_system" {
   metadata {
-    name = "kubero-operator-system"
+    name = "kubero-operator-system-${var.environment}"
     labels = {
       "control-plane" = "controller-manager"
       "layer"         = "L4"
@@ -73,7 +76,7 @@ resource "kubectl_manifest" "kubero_operator" {
 # ============================================================
 resource "kubernetes_namespace" "kubero" {
   metadata {
-    name = "kubero"
+    name = "kubero-${var.environment}"
     labels = {
       "layer" = "L4"
     }
@@ -160,7 +163,7 @@ resource "kubectl_manifest" "kubero_instance" {
         }]
       }
       kubero = {
-        namespace  = "kubero"
+        namespace  = "kubero-${var.environment}"
         context    = "inClusterContext"
         sessionKey = random_id.kubero_session_secret.hex
         auth = {
