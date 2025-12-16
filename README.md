@@ -6,7 +6,7 @@
 
 - AI 入口：[`AGENTS.md`](./AGENTS.md)
 - 当前上下文：[`0.check_now.md`](./0.check_now.md)
-- 文档站点（MkDocs）：[`mkdocs.yml`](./mkdocs.yml)（仅使用 git 管控的 `*.md`；CI: [`.github/workflows/docs-site.yml`](./.github/workflows/docs-site.yml)）
+- 文档站点（MkDocs）：[`mkdocs.yml`](./website/mkdocs.yml)（仅使用 git 管控的 `*.md`；CI: [`.github/workflows/docs-site.yml`](./.github/workflows/docs-site.yml)）
 - 目录结构 SSOT（入口）：[`docs/dir.md`](./docs/dir.md)（权威内容在 `docs/ssot/core.dir.md`）
 - 话题 SSOT 索引：[`docs/ssot/README.md`](./docs/ssot/README.md)
 - Layer 文档：[`0.tools/README.md`](./0.tools/README.md) · [`1.bootstrap/README.md`](./1.bootstrap/README.md) · [`2.platform/README.md`](./2.platform/README.md) · [`3.data/README.md`](./3.data/README.md) · [`4.apps/README.md`](./4.apps/README.md)

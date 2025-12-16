@@ -6,7 +6,7 @@ import subprocess
 import mkdocs_gen_files
 
 
-REPO_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PREFIX = Path("repo")
 
 EXCLUDE_PARTS = {
@@ -20,7 +20,7 @@ EXCLUDE_PARTS = {
 }
 
 EXCLUDE_TOP_LEVEL = {
-    "mkdocs",
+    "website",
 }
 
 EXCLUDE_FILES = {
@@ -28,8 +28,8 @@ EXCLUDE_FILES = {
 }
 
 EXTRA_STATIC_FILES = [
-    Path("mkdocs.yml"),
-    Path("requirements-mkdocs.txt"),
+    Path("website/mkdocs.yml"),
+    Path("website/requirements.txt"),
     Path(".github/workflows/docs-site.yml"),
 ]
 

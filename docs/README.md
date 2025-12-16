@@ -6,7 +6,7 @@
 ## Key Documents
 
 - **[SSOT 话题文档](./ssot/README.md)** - 密钥/流程/数据库/认证/网络
-- **[Docs Site (MkDocs)](../mkdocs.yml)** - 本地/CI 生成静态文档站点（CI: [`.github/workflows/docs-site.yml`](../.github/workflows/docs-site.yml)）
+- **[Docs Site (MkDocs)](../website/mkdocs.yml)** - 本地/CI 生成静态文档站点（CI: [`.github/workflows/docs-site.yml`](../.github/workflows/docs-site.yml)）
 - [Directory Map](./ssot/core.dir.md) - 目录结构 SSOT
 - [Project Implementation Status](./project/README.md) - Active BRNs and execution state
 - [Current Context](../0.check_now.md) and [Change Log](./change_log) - Sprint notes and history roll-ups
