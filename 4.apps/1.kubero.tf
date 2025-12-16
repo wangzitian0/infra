@@ -16,7 +16,7 @@
 locals {
   # Read and split the operator.yaml into individual documents
   operator_yaml_raw_content = file("${path.module}/manifests/kubero/operator.yaml")
-  
+
   # Replace namespace in the manifest content to allow multi-tenant deployment
   operator_yaml_raw = replace(local.operator_yaml_raw_content, "kubero-operator-system", "kubero-operator-system-${var.environment}")
 
