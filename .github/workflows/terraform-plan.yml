@@ -111,7 +111,7 @@ jobs:
         continue-on-error: true
 
       # ============================================================
-      # infra-flash Comment (Per-commit, new comment for each commit)
+      # infra-flash Comment (Single comment per PR, updated on each commit)
       # ============================================================
       - name: Generate App Token
         if: always()
@@ -121,7 +121,7 @@ jobs:
           app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
-      - name: Create infra-flash comment
+      - name: Update infra-flash comment
         if: always()
         uses: actions/github-script@v7
         with:
@@ -149,11 +149,19 @@ jobs:
             
             const fixCmd = '```bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n```';
             
-            const body = [
-              `<!-- infra-flash-commit:${sha} -->`,
-              `## ⚡ Commit \`${sha}\``,
-              '',
-              `### CI Validate ${allPass ? '✅' : '❌'} | ${timestamp}`,
+            // Find existing infra-flash comment
+            const MARKER = '<!-- infra-flash-ci -->';
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            });
+            const existing = comments.data.find(c => c.body.includes(MARKER));
+            
+            // Build current status section
+            const currentStatus = [
+              `### CI Validate ${allPass ? '✅' : '❌'} | \`${sha}\` | ${timestamp}`,
               '',
               '| Layer | Format | Lint | Validate |',
               '|:------|:------:|:----:|:--------:|',
@@ -167,14 +175,56 @@ jobs:
               nextStep
             ].join('\n');
             
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: body
-            });
+            // Extract history from existing comment (if any)
+            let history = '';
+            if (existing) {
+              const historyMatch = existing.body.match(/<!-- history-start -->([\s\S]*?)<!-- history-end -->/);
+              if (historyMatch) {
+                history = historyMatch[1].trim();
+              }
+            }
             
-            console.log(`Created new comment for commit ${sha}`);
+            // Add current to history (keep last 5)
+            const historyEntry = `| \`${sha}\` | ${timestamp} | ${allPass ? '✅' : '❌'} |`;
+            const historyLines = history ? history.split('\n').filter(l => l.startsWith('|') && !l.includes('---')) : [];
+            historyLines.unshift(historyEntry);
+            const recentHistory = historyLines.slice(0, 5).join('\n');
+            
+            const body = [
+              MARKER,
+              '## ⚡ CI Status',
+              '',
+              currentStatus,
+              '',
+              '---',
+              '<details><summary>📜 Commit History (last 5)</summary>',
+              '',
+              '| Commit | Time | Status |',
+              '|:-------|:-----|:------:|',
+              '<!-- history-start -->',
+              recentHistory,
+              '<!-- history-end -->',
+              '',
+              '</details>'
+            ].join('\n');
+            
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body
+              });
+              console.log(`Updated existing comment for commit ${sha}`);
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+              console.log(`Created new comment for commit ${sha}`);
+            }
 
       # ============================================================
       # Final Status (fail if any check failed)
