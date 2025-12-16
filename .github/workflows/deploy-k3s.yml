@@ -21,8 +21,23 @@ jobs:
       contents: read
 
     env:
+      # Common secrets used across multiple steps
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+      BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
+      INTERNAL_DOMAIN: ${{ secrets.INTERNAL_DOMAIN }}
+      VAULT_ROOT_TOKEN: ${{ secrets.VAULT_ROOT_TOKEN }}
+      VAULT_POSTGRES_PASSWORD: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
+      ATLANTIS_WEBHOOK_SECRET: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      GH_PAT: ${{ secrets.GH_PAT }}
 
     steps:
       - name: Checkout
@@ -204,20 +219,20 @@ jobs:
           github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
           github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-          vault_address: https://secrets.${{ secrets.BASE_DOMAIN }}
+          vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
 
       # =========================================================
       # PRE-FLIGHT PHASE 2: Verify External Dependencies (Shift-Left)
       # =========================================================
       - name: Pre-flight (2-Dependencies)
         env:
-          BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
+          INTERNAL_DOMAIN: ${{ secrets.INTERNAL_DOMAIN }}
           VAULT_ROOT_TOKEN: ${{ secrets.VAULT_ROOT_TOKEN }}
         run: |
           echo "=== Pre-flight Phase 2: Dependency Check ==="
           
           # Vault external URL reachable?
-          VAULT_URL="https://secrets.${BASE_DOMAIN}"
+          VAULT_URL="https://secrets.${INTERNAL_DOMAIN}"
           echo "Checking Vault at ${VAULT_URL}..."
           
           if curl -sf --connect-timeout 10 "${VAULT_URL}/v1/sys/health" > /dev/null 2>&1; then
@@ -285,7 +300,7 @@ jobs:
           cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           base_domain: ${{ secrets.BASE_DOMAIN }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-          vault_address: https://secrets.${{ secrets.BASE_DOMAIN }}
+          vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
 
       - name: Pre-flight Image Check (L3)
         if: github.event_name == 'push'
@@ -375,7 +390,7 @@ jobs:
           cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           base_domain: ${{ secrets.BASE_DOMAIN }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-          vault_address: https://secrets.${{ secrets.BASE_DOMAIN }}
+          vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
 
       - name: Apply Infrastructure (L4 - Apps)
         if: github.event_name == 'push'
