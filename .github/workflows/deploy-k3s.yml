@@ -4,9 +4,14 @@ on:
   push:
     branches: [main]
     paths:
+      # Trigger on infrastructure code changes (all layers)
       - "1.bootstrap/**"
+      - "2.platform/**"
+      - "3.data/**"
+      - "4.apps/**"
       - ".github/workflows/deploy-k3s.yml"
       - ".github/actions/**"
+      # Excluded: docs/** and *.md (no infra changes)
   workflow_dispatch: {}
 
 env:
