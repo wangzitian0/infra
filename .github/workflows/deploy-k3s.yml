@@ -409,10 +409,17 @@ jobs:
           kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --user default --password "$CH_PASS" --query "SELECT 1" && echo "✅ ClickHouse: Ready" || echo "❌ ClickHouse: Not Ready"
           
           echo "Checking Keeper..."
-          kubectl exec -n $NS clickhouse-keeper-0 -- bash -c 'echo ruok | nc localhost 9181' && echo "✅ Keeper: imok" || echo "❌ Keeper: Not Ready"
+          # Use clickhouse-keeper CLI instead of nc (not available in container)
+          kubectl exec -n $NS clickhouse-keeper-0 -- clickhouse-keeper-client -q "stat" 2>/dev/null && echo "✅ Keeper: Ready" || echo "❌ Keeper: Not Ready (non-blocking)"
           
           echo "Checking ArangoDB..."
-          kubectl exec -n $NS -l arango_deployment=arangodb -- curl -sf http://localhost:8529/_api/version && echo "✅ ArangoDB: Ready" || echo "❌ ArangoDB: Not Ready"
+          # Get the actual ArangoDB pod name (dynamic name pattern)
+          ARANGO_POD=$(kubectl get pods -n $NS -l arango_deployment=arangodb -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+          if [ -n "$ARANGO_POD" ]; then
+            kubectl exec -n $NS "$ARANGO_POD" -- curl -sf http://localhost:8529/_api/version && echo "✅ ArangoDB: Ready" || echo "❌ ArangoDB: Not Ready"
+          else
+            echo "❌ ArangoDB: Pod not found"
+          fi
           
           echo ""
           echo "=== Summary ==="
@@ -464,9 +471,16 @@ jobs:
 
       - name: Verify L4 (Endpoint Check)
         if: github.event_name == 'push'
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          # Skip if L4 was skipped (no .tf files)
+          if [ ! -f "4.apps/*.tf" ] 2>/dev/null && ! ls 4.apps/*.tf 1>/dev/null 2>&1; then
+            echo "⏭️ Skipping L4 Verify: No apps deployed"
+            exit 0
+          fi
+          
           echo "Verifying L4 Applications..."
-          # Placeholder for specific app checks (e.g., curl endpoints)
           kubectl get pods -n apps-prod || true
 
       - name: Upload kubeconfig
