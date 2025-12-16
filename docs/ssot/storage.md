@@ -58,3 +58,12 @@
 - 存储类：`docs/ssot/k3s.md`
 - 数据落点：`docs/ssot/db.md`
 - R2 backend：`1.bootstrap/backend.tf`
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [1.bootstrap/README.md](../../1.bootstrap/README.md)
+- [2.platform/README.md](../../2.platform/README.md)
+- [3.data/README.md](../../3.data/README.md)

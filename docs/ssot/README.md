@@ -22,6 +22,12 @@
 | [storage.md](./storage.md) | 存储与文件系统 | /data、StorageClass、R2 备份与同步 |
 | [ai.md](./ai.md) | AI 接入 | OpenRouter、变量/密钥、注入方式 |
 
+## 维护约定（SSOT → Wikipedia 风格）
+
+- **固定格式**：每个 SSOT 页面最后包含 `Used by（反向链接）`，用于双向链接（类似 “What links here”）。
+- **避免漂移**：一处信息 SSOT 化后，其他文档只保留摘要并链接到该 SSOT 页面。
+- **稳定链接**：如需调整路径，优先保留旧路径的入口页（redirect），避免外部引用 404（例如 `docs/dir.md`）。
+
 ## 层级架构
 
 ```

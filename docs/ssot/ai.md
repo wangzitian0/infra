@@ -44,3 +44,10 @@ App Pod（/vault/secrets/*）
 |------|------|
 | OpenRouter Key 管理 | ⏳ 未配置 |
 | 应用侧 SDK 接入 | ⏳ 未落地 |
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [docs/ssot/secrets.md](./secrets.md)

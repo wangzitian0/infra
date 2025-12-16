@@ -44,3 +44,10 @@
 
 - 可观测性选型：`docs/ssot/observability.md`
 - 域名规则：`docs/ssot/network.md`
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [docs/ssot/observability.md](./observability.md)

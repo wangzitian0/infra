@@ -16,3 +16,10 @@
 ## Archived Projects
 
 (None)
+
+## Related
+
+- [apps/docs/index.md](../../apps/docs/index.md) - Apps documentation index (submodule)
+
+---
+*Last updated: 2025-12-16*

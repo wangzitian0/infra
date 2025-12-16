@@ -152,3 +152,11 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 - [secrets.md](secrets.md) - 密钥管理 SSOT
 - [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor 部署
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [2.platform/README.md](../../2.platform/README.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)

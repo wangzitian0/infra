@@ -366,3 +366,18 @@ git push
 | `1.bootstrap/2.atlantis.tf` | Atlantis 部署定义 |
 | `docs/ssot/secrets.md` | 密钥管理 |
 | `docs/ssot/vars.md` | 变量定义 |
+
+---
+
+## Used by（反向链接）
+
+- [docs/ssot/README.md](./README.md)
+- [0.check_now.md](../../0.check_now.md)
+- [README.md](../../README.md)
+- [.github/README.md](../../.github/README.md)
+- [.github/workflows/README.md](../../.github/workflows/README.md)
+- [4.apps/README.md](../../4.apps/README.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)
+- [docs/change_log/2025-12-15.infra_flash_per_commit.md](../change_log/2025-12-15.infra_flash_per_commit.md)
+- [docs/change_log/2025-12-15.pipeline_simplify_scheme_a.md](../change_log/2025-12-15.pipeline_simplify_scheme_a.md)
+- [docs/ssot/dir.md](./dir.md)
