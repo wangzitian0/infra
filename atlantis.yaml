@@ -135,7 +135,8 @@ workflows:
             EOF
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
-        - plan
+        - plan:
+            extra_args: ["-var=environment=${WORKSPACE}"]
     apply:
       steps:
         # Reuse .terraform from plan step to avoid state lineage mismatch
