@@ -260,25 +260,47 @@ jobs:
           VAULT_URL="https://secrets.${INTERNAL_DOMAIN}"
           echo "Checking Vault at ${VAULT_URL}..."
           
-          if curl -sf --connect-timeout 10 "${VAULT_URL}/v1/sys/health" > /dev/null 2>&1; then
-            echo "✅ Vault is reachable at ${VAULT_URL}"
-          else
-            echo "⚠️ Vault health check failed (may be initializing or sealed)"
-            echo "   Will proceed but expect potential Vault provider errors"
+          HEALTH_RESPONSE=$(curl -sf --connect-timeout 10 "${VAULT_URL}/v1/sys/health" 2>&1 || echo "FAIL")
+          
+          if [ "$HEALTH_RESPONSE" = "FAIL" ]; then
+            echo "❌ Vault is not reachable at ${VAULT_URL}"
+            echo "::error::Pre-flight failed: Vault unreachable. Check if Vault is running."
+            exit 1
           fi
+          
+          # Check if response is JSON (not HTML)
+          if echo "$HEALTH_RESPONSE" | grep -q "^<"; then
+            echo "❌ Vault returned HTML (may be SSO gate or error page)"
+            echo "   Response preview: $(echo "$HEALTH_RESPONSE" | head -c 200)"
+            echo "::error::Pre-flight failed: Vault returned HTML instead of JSON"
+            exit 1
+          fi
+          
+          echo "✅ Vault is reachable at ${VAULT_URL}"
           
           # Vault token valid?
           echo "Checking Vault token validity..."
-          TOKEN_CHECK=$(curl -sf --connect-timeout 10 \
+          TOKEN_RESPONSE=$(curl -s --connect-timeout 10 \
             -H "X-Vault-Token: ${VAULT_ROOT_TOKEN}" \
-            "${VAULT_URL}/v1/auth/token/lookup-self" 2>/dev/null || echo "FAIL")
+            "${VAULT_URL}/v1/auth/token/lookup-self" 2>&1)
           
-          if [ "$TOKEN_CHECK" != "FAIL" ]; then
-            echo "✅ Vault token is valid"
-          else
-            echo "⚠️ Vault token check failed (may be expired or invalid)"
-            echo "   Proceeding anyway - apply may fail with auth errors"
+          # Check if response is HTML (SSO page)
+          if echo "$TOKEN_RESPONSE" | grep -q "^<"; then
+            echo "❌ Vault token check returned HTML (token may be blocked by SSO)"
+            echo "   Response preview: $(echo "$TOKEN_RESPONSE" | head -c 200)"
+            echo "::error::Pre-flight failed: Vault token blocked by SSO gate"
+            exit 1
           fi
+          
+          # Check if token lookup succeeded
+          if echo "$TOKEN_RESPONSE" | grep -q "errors"; then
+            echo "❌ Vault token is invalid or expired"
+            echo "   Error: $(echo "$TOKEN_RESPONSE" | jq -r '.errors[0]' 2>/dev/null || echo "$TOKEN_RESPONSE")"
+            echo "::error::Pre-flight failed: Vault token invalid. Run: AGENTS.md → Vault Token 过期"
+            exit 1
+          fi
+          
+          echo "✅ Vault token is valid"
 
       - name: Apply Infrastructure (L2 - Platform)
         working-directory: 2.platform
