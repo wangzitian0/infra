@@ -50,8 +50,9 @@ resource "random_password" "kubero_oidc_client_secret" {
 # Casdoor admin password now comes from 1Password via var.casdoor_admin_password
 # (GitHub Secret CASDOOR_ADMIN_PASSWORD → TF_VAR_casdoor_admin_password)
 
-# ConfigMap for Casdoor init_data.json
-# This file is loaded on first startup to initialize organization, user, and application
+# ConfigMap for Casdoor init_data.json (Bootstrap Only)
+# NOTE: OIDC applications are now managed via REST API in 5.casdoor-apps.tf
+# This only initializes the essential bootstrap entities (org, admin, builtin-app)
 resource "kubernetes_config_map" "casdoor_init_data" {
   count = local.casdoor_enabled ? 1 : 0
 
@@ -91,92 +92,25 @@ resource "kubernetes_config_map" "casdoor_init_data" {
           isGlobalAdmin = true
         }
       ]
-      applications = concat(
-        [
-          {
-            owner          = "admin"
-            name           = "app-built-in"
-            createdTime    = "2025-01-01T00:00:00Z"
-            displayName    = "Built-in Application"
-            organization   = "built-in"
-            clientId       = "casdoor-builtin-app"
-            clientSecret   = var.casdoor_admin_password
-            redirectUris   = ["https://${local.casdoor_domain}/callback"]
-            enablePassword = true
-            providers      = []
-            signinMethods  = []
-            signupItems    = []
-            grantTypes     = []
-            tags           = []
-          }
-        ],
-        local.portal_gate_enabled ? [
-          {
-            owner          = "admin"
-            name           = "portal-gate"
-            createdTime    = "2025-01-01T00:00:00Z"
-            displayName    = "Portal SSO Gate"
-            organization   = "built-in"
-            clientId       = var.casdoor_portal_client_id
-            clientSecret   = local.casdoor_portal_gate_client_secret
-            redirectUris   = ["https://auth.${local.internal_domain}/oauth2/callback"]
-            enablePassword = false
-            providers      = []
-            signinMethods  = []
-            signupItems    = []
-            grantTypes     = ["authorization_code", "refresh_token"]
-            tags           = []
-          },
-          {
-            owner          = "admin"
-            name           = "vault-oidc"
-            createdTime    = "2025-01-01T00:00:00Z"
-            displayName    = "Vault OIDC"
-            organization   = "built-in"
-            clientId       = "vault-oidc"
-            clientSecret   = local.vault_oidc_client_secret
-            redirectUris   = ["https://secrets.${local.internal_domain}/ui/vault/auth/oidc/oidc/callback"]
-            enablePassword = false
-            providers      = []
-            signinMethods  = []
-            signupItems    = []
-            grantTypes     = ["authorization_code", "refresh_token"]
-            tags           = []
-          },
-          {
-            owner          = "admin"
-            name           = "dashboard-oidc"
-            createdTime    = "2025-01-01T00:00:00Z"
-            displayName    = "Dashboard OIDC"
-            organization   = "built-in"
-            clientId       = "dashboard-oidc"
-            clientSecret   = local.dashboard_oidc_client_secret
-            redirectUris   = ["https://kdashboard.${local.internal_domain}/oauth2/callback"]
-            enablePassword = false
-            providers      = []
-            signinMethods  = []
-            signupItems    = []
-            grantTypes     = ["authorization_code", "refresh_token"]
-            tags           = []
-          },
-          {
-            owner          = "admin"
-            name           = "kubero-oidc"
-            createdTime    = "2025-01-01T00:00:00Z"
-            displayName    = "Kubero OIDC"
-            organization   = "built-in"
-            clientId       = "kubero-oidc"
-            clientSecret   = local.kubero_oidc_client_secret
-            redirectUris   = ["https://kcloud.${local.internal_domain}/auth/callback"]
-            enablePassword = false
-            providers      = []
-            signinMethods  = []
-            signupItems    = []
-            grantTypes     = ["authorization_code", "refresh_token"]
-            tags           = []
-          }
-        ] : []
-      )
+      # Only builtin app for M2M auth; OIDC apps managed via REST API
+      applications = [
+        {
+          owner          = "admin"
+          name           = "app-built-in"
+          createdTime    = "2025-01-01T00:00:00Z"
+          displayName    = "Built-in Application"
+          organization   = "built-in"
+          clientId       = "casdoor-builtin-app"
+          clientSecret   = var.casdoor_admin_password
+          redirectUris   = ["https://${local.casdoor_domain}/callback"]
+          enablePassword = true
+          providers      = []
+          signinMethods  = []
+          signupItems    = []
+          grantTypes     = ["client_credentials", "authorization_code", "refresh_token"]
+          tags           = []
+        }
+      ]
     })
   }
 }

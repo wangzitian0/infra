@@ -105,13 +105,16 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 | GitHub | 开发者登录 | ⏳ 待配置 |
 | Google | 备用登录 | ⏳ 待配置 |
 
-### OIDC Clients (待创建)
+### OIDC Clients (通过 REST API 自动管理)
 
-| 应用 | Client ID | Redirect URI |
-|------|-----------|--------------|
-| Vault | `vault-oidc` | `https://vault.zitian.party/ui/vault/auth/oidc/oidc/callback` |
-| Dashboard | `dashboard-oidc` | `https://dash.zitian.party/oauth2/callback` |
-| Kubero | `kubero-oidc` | `https://kubero.zitian.party/auth/callback` |
+> OIDC 应用现在通过 `5.casdoor-apps.tf` 中的 REST API 自动创建/更新，无需手动操作。
+
+| 应用 | Client ID | Redirect URI | 管理方式 |
+|------|-----------|--------------|----------|
+| Portal Gate | `portal-gate` | `https://auth.<internal_domain>/oauth2/callback` | REST API |
+| Vault | `vault-oidc` | `https://secrets.<internal_domain>/ui/vault/auth/oidc/oidc/callback` | REST API |
+| Dashboard | `dashboard-oidc` | `https://kdashboard.<internal_domain>/oauth2/callback` | REST API |
+| Kubero | `kubero-oidc` | `https://kcloud.<internal_domain>/auth/callback` | REST API |
 
 ---
 
@@ -128,9 +131,9 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 ## 密钥策略（1Password Zero 依赖 / Vault-first）
 
-- **目标一：1Password 仅存储根密钥**（Atlantis 管理密码、Vault Root Token、Casdoor Admin 密码等），作为离线恢复点，日常操作尽量不直接依赖 `op`。
-- **目标二：其他凭据均由 Vault/Terraform 生成、动态注入或同步到 Vault，Casdoor client secret、Webhook Token、业务 token 等都有 Vault 副本，保持“Vault-first”。
-- 若某密钥必须同时存于 1Password 与 Vault，则让 Vault 成为 SSOT，1Password 仅做备份（“Vault-first, 1Password fallback”），明确区分“1Password 0 依赖”和“Vault 作为自动源”两条路径。
+-   **目标一：1Password 仅存储根密钥**（Atlantis 管理密码、Vault Root Token、Casdoor Admin 密码等），作为离线恢复点，日常操作尽量不直接依赖 `op`。
+-   **目标二：其他凭据均由 Vault/Terraform 生成、动态注入或同步到 Vault，Casdoor client secret、Webhook Token、业务 token 等都有 Vault 副本，保持“Vault-first”。
+-   若某密钥必须同时存于 1Password 与 Vault，则让 Vault 成为 SSOT，1Password 仅做备份（“Vault-first, 1Password fallback”），明确区分“1Password 0 依赖”和“Vault 作为自动源”两条路径。
 
 ---
 
@@ -140,9 +143,9 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 |------|------|
 | Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
 | GitHub OAuth | ⏳ Casdoor UI 中配置 |
-| Vault OIDC | ⚙️ Casdoor OIDC 客户端 + Vault OIDC Provider 正在调试 |
-| Dashboard SSO Gate | ⚙️ Traefik ForwardAuth 指向 Casdoor（dashboard/token 组合） |
-| Kubero OAuth2 | ⏳ Casdoor OAuth 客户端（`kubero-oidc`）待创建 |
+| Vault OIDC | ✅ REST API 自动创建 (`vault-oidc`) |
+| Dashboard OIDC | ✅ REST API 自动创建 (`dashboard-oidc`) |
+| Kubero OIDC | ✅ REST API 自动创建 (`kubero-oidc`) |
 | OAuth2-Proxy | ✅ 已移除 (被 Casdoor 替代) |
 
 ---
@@ -150,7 +153,8 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 ## 相关文件
 
 - [secrets.md](secrets.md) - 密钥管理 SSOT
-- [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor 部署
+- [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor Helm release + Bootstrap
+- [98.casdoor-apps.tf](../../2.platform/98.casdoor-apps.tf) - OIDC 应用 (local-exec API)
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
 
 ---
