@@ -450,6 +450,12 @@ jobs:
         env:
           TF_LOG: INFO
         run: |
+          # Skip if no .tf files present (L4 is placeholder until apps are added)
+          if ! ls *.tf 1> /dev/null 2>&1; then
+            echo "⏭️ Skipping L4 Apply: No .tf files in 4.apps/"
+            exit 0
+          fi
+          
           terraform workspace select prod || terraform workspace new prod
           terraform apply -auto-approve || {
              echo "::error::L4 Apps Apply failed."
