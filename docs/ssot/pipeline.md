@@ -346,7 +346,9 @@ git push
 │  时机        │  机制                │  作用                 │
 ├─────────────────────────────────────────────────────────────┤
 │  CI         │  fmt/lint/validate   │  语法正确性           │
+│  Pre-flight │  0-Inputs            │  Secrets 完整性 (左移) │
 │  Plan       │  variable.validation │  拒绝无效输入          │
+│  Pre-flight │  2-Dependencies      │  Vault/外部服务可达    │
 │  Apply 前   │  precondition        │  验证依赖就绪          │
 │  Pod 启动   │  initContainer       │  等待依赖可用          │
 │  运行时     │  readiness/liveness  │  流量控制 / 自动重启   │
