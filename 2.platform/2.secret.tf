@@ -125,18 +125,17 @@ resource "helm_release" "vault" {
 }
 
 # Ingress for Vault UI/API
+# NOTE: Vault is NOT protected by SSO Gate because:
+#   1. Vault has its own authentication (Token, OIDC with Casdoor)
+#   2. External SSO Gate would block API access from CI runners
+#   3. Casdoor OIDC auth is already configured in 99.vault-auth.tf
 resource "kubernetes_ingress_v1" "vault" {
   metadata {
     name      = "vault-ingress"
     namespace = data.kubernetes_namespace.platform.metadata[0].name
-    annotations = merge(
-      {
-        "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-      },
-      local.portal_sso_gate_enabled ? {
-        "traefik.ingress.kubernetes.io/router.middlewares" = "${data.kubernetes_namespace.platform.metadata[0].name}-portal-auth@kubernetescrd"
-      } : {}
-    )
+    annotations = {
+      "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+    }
   }
 
   spec {
