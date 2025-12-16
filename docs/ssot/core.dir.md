@@ -143,69 +143,14 @@ root/
 | L4 | `apps-staging` | Staging 应用 |
 | L4 | `apps-prod` | Prod 应用 |
 
----
+> **持久化**: L1/L3 有状态组件用 PVC (`local-path-retain`)，L2/L4 无状态或依赖下层
 
-## 持久化
-
-| 层级 | 组件 | 存储 |
-|------|------|------|
-| L1 | PostgreSQL | PVC on `/data` |
-| L2 | Vault | 使用 L1 PG |
-| L2 | Casdoor | 使用 L1 PG |
-| L3 | 业务 DB | PVC on `/data` |
-| L4 | Apps | 无状态，用 L3 |
-
----
-
-## 组件健康检查规范
-
-### 强制要求
-
-| 检查类型 | 适用场景 | 强制 |
-|----------|----------|------|
-| **initContainer** | 有外部依赖的 Pod | ✅ 必须 (120s 超时) |
-| **Probes** | 所有长期运行 Pod | ✅ 必须 |
-| **validation** | 敏感变量（密码/密钥/URL） | ✅ 必须 |
-| **precondition** | 依赖其他 TF 资源的组件 | ✅ 必须 |
-| **Helm timeout** | 所有 Helm release | ✅ 必须 (300s) |
-| **postcondition** | Helm release | 建议 |
-
-### 覆盖度矩阵
-
-| 层级 | 组件 | 依赖 | initContainer | Probes | validation | precondition | timeout |
-|------|------|------|---------------|--------|------------|--------------|---------|
-| **L1** | k3s | 无 | N/A | N/A | N/A | N/A | 5m |
-| | Atlantis | k3s | N/A | ✅ R+L | ✅ | ✅ | 300s |
-| | DNS/Cert | k3s | N/A | N/A | ✅ | N/A | 300s |
-| | Storage | k3s | N/A | N/A | N/A | N/A | 2m |
-| | Platform PG | storage | N/A | ✅ Helm | ✅ | ✅ | 300s |
-| **L2** | Vault | PG | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
-| | Casdoor | PG | ✅ 120s | ✅ S+R+L | ✅ | ✅ | 300s |
-| | Portal-Auth | Casdoor | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
-| | Dashboard | namespace | N/A | ✅ Helm | N/A | N/A | 300s |
-| | Kubero | namespace | N/A | ✅ R+L | N/A | N/A | N/A (manifest) |
-| | Vault-DB | Vault | N/A | N/A | ✅ | ✅ | N/A |
-| **L3** | L3 Postgres | Vault KV | ✅ 120s | ✅ Helm | ✅ | ✅ | 300s |
-
-**图例**：R=readiness, L=liveness, S=startup, Helm=Chart 默认, N/A=不适用, 120s=initContainer 超时
-
----
-
-## 相关文件
-
-| 文件 | 用途 |
-|------|------|
-| `docs/ssot/env.md` | 环境模型 |
-| `docs/ssot/pipeline.md` | 部署流程 |
+> **健康检查**: 见 [ops.pipeline.md](./ops.pipeline.md#8-健康检查分层)
 
 ---
 
 ## Used by（反向链接）
 
-- [docs/ssot/README.md](./README.md)
-- [README.md](../../README.md)
-- [docs/README.md](../README.md)
-- [docs/dir.md](../dir.md)
-- [3.data/README.md](../../3.data/README.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)
-- [docs/ssot/storage.md](./storage.md)
+- [README.md](./README.md)
+- [core.env.md](./core.env.md)
+
