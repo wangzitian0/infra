@@ -79,8 +79,3 @@ curl "http://clickhouse.data-<env>.svc.cluster.local:8123/?query=SELECT%201"
 
 ---
 
-## Used by（反向链接）
-
-- [README.md](./README.md)
-- [db.overview.md](./db.overview.md)
-- [ops.observability.md](./ops.observability.md)

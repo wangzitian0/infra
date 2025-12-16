@@ -96,10 +96,3 @@ AI 接入相关的变量/密钥与注入方式见：`docs/ssot/ai.md`。
 
 ---
 
-## Used by（反向链接）
-
-- [README.md](./README.md)
-- [platform.auth.md](./platform.auth.md)
-- [platform.ai.md](./platform.ai.md)
-- [ops.pipeline.md](./ops.pipeline.md)
-- [ops.recovery.md](./ops.recovery.md)

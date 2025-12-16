@@ -101,7 +101,7 @@ kubectl exec -n "$NS" postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 
 ## Health Checks & Validation
 
-All L3 data services follow the health check matrix from [docs/ssot/dir.md](../docs/ssot/dir.md):
+All L3 data services follow the health check matrix from [ops.pipeline.md](../docs/ssot/ops.pipeline.md#8-健康检查分层):
 
 ### Atlantis (In-Cluster Providers)
 
@@ -134,7 +134,7 @@ lifecycle {
 - **Timeout**: 300s (standardized across all releases)
 - **Wait**: `wait = true` ensures readiness before completion
 - **Lifecycle**: `prevent_destroy = true` on all database releases
-- **Storage**: follow [docs/ssot/storage.md](../docs/ssot/storage.md) (`local-path-retain`, reclaim policy, /data conventions)
+- **Storage**: follow [ops.storage.md](../docs/ssot/ops.storage.md) (`local-path-retain`, reclaim policy, /data conventions)
 
 **Note**: initContainer and other Pod-level health checks are configured via Helm chart defaults, not in Terraform values per SSOT guidelines.
 Scalability for MVP:
@@ -144,7 +144,7 @@ Scalability for MVP:
 
 Scale-out / multi-replica migration notes are tracked in:
 - [docs/project/README.md](../docs/project/README.md) (execution plan / backlog)
-- [docs/ssot/db.md](../docs/ssot/db.md) (database capability SSOT)
+- [db.overview.md](../docs/ssot/db.overview.md) (database capability SSOT)
 
 ---
 *Last updated: 2025-12-16*

@@ -88,7 +88,3 @@ git push
 
 ---
 
-## Used by（反向链接）
-
-- [ops.pipeline.md](./ops.pipeline.md)
-- [platform.secrets.md](./platform.secrets.md)

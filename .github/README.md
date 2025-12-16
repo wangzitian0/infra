@@ -140,7 +140,7 @@ kubectl get pods -A # 查看所有 pods
 
 ## 相关文档
 
-- [Pipeline SSOT](../docs/ssot/pipeline.md)
+- [ops.pipeline.md](../docs/ssot/ops.pipeline.md)
 - [Workflows README](./workflows/README.md)
 - [BRN-004](../docs/project/BRN-004.md)
 - [AGENTS.md](../AGENTS.md): AI Agent 工作规范

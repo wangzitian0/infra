@@ -161,7 +161,3 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 ---
 
-## Used by（反向链接）
-
-- [README.md](./README.md)
-- [platform.secrets.md](./platform.secrets.md)

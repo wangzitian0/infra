@@ -69,8 +69,3 @@
 
 ---
 
-## Used by（反向链接）
-
-- [README.md](./README.md)
-- [ops.alerting.md](./ops.alerting.md)
-- [db.clickhouse.md](./db.clickhouse.md)

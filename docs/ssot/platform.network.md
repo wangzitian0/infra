@@ -57,9 +57,3 @@ nginx.ingress.kubernetes.io/whitelist-source-range: "140.82.112.0/20,185.199.108
 
 ---
 
-## Used by（反向链接）
-
-- [README.md](./README.md)
-- [core.env.md](./core.env.md)
-- [ops.alerting.md](./ops.alerting.md)
-- [ops.observability.md](./ops.observability.md)

@@ -69,7 +69,3 @@ arangosh --server.endpoint tcp://arangodb.data-<env>.svc.cluster.local:8529 \
 
 ---
 
-## Used by（反向链接）
-
-- [README.md](./README.md)
-- [db.overview.md](./db.overview.md)
