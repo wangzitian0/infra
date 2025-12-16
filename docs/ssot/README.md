@@ -31,8 +31,12 @@
 
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
-| [db.overview.md](./db.overview.md) | 数据库分布 | Platform PG (L1) vs Business DBs (L3) |
-| [db.connection.md](./db.connection.md) | 连接方式 | K8s 服务发现、Vault Agent 注入 |
+| [db.overview.md](./db.overview.md) | 数据库分布总览 | 各层数据库矩阵 |
+| [db.platform_pg.md](./db.platform_pg.md) | Platform PG (L1) | Vault/Casdoor 后端 |
+| [db.business_pg.md](./db.business_pg.md) | Business PG (L3) | 业务应用数据库 |
+| [db.redis.md](./db.redis.md) | Redis (L3) | 缓存、消息队列 |
+| [db.clickhouse.md](./db.clickhouse.md) | ClickHouse (L3) | OLAP、SigNoz |
+| [db.arangodb.md](./db.arangodb.md) | ArangoDB (L3) | 图数据库 |
 
 ---
 
