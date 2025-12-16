@@ -44,7 +44,7 @@ resource "kubernetes_namespace" "kubero_operator_system" {
     name = "kubero-operator-system"
     labels = {
       "control-plane" = "controller-manager"
-      "layer"         = "L2"
+      "layer"         = "L4"
     }
   }
 }
@@ -75,7 +75,7 @@ resource "kubernetes_namespace" "kubero" {
   metadata {
     name = "kubero"
     labels = {
-      "layer" = "L2"
+      "layer" = "L4"
     }
   }
 
@@ -141,8 +141,10 @@ resource "kubectl_manifest" "kubero_instance" {
           {
             "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
           },
+          # Middleware Reference:
+          # Using cross-namespace reference enabled in L1 (namespace-name@provider)
           local.portal_sso_gate_enabled ? {
-            "traefik.ingress.kubernetes.io/router.middlewares" = "${kubernetes_namespace.kubero.metadata[0].name}-portal-auth@kubernetescrd"
+            "traefik.ingress.kubernetes.io/router.middlewares" = "${var.namespaces["platform"]}-portal-auth@kubernetescrd"
           } : {}
         )
         hosts = [{

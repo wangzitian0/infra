@@ -1,3 +1,9 @@
+variable "environment" {
+  description = "Deployment environment (staging/prod)"
+  type        = string
+  default     = "staging"
+}
+
 variable "kubeconfig_path" {
   description = "Path to kubeconfig file (set via TF_VAR_kubeconfig_path in Atlantis)"
   type        = string
@@ -32,4 +38,13 @@ variable "kubero_ui_image_pull_policy" {
   description = "Kubero UI image pull policy. Use IfNotPresent for stability; avoid Always unless debugging."
   type        = string
   default     = "IfNotPresent"
+}
+
+variable "namespaces" {
+  description = "Map of namespace names"
+  type        = map(string)
+  default = {
+    platform = "platform"
+    kubero   = "kubero"
+  }
 }
