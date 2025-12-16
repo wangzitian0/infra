@@ -37,7 +37,7 @@ jobs:
       ATLANTIS_WEBHOOK_SECRET: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-      GH_PAT: ${{ secrets.GH_PAT }}
+
 
     steps:
       - name: Checkout
@@ -62,7 +62,7 @@ jobs:
           CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
           VAULT_ROOT_TOKEN: ${{ secrets.VAULT_ROOT_TOKEN }}
-          GH_PAT: ${{ secrets.GH_PAT }}
+
         run: |
           echo "=== Pre-flight Phase 0: Input Validation ==="
           FAILED=0
@@ -70,7 +70,7 @@ jobs:
           # Critical secrets that MUST exist
           REQUIRED="AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY R2_BUCKET R2_ACCOUNT_ID \
                     VPS_HOST VPS_SSH_KEY VAULT_POSTGRES_PASSWORD ATLANTIS_WEBHOOK_SECRET \
-                    CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID BASE_DOMAIN VAULT_ROOT_TOKEN GH_PAT"
+                    CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID BASE_DOMAIN VAULT_ROOT_TOKEN"
           
           for VAR in $REQUIRED; do
             if [ -z "${!VAR}" ]; then
@@ -159,15 +159,40 @@ jobs:
             terraform import helm_release.atlantis bootstrap/atlantis || true
           fi
           
-          # Force clean Helm secrets to prevent "cannot re-use a name" error
-          # This handles the case where Terraform state is clean but Cluster has lingering Helm release
-          echo "Force cleaning lingering Helm secrets..."
-          echo "Force cleaning lingering Helm secrets..."
-          # Use pattern matching instead of labels to avoid accidents and ensure we hit the right target
-          kubectl -n platform get secrets -o name | grep "sh.helm.release.v1.atlantis" | xargs -r kubectl -n platform delete || true
-          kubectl delete deployment -n platform atlantis || true
-          kubectl delete svc -n platform atlantis || true
-          kubectl delete statefulset -n platform atlantis || true
+      # =========================================================
+      # PRE-FLIGHT PHASE 3: State Consistency (Shift-Left)
+      # Prevents "cannot re-use a name that is still in use" errors
+      # =========================================================
+      - name: Pre-flight (3-State)
+        working-directory: 1.bootstrap
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          echo "=== Pre-flight Phase 3: State Consistency ==="
+          
+          # Check if Atlantis exists in cluster but not in TF state
+          TF_HAS_ATLANTIS=$(terraform state show helm_release.atlantis 2>/dev/null && echo "yes" || echo "no")
+          HELM_HAS_ATLANTIS=$(helm status atlantis -n platform 2>/dev/null && echo "yes" || echo "no")
+          
+          echo "TF State has Atlantis: $TF_HAS_ATLANTIS"
+          echo "Helm has Atlantis: $HELM_HAS_ATLANTIS"
+          
+          if [ "$HELM_HAS_ATLANTIS" = "yes" ] && [ "$TF_HAS_ATLANTIS" = "no" ]; then
+            echo "⚠️ State mismatch detected: Helm has Atlantis but TF doesn't track it"
+            echo "Cleaning up to allow fresh install..."
+            kubectl -n platform get secrets -o name | grep "sh.helm.release.v1.atlantis" | xargs -r kubectl -n platform delete || true
+            kubectl delete deployment -n platform atlantis 2>/dev/null || true
+            kubectl delete svc -n platform atlantis 2>/dev/null || true
+            kubectl delete statefulset -n platform atlantis 2>/dev/null || true
+            echo "✅ Cleanup complete"
+          elif [ "$HELM_HAS_ATLANTIS" = "no" ] && [ "$TF_HAS_ATLANTIS" = "yes" ]; then
+            echo "⚠️ State mismatch detected: TF knows Atlantis but Helm doesn't"
+            echo "Removing stale TF state..."
+            terraform state rm helm_release.atlantis || true
+            echo "✅ State cleanup complete"
+          else
+            echo "✅ State is consistent"
+          fi
 
       # =========================================================
       # 1. Bootstrap Layer (L1): K3s, Atlantis, Cert-Manager
