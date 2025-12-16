@@ -47,6 +47,10 @@ Push 到 main（匹配 workflow 的 paths filter）或手动触发 `Deploy k3s t
 
 当前 `deploy-k3s.yml` 为 bootstrap/recovery pipeline：按顺序 apply L1→L2→L3→L4（L3/L4 的 apply/verify 仅在 `push` 事件执行）。
 
+**Pre-flight 验证（Shift-Left）**：
+- **Phase 0 (Inputs)**：立即验证所有必填 secrets，<30s 内报错
+- **Phase 2 (Dependencies)**：L2 Apply 前验证 Vault 可达性和 Token 有效性
+
 **PR Workflow**:
 1. Open PR → CI runs `fmt/tflint/validate` and posts per-commit infra-flash comment.
 2. PR 更新（push 新 commit）→ Atlantis autoplan 自动运行 `terraform plan` 并评论结果。
