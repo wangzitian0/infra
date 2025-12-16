@@ -1,7 +1,6 @@
 # Pipeline（redirect）
 
-> 兼容入口：历史文档可能引用 `docs/ssot/pipeline.md`。  
-> **流程 SSOT** 已迁移到：[`ops.pipeline.md`](./ops.pipeline.md)。
+> 旧链接仍指向此页面；实际流程 SSOT 内容在 [`ops.pipeline.md`](./ops.pipeline.md)。
 
 - ✅ **SSOT（流程汇总）**：[`ops.pipeline.md`](./ops.pipeline.md)
 - 🧭 **SSOT 索引**：[`README.md`](./README.md)

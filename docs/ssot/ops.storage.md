@@ -18,7 +18,7 @@
 | **L3 Data** | 业务 PG/Redis/Neo4j/ClickHouse | PVC (`local-path-retain`) | 按库定时 dump |
 | **L4 Apps** | 应用容器 | 默认无状态 | 通过 L3 或 R2 持久化 |
 
-> 目录与持久化职责见 `docs/ssot/dir.md`。
+> 目录与持久化职责见 `docs/ssot/core.dir.md`。
 
 ## 备份与同步策略（MVP）
 
@@ -60,4 +60,3 @@
 - R2 backend：`1.bootstrap/backend.tf`
 
 ---
-
