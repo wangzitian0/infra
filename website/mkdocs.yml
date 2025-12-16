@@ -4,8 +4,8 @@ repo_url: https://github.com/wangzitian0/infra
 repo_name: wangzitian0/infra
 edit_uri: edit/main/
 
-docs_dir: mkdocs
-site_dir: .site
+docs_dir: docs
+site_dir: ../.site
 
 exclude_docs: |
   !repo/.github/
@@ -20,12 +20,13 @@ theme:
     - navigation.instant
     - navigation.tracking
     - navigation.top
+    - navigation.indexes
 
 plugins:
   - search
   - gen-files:
       scripts:
-        - mkdocs_gen_repo_pages.py
+        - gen_pages.py
 
 markdown_extensions:
   - admonition
@@ -33,9 +34,19 @@ markdown_extensions:
   - tables
   - pymdownx.details
   - pymdownx.inlinehilite
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.highlight
   - pymdownx.tasklist:
       custom_checkbox: true
+  - pymdownx.arithmatex:
+      generic: true
   - toc:
       permalink: true
+
+extra_javascript:
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+  - js/titles.js

@@ -1,5 +1,7 @@
 # infra — k3s + Kubero 基础设施引导
 
+> 📘 **Documentation Site**: [https://wangzitian0.github.io/infra/](https://wangzitian0.github.io/infra/)
+
 > 基于 [BRN-004](../docs/project/BRN-004.md) 的分层架构（L1 Bootstrap → L2 Platform → L3 Data → L4 Apps）。
 > 现状：用 **Terraform + GitHub Actions + Atlantis** 在单 VPS 上部署/更新 k3s 平台，并用 PR 流程可审计地推进变更。
 
