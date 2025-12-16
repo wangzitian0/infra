@@ -39,17 +39,3 @@ data "cloudflare_zone" "internal" {
 }
 // trigger l2
 
-# Casdoor REST API provider for managing OIDC applications
-# Uses admin credentials for M2M authentication
-provider "restapi" {
-  alias                = "casdoor"
-  uri                  = "https://sso.${var.internal_domain}"
-  write_returns_object = true
-
-  headers = {
-    Content-Type = "application/json"
-  }
-
-  # Skip create if object exists (for idempotency)
-  create_returns_object = true
-}
