@@ -456,6 +456,7 @@ jobs:
         working-directory: 4.apps
         env:
           TF_LOG: INFO
+          TF_VAR_environment: prod
         run: |
           # Skip if no .tf files present (L4 is placeholder until apps are added)
           if ! ls *.tf 1> /dev/null 2>&1; then
