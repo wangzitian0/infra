@@ -448,6 +448,7 @@ jobs:
           cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           base_domain: ${{ secrets.BASE_DOMAIN }}
+          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
           vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
           vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
 
