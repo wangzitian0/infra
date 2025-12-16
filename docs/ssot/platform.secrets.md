@@ -61,33 +61,7 @@ AI 接入相关的变量/密钥与注入方式见：`docs/ssot/ai.md`。
 
 ---
 
-## 同步命令
-
-### 从 1Password 恢复 GitHub Secret
-
-```bash
-# 示例：恢复 VAULT_POSTGRES_PASSWORD
-gh secret set VAULT_POSTGRES_PASSWORD \
-  --body "$(op item get 'PostgreSQL (Platform)' --vault my_cloud --fields VAULT_POSTGRES_PASSWORD --reveal)"
-
-# 示例：恢复 VPS_SSH_KEY
-gh secret set VPS_SSH_KEY \
-  --body "$(op item get 'VPS SSH' --vault my_cloud --fields VPS_SSH_KEY --reveal)"
-```
-
-### 批量恢复（灾难恢复）
-
-```bash
-# Cloudflare
-for f in BASE_DOMAIN CLOUDFLARE_ZONE_ID INTERNAL_DOMAIN INTERNAL_ZONE_ID CLOUDFLARE_API_TOKEN; do
-  gh secret set $f --body "$(op item get 'Cloudflare API' --vault my_cloud --fields $f --reveal)"
-done
-
-# R2/AWS
-for f in R2_BUCKET R2_ACCOUNT_ID AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
-  gh secret set $f --body "$(op item get 'R2 Backend (AWS)' --vault my_cloud --fields $f --reveal)"
-done
-```
+> 同步/恢复命令见 [ops.recovery.md](./ops.recovery.md)
 
 ---
 
@@ -124,8 +98,8 @@ done
 
 ## Used by（反向链接）
 
-- [docs/ssot/README.md](./README.md)
-- [.github/workflows/README.md](../../.github/workflows/README.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)
-- [docs/ssot/ai.md](./ai.md)
-- [docs/ssot/pipeline.md](./pipeline.md)
+- [README.md](./README.md)
+- [platform.auth.md](./platform.auth.md)
+- [platform.ai.md](./platform.ai.md)
+- [ops.pipeline.md](./ops.pipeline.md)
+- [ops.recovery.md](./ops.recovery.md)

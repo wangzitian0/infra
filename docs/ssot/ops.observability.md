@@ -71,5 +71,6 @@
 
 ## Used by（反向链接）
 
-- [docs/ssot/README.md](./README.md)
-- [docs/ssot/alerting.md](./alerting.md)
+- [README.md](./README.md)
+- [ops.alerting.md](./ops.alerting.md)
+- [db.clickhouse.md](./db.clickhouse.md)

@@ -51,6 +51,8 @@
 | L3 | `data-<env>` | 业务数据库（`data-staging` / `data-prod`） |
 | L4 | `apps-<env>` | 业务应用（`apps-staging` / `apps-prod`） |
 
+> **完整 Namespace 规则**见 [core.dir.md](./core.dir.md#namespace-规则)
+
 > 备注（以代码为准）：当前 `3.data/` 与 `4.apps/` 目录仅有 README、**没有 Terraform 资源**（尚未落地 namespace 创建/部署逻辑），但 `atlantis.yaml` 已声明了 `data-staging/prod` 与 `apps-staging/prod` 的 workspace/state key 约束。为避免未来迁移成本，文档先固定 namespace 规则，等 L3/L4 IaC 落地时按本规则实现即可。
 
 ---
@@ -66,7 +68,7 @@
 - `k3s.<internal_domain>:6443`：K3s API（**DNS-only**，不走 Cloudflare proxy）
 
 这部分详见：
-- `network.md`（域名规则与服务映射）
+- [platform.network.md](./platform.network.md)（域名规则与服务映射）
 - `1.bootstrap/3.dns_and_cert.tf`（Cloudflare 记录与证书）
 
 ### 4.2 业务域名（base_domain + env_prefix）
@@ -92,7 +94,7 @@
 
 ## 5. Vars 设计：哪些放 TF_VAR，哪些放 tfvars？
 
-> 原则：**Secret 不进 tfvars**；SSOT 在 1Password（见 `secrets.md`），GitHub Secrets 是可重建副本。
+> 原则：**Secret 不进 tfvars**；SSOT 在 1Password（见 [platform.secrets.md](./platform.secrets.md)），GitHub Secrets 是可重建副本。
 
 ### 5.1 L1/L2：GitHub Secrets → TF_VAR_（CI/Atlantis 注入）
 
@@ -120,10 +122,10 @@
 
 ## 6. 文件职责（Where is the Truth）
 
-- `docs/ssot/env.md`：**环境模型的唯一 SSOT**（本文件）
+- `docs/ssot/core.env.md`：**环境模型的唯一 SSOT**（本文件）
 - `envs/README.md`：如何维护 `envs/<env>.tfvars` 的操作指南（不再重复架构）
-- `docs/ssot/vars.md`：变量清单（类型/默认值/注入方式），并链接回本文件解释“环境语义”
-- `docs/ssot/network.md`：域名规则与服务映射
+- [core.vars.md](./core.vars.md)：变量清单（类型/默认值/注入方式），并链接回本文件解释“环境语义”
+- [platform.network.md](./platform.network.md)：域名规则与服务映射
 - `atlantis.yaml`：workspace/state key/var-file 的执行约束（以实际为准）
 
 ---
@@ -141,8 +143,6 @@
 
 ## Used by（反向链接）
 
-- [docs/ssot/README.md](./README.md)
-- [1.bootstrap/README.md](../../1.bootstrap/README.md)
-- [4.apps/README.md](../../4.apps/README.md)
-- [envs/README.md](../../envs/README.md)
-- [docs/ssot/dir.md](./dir.md)
+- [README.md](./README.md)
+- [core.dir.md](./core.dir.md)
+- [core.vars.md](./core.vars.md)

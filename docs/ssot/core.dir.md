@@ -64,15 +64,19 @@ root/
 │   ├── README.md                # (!) 设计概念
 │   ├── ssot/
 │   │   ├── README.md            # (!) SSOT 索引
-│   │   ├── dir.md               # (!) 本文件
-│   │   ├── env.md               # (!) 环境模型
-│   │   ├── pipeline.md          # (!) 部署流程
-│   │   ├── network.md           # 网络/域名
-│   │   ├── db.md                # 数据库分布
-│   │   ├── k3s.md               # K3s/PaaS
-│   │   ├── vars.md              # 变量定义
-│   │   ├── secrets.md           # 密钥管理
-│   │   └── auth.md              # 认证架构
+│   │   ├── core.dir.md          # (!) 本文件
+│   │   ├── core.env.md          # (!) 环境模型
+│   │   ├── core.vars.md         # 变量定义
+│   │   ├── platform.auth.md     # 认证架构
+│   │   ├── platform.secrets.md  # 密钥管理
+│   │   ├── platform.network.md  # 网络/域名
+│   │   ├── platform.ai.md       # AI 接入
+│   │   ├── db.*.md              # 各数据库 SSOT
+│   │   ├── ops.pipeline.md      # (!) 部署流程
+│   │   ├── ops.recovery.md      # 故障恢复
+│   │   ├── ops.storage.md       # 存储备份
+│   │   ├── ops.observability.md # 可观测
+│   │   └── ops.alerting.md      # 告警
 │   ├── project/
 │   │   ├── README.md            # BRN 索引
 │   │   └── BRN-*.md             # 设计文档

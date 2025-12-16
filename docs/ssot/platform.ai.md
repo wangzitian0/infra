@@ -49,5 +49,5 @@ App Pod（/vault/secrets/*）
 
 ## Used by（反向链接）
 
-- [docs/ssot/README.md](./README.md)
-- [docs/ssot/secrets.md](./secrets.md)
+- [README.md](./README.md)
+- [platform.secrets.md](./platform.secrets.md)

@@ -55,15 +55,14 @@
 
 ## 相关文件
 
-- 存储类：`docs/ssot/k3s.md`
-- 数据落点：`docs/ssot/db.md`
+- 存储类：[core.dir.md](./core.dir.md)
+- 数据落点：[db.overview.md](./db.overview.md)
 - R2 backend：`1.bootstrap/backend.tf`
 
 ---
 
 ## Used by（反向链接）
 
-- [docs/ssot/README.md](./README.md)
-- [1.bootstrap/README.md](../../1.bootstrap/README.md)
-- [2.platform/README.md](../../2.platform/README.md)
-- [3.data/README.md](../../3.data/README.md)
+- [README.md](./README.md)
+- [db.overview.md](./db.overview.md)
+- [ops.recovery.md](./ops.recovery.md)

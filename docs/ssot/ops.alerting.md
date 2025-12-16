@@ -52,5 +52,5 @@
 
 ## Used by（反向链接）
 
-- [docs/ssot/README.md](./README.md)
-- [docs/ssot/observability.md](./observability.md)
+- [README.md](./README.md)
+- [ops.observability.md](./ops.observability.md)

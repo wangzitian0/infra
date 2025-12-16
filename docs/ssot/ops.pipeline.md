@@ -299,43 +299,7 @@ GitHub Secrets
 
 ## 7. 故障恢复
 
-### Vault Token 过期
-
-```bash
-# 1. 获取新 token
-op read 'op://Infrastructure/Vault Root Token/credential'
-
-# 2. 更新 GitHub Secret
-gh secret set VAULT_ROOT_TOKEN --body "<token>" --repo wangzitian0/infra
-
-# 3. Apply L1 (更新 Atlantis Pod)
-cd 1.bootstrap
-terraform apply
-
-# 4. 重试 Atlantis plan
-# 在 PR 评论: atlantis plan（或 push 触发 autoplan）
-```
-
-### State Lock
-
-```
-# PR 评论
-atlantis unlock
-atlantis plan
-```
-
-### Provider 版本不匹配
-
-```bash
-terraform init -upgrade
-terraform providers lock \
-  -platform=linux_amd64 \
-  -platform=darwin_amd64 \
-  -platform=darwin_arm64
-git add .terraform.lock.hcl
-git commit -m "chore: update provider lock"
-git push
-```
+> 详见 [ops.recovery.md](./ops.recovery.md)
 
 ---
 
@@ -403,13 +367,7 @@ git push
 
 ## Used by（反向链接）
 
-- [docs/ssot/README.md](./README.md)
-- [0.check_now.md](../../0.check_now.md)
-- [README.md](../../README.md)
-- [.github/README.md](../../.github/README.md)
-- [.github/workflows/README.md](../../.github/workflows/README.md)
-- [4.apps/README.md](../../4.apps/README.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)
-- [docs/change_log/2025-12-15.infra_flash_per_commit.md](../change_log/2025-12-15.infra_flash_per_commit.md)
-- [docs/change_log/2025-12-15.pipeline_simplify_scheme_a.md](../change_log/2025-12-15.pipeline_simplify_scheme_a.md)
-- [docs/ssot/dir.md](./dir.md)
+- [README.md](./README.md)
+- [core.dir.md](./core.dir.md)
+- [core.vars.md](./core.vars.md)
+- [ops.recovery.md](./ops.recovery.md)
