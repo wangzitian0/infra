@@ -53,6 +53,6 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 | Type | Location | Description |
 |---|---|---|
 | **DONE (History)** | `docs/change_log/` | What was finished. (Symlinked by `0.check_now.md`) |
-| **TODO (Plan)** | `project/README.md` | **Mandatory** for all incomplete work/plans. |
+| **TODO (Plan)** | `docs/project/README.md` | **Mandatory** for all incomplete work/plans. |
 | **TRUTH (SSOT)** | `{1.bootstrap,2.platform,3.data,4.apps}/README.md` | Implementation details, Architecture, Usage. |
 | **Concepts** | `docs/README.md` | Abstract design decisions only. |
