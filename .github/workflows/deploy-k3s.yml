@@ -233,19 +233,21 @@ jobs:
           echo ""
           echo "=== L1: Atlantis readiness ==="
           # Note: Atlantis is deployed in "bootstrap" namespace (see 1.bootstrap/2.atlantis.tf)
-          ATLANTIS_SELECTOR=""
-          if kubectl -n bootstrap get pods -l app.kubernetes.io/instance=atlantis --no-headers 2>/dev/null | grep -q .; then
-            ATLANTIS_SELECTOR="app.kubernetes.io/instance=atlantis"
-          elif kubectl -n bootstrap get pods -l app.kubernetes.io/name=atlantis --no-headers 2>/dev/null | grep -q .; then
-            ATLANTIS_SELECTOR="app.kubernetes.io/name=atlantis"
-          else
+          # Atlantis uses StatefulSet, so we check by pod name pattern
+          if ! kubectl -n bootstrap get pods -o name | grep -q "^pod/atlantis-"; then
             echo "::error::Atlantis pods not found in namespace bootstrap"
             kubectl -n bootstrap get pods -o wide || true
             exit 1
           fi
 
-          kubectl -n bootstrap wait --for=condition=Ready pod -l "${ATLANTIS_SELECTOR}" --timeout=180s
-          kubectl -n bootstrap get pods -l "${ATLANTIS_SELECTOR}" -o wide
+          # Wait for Atlantis pod to be ready (StatefulSet pod name: atlantis-0)
+          kubectl -n bootstrap wait --for=condition=Ready pod/atlantis-0 --timeout=180s || {
+            echo "::error::Atlantis pod failed to become ready"
+            kubectl -n bootstrap get pods -o wide
+            kubectl -n bootstrap describe pod/atlantis-0 || true
+            exit 1
+          }
+          kubectl -n bootstrap get pods -l app.kubernetes.io/name=atlantis -o wide || kubectl -n bootstrap get pods -o wide | grep atlantis
 
       # =========================================================
       # 2. Platform Layer (L2): Vault, Observability, Ingress
