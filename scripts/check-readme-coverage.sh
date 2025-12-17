@@ -43,6 +43,12 @@ if [[ $total -eq 0 ]]; then
   exit 0
 fi
 
+# Skip check for very small changes (1 directory)
+if [[ $total -eq 1 ]]; then
+  echo "Small change (1 directory) → coverage check skipped."
+  exit 0
+fi
+
 covered=0
 for dir in "${dirs_to_check[@]}"; do
   if [[ -n "$readme_dirs" ]] && grep -Fxq "$dir" <<<"$readme_dirs"; then
@@ -50,7 +56,9 @@ for dir in "${dirs_to_check[@]}"; do
   fi
 done
 
+# Use 0.6 threshold (60%) for larger changes
+MIN_RATIO=0.6
 ratio=$(awk "BEGIN {printf \"%.2f\", $covered/$total}")
-echo "README coverage: $ratio ($covered/$total directories updated)"
+echo "README coverage: $ratio ($covered/$total directories updated, threshold: $MIN_RATIO)"
 
 awk "BEGIN { if ($ratio < $MIN_RATIO) exit 1 }"

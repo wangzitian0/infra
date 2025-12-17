@@ -1,5 +1,6 @@
 # Portal SSO Gate - OAuth2-Proxy backed by Casdoor OIDC
 # Provides a forward-auth middleware for Vault/Dashboard/Kubero Ingresses.
+# Retry: 2025-12-17 trigger apply
 #
 # Status: Atlantis has enable_portal_sso_gate=true, ready to deploy
 #

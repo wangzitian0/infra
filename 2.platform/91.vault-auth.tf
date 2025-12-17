@@ -1,5 +1,6 @@
 # Vault OIDC Authentication Configuration
 # Connects Vault to Casdoor for SSO login
+# Retry: 2025-12-17 trigger apply
 
 resource "vault_jwt_auth_backend" "oidc" {
   count = local.portal_sso_gate_enabled ? 1 : 0
