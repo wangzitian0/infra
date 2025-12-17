@@ -109,4 +109,4 @@ To deploy Portal SSO Gate for Vault/Dashboard:
    - https://kdashboard.zitian.party (Dashboard)
 
 ---
-*Last updated: 2025-12-17*
+*Last updated: 2025-12-17 (OIDC Policy Update)*
