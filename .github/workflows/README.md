@@ -131,6 +131,13 @@ Atlantis 评论 "Ran Plan for..."
 
 用于 bootstrap/恢复：按顺序 apply L1→L2→L3→L4（当前 L3/L4 的 apply/verify 仅在 `push` 事件执行；`workflow_dispatch` 会跳过这些 step）。
 
+验证策略（重要）：
+- **Verify 是 gating 的**：关键服务不 Ready 会直接 `exit 1` 让 post-merge CI 失败（避免“假绿”）。
+- **L1 Verify**：节点可用 + `cert-manager` rollout + Atlantis Pod Ready（label 兼容旧/新 chart）。
+- **L2 Verify**：Vault Pod Ready + `vault status`（期望可用/未 sealed）。
+- **L3 Verify**：Postgres/Redis/ClickHouse 可连通；Keeper 可达性检查（non-blocking）；ArangoDB 用 `kubectl port-forward` + runner 侧 `curl`（避免容器内无 `curl` 导致误报）。
+- **L4 Verify**：Kubero operator rollout（`kubero-operator-system-prod`）+ Kubero CR 存在与 Pod Ready（`kubero-prod`）。
+
 日志策略：
 - 默认不启用 `TF_LOG`（避免 Terraform Provider 的噪音日志污染 CI 输出）；需要排障时再在本地或手动执行时显式开启。
 
