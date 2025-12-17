@@ -71,16 +71,14 @@ jobs:
               per_page: 100
             });
             
-            // 找到触发此操作的人类评论
+            // 找到触发此操作的评论（人类或 bot）
             const atlantisCommentTime = new Date(context.payload.comment.created_at);
             const triggerComment = comments
-              .filter(c => c.user?.type !== 'Bot')
               .filter(c => new Date(c.created_at) < atlantisCommentTime)
               .filter(c => (c.body || '').toLowerCase().includes(`atlantis ${stage.toLowerCase()}`))
               .pop();
             
-            const triggerUrl = triggerComment ? triggerComment.html_url : null;
-            const triggeredBy = triggerComment ? `@${triggerComment.user.login}` : 'autoplan';
+            const prUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`;
             
             // Find infra-flash comment for CURRENT commit using per-commit marker
             const MARKER = `<!-- infra-flash-commit:${currentSha} -->`;
@@ -110,12 +108,30 @@ jobs:
             let updatedBody = flashComment.body
               .replace(/\n*👉 \*\*Next:\*\*.*/g, '')
               .replace(/\n*✅ \*\*Ready to merge!\*\*/g, '')
-              .replace(/\n*⏳ \*\*Atlantis autoplan\*\*.*/g, '');
+              .replace(/\n*⏳ \*\*Triggering Atlantis plan\.\.\.\*\*/g, '')
+              .replace(/\n*❌ \*\*CI failed\.\*\*.*/g, '');
             
-            // 构建触发链接 (显示: 谁触发 → Atlantis输出)
-            const triggerLink = triggerUrl
-              ? `[${triggeredBy}](${triggerUrl})`
-              : triggeredBy;
+            // 构建触发链接
+            // 格式: [CI #run-id](ci-link) 或 [@user #comment-id](comment-link)
+            let triggerLink;
+            if (triggerComment) {
+              // 检查是否有 CI trigger 标记
+              const ciMatch = triggerComment.body.match(/<!-- ci-trigger:(\d+) -->/);
+              if (ciMatch) {
+                // CI 触发：链接到 CI run
+                const runId = ciMatch[1];
+                const ciUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
+                triggerLink = `[CI #${runId}](${ciUrl})`;
+              } else {
+                // 人类或 bot 评论触发
+                const commentId = triggerComment.id;
+                const username = triggerComment.user.login.replace('[bot]', '');
+                triggerLink = `[@${username} #${commentId}](${triggerComment.html_url})`;
+              }
+            } else {
+              // 没找到触发评论，用 PR 链接
+              triggerLink = `[@infra-flash](${prUrl})`;
+            }
             const outputLink = `[output](${atlantisCommentUrl})`;
             
             // 构建新操作记录行
