@@ -216,8 +216,33 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          set -euo pipefail
+
+          echo "=== L1: Cluster Smoke Test ==="
           kubectl version --client
           kubectl get nodes -o wide
+
+          echo ""
+          echo "=== L1: cert-manager rollout ==="
+          kubectl -n cert-manager rollout status deployment/cert-manager --timeout=180s
+          kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=180s
+          kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=180s
+
+          echo ""
+          echo "=== L1: Atlantis readiness ==="
+          ATLANTIS_SELECTOR=""
+          if kubectl -n platform get pods -l app.kubernetes.io/instance=atlantis --no-headers 2>/dev/null | grep -q .; then
+            ATLANTIS_SELECTOR="app.kubernetes.io/instance=atlantis"
+          elif kubectl -n platform get pods -l app.kubernetes.io/name=atlantis --no-headers 2>/dev/null | grep -q .; then
+            ATLANTIS_SELECTOR="app.kubernetes.io/name=atlantis"
+          else
+            echo "::error::Atlantis pods not found in namespace platform"
+            kubectl -n platform get pods -o wide || true
+            exit 1
+          fi
+
+          kubectl -n platform wait --for=condition=Ready pod -l "${ATLANTIS_SELECTOR}" --timeout=180s
+          kubectl -n platform get pods -l "${ATLANTIS_SELECTOR}" -o wide
 
       # =========================================================
       # 2. Platform Layer (L2): Vault, Observability, Ingress
@@ -319,10 +344,20 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
-          echo "Checking Vault Status..."
-          kubectl -n platform get pods -l app.kubernetes.io/name=vault
-          # Simple check if Vault is running and accessible inside cluster
-          # (Detailed check requires init, which is handled by raft join in L2 setup)
+          set -euo pipefail
+
+          echo "Checking Vault pods..."
+          kubectl -n platform wait --for=condition=Ready pod -l app.kubernetes.io/name=vault --timeout=180s
+          kubectl -n platform get pods -l app.kubernetes.io/name=vault -o wide
+
+          VAULT_POD="$(kubectl -n platform get pods -l app.kubernetes.io/name=vault -o jsonpath='{.items[0].metadata.name}')"
+          if [ -z "${VAULT_POD}" ]; then
+            echo "::error::Vault pod not found in namespace platform"
+            exit 1
+          fi
+
+          echo "Checking Vault status (should be unsealed)..."
+          kubectl -n platform exec "${VAULT_POD}" -- vault status
 
       # =========================================================
       # 3. Data Layer (L3): Databases
@@ -376,48 +411,159 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          set -euo pipefail
+
           NS="data-prod" # Mapping main branch to prod env
           TIMEOUT=180
-          
+          FAILED=0
+
+          wait_ready() {
+            local selector="$1"
+            local name="$2"
+            if kubectl wait --for=condition=Ready pod -n "${NS}" -l "${selector}" --timeout="${TIMEOUT}s"; then
+              echo "✅ ${name}: Pods ready"
+              return 0
+            fi
+            echo "::error::${name}: Pods not ready"
+            kubectl get pods -n "${NS}" -l "${selector}" -o wide || true
+            FAILED=1
+            return 1
+          }
+
           echo "=== 1. Waiting for Pod Readiness (K8s Layer) ==="
-          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=postgresql --timeout=${TIMEOUT}s || echo "⚠️ PostgreSQL wait timeout"
-          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=redis --timeout=${TIMEOUT}s || echo "⚠️ Redis wait timeout"
-          kubectl wait --for=condition=Ready pod -n $NS -l app.kubernetes.io/name=clickhouse --timeout=${TIMEOUT}s || echo "⚠️ ClickHouse wait timeout"
-          kubectl wait --for=condition=Ready pod -n $NS -l arango_deployment=arangodb --timeout=${TIMEOUT}s || echo "⚠️ ArangoDB wait timeout"
-          
+          wait_ready "app.kubernetes.io/name=postgresql" "PostgreSQL" || true
+          wait_ready "app.kubernetes.io/name=redis" "Redis" || true
+          wait_ready "app.kubernetes.io/name=clickhouse" "ClickHouse/Keeper" || true
+          wait_ready "arango_deployment=arangodb" "ArangoDB" || true
+
           echo ""
-          
           echo "=== 2. Application Layer Connectivity Checks ==="
-          
-          # Retrieve Secrets for Health Checks
-          REDIS_PASS=$(kubectl get secret -n $NS redis -o jsonpath="{.data.redis-password}" | base64 -d)
-          CH_PASS=$(kubectl get secret -n $NS clickhouse -o jsonpath="{.data.admin-password}" | base64 -d)
 
           echo "Checking PostgreSQL..."
-          kubectl exec -n $NS postgresql-0 -- pg_isready -U postgres && echo "✅ PostgreSQL: Ready" || echo "❌ PostgreSQL: Not Ready"
-          
-          echo "Checking Redis..."
-          kubectl exec -n $NS redis-master-0 -- env REDISCLI_AUTH="$REDIS_PASS" redis-cli ping && echo "✅ Redis: PONG" || echo "❌ Redis: Not Ready"
-          
-          echo "Checking ClickHouse..."
-          kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --user default --password "$CH_PASS" --query "SELECT 1" && echo "✅ ClickHouse: Ready" || echo "❌ ClickHouse: Not Ready"
-          
-          echo "Checking Keeper..."
-          # Use clickhouse-keeper CLI instead of nc (not available in container)
-          kubectl exec -n $NS clickhouse-keeper-0 -- clickhouse-keeper-client -q "stat" 2>/dev/null && echo "✅ Keeper: Ready" || echo "❌ Keeper: Not Ready (non-blocking)"
-          
-          echo "Checking ArangoDB..."
-          # Get the actual ArangoDB pod name (dynamic name pattern)
-          ARANGO_POD=$(kubectl get pods -n $NS -l arango_deployment=arangodb -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-          if [ -n "$ARANGO_POD" ]; then
-            kubectl exec -n $NS "$ARANGO_POD" -- curl -sf http://localhost:8529/_api/version && echo "✅ ArangoDB: Ready" || echo "❌ ArangoDB: Not Ready"
+          if kubectl exec -n "${NS}" postgresql-0 -- pg_isready -U postgres; then
+            echo "✅ PostgreSQL: Ready"
           else
-            echo "❌ ArangoDB: Pod not found"
+            echo "::error::PostgreSQL: Not Ready"
+            FAILED=1
           fi
-          
+
+          echo "Checking Redis..."
+          REDIS_PASS="$(kubectl get secret -n "${NS}" redis -o jsonpath="{.data.redis-password}" 2>/dev/null | base64 -d 2>/dev/null || true)"
+          if [ -z "${REDIS_PASS}" ]; then
+            echo "::error::Redis: Failed to read redis password from secret"
+            FAILED=1
+          else
+            REDIS_PONG="$(kubectl exec -n "${NS}" redis-master-0 -- env REDISCLI_AUTH="${REDIS_PASS}" redis-cli ping 2>/dev/null || true)"
+            if [ "${REDIS_PONG}" = "PONG" ]; then
+              echo "✅ Redis: PONG"
+            else
+              echo "::error::Redis: Expected PONG, got: ${REDIS_PONG}"
+              FAILED=1
+            fi
+          fi
+
+          echo "Checking ClickHouse..."
+          CH_PASS="$(kubectl get secret -n "${NS}" clickhouse -o jsonpath="{.data.admin-password}" 2>/dev/null | base64 -d 2>/dev/null || true)"
+          if [ -z "${CH_PASS}" ]; then
+            echo "::error::ClickHouse: Failed to read admin password from secret"
+            FAILED=1
+          elif kubectl exec -n "${NS}" clickhouse-shard0-0 -- clickhouse-client --user default --password "${CH_PASS}" --query "SELECT 1" >/dev/null 2>&1; then
+            echo "✅ ClickHouse: Ready"
+          else
+            echo "::error::ClickHouse: Not Ready"
+            FAILED=1
+          fi
+
+          echo "Checking Keeper..."
+          KEEPER_POD="clickhouse-keeper-0"
+          if ! kubectl -n "${NS}" get pod "${KEEPER_POD}" >/dev/null 2>&1; then
+            echo "Keeper: Pod not found (non-blocking)"
+          else
+            LOCAL_KEEPER_PORT=12181
+            KEEPER_PF_LOG="/tmp/clickhouse-keeper-port-forward.log"
+            rm -f "${KEEPER_PF_LOG}"
+
+            kubectl -n "${NS}" port-forward "pod/${KEEPER_POD}" "${LOCAL_KEEPER_PORT}:2181" >"${KEEPER_PF_LOG}" 2>&1 &
+            KEEPER_PF_PID=$!
+
+            cleanup_keeper_pf() {
+              kill "${KEEPER_PF_PID}" 2>/dev/null || true
+              wait "${KEEPER_PF_PID}" 2>/dev/null || true
+            }
+            trap cleanup_keeper_pf EXIT
+
+            keeper_ok=0
+            keeper_resp=""
+            for i in {1..20}; do
+              if keeper_resp="$(python3 -c 'import socket,sys; port=int(sys.argv[1]); s=socket.create_connection(("127.0.0.1", port), timeout=2); s.settimeout(2); s.sendall(b"ruok\\n"); data=s.recv(64); sys.stdout.write(data.decode("utf-8","replace")); sys.exit(0 if b"imok" in data else 1)' "${LOCAL_KEEPER_PORT}" 2>/dev/null)"; then
+                keeper_ok=1
+                break
+              fi
+              sleep 1
+            done
+
+            if [ "${keeper_ok}" -eq 1 ]; then
+              echo "✅ Keeper: Reachable (${keeper_resp})"
+            else
+              echo "Keeper: Not reachable (non-blocking)"
+              echo "Port-forward log:"
+              tail -n 50 "${KEEPER_PF_LOG}" || true
+            fi
+
+            trap - EXIT
+            cleanup_keeper_pf
+          fi
+
+          echo "Checking ArangoDB..."
+          ARANGO_POD="$(kubectl get pods -n "${NS}" -l arango_deployment=arangodb -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+          if [ -z "${ARANGO_POD}" ]; then
+            echo "::error::ArangoDB: Pod not found"
+            FAILED=1
+          else
+            LOCAL_PORT=18529
+            PF_LOG="/tmp/arangodb-port-forward.log"
+            rm -f "${PF_LOG}"
+
+            kubectl -n "${NS}" port-forward "pod/${ARANGO_POD}" "${LOCAL_PORT}:8529" >"${PF_LOG}" 2>&1 &
+            PF_PID=$!
+
+            cleanup_pf() {
+              kill "${PF_PID}" 2>/dev/null || true
+              wait "${PF_PID}" 2>/dev/null || true
+            }
+            trap cleanup_pf EXIT
+
+            ok=0
+            code="000"
+            for i in {1..20}; do
+              code="$(curl -sS -o /dev/null -w "%{http_code}" --max-time 2 "http://127.0.0.1:${LOCAL_PORT}/_api/version" || echo "000")"
+              if [ "${code}" != "000" ]; then
+                ok=1
+                break
+              fi
+              sleep 1
+            done
+
+            if [ "${ok}" -eq 1 ] && { [ "${code}" = "200" ] || [ "${code}" = "401" ] || [ "${code}" = "403" ]; }; then
+              echo "✅ ArangoDB: Reachable (HTTP ${code})"
+            else
+              echo "::error::ArangoDB: Unreachable (HTTP ${code})"
+              echo "Port-forward log:"
+              tail -n 50 "${PF_LOG}" || true
+              FAILED=1
+            fi
+
+            trap - EXIT
+            cleanup_pf
+          fi
+
           echo ""
           echo "=== Summary ==="
-          kubectl get pods -n $NS -o wide
+          kubectl get pods -n "${NS}" -o wide || true
+
+          if [ "${FAILED}" -ne 0 ]; then
+            exit 1
+          fi
 
       # =========================================================
       # 4. App Layer (L4): Applications
@@ -469,6 +615,8 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          set -euo pipefail
+
           # Skip if L4 was skipped (no .tf files)
           if [ ! -f "4.apps/*.tf" ] 2>/dev/null && ! ls 4.apps/*.tf 1>/dev/null 2>&1; then
             echo "⏭️ Skipping L4 Verify: No apps deployed"
@@ -476,7 +624,19 @@ jobs:
           fi
           
           echo "Verifying L4 Applications..."
-          kubectl get pods -n apps-prod || true
+          ENV="prod"
+          OP_NS="kubero-operator-system-${ENV}"
+          UI_NS="kubero-${ENV}"
+
+          echo "Checking Kubero operator..."
+          kubectl -n "${OP_NS}" rollout status deployment/kubero-operator-controller-manager --timeout=300s
+          kubectl -n "${OP_NS}" get pods -o wide
+
+          echo "Checking Kubero UI..."
+          kubectl -n "${UI_NS}" get kuberoes.application.kubero.dev kubero
+          kubectl -n "${UI_NS}" wait --for=condition=Ready pod --all --timeout=300s
+          kubectl -n "${UI_NS}" get pods -o wide
+          kubectl -n "${UI_NS}" get ingress || true
 
       - name: Upload kubeconfig
         uses: actions/upload-artifact@v4
