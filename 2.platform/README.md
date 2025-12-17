@@ -25,7 +25,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `5.casdoor.tf` | Casdoor SSO | Helm release + bootstrap init_data (org, admin, builtin-app only) |
 | `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
-| `98.casdoor-apps.tf` | Casdoor Apps | OIDC applications via local-exec API calls (portal-gate, vault-oidc, dashboard-oidc) |
+| `98.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via local-exec API calls |
 
 ### Secrets Strategy
 

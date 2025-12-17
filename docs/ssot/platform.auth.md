@@ -104,7 +104,7 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 | Provider | 用途 | 状态 |
 |----------|------|------|
-| GitHub | 开发者登录 | ⏳ 待配置 |
+| GitHub | 开发者登录 | ✅ REST API 自动配置 |
 | Google | 备用登录 | ⏳ 待配置 |
 
 ### OIDC Clients (通过 REST API 自动管理)

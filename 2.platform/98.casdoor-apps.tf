@@ -30,7 +30,9 @@ resource "null_resource" "casdoor_oidc_apps" {
     dashboard_secret   = local.dashboard_oidc_client_secret
     kubero_secret      = local.kubero_oidc_client_secret
     internal_domain    = local.internal_domain
-    portal_client_id   = var.casdoor_portal_client_id
+    portal_client_id     = var.casdoor_portal_client_id
+    github_client_id     = var.github_oauth_client_id
+    github_client_secret = var.github_oauth_client_secret
   }
 
   provisioner "local-exec" {
@@ -46,6 +48,9 @@ resource "null_resource" "casdoor_oidc_apps" {
       VAULT_OIDC_SECRET         = local.vault_oidc_client_secret
       DASHBOARD_OIDC_SECRET     = local.dashboard_oidc_client_secret
       KUBERO_OIDC_SECRET        = local.kubero_oidc_client_secret
+      # Provider configurations
+      GITHUB_CLIENT_ID     = var.github_oauth_client_id
+      GITHUB_CLIENT_SECRET = var.github_oauth_client_secret
     }
     command = <<-EOT
       set -e
@@ -72,6 +77,57 @@ resource "null_resource" "casdoor_oidc_apps" {
         echo "Waiting for Casdoor... ($i/30)"
         sleep 2
       done
+      
+      # Helper function to upsert provider
+      upsert_provider() {
+        local NAME="$1"
+        local CLIENT_ID="$2"
+        local CLIENT_SECRET="$3"
+        local TYPE="$4" # e.g. "GitHub"
+        
+        echo "=== Processing Provider: $NAME ==="
+        
+        if [ -z "$CLIENT_ID" ] || [ -z "$CLIENT_SECRET" ]; then
+            echo "⚠️  Skipping $NAME provider (credentials missing)"
+            return
+        fi
+
+        # Construct Provider JSON
+        local DATA='{
+          "owner": "admin",
+          "name": "'"$NAME"'",
+          "createdTime": "2025-01-01T00:00:00Z",
+          "displayName": "'"$NAME"'",
+          "category": "OAuth",
+          "type": "'"$TYPE"'",
+          "clientId": "'"$CLIENT_ID"'",
+          "clientSecret": "'"$CLIENT_SECRET"'",
+          "organization": "built-in"
+        }'
+
+        # Check if provider exists
+        RESPONSE=$(curl -sf "$CASDOOR_URL/api/get-provider?id=admin/$NAME" \
+          -H "Authorization: Basic $AUTH_HEADER" 2>/dev/null || echo "{}")
+        
+        if echo "$RESPONSE" | grep -q "\"name\":\"$NAME\""; then
+          echo "Updating existing provider: $NAME"
+          curl -sf -X POST "$CASDOOR_URL/api/update-provider" \
+            -H "Authorization: Basic $AUTH_HEADER" \
+            -H "Content-Type: application/json" \
+            -d "$DATA" > /dev/null 2>&1 || true
+        else
+          echo "Creating new provider: $NAME"
+          curl -sf -X POST "$CASDOOR_URL/api/add-provider" \
+            -H "Authorization: Basic $AUTH_HEADER" \
+            -H "Content-Type: application/json" \
+            -d "$DATA" > /dev/null 2>&1 || true
+        fi
+        
+        echo "✅ Provider $NAME processed"
+      }
+
+      # Configure GitHub Provider
+      upsert_provider "GitHub" "$GITHUB_CLIENT_ID" "$GITHUB_CLIENT_SECRET" "GitHub"
       
       # Helper function to upsert application
       # NOTE: Uses grep instead of jq (jq not available in Atlantis pod)
@@ -113,6 +169,7 @@ resource "null_resource" "casdoor_oidc_apps" {
         "clientSecret": "'"$PORTAL_GATE_CLIENT_SECRET"'",
         "redirectUris": ["https://auth.'"$INTERNAL_DOMAIN"'/oauth2/callback"],
         "enablePassword": false,
+        "providers": [{"name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "alertType": "None"}],
         "grantTypes": ["authorization_code", "refresh_token"]
       }'
       
@@ -126,6 +183,7 @@ resource "null_resource" "casdoor_oidc_apps" {
         "clientSecret": "'"$VAULT_OIDC_SECRET"'",
         "redirectUris": ["https://secrets.'"$INTERNAL_DOMAIN"'/ui/vault/auth/oidc/oidc/callback"],
         "enablePassword": false,
+        "providers": [{"name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "alertType": "None"}],
         "grantTypes": ["authorization_code", "refresh_token"]
       }'
       
@@ -139,6 +197,7 @@ resource "null_resource" "casdoor_oidc_apps" {
         "clientSecret": "'"$DASHBOARD_OIDC_SECRET"'",
         "redirectUris": ["https://kdashboard.'"$INTERNAL_DOMAIN"'/oauth2/callback"],
         "enablePassword": false,
+        "providers": [{"name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "alertType": "None"}],
         "grantTypes": ["authorization_code", "refresh_token"]
       }'
       
@@ -152,6 +211,7 @@ resource "null_resource" "casdoor_oidc_apps" {
         "clientSecret": "'"$KUBERO_OIDC_SECRET"'",
         "redirectUris": ["https://kcloud.'"$INTERNAL_DOMAIN"'/auth/callback"],
         "enablePassword": false,
+        "providers": [{"name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "alertType": "None"}],
         "grantTypes": ["authorization_code", "refresh_token"]
       }'
       
