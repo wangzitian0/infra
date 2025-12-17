@@ -28,6 +28,10 @@ plugins:
       scripts:
         - gen_pages.py
 
+validation:
+  links:
+    anchors: ignore
+
 markdown_extensions:
   - admonition
   - attr_list

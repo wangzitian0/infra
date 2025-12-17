@@ -204,8 +204,6 @@ jobs:
       # =========================================================
       - name: Apply Infrastructure (L1)
         working-directory: 1.bootstrap
-        env:
-          TF_LOG: INFO
         run: |
           terraform apply -auto-approve || {
             echo "::error::L1 Apply failed. Checking pod status..."
@@ -309,8 +307,6 @@ jobs:
 
       - name: Apply Infrastructure (L2 - Platform)
         working-directory: 2.platform
-        env:
-          TF_LOG: INFO
         run: |
           # Ensure platform workspace is default
           terraform workspace select default || terraform workspace new default
@@ -367,8 +363,6 @@ jobs:
       - name: Apply Infrastructure (L3 - Data)
         if: github.event_name == 'push'
         working-directory: 3.data
-        env:
-          TF_LOG: INFO
         run: |
           # Use workspace based on branch mapping (main -> prod)
           terraform workspace select prod || terraform workspace new prod
@@ -403,7 +397,7 @@ jobs:
           kubectl exec -n $NS postgresql-0 -- pg_isready -U postgres && echo "✅ PostgreSQL: Ready" || echo "❌ PostgreSQL: Not Ready"
           
           echo "Checking Redis..."
-          kubectl exec -n $NS redis-master-0 -- redis-cli -a "$REDIS_PASS" ping && echo "✅ Redis: PONG" || echo "❌ Redis: Not Ready"
+          kubectl exec -n $NS redis-master-0 -- env REDISCLI_AUTH="$REDIS_PASS" redis-cli ping && echo "✅ Redis: PONG" || echo "❌ Redis: Not Ready"
           
           echo "Checking ClickHouse..."
           kubectl exec -n $NS clickhouse-shard0-0 -- clickhouse-client --user default --password "$CH_PASS" --query "SELECT 1" && echo "✅ ClickHouse: Ready" || echo "❌ ClickHouse: Not Ready"
@@ -456,7 +450,6 @@ jobs:
         if: github.event_name == 'push'
         working-directory: 4.apps
         env:
-          TF_LOG: INFO
           TF_VAR_environment: prod
         run: |
           # Skip if no .tf files present (L4 is placeholder until apps are added)

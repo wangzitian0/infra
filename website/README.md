@@ -28,5 +28,9 @@ This directory contains the configuration for the MkDocs static site generator.
 
 ## Directory Structure
 
-- `gen_pages.py`: Python script to generate the site structure (flattens `docs/` and pulls in root `README.md`).
+- `gen_pages.py`: Generates the MkDocs file tree from git-tracked `*.md` (including submodules), rewrites internal links to match the generated paths, and falls back to GitHub blob links for non-doc files.
 - `mkdocs.yml`: Main configuration file.
+
+Notes:
+- MkDocs ignores dot-directories by default; `.github/...` content is mapped to `github/...` in the generated site.
+- If you want `apps/` docs, run `git submodule update --init --recursive` before building.
