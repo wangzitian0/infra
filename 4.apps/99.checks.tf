@@ -1,6 +1,6 @@
 # ============================================================
 # Shift-Left: Production Safety Checks
-# E2E test: verify per-commit comment system integration
+# E2E test: verify CI trigger link [CI #run-id](link) format
 # ============================================================
 # NOTE: Kubero official image (ghcr.io/kubero-dev/kubero/kubero) only provides
 # 'latest' tag, so we cannot enforce version pinning for this specific image.

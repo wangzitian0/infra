@@ -258,7 +258,7 @@ jobs:
             
             // Next step
             const nextStep = allPass
-              ? '⏳ **Triggering Atlantis plan...**'
+              ? '⏳ **Atlantis autoplan running...**'
               : '❌ **CI failed.** Fix errors and push again.';
             
             // Preserve Atlantis actions
@@ -311,43 +311,6 @@ jobs:
               body: body
             });
             console.log(`Updated comment: CI ${allPass ? 'PASS' : 'FAIL'}`);
-
-      # ============================================================
-      # STEP 4: Trigger Atlantis plan (if all checks passed)
-      # ============================================================
-      - name: Trigger Atlantis Plan
-        if: success()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ steps.app_token.outputs.token }}
-          script: |
-            const fmt = '${{ steps.fmt.outcome }}';
-            const lint_l1 = '${{ steps.lint_l1.outcome }}';
-            const lint_l2 = '${{ steps.lint_l2.outcome }}';
-            const lint_l3 = '${{ steps.lint_l3.outcome }}';
-            const lint_l4 = '${{ steps.lint_l4.outcome }}';
-            const validate_l1 = '${{ steps.validate_l1.outcome }}';
-            const validate_l2 = '${{ steps.validate_l2.outcome }}';
-            const validate_l3 = '${{ steps.validate_l3.outcome }}';
-            const validate_l4 = '${{ steps.validate_l4.outcome }}';
-            
-            const allPass = [fmt, lint_l1, lint_l2, lint_l3, lint_l4, validate_l1, validate_l2, validate_l3, validate_l4]
-              .every(s => s === 'success' || s === 'skipped');
-            
-            if (!allPass) {
-              console.log('CI failed, skipping Atlantis');
-              return;
-            }
-            
-            // Include CI run ID in comment for traceability
-            const runId = '${{ github.run_id }}';
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `atlantis plan\n<!-- ci-trigger:${runId} -->`
-            });
-            console.log('Triggered Atlantis plan');
 
       # ============================================================
       # Final Status
