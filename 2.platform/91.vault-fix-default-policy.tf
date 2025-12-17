@@ -34,7 +34,7 @@ resource "vault_generic_endpoint" "default_policy" {
   # API Endpoint for the Default ACL Policy
   # Writes to: PUT /v1/sys/policies/acl/default
   path = "sys/policies/acl/default"
-  
+
   # Payload (HCL policy wrapped in JSON)
   data_json = local.default_policy_json
 
