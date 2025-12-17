@@ -18,12 +18,13 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 
 | File | Component | Purpose |
 |------|-----------|---------|
-| `1.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `5.casdoor.tf` | Casdoor SSO | Helm release + bootstrap init_data (org, admin, builtin-app only) |
 | `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
-| `98.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via local-exec API calls |
+| `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via local-exec REST API |
+| `91.vault-auth.tf` | Vault OIDC Auth | Vault OIDC backend connected to Casdoor |
+| `92.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |
 
 ### Secrets Strategy
 

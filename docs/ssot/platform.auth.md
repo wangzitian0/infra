@@ -109,7 +109,7 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，�
 
 ### OIDC Clients (通过 REST API 自动管理)
 
-> OIDC 应用现在通过 `98.casdoor-apps.tf` 中的 REST API 自动创建/更新，无需手动操作。
+> OIDC 应用现在通过 `90.casdoor-apps.tf` 中的 REST API 自动创建/更新，无需手动操作。
 
 | 应用 | Client ID | Redirect URI | 管理方式 |
 |------|-----------|--------------|----------|
@@ -144,7 +144,7 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，�
 | 组件 | 状态 |
 |------|------|
 | Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
-| GitHub OAuth | ✅ REST API 自动配置 (`98.casdoor-apps.tf`) |
+| GitHub OAuth | ✅ REST API 自动配置 (`90.casdoor-apps.tf`) |
 | Vault OIDC | ✅ REST API 自动创建 (`vault-oidc`) |
 | Dashboard OIDC | ✅ REST API 自动创建 (`dashboard-oidc`) |
 | Kubero OIDC | ✅ REST API 自动创建 (`kubero-oidc`) |
@@ -156,7 +156,7 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，�
 
 - [platform.secrets.md](./platform.secrets.md) - 密钥管理 SSOT
 - [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor Helm release + Bootstrap
-- [98.casdoor-apps.tf](../../2.platform/98.casdoor-apps.tf) - OIDC 应用 (local-exec API)
+- [90.casdoor-apps.tf](../../2.platform/90.casdoor-apps.tf) - OIDC 应用 (local-exec API)
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
 
 ---
