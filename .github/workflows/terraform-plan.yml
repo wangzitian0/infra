@@ -52,7 +52,7 @@ jobs:
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}`;
             const prUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${context.issue.number}`;
-            const MARKER = '<!-- infra-flash-ci -->';
+            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
             
             // Check if comment already exists
             const comments = await github.rest.issues.listComments({
@@ -227,7 +227,7 @@ jobs:
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}`;
             const commentId = ${{ steps.skeleton.outputs.result }};
-            const MARKER = '<!-- infra-flash-ci -->';
+            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
             
             // Get existing comment
             const existingComment = await github.rest.issues.getComment({

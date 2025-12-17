@@ -85,8 +85,9 @@ jobs:
             
             const prUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`;
             
-            // Find infra-flash sticky comment
-            const MARKER = '<!-- infra-flash-ci -->';
+            // Find infra-flash comment for the commit that Atlantis actually processed
+            // Use targetSha (from Atlantis output) not currentSha (PR HEAD may have moved)
+            const MARKER = `<!-- infra-flash-commit:${targetSha} -->`;
             const flashComment = comments.find(c =>
               c.user.login === 'infra-flash[bot]' &&
               c.body.includes(MARKER)
