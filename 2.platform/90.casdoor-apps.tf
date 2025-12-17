@@ -25,11 +25,11 @@ resource "null_resource" "casdoor_oidc_apps" {
 
   triggers = {
     # Re-run when any app config changes
-    portal_gate_secret = local.casdoor_portal_gate_client_secret
-    vault_oidc_secret  = local.vault_oidc_client_secret
-    dashboard_secret   = local.dashboard_oidc_client_secret
-    kubero_secret      = local.kubero_oidc_client_secret
-    internal_domain    = local.internal_domain
+    portal_gate_secret   = local.casdoor_portal_gate_client_secret
+    vault_oidc_secret    = local.vault_oidc_client_secret
+    dashboard_secret     = local.dashboard_oidc_client_secret
+    kubero_secret        = local.kubero_oidc_client_secret
+    internal_domain      = local.internal_domain
     portal_client_id     = var.casdoor_portal_client_id
     github_client_id     = var.github_oauth_client_id
     github_client_secret = var.github_oauth_client_secret

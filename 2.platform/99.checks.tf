@@ -34,6 +34,9 @@ output "sso_e2e_status" {
   value = local.portal_sso_gate_enabled ? {
     oidc_discovery = try(data.http.casdoor_oidc_discovery[0].status_code, "skipped")
     portal_auth    = try(data.http.portal_auth_ping[0].status_code, "skipped")
-  } : "SSO gate disabled"
+    } : {
+    oidc_discovery = "disabled"
+    portal_auth    = "disabled"
+  }
   description = "E2E SSO validation results"
 }
