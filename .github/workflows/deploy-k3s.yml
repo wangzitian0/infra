@@ -484,39 +484,13 @@ jobs:
           if ! kubectl -n "${NS}" get pod "${KEEPER_POD}" >/dev/null 2>&1; then
             echo "Keeper: Pod not found (non-blocking)"
           else
-            LOCAL_KEEPER_PORT=12181
-            KEEPER_PF_LOG="/tmp/clickhouse-keeper-port-forward.log"
-            rm -f "${KEEPER_PF_LOG}"
-
-            kubectl -n "${NS}" port-forward "pod/${KEEPER_POD}" "${LOCAL_KEEPER_PORT}:2181" >"${KEEPER_PF_LOG}" 2>&1 &
-            KEEPER_PF_PID=$!
-
-            cleanup_keeper_pf() {
-              kill "${KEEPER_PF_PID}" 2>/dev/null || true
-              wait "${KEEPER_PF_PID}" 2>/dev/null || true
-            }
-            trap cleanup_keeper_pf EXIT
-
-            keeper_ok=0
-            keeper_resp=""
-            for i in {1..20}; do
-              if keeper_resp="$(python3 -c 'import socket,sys; port=int(sys.argv[1]); s=socket.create_connection(("127.0.0.1", port), timeout=2); s.settimeout(2); s.sendall(b"ruok\\n"); data=s.recv(64); sys.stdout.write(data.decode("utf-8","replace")); sys.exit(0 if b"imok" in data else 1)' "${LOCAL_KEEPER_PORT}" 2>/dev/null)"; then
-                keeper_ok=1
-                break
-              fi
-              sleep 1
-            done
-
-            if [ "${keeper_ok}" -eq 1 ]; then
+            # Use kubectl exec with echo to send 'ruok' command directly to Keeper
+            keeper_resp="$(kubectl exec -n "${NS}" "${KEEPER_POD}" -- sh -c 'echo ruok | nc 127.0.0.1 2181' 2>/dev/null || true)"
+            if echo "${keeper_resp}" | grep -q "imok"; then
               echo "✅ Keeper: Reachable (${keeper_resp})"
             else
               echo "Keeper: Not reachable (non-blocking)"
-              echo "Port-forward log:"
-              tail -n 50 "${KEEPER_PF_LOG}" || true
             fi
-
-            trap - EXIT
-            cleanup_keeper_pf
           fi
 
           echo "Checking ArangoDB..."
@@ -525,41 +499,14 @@ jobs:
             echo "::error::ArangoDB: Pod not found"
             FAILED=1
           else
-            LOCAL_PORT=18529
-            PF_LOG="/tmp/arangodb-port-forward.log"
-            rm -f "${PF_LOG}"
-
-            kubectl -n "${NS}" port-forward "pod/${ARANGO_POD}" "${LOCAL_PORT}:8529" >"${PF_LOG}" 2>&1 &
-            PF_PID=$!
-
-            cleanup_pf() {
-              kill "${PF_PID}" 2>/dev/null || true
-              wait "${PF_PID}" 2>/dev/null || true
-            }
-            trap cleanup_pf EXIT
-
-            ok=0
-            code="000"
-            for i in {1..20}; do
-              code="$(curl -sS -o /dev/null -w "%{http_code}" --max-time 2 "http://127.0.0.1:${LOCAL_PORT}/_api/version" || echo "000")"
-              if [ "${code}" != "000" ]; then
-                ok=1
-                break
-              fi
-              sleep 1
-            done
-
-            if [ "${ok}" -eq 1 ] && { [ "${code}" = "200" ] || [ "${code}" = "401" ] || [ "${code}" = "403" ]; }; then
+            # Use kubectl exec to check ArangoDB API directly inside the pod
+            code="$(kubectl exec -n "${NS}" "${ARANGO_POD}" -- curl -sf -o /dev/null -w "%{http_code}" --max-time 5 http://127.0.0.1:8529/_api/version 2>/dev/null || echo "000")"
+            if [ "${code}" = "200" ] || [ "${code}" = "401" ] || [ "${code}" = "403" ]; then
               echo "✅ ArangoDB: Reachable (HTTP ${code})"
             else
               echo "::error::ArangoDB: Unreachable (HTTP ${code})"
-              echo "Port-forward log:"
-              tail -n 50 "${PF_LOG}" || true
               FAILED=1
             fi
-
-            trap - EXIT
-            cleanup_pf
           fi
 
           echo ""
