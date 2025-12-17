@@ -112,25 +112,17 @@ jobs:
               .replace(/\n*❌ \*\*CI failed\.\*\*.*/g, '');
             
             // 构建触发链接
-            // 格式: [CI #run-id](ci-link) 或 [@user #comment-id](comment-link)
+            // 格式: [@user #comment-id](link) 或 [@autoplan #atlantis-id](link)
             let triggerLink;
             if (triggerComment) {
-              // 检查是否有 CI trigger 标记
-              const ciMatch = triggerComment.body.match(/<!-- ci-trigger:(\d+) -->/);
-              if (ciMatch) {
-                // CI 触发：链接到 CI run
-                const runId = ciMatch[1];
-                const ciUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${runId}`;
-                triggerLink = `[CI #${runId}](${ciUrl})`;
-              } else {
-                // 人类或 bot 评论触发
-                const commentId = triggerComment.id;
-                const username = triggerComment.user.login.replace('[bot]', '');
-                triggerLink = `[@${username} #${commentId}](${triggerComment.html_url})`;
-              }
+              // 人类或 bot 评论触发
+              const commentId = triggerComment.id;
+              const username = triggerComment.user.login.replace('[bot]', '');
+              triggerLink = `[@${username} #${commentId}](${triggerComment.html_url})`;
             } else {
-              // 没找到触发评论，用 PR 链接
-              triggerLink = `[@infra-flash](${prUrl})`;
+              // autoplan: 链接到 Atlantis 输出评论本身
+              const atlantisCommentId = context.payload.comment.id;
+              triggerLink = `[@autoplan #${atlantisCommentId}](${atlantisCommentUrl})`;
             }
             const outputLink = `[output](${atlantisCommentUrl})`;
             

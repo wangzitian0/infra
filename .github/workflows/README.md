@@ -49,8 +49,8 @@ PR 创建/更新
 **流程**：
 1. **骨架创建**：CI 开始时立即创建评论，锁定 commit
 2. **CI 结果更新**：检查完成后更新评论（通过=简洁，失败=详细表格）
-3. **触发 Atlantis**：CI 通过后自动评论 `atlantis plan`
-4. **追加 Plan/Apply**：`infra-flash-update.yml` 追加 Atlantis 操作到评论
+3. **Atlantis Autoplan**：Atlantis 并行自动运行 plan
+4. **追加 Plan/Apply**：`infra-flash-update.yml` 捕捉 Atlantis 评论并追加到 infra-flash 评论
 
 **评论结构**：
 
@@ -75,7 +75,7 @@ PR 创建/更新
 
 | Action | Trigger | Status | Output | Time |
 |:-------|:--------|:------:|:-------|:-----|
-| Plan | [CI #12345](ci-link) | ✅ | [output](link) | 12:31 UTC |
+| Plan | [@autoplan #12345](atlantis-comment-link) | ✅ | [output](link) | 12:31 UTC |
 | Apply | [@user #67890](link) | ✅ | [output](link) | 12:35 UTC |
 
 ---
@@ -84,19 +84,17 @@ PR 创建/更新
 ```
 
 **Trigger 格式**：
-- `[CI #run-id](ci-run-link)` - CI 自动触发
-- `[@username #comment-id](comment-link)` - 人类评论触发
+- `[@autoplan #comment-id](link)` - Atlantis 自动运行
+- `[@username #comment-id](link)` - 人类评论手动触发
 
-### Atlantis（CI 触发 Plan）
+### Atlantis（Autoplan）
 
-本仓库的 `atlantis.yaml` 配置了 `autoplan.enabled=false`。Plan 由 CI workflow 触发：
+本仓库 `atlantis.yaml` 开启了 `autoplan.enabled=true`。每次 push 都会触发 Atlantis 自动 plan。
 
-1. CI 检查通过后，`terraform-plan.yml` 自动评论 `atlantis plan`
-2. Atlantis 执行 plan，发布结果评论
-3. `infra-flash-update.yml` 追加 Plan 状态到 commit 评论
-4. 用户 review plan 后评论 `atlantis apply`
+- CI 和 Atlantis 并行运行
+- Race condition 解决：`infra-flash-update.yml` 会等待或重试，直到找到对应 commit 的 infra-flash 评论（骨架已由 CI 率先创建）
+- 即使 Atlantis 先完成，只要骨架评论已存在，状态就能追加进去
 
-这避免了竞态条件：CI 评论在 Atlantis 运行前已存在。
 
 ---
 
