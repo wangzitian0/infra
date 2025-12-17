@@ -30,5 +30,9 @@ terraform {
       source  = "hashicorp/vault"
       version = "~> 4.0"
     }
+    restapi = {
+      source  = "mastercard/restapi"
+      version = "~> 1.19"
+    }
   }
 }
