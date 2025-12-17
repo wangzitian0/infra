@@ -173,7 +173,7 @@ resource "null_resource" "casdoor_oidc_apps" {
         "clientSecret": "'"$PORTAL_GATE_CLIENT_SECRET"'",
         "redirectUris": ["https://auth.'"$INTERNAL_DOMAIN"'/oauth2/callback"],
         "enablePassword": false,
-        "providers": [{"name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "alertType": "None"}],
+        "providers": [{"owner": "", "name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "rule": "None"}],
         "grantTypes": ["authorization_code", "refresh_token"]
       }'
       
@@ -187,7 +187,7 @@ resource "null_resource" "casdoor_oidc_apps" {
         "clientSecret": "'"$VAULT_OIDC_SECRET"'",
         "redirectUris": ["https://secrets.'"$INTERNAL_DOMAIN"'/ui/vault/auth/oidc/oidc/callback"],
         "enablePassword": false,
-        "providers": [{"name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "alertType": "None"}],
+        "providers": [{"owner": "", "name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "rule": "None"}],
         "grantTypes": ["authorization_code", "refresh_token"]
       }'
       
@@ -201,7 +201,7 @@ resource "null_resource" "casdoor_oidc_apps" {
         "clientSecret": "'"$DASHBOARD_OIDC_SECRET"'",
         "redirectUris": ["https://kdashboard.'"$INTERNAL_DOMAIN"'/oauth2/callback"],
         "enablePassword": false,
-        "providers": [{"name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "alertType": "None"}],
+        "providers": [{"owner": "", "name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "rule": "None"}],
         "grantTypes": ["authorization_code", "refresh_token"]
       }'
       
@@ -215,7 +215,7 @@ resource "null_resource" "casdoor_oidc_apps" {
         "clientSecret": "'"$KUBERO_OIDC_SECRET"'",
         "redirectUris": ["https://kcloud.'"$INTERNAL_DOMAIN"'/auth/callback"],
         "enablePassword": false,
-        "providers": [{"name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "alertType": "None"}],
+        "providers": [{"owner": "", "name": "GitHub", "canSignUp": true, "canSignIn": true, "canUnlink": true, "rule": "None"}],
         "grantTypes": ["authorization_code", "refresh_token"]
       }'
       
