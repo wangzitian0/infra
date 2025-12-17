@@ -25,6 +25,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via local-exec REST API |
 | `91.vault-auth.tf` | Vault OIDC Auth | Vault OIDC backend connected to Casdoor |
 | `92.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |
+| `99.checks.tf` | SSO Validation | Shift-left checks for OIDC discovery, Casdoor health, Portal auth |
 
 ### Secrets Strategy
 
