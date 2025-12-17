@@ -29,5 +29,11 @@ Per-commit infra-flash 评论流（CI → (autoplan) Plan/Apply 追加）见 [`d
 
 更完整的 CI/CD 设计与变更流程见 [`.github/workflows/README.md`](./.github/workflows/README.md)。
 
+## Recent Changes
+
+- **SSO**: GitHub OAuth Provider 现通过 Terraform REST API 自动配置到 Casdoor (`2.platform/90.casdoor-apps.tf`)
+- **文件重编号**: 按拓扑依赖顺序重命名 (1→92, 98→90, 99→91)
+- **Shift-left 检查**: 各组件添加 precondition/postcondition
+
 ---
 *Last updated: 2025-12-17*

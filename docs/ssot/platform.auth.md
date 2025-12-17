@@ -100,16 +100,16 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 ### Identity Providers
 
-> TODO(auth): 在 Casdoor UI 配置 GitHub/Google OAuth Provider
+GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，无需手动操作。
 
 | Provider | 用途 | 状态 |
 |----------|------|------|
-| GitHub | 开发者登录 | ⏳ 待配置 |
+| GitHub | 开发者登录 | ✅ REST API 自动配置 |
 | Google | 备用登录 | ⏳ 待配置 |
 
 ### OIDC Clients (通过 REST API 自动管理)
 
-> OIDC 应用现在通过 `5.casdoor-apps.tf` 中的 REST API 自动创建/更新，无需手动操作。
+> OIDC 应用现在通过 `90.casdoor-apps.tf` 中的 REST API 自动创建/更新，无需手动操作。
 
 | 应用 | Client ID | Redirect URI | 管理方式 |
 |------|-----------|--------------|----------|
@@ -144,7 +144,7 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 | 组件 | 状态 |
 |------|------|
 | Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
-| GitHub OAuth | ⏳ Casdoor UI 中配置 |
+| GitHub OAuth | ✅ REST API 自动配置 (`90.casdoor-apps.tf`) |
 | Vault OIDC | ✅ REST API 自动创建 (`vault-oidc`) |
 | Dashboard OIDC | ✅ REST API 自动创建 (`dashboard-oidc`) |
 | Kubero OIDC | ✅ REST API 自动创建 (`kubero-oidc`) |
@@ -156,8 +156,37 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 - [platform.secrets.md](./platform.secrets.md) - 密钥管理 SSOT
 - [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor Helm release + Bootstrap
-- [98.casdoor-apps.tf](../../2.platform/98.casdoor-apps.tf) - OIDC 应用 (local-exec API)
+- [90.casdoor-apps.tf](../../2.platform/90.casdoor-apps.tf) - OIDC 应用 (local-exec API)
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
+
+---
+
+## 验证 SSO 配置
+
+### 检查 OIDC Discovery
+
+```bash
+curl -s https://sso.zitian.party/.well-known/openid-configuration | jq .issuer
+# 预期输出: "https://sso.zitian.party"
+```
+
+### 检查 GitHub Provider
+
+```bash
+# 需要 Casdoor admin 密码
+PASSWORD=$(terraform -chdir=2.platform output -raw casdoor_admin_password)
+curl -s "https://sso.zitian.party/api/get-provider?id=admin/GitHub" \
+  -H "Authorization: Basic $(echo -n "casdoor-builtin-app:$PASSWORD" | base64)" | jq .name
+# 预期输出: "GitHub"
+```
+
+### 检查 Portal Gate 应用
+
+```bash
+curl -s "https://sso.zitian.party/api/get-application?id=admin/portal-gate" \
+  -H "Authorization: Basic $(echo -n "casdoor-builtin-app:$PASSWORD" | base64)" | jq '.providers[].name'
+# 预期输出: "GitHub"
+```
 
 ---
 
