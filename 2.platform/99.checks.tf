@@ -1,5 +1,6 @@
 # ============================================================
 # E2E Validation: Final SSO Health Checks
+# Retry: 2025-12-17 trigger apply
 # ============================================================
 # These checks run AFTER all components are deployed.
 # They verify the complete SSO flow is working end-to-end.

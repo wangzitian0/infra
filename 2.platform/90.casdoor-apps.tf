@@ -1,4 +1,5 @@
 # Casdoor OIDC Applications Management via REST API
+# Retry: 2025-12-17 trigger apply
 # 
 # This file manages Casdoor applications using REST API instead of init_data.json.
 # Benefits:
@@ -160,6 +161,9 @@ resource "null_resource" "casdoor_oidc_apps" {
       }
       
       # Portal Gate Application
+      # Portal SSO Gate - OAuth2-Proxy backed by Casdoor OIDC
+      # Provides a forward-auth middleware for Vault/Dashboard/Kubero Ingresses.
+      # Retry: 2025-12-17 trigger apply
       upsert_app "portal-gate" '{
         "owner": "admin",
         "name": "portal-gate",
@@ -224,6 +228,8 @@ resource "null_resource" "casdoor_oidc_apps" {
 }
 
 # Shift-left: Verify OIDC discovery endpoint after apps are configured
+# E2E Validation: Final SSO Health Checks
+# Retry: 2025-12-17 trigger apply
 data "http" "casdoor_oidc_discovery" {
   count = local.portal_gate_enabled ? 1 : 0
 
