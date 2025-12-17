@@ -11,6 +11,7 @@
 - 话题 SSOT 索引：[`docs/ssot/README.md`](./docs/ssot/README.md)
 - Layer 文档：[`0.tools/README.md`](./0.tools/README.md) · [`1.bootstrap/README.md`](./1.bootstrap/README.md) · [`2.platform/README.md`](./2.platform/README.md) · [`3.data/README.md`](./3.data/README.md) · [`4.apps/README.md`](./4.apps/README.md)
 - GitHub 自动化入口：[`.github/README.md`](./.github/README.md) · [`.github/workflows/README.md`](./.github/workflows/README.md)
+- README 保护检查：新增 `scripts/check-readme-coverage.sh` 与 [`readme-coverage.yml`](.github/workflows/readme-coverage.yml)，每次变更要求 ≥80% 的目录同步更新对应 `README.md`。
 
 ## GitHub Automation（CI/CD）
 
@@ -29,4 +30,4 @@ Per-commit infra-flash 评论流（CI → (autoplan) Plan/Apply 追加）见 [`d
 更完整的 CI/CD 设计与变更流程见 [`.github/workflows/README.md`](./.github/workflows/README.md)。
 
 ---
-*Last updated: 2025-12-16*
+*Last updated: 2025-12-17*

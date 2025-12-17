@@ -74,8 +74,7 @@ curl "http://clickhouse.data-<env>.svc.cluster.local:8123/?query=SELECT%201"
 ## 相关文件
 
 - [3.data/](../../3.data/)
-- [db.connection.md](./db.connection.md)
+- [db.overview.md](./db.overview.md)
 - [ops.observability.md](./ops.observability.md) (SigNoz 使用 ClickHouse)
 
 ---
-

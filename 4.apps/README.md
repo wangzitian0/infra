@@ -46,6 +46,8 @@ atlantis apply -p apps-prod
 ---
 *Last updated: 2025-12-16*
 
+- **README 维护提醒**：新增了 `scripts/check-readme-coverage.sh` 与 `.github/workflows/readme-coverage.yml`，要求修改目录要同步更新对应 `README.md`，覆盖率必须达到 80%。
+
 ## Troubleshooting
 
 ### Stuck Namespace: `kubero`

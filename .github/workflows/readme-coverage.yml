@@ -1,0 +1,21 @@
+name: README Coverage
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run README coverage check
+        run: |
+          chmod +x scripts/check-readme-coverage.sh
+          BASE_REF="${{ github.event.pull_request.base.sha || github.ref_name || 'origin/main' }}" scripts/check-readme-coverage.sh

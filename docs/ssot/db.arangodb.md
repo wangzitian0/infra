@@ -65,7 +65,6 @@ arangosh --server.endpoint tcp://arangodb.data-<env>.svc.cluster.local:8529 \
 ## 相关文件
 
 - [3.data/](../../3.data/)
-- [db.connection.md](./db.connection.md)
+- [db.overview.md](./db.overview.md)
 
 ---
-

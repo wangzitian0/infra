@@ -70,8 +70,7 @@ annotations:
 ## 相关文件
 
 - [3.data/](../../3.data/)
-- [db.connection.md](./db.connection.md)
+- [db.overview.md](./db.overview.md)
 - [platform.secrets.md](./platform.secrets.md)
 
 ---
-

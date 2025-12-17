@@ -27,6 +27,7 @@ PR 创建/更新
 | [`deploy-k3s.yml`](#deploy-k3s) | main push (paths filter) / 手动 | Bootstrap/恢复：按顺序 apply L1→L2→L3→L4（部分步骤仅在 push 执行） |
 | [`dig.yml`](#health-check) | `/dig` 评论 | 服务连通性检查 |
 | [`docs-site.yml`](#docs-site) | PR / main push / 手动 | 构建 MkDocs 文档站点；main 自动部署到 GitHub Pages |
+| [`readme-coverage.yml`](#readme-coverage) | PR / main push | README 更新覆盖率检查（≥80%） |
 | [`claude.yml`](#claude-review) | 评论/Review/Issue/Autoplan | AI 代码审查（best-effort） |
 
 ---
@@ -188,6 +189,20 @@ python3.12 -m venv .venv  # 或 python3.11
 .venv/bin/python -m pip install -r requirements-mkdocs.txt
 git submodule update --init --recursive  # 如果需要 apps 文档
 .venv/bin/mkdocs serve
+```
+
+## readme-coverage.yml {#readme-coverage}
+
+**触发**: PR / `push` to `main`
+
+用途：
+- 约束目录变更时的 README 同步更新（默认阈值 ≥80%）
+- 与本地脚本同源：`scripts/check-readme-coverage.sh`
+
+本地运行：
+
+```bash
+BASE_REF=origin/main scripts/check-readme-coverage.sh
 ```
 
 ## Atlantis 命令
