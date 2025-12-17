@@ -58,7 +58,12 @@ jobs:
             // 判断是 plan 还是 apply
             const isPlan = atlantisBody.includes('Ran Plan');
             const isApply = atlantisBody.includes('Ran Apply');
-            const isSuccess = !/(failed|error|panic:)/i.test(atlantisBody);
+            
+            // Atlantis 特定的失败标记（不是简单匹配 "error"）
+            // 成功: "Plan: X to add", "Apply complete!"
+            // 失败: "**Plan Error**", "**Apply Error**", "exit status 1"
+            const hasAtlantisError = /\*\*(Plan|Apply) Error\*\*|exit status [1-9]|panic:|terraform:.*failed/i.test(atlantisBody);
+            const isSuccess = !hasAtlantisError;
             
             const stage = isPlan ? 'Plan' : 'Apply';
             const icon = isSuccess ? '✅' : '❌';
