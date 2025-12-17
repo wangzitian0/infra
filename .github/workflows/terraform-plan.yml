@@ -256,10 +256,26 @@ jobs:
               ].join('\n');
             }
             
-            // Next step
-            const nextStep = allPass
-              ? '⏳ **Atlantis autoplan running...**'
-              : '❌ **CI failed.** Fix errors and push again.';
+            // Check if TF files were changed (Atlantis only runs for TF changes)
+            const changedFiles = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100
+            });
+            const hasTfChanges = changedFiles.data.some(f => 
+              /^[1-4]\.(bootstrap|platform|data|apps)\/.*\.tf$/.test(f.filename)
+            );
+            
+            // Next step depends on CI result AND whether TF files changed
+            let nextStep;
+            if (!allPass) {
+              nextStep = '❌ **CI failed.** Fix errors and push again.';
+            } else if (hasTfChanges) {
+              nextStep = '⏳ **Atlantis autoplan running...**';
+            } else {
+              nextStep = '✅ **No Terraform changes. Ready to merge!**';
+            }
             
             // Preserve Atlantis actions
             let atlantisSection = [
