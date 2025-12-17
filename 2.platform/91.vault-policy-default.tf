@@ -59,4 +59,10 @@ resource "vault_policy" "default" {
         capabilities = ["read"]
     }
   EOT
+
+  # CRITICAL: Vault does not allow deletion of the built-in 'default' policy.
+  # This lifecycle block prevents Terraform from ever attempting to destroy it.
+  lifecycle {
+    prevent_destroy = true
+  }
 }
