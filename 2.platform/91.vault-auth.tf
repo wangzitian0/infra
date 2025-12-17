@@ -37,20 +37,20 @@ resource "vault_jwt_auth_backend_role" "reader" {
   role_name  = "reader"
   user_claim = "sub"
   role_type  = "oidc"
-  
+
   # Required: must match the client_id used in Casdoor
   bound_audiences = ["vault-oidc"]
-  
+
   # OIDC scopes to request
   oidc_scopes = ["openid", "profile", "email"]
-  
+
   allowed_redirect_uris = [
     "https://secrets.${local.internal_domain}/ui/vault/auth/oidc/oidc/callback",
     "http://localhost:8250/oidc/callback"
   ]
   token_policies = ["reader"]
   token_ttl      = 3600
-  
+
   # Enable verbose logging for debugging OIDC issues
   verbose_oidc_logging = true
 }
