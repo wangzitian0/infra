@@ -89,8 +89,8 @@ jobs:
               '### Atlantis Actions',
               '',
               '<!-- atlantis-actions -->',
-              '| Action | Trigger | Status | Output | Time |',
-              '|:-------|:--------|:------:|:-------|:-----|',
+              '| Action | Commit | Trigger | Status | Output | Time |',
+              '|:-------|:-------|:--------|:------:|:-------|:-----|',
               '<!-- /atlantis-actions -->',
               '',
               '---',
@@ -106,7 +106,7 @@ jobs:
               if (actionsMatch && actionsMatch[1].trim()) {
                 body = skeleton.replace(
                   /<!-- atlantis-actions -->\n\| Action[\s\S]*?<!-- \/atlantis-actions -->/,
-                  `<!-- atlantis-actions -->\n| Action | Trigger | Status | Output | Time |\n|:-------|:--------|:------:|:-------|:-----|${actionsMatch[1]}<!-- /atlantis-actions -->`
+                  `<!-- atlantis-actions -->\n| Action | Commit | Trigger | Status | Output | Time |\n|:-------|:-------|:--------|:------:|:-------|:-----|${actionsMatch[1]}<!-- /atlantis-actions -->`
                 );
               }
               
@@ -280,8 +280,8 @@ jobs:
             // Preserve Atlantis actions
             let atlantisSection = [
               '<!-- atlantis-actions -->',
-              '| Action | Trigger | Status | Output | Time |',
-              '|:-------|:--------|:------:|:-------|:-----|',
+              '| Action | Commit | Trigger | Status | Output | Time |',
+              '|:-------|:-------|:--------|:------:|:-------|:-----|',
               '<!-- /atlantis-actions -->'
             ].join('\n');
             

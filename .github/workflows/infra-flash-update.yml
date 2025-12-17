@@ -133,7 +133,8 @@ jobs:
             const outputLink = `[output](${atlantisCommentUrl})`;
             
             // 构建新操作记录行
-            const actionRow = `| ${stage} | ${triggerLink} | ${icon} | ${outputLink} | ${timestamp} |`;
+            const commitLink = `[\`${targetSha}\`](${prUrl}/commits/${targetSha})`;
+            const actionRow = `| ${stage} | ${commitLink} | ${triggerLink} | ${icon} | ${outputLink} | ${timestamp} |`;
             
             // 找到或创建 Atlantis Actions 表格
             const tableMarker = '<!-- atlantis-actions -->';
@@ -151,8 +152,8 @@ jobs:
                 '### Atlantis Actions',
                 '',
                 tableMarker,
-                '| Action | Trigger | Status | Output | Time |',
-                '|:-------|:--------|:------:|:-------|:-----|',
+                '| Action | Commit | Trigger | Status | Output | Time |',
+                '|:-------|:-------|:--------|:------:|:-------|:-----|',
                 actionRow,
                 '<!-- /atlantis-actions -->',
                 ''
