@@ -3,7 +3,7 @@
 
 provider "restapi" {
   uri = "https://${local.casdoor_domain}"
-  
+
   # Use M2M credentials (admin access)
   username = "casdoor-builtin-app"
   password = var.casdoor_admin_password
