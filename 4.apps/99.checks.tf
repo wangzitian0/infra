@@ -1,5 +1,6 @@
 # ============================================================
 # Shift-Left: Production Safety Checks
+# Test per-commit comment system - this triggers Atlantis plan
 # ============================================================
 # NOTE: Kubero official image (ghcr.io/kubero-dev/kubero/kubero) only provides
 # 'latest' tag, so we cannot enforce version pinning for this specific image.
