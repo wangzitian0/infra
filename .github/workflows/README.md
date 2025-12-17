@@ -143,7 +143,7 @@ Atlantis 评论 "Ran Plan for..."
 
 一致性策略：
 - workflow 会尝试 `terraform import` 把已存在的资源纳入 state 管理（例如 `helm_release.atlantis`）。
-- 为修复 Helm `cannot re-use a name` 这类“集群残留但 state 缺失”的冲突，当前会清理 `platform` 命名空间下 Atlantis 的 Helm release secrets（按 `sh.helm.release.v1.atlantis*` 模式匹配），并删除相关 `deployment/svc/statefulset`（见 `Import Existing Resources` step）。
+- 为修复 Helm `cannot re-use a name` 这类"集群残留但 state 缺失"的冲突，当前会清理 `bootstrap` 命名空间下 Atlantis 的 Helm release secrets（按 `sh.helm.release.v1.atlantis*` 模式匹配），并删除相关 `deployment/svc/statefulset`（见 `Import Existing Resources` step）。
 
 > **TODO（理想态）**
 > - 默认不做任何自动删除；需要清理时改为显式开关（`workflow_dispatch` input）+ 输出将删除的资源清单供人工确认。
