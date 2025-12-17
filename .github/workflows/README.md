@@ -42,6 +42,8 @@ PR 创建/更新
 2. `tflint` - Lint 检查 (L1/L2/L3/L4)
 3. `terraform validate` - 语法验证 (L1/L2/L3/L4, `init -backend=false`)
 4. **发布 infra-flash 评论**：每个 commit push 新建一条评论，记录 CI 结果和下一步指引
+   - 有 TF 文件变更 → `⏳ Atlantis autoplan running...`
+   - 无 TF 文件变更 → `✅ No Terraform changes. Ready to merge!`
 
 > CI 里调用 `hashicorp/setup-terraform@v3` 时将 `terraform_wrapper: false`，避免 wrapper 把 `terraform state show` 这类“资源不存在 → exit code 1”的场景上抛成 workflow error，确保 Bash 的 `if ! ...; then ...` 能按预期处理退出码。
 
