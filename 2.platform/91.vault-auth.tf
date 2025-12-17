@@ -17,6 +17,16 @@ resource "vault_jwt_auth_backend" "oidc" {
     max_lease_ttl     = "8h"
     token_type        = "default-service"
   }
+
+  # Shift-left: Ensure Casdoor apps are configured first
+  depends_on = [data.http.casdoor_oidc_discovery]
+
+  lifecycle {
+    precondition {
+      condition     = local.vault_oidc_client_secret != ""
+      error_message = "vault_oidc_client_secret is empty. Casdoor apps may not have been configured."
+    }
+  }
 }
 
 resource "vault_jwt_auth_backend_role" "reader" {

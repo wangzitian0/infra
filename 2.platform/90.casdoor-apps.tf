@@ -223,6 +223,26 @@ resource "null_resource" "casdoor_oidc_apps" {
   depends_on = [helm_release.casdoor]
 }
 
+# Shift-left: Verify OIDC discovery endpoint after apps are configured
+data "http" "casdoor_oidc_discovery" {
+  count = local.portal_gate_enabled ? 1 : 0
+
+  url = "https://${local.casdoor_domain}/.well-known/openid-configuration"
+
+  request_headers = {
+    Accept = "application/json"
+  }
+
+  depends_on = [null_resource.casdoor_oidc_apps]
+
+  lifecycle {
+    postcondition {
+      condition     = self.status_code == 200
+      error_message = "Casdoor OIDC discovery not reachable after app config. Status: ${self.status_code}"
+    }
+  }
+}
+
 # =============================================================================
 # Outputs
 # =============================================================================
@@ -235,4 +255,9 @@ output "casdoor_apps_managed" {
     "kubero-oidc"
   ] : []
   description = "Casdoor applications managed via REST API"
+}
+
+output "casdoor_oidc_discovery_status" {
+  value       = local.portal_gate_enabled ? data.http.casdoor_oidc_discovery[0].status_code : "disabled"
+  description = "OIDC discovery endpoint status code"
 }
