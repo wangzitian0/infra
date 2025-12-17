@@ -117,7 +117,7 @@ Atlantis 评论 "Ran Plan for..."
 - 通过 `<!-- infra-flash-commit:abc1234 -->` 锚点定位评论
 - 自动附带触发者评论 & Atlantis 输出链接
 - 成功时追加下一步（Plan → Apply → Merge），失败则指向修复操作
-- 通过 Atlantis 输出的 `infra-flash-commit:xxxxxxx` 标记精确定位对应 commit 评论（`atlantis.yaml` workflow step 注入）
+- **重要**：通过 Atlantis 输出的 `infra-flash-commit:xxxxxxx` 标记定位对应 commit 评论（使用 `targetSha` 而非 PR HEAD，支持 plan 运行时有新 commit push 的场景）
 - 权限：需要 `issues: write`（更新评论）与 `pull-requests: write`（读取 PR 信息）
 - 兼容性：使用 `"on":` 而不是 `on:`，避免 YAML 解析把 `on` 误判为布尔值导致 workflow 无法触发
 
