@@ -499,9 +499,10 @@ jobs:
             echo "::error::ArangoDB: Pod not found"
             FAILED=1
           else
-            # ArangoDB image doesn't have curl, use arangosh to check server
-            if kubectl exec -n "${NS}" "${ARANGO_POD}" -- arangosh --server.endpoint tcp://127.0.0.1:8529 --server.authentication false --javascript.execute-string "db._version()" >/dev/null 2>&1; then
-              echo "✅ ArangoDB: Reachable"
+            # Check if ArangoDB HTTP server responds (/_api/version doesn't require auth)
+            ARANGO_VERSION="$(kubectl exec -n "${NS}" "${ARANGO_POD}" -- wget -qO- --timeout=5 http://127.0.0.1:8529/_api/version 2>/dev/null || true)"
+            if echo "${ARANGO_VERSION}" | grep -q "version"; then
+              echo "✅ ArangoDB: Reachable ($(echo "${ARANGO_VERSION}" | grep -o '"version":"[^"]*"' | head -1))"
             else
               echo "::error::ArangoDB: Unreachable"
               FAILED=1
