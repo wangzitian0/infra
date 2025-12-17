@@ -7,7 +7,6 @@
 - **Platform DB**: PostgreSQL (for Vault)
 - **Dashboard**: Kubernetes Dashboard (cluster web UI)
 - **SSO**: Casdoor (OIDC provider for L2+ services)
-- **SSO**: Casdoor (OIDC provider for L2+ services)
 - **Namespaces**: `platform` (main), `kubero-operator-system` (Operator only)
 
 ## Architecture
@@ -21,7 +20,6 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 |------|-----------|---------|
 | `1.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
-| `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `5.casdoor.tf` | Casdoor SSO | Helm release + bootstrap init_data (org, admin, builtin-app only) |
 | `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
@@ -51,7 +49,6 @@ terraform apply
 
 - **Vault**: `https://secrets.<internal_domain>` (e.g., `secrets.zitian.party`) - HTTPS via cert-manager; manual init/unseal required
 - **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager
-- **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager
 - **Casdoor**: `https://sso.<internal_domain>` (e.g., `sso.zitian.party`) - Unified SSO
 
 ### Authentication Model
@@ -60,8 +57,7 @@ L2 services use **app-level authentication** (no unified ingress gate):
 
 | Service | Auth Method | Notes |
 |---------|-------------|-------|
-| **Vault** | Token / OIDC (planned) | Manual init/unseal required; OIDC via Casdoor (future) |
-| **Dashboard** | Token | Get token: `kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' \| base64 -d` |
+| **Vault** | Token / OIDC | Manual init/unseal required; OIDC client (`vault-oidc`) via REST API |
 | **Dashboard** | Token | Get token: `kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' \| base64 -d` |
 | **Casdoor** | Admin password | SSO provider itself; admin password from `terraform output -raw casdoor_admin_password` |
 | **Portal SSO Gate** | Casdoor OIDC via OAuth2-Proxy | Optional：`enable_portal_sso_gate=true` 后为 Vault/Dashboard 打开统一入口 |
@@ -109,7 +105,6 @@ To deploy Portal SSO Gate for Vault/Dashboard:
 4. Verify SSO login at:
    - https://secrets.zitian.party (Vault)
    - https://kdashboard.zitian.party (Dashboard)
-   - https://kdashboard.zitian.party (Dashboard)
 
 ---
-*Last updated: 2025-12-16*
+*Last updated: 2025-12-17*
