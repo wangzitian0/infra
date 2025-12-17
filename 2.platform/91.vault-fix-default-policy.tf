@@ -1,6 +1,6 @@
 locals {
   # Default policy content allowing OIDC auth flows for unauthenticated users
-  # Used by null_resource below to force-update the built-in 'default' policy.
+  # Used by vault_generic_endpoint below to force-update the built-in 'default' policy.
   default_policy_json = jsonencode({
     policy = <<-EOT
       # Basic self-service token capabilities
@@ -25,25 +25,20 @@ locals {
   })
 }
 
-# Force update default policy using curl because terraform vault_policy resource
-# fails to update the built-in 'default' policy.
-resource "null_resource" "force_default_policy_update" {
+# Use vault_generic_endpoint to manage the built-in 'default' policy.
+# This uses the generic Vault API resource, bypassing potential limitation 
+# of vault_policy resource regarding built-in policies.
+resource "vault_generic_endpoint" "default_policy" {
   count = local.portal_sso_gate_enabled ? 1 : 0
 
-  triggers = {
-    policy_hash = md5(local.default_policy_json)
-  }
+  # API Endpoint for the Default ACL Policy
+  # Writes to: PUT /v1/sys/policies/acl/default
+  path = "sys/policies/acl/default"
+  
+  # Payload (HCL policy wrapped in JSON)
+  data_json = local.default_policy_json
 
-  provisioner "local-exec" {
-    # Using 'curl' to directly PUT the policy content to Vault API
-    # -k: Insecure (internal cluster traffic might use self-signed if HTTPS, though usually HTTP)
-    # -S -s: Silent but show errors
-    command = "curl -k -S -s -X PUT -H \"X-Vault-Token: $VAULT_TOKEN\" -d '$POLICY_JSON' $VAULT_ADDR/v1/sys/policies/acl/default"
-
-    environment = {
-      VAULT_ADDR  = var.vault_address
-      VAULT_TOKEN = var.vault_root_token
-      POLICY_JSON = local.default_policy_json
-    }
-  }
+  # PROTECT THE DEFAULT POLICY: Do not delete it if this resource is destroyed.
+  # This merely stops managing it, leaving it in its last state.
+  disable_delete = true
 }
