@@ -74,7 +74,7 @@ AI 接入相关的变量/密钥与注入方式见：`docs/ssot/ai.md`。
 | **L3 Data** | Vault + SSO | Vault KV |
 | **L4 Apps** | Vault + SSO | Vault 动态凭据 |
 
-详见 [auth.md](auth.md)
+详见 [platform.auth.md](platform.auth.md)
 
 ---
 
@@ -95,4 +95,3 @@ AI 接入相关的变量/密钥与注入方式见：`docs/ssot/ai.md`。
 - **Fallback 设计**：当需要同时保留 1Password 与 Vault 副本时，Vault 为 SSOT、1Password 仅做 backup（“Vault-first, 1Password fallback”），确保可以实现“1Password 0 依赖”或将全部凭据迁移到 Vault 的两条路径。
 
 ---
-
