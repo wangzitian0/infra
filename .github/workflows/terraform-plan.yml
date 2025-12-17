@@ -52,7 +52,7 @@ jobs:
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}`;
             const prUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${context.issue.number}`;
-            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+            const MARKER = '<!-- infra-flash-ci -->';
             
             // Check if comment already exists
             const comments = await github.rest.issues.listComments({
@@ -89,8 +89,8 @@ jobs:
               '### Atlantis Actions',
               '',
               '<!-- atlantis-actions -->',
-              '| Action | Trigger | Status | Output | Time |',
-              '|:-------|:--------|:------:|:-------|:-----|',
+              '| Action | Commit | Trigger | Status | Output | Time |',
+              '|:-------|:-------|:--------|:------:|:-------|:-----|',
               '<!-- /atlantis-actions -->',
               '',
               '---',
@@ -106,7 +106,7 @@ jobs:
               if (actionsMatch && actionsMatch[1].trim()) {
                 body = skeleton.replace(
                   /<!-- atlantis-actions -->\n\| Action[\s\S]*?<!-- \/atlantis-actions -->/,
-                  `<!-- atlantis-actions -->\n| Action | Trigger | Status | Output | Time |\n|:-------|:--------|:------:|:-------|:-----|${actionsMatch[1]}<!-- /atlantis-actions -->`
+                  `<!-- atlantis-actions -->\n| Action | Commit | Trigger | Status | Output | Time |\n|:-------|:-------|:--------|:------:|:-------|:-----|${actionsMatch[1]}<!-- /atlantis-actions -->`
                 );
               }
               
@@ -227,7 +227,7 @@ jobs:
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}`;
             const commentId = ${{ steps.skeleton.outputs.result }};
-            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+            const MARKER = '<!-- infra-flash-ci -->';
             
             // Get existing comment
             const existingComment = await github.rest.issues.getComment({
@@ -280,8 +280,8 @@ jobs:
             // Preserve Atlantis actions
             let atlantisSection = [
               '<!-- atlantis-actions -->',
-              '| Action | Trigger | Status | Output | Time |',
-              '|:-------|:--------|:------:|:-------|:-----|',
+              '| Action | Commit | Trigger | Status | Output | Time |',
+              '|:-------|:-------|:--------|:------:|:-------|:-----|',
               '<!-- /atlantis-actions -->'
             ].join('\n');
             

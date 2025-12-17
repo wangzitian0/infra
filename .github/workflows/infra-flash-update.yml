@@ -85,9 +85,8 @@ jobs:
             
             const prUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`;
             
-            // Find infra-flash comment for the commit that Atlantis actually processed
-            // Use targetSha (from Atlantis output) not currentSha (PR HEAD may have moved)
-            const MARKER = `<!-- infra-flash-commit:${targetSha} -->`;
+            // Find infra-flash sticky comment
+            const MARKER = '<!-- infra-flash-ci -->';
             const flashComment = comments.find(c =>
               c.user.login === 'infra-flash[bot]' &&
               c.body.includes(MARKER)
@@ -133,7 +132,8 @@ jobs:
             const outputLink = `[output](${atlantisCommentUrl})`;
             
             // 构建新操作记录行
-            const actionRow = `| ${stage} | ${triggerLink} | ${icon} | ${outputLink} | ${timestamp} |`;
+            const commitLink = `[\`${targetSha}\`](${prUrl}/commits/${targetSha})`;
+            const actionRow = `| ${stage} | ${commitLink} | ${triggerLink} | ${icon} | ${outputLink} | ${timestamp} |`;
             
             // 找到或创建 Atlantis Actions 表格
             const tableMarker = '<!-- atlantis-actions -->';
@@ -151,8 +151,8 @@ jobs:
                 '### Atlantis Actions',
                 '',
                 tableMarker,
-                '| Action | Trigger | Status | Output | Time |',
-                '|:-------|:--------|:------:|:-------|:-----|',
+                '| Action | Commit | Trigger | Status | Output | Time |',
+                '|:-------|:-------|:--------|:------:|:-------|:-----|',
                 actionRow,
                 '<!-- /atlantis-actions -->',
                 ''
