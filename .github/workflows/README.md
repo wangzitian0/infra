@@ -131,6 +131,9 @@ Atlantis 评论 "Ran Plan for..."
 
 用于 bootstrap/恢复：按顺序 apply L1→L2→L3→L4（当前 L3/L4 的 apply/verify 仅在 `push` 事件执行；`workflow_dispatch` 会跳过这些 step）。
 
+日志策略：
+- 默认不启用 `TF_LOG`（避免 Terraform Provider 的噪音日志污染 CI 输出）；需要排障时再在本地或手动执行时显式开启。
+
 一致性策略：
 - workflow 会尝试 `terraform import` 把已存在的资源纳入 state 管理（例如 `helm_release.atlantis`）。
 - 为修复 Helm `cannot re-use a name` 这类“集群残留但 state 缺失”的冲突，当前会清理 `platform` 命名空间下 Atlantis 的 Helm release secrets（按 `sh.helm.release.v1.atlantis*` 模式匹配），并删除相关 `deployment/svc/statefulset`（见 `Import Existing Resources` step）。

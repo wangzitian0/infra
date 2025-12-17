@@ -11,7 +11,7 @@
 | `x-<env>.<base_domain>` | ✅ Orange | 测试环境 | `x-staging.truealpha.club` |
 | `<base_domain>` | ✅ Orange | 生产 | `truealpha.club` |
 
-> 环境模型（workspace/state/namespace/domain 的统一规则）见：[`env.md`](./env.md)
+> 环境模型（workspace/state/namespace/domain 的统一规则）见：[`core.env.md`](./core.env.md)
 
 ## 服务域名映射
 
@@ -56,4 +56,3 @@ nginx.ingress.kubernetes.io/whitelist-source-range: "140.82.112.0/20,185.199.108
 - Network 详情: [`1.bootstrap/network.md`](../../1.bootstrap/network.md)
 
 ---
-
