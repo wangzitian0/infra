@@ -46,32 +46,57 @@ PR 创建/更新
 
 ### infra-flash 评论（Per-Commit）
 
-- PR 中**每个 commit**都会生成独立评论：`<!-- infra-flash-commit:abc1234 -->`
-- 评论包含 CI 表格、失败时的修复命令、以及下一步动作（例如 review plan 后 `atlantis apply`）
-- 新 commit push 不会覆盖旧评论，形成完整审计链
+**流程**：
+1. **骨架创建**：CI 开始时立即创建评论，锁定 commit
+2. **CI 结果更新**：检查完成后更新评论（通过=简洁，失败=详细表格）
+3. **触发 Atlantis**：CI 通过后自动评论 `atlantis plan`
+4. **追加 Plan/Apply**：`infra-flash-update.yml` 追加 Atlantis 操作到评论
+
+**评论结构**：
 
 ```markdown
 <!-- infra-flash-commit:abc1234 -->
 ## ⚡ Commit `abc1234`
 
-### CI Validate ✅ | 12:30 UTC
+<details><summary>📖 Commands</summary>
+| Command | Description |
+| `atlantis plan` | Re-run plan |
+| `atlantis apply` | Apply changes |
+| `atlantis unlock` | Unlock PR |
+</details>
 
-| Layer | Format | Lint | Validate |
-|:------|:------:|:----:|:--------:|
-| L1 Bootstrap | ✅ | ✅ | ✅ |
-| L2 Platform | ✅ | ✅ | ✅ |
-| L3 Data | ✅ | ⏭️ | ⏭️ |
+---
 
-⏳ **Atlantis autoplan** will run automatically. After plan is posted, review it then comment `atlantis apply`.
+### CI Validate ✅ | [abc1234](ci-run-link) | 12:30 UTC
+
+---
+
+### Atlantis Actions
+
+| Action | Trigger | Status | Output | Time |
+|:-------|:--------|:------:|:-------|:-----|
+| Plan | [CI #12345](ci-link) | ✅ | [output](link) | 12:31 UTC |
+| Apply | [@user #67890](link) | ✅ | [output](link) | 12:35 UTC |
+
+---
+
+✅ **Ready to merge!**
 ```
 
-### Atlantis（本仓库开启 autoplan）
+**Trigger 格式**：
+- `[CI #run-id](ci-run-link)` - CI 自动触发
+- `[@username #comment-id](comment-link)` - 人类评论触发
 
-本仓库 `atlantis.yaml` 将 `autoplan.enabled=true`，因此每次 PR 更新（push 新 commit）都会自动触发 `atlantis plan`：
-- Plan：Atlantis 自动评论 plan，并由 `infra-flash-update.yml` 追加状态到对应 commit 的 infra-flash 评论
-- Apply：仍需人工 review plan 后评论 `atlantis apply`
-  
-`atlantis plan` 仍可用于失败后的手动重试。
+### Atlantis（CI 触发 Plan）
+
+本仓库的 `atlantis.yaml` 配置了 `autoplan.enabled=false`。Plan 由 CI workflow 触发：
+
+1. CI 检查通过后，`terraform-plan.yml` 自动评论 `atlantis plan`
+2. Atlantis 执行 plan，发布结果评论
+3. `infra-flash-update.yml` 追加 Plan 状态到 commit 评论
+4. 用户 review plan 后评论 `atlantis apply`
+
+这避免了竞态条件：CI 评论在 Atlantis 运行前已存在。
 
 ---
 
