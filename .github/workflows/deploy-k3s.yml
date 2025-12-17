@@ -623,7 +623,8 @@ jobs:
           set -euo pipefail
 
           # Skip if L4 was skipped (no .tf files)
-          if [ ! -f "4.apps/*.tf" ] 2>/dev/null && ! ls 4.apps/*.tf 1>/dev/null 2>&1; then
+          # Note: [ ! -f "4.apps/*.tf" ] doesn't work with globs, use ls instead
+          if ! ls 4.apps/*.tf 1>/dev/null 2>&1; then
             echo "⏭️ Skipping L4 Verify: No apps deployed"
             exit 0
           fi
