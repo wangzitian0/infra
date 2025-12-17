@@ -1,5 +1,6 @@
 # ============================================================
 # Locals for 4.apps layer
+# Trigger: 2025-12-17 Deploy Apps (Kubero)
 # ============================================================
 locals {
   # Use internal_domain directly (has default in variables.tf)
