@@ -500,7 +500,7 @@ jobs:
             FAILED=1
           else
             # Check if ArangoDB HTTP server responds (/_api/version doesn't require auth)
-            ARANGO_VERSION="$(kubectl exec -n "${NS}" "${ARANGO_POD}" -- wget -qO- --timeout=5 http://127.0.0.1:8529/_api/version 2>/dev/null || true)"
+            ARANGO_VERSION="$(kubectl exec -n "${NS}" "${ARANGO_POD}" -- wget -qO- --no-check-certificate --timeout=5 https://127.0.0.1:8529/_api/version 2>/dev/null || true)"
             if echo "${ARANGO_VERSION}" | grep -q "version"; then
               echo "✅ ArangoDB: Reachable ($(echo "${ARANGO_VERSION}" | grep -o '"version":"[^"]*"' | head -1))"
             else
