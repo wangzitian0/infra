@@ -31,6 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+<<<<<<< HEAD
       # ============================================================ 
       # STEP 1: Create skeleton comment FIRST (lock commit)
       # ============================================================ 
@@ -40,6 +41,37 @@ jobs:
       #   with:
       #     app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
       #     private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+=======
+      # ============================================================
+      # PRE-FLIGHT: Integrity and Security
+      # ============================================================
+      - name: Variable Integrity Check
+        run: python3 0.tools/check_integrity.py
+
+      - name: Verify Key Format (Strict)
+        run: |
+          echo "${{ secrets.ATLANTIS_GH_APP_KEY }}" > atlantis_key.pem
+          echo "Checking key format..."
+          if ! openssl rsa -in atlantis_key.pem -check -noout; then
+            echo "::error::ATLANTIS_GH_APP_KEY is corrupted in CI environment!"
+            echo "DEBUG INFO:"
+            echo "Length: $(wc -c < atlantis_key.pem)"
+            echo "First line: $(head -n 1 atlantis_key.pem)"
+            echo "Last line: $(tail -n 1 atlantis_key.pem)"
+            echo "Hex dump (first 32 bytes):"
+            head -c 32 atlantis_key.pem | xxd
+            exit 1
+          fi
+          echo "✅ Key format is valid."
+          rm atlantis_key.pem
+
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+>>>>>>> 9acfe47 (chore: finalize secret refactor with integrity guard and 1p contract)
 
       - name: Create skeleton comment
         id: skeleton

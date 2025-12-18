@@ -2,11 +2,23 @@
 import json
 import os
 import sys
-import subprocess
 
 # ==============================================================================
-# CONFIGURATION: Whitelist, Mapping, and Defaults
+# CONFIGURATION: Whitelist, Mapping, and 1Password Contract
 # ==============================================================================
+
+# Contract: Which secret lives in which 1Password item
+# This is used by sync_secrets.py to maintain order.
+OP_CONTRACT = {
+    "Infra-VPS": ["VPS_HOST", "VPS_USER", "VPS_SSH_PORT", "VPS_SSH_KEY"],
+    "Infra-R2": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_ACCOUNT_ID"],
+    "Infra-Cloudflare": ["BASE_DOMAIN", "CLOUDFLARE_ZONE_ID", "INTERNAL_DOMAIN", "INTERNAL_ZONE_ID", "CLOUDFLARE_API_TOKEN"],
+    "Infra-Atlantis": ["ATLANTIS_WEBHOOK_SECRET", "ATLANTIS_WEB_PASSWORD", "ATLANTIS_GH_APP_ID", "ATLANTIS_GH_APP_KEY"],
+    "Infra-Vault": ["VAULT_ROOT_TOKEN", "VAULT_POSTGRES_PASSWORD", "VAULT_UNSEAL_KEY"],
+    "Infra-OAuth": ["GH_OAUTH_CLIENT_ID", "GH_OAUTH_CLIENT_SECRET", "GH_PAT"],
+}
+
+# Mapping: GitHub Secret Name -> Terraform Variable Name
 MAPPING = {
     "AWS_ACCESS_KEY_ID": "TF_VAR_aws_access_key_id",
     "AWS_SECRET_ACCESS_KEY": "TF_VAR_aws_secret_access_key",
@@ -62,21 +74,12 @@ def clean_value(val):
 
 def export_to_github_env(name, value):
     github_env = os.environ.get("GITHUB_ENV")
-    if not github_env:
-        return
+    if not github_env: return
     with open(github_env, "a") as f:
         if "\n" in str(value):
             f.write(f"{name}<<GITHUB_VAR_EOF\n{value}\nGITHUB_VAR_EOF\n")
         else:
             f.write(f"{name}={value}\n")
-
-def validate_pem(name, value):
-    """Fail fast if PEM format is suspicious."""
-    if "RSA PRIVATE KEY" in name or "GH_APP_KEY" in name or "SSH_KEY" in name:
-        if "-----BEGIN" not in value or "-----END" not in value:
-            print(f"::error::Variable {name} seems to be a corrupted PEM (missing headers/footers)")
-            return False
-    return True
 
 def main():
     raw_json = os.environ.get("INPUT_SECRETS_JSON")
@@ -93,7 +96,6 @@ def main():
     loaded_count = 0
     missing_required = []
     
-    # 1. Process Base Mappings
     for source_key, target_var in MAPPING.items():
         val = clean_value(secrets.get(source_key))
         if not val:
@@ -104,16 +106,12 @@ def main():
                 missing_required.append(source_key)
             continue
 
-        if not validate_pem(source_key, val):
-            sys.exit(1)
-
         export_to_github_env(target_var, val)
         export_to_github_env(source_key, val)
         if source_key in SYSTEM_ENV_ONLY:
             export_to_github_env(SYSTEM_ENV_ONLY[source_key], val)
         loaded_count += 1
 
-    # 2. Derived Logic & Validation
     internal_domain = clean_value(secrets.get("INTERNAL_DOMAIN"))
     base_domain = clean_value(secrets.get("BASE_DOMAIN"))
     domain = internal_domain or base_domain
@@ -123,17 +121,13 @@ def main():
         export_to_github_env("TF_VAR_vault_address", vault_addr)
         export_to_github_env("VAULT_ADDR", vault_addr)
         print(f"✅ Derived VAULT_ADDR: {vault_addr}")
-    else:
-        print("::error::Could not derive Vault Address: Missing DOMAIN secrets")
-        sys.exit(1)
 
-    # 3. Final Integrity Check
     if missing_required:
         for m in missing_required:
             print(f"::error::Required secret missing: {m}")
         sys.exit(1)
 
-    print(f"✅ Successfully loaded {loaded_count} secrets. Ready for Terraform.")
+    print(f"✅ Successfully loaded {loaded_count} secrets.")
 
 if __name__ == "__main__":
     main()
