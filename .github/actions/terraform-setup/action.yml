@@ -1,101 +1,13 @@
 name: "Terraform Setup"
-description: "Sets up Terraform, renders tfvars, configures SSH, and fetches kubeconfig"
+description: "Sets up Terraform, loads secrets via Python, configures SSH, and fetches kubeconfig"
 inputs:
   terraform_version:
     description: "Terraform version to use"
     required: true
     default: "1.6.6"
-  aws_access_key_id:
-    description: "AWS Access Key ID for R2"
+  secrets_json:
+    description: "All GitHub Secrets in JSON format (from toJSON(secrets))"
     required: true
-  aws_secret_access_key:
-    description: "AWS Secret Access Key for R2"
-    required: true
-  r2_bucket:
-    description: "R2 Bucket Name"
-    required: true
-  r2_account_id:
-    description: "R2 Account ID"
-    required: true
-  vps_host:
-    description: "VPS Host IP/Domain"
-    required: true
-  vps_ssh_key:
-    description: "VPS SSH Private Key"
-    required: true
-  vps_user:
-    description: "VPS User"
-    required: false
-    default: "root"
-  vps_ssh_port:
-    description: "VPS SSH Port"
-    required: false
-    default: "22"
-  k3s_cluster_name:
-    description: "Cluster Name"
-    required: false
-  k3s_api_endpoint:
-    description: "K3s API Endpoint"
-    required: false
-  k3s_channel:
-    description: "K3s Channel"
-    required: false
-  k3s_version:
-    description: "K3s Version"
-    required: false
-  vault_postgres_password:
-    description: "Vault Postgres Password"
-    required: true
-  github_token:
-    description: "GitHub PAT for Atlantis"
-    required: true
-  atlantis_webhook_secret:
-    description: "Atlantis Webhook Secret"
-    required: true
-  cloudflare_api_token:
-    description: "Cloudflare API Token"
-    required: true
-  cloudflare_zone_id:
-    description: "Cloudflare Zone ID"
-    required: true
-  base_domain:
-    description: "Base domain for services (e.g., truealpha.club)"
-    required: true
-  internal_domain:
-    description: "Internal/infra domain (optional; defaults to base_domain)"
-    required: false
-    default: ""
-  internal_zone_id:
-    description: "Cloudflare Zone ID for internal/infra domain (optional; defaults to cloudflare_zone_id)"
-    required: false
-    default: ""
-  github_app_id:
-    description: "GitHub App ID for Atlantis (optional, preferred over PAT)"
-    required: false
-    default: ""
-  github_app_key:
-    description: "GitHub App Private Key (PEM) for Atlantis"
-    required: false
-    default: ""
-  atlantis_web_password:
-    description: "Password for Atlantis Web UI Basic Auth"
-    required: true
-  github_oauth_client_id:
-    description: "GitHub OAuth App Client ID for OAuth2-Proxy (optional)"
-    required: false
-    default: ""
-  github_oauth_client_secret:
-    description: "GitHub OAuth App Client Secret for OAuth2-Proxy (optional)"
-    required: false
-    default: ""
-  vault_root_token:
-    description: "Vault root token for L3 secret storage (from 1Password via GitHub Secret VAULT_ROOT_TOKEN)"
-    required: false
-    default: ""
-  vault_address:
-    description: "Vault server address. Use external URL for CI (https://secrets.domain), internal for Atlantis"
-    required: false
-    default: ""
   tf_state_key:
     description: "Terraform state file key in R2 bucket"
     required: false
@@ -114,144 +26,25 @@ runs:
         terraform_version: ${{ inputs.terraform_version }}
         terraform_wrapper: false
 
-    - name: Validate secrets
+    - name: Load and Map Secrets (Python)
       shell: bash
       env:
-        AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
-        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
-        R2_BUCKET: ${{ inputs.r2_bucket }}
-        R2_ACCOUNT_ID: ${{ inputs.r2_account_id }}
-        VPS_HOST: ${{ inputs.vps_host }}
-        VPS_SSH_KEY: ${{ inputs.vps_ssh_key }}
+        INPUT_SECRETS_JSON: ${{ inputs.secrets_json }}
       run: |
-        set -euo pipefail
-        [ -z "${AWS_ACCESS_KEY_ID}" ] && echo "Missing AWS_ACCESS_KEY_ID" && exit 1
-        [ -z "${AWS_SECRET_ACCESS_KEY}" ] && echo "Missing AWS_SECRET_ACCESS_KEY" && exit 1
-        [ -z "${R2_BUCKET}" ] && echo "Missing R2_BUCKET" && exit 1
-        [ -z "${R2_ACCOUNT_ID}" ] && echo "Missing R2_ACCOUNT_ID" && exit 1
-        [ -z "${VPS_HOST}" ] && echo "Missing VPS_HOST" && exit 1
-        [ -z "${VPS_SSH_KEY}" ] && echo "Missing VPS_SSH_KEY" && exit 1
-        [ -z "${{ inputs.github_token }}" ] && echo "Missing github_token" && exit 1
-        [ -z "${{ inputs.atlantis_webhook_secret }}" ] && echo "Missing atlantis_webhook_secret" && exit 1
-        [ -z "${{ inputs.cloudflare_api_token }}" ] && echo "Missing cloudflare_api_token" && exit 1
-        [ -z "${{ inputs.cloudflare_zone_id }}" ] && echo "Missing cloudflare_zone_id" && exit 1
-        echo "All required secrets present"
+        python3 0.tools/ci_load_secrets.py
 
-    - name: Render tfvars and SSH
+    - name: Setup SSH and Directory
       shell: bash
-      env:
-        # L1 Bootstrap: R2 Backend
-        AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
-        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
-        R2_BUCKET: ${{ inputs.r2_bucket }}
-        R2_ACCOUNT_ID: ${{ inputs.r2_account_id }}
-        # L1 Bootstrap: VPS/SSH
-        VPS_HOST: ${{ inputs.vps_host }}
-        VPS_USER: ${{ inputs.vps_user }}
-        VPS_SSH_PORT: ${{ inputs.vps_ssh_port }}
-        VPS_SSH_KEY: ${{ inputs.vps_ssh_key }}
-        # L1 Bootstrap: K3s
-        K3S_API_ENDPOINT: ${{ inputs.k3s_api_endpoint }}
-        K3S_CHANNEL: ${{ inputs.k3s_channel }}
-        K3S_VERSION: ${{ inputs.k3s_version }}
-        K3S_CLUSTER_NAME: ${{ inputs.k3s_cluster_name }}
-        # L1 Bootstrap: Cloudflare
-        CLOUDFLARE_API_TOKEN: ${{ inputs.cloudflare_api_token }}
-        CLOUDFLARE_ZONE_ID: ${{ inputs.cloudflare_zone_id }}
-        BASE_DOMAIN: ${{ inputs.base_domain }}
-        INTERNAL_DOMAIN: ${{ inputs.internal_domain }}
-        INTERNAL_ZONE_ID: ${{ inputs.internal_zone_id }}
-        # L1 Bootstrap: Atlantis/GitHub
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        ATLANTIS_WEBHOOK_SECRET: ${{ inputs.atlantis_webhook_secret }}
-        GITHUB_APP_ID: ${{ inputs.github_app_id }}
-        GITHUB_APP_KEY: ${{ inputs.github_app_key }}
-        ATLANTIS_WEB_PASSWORD: ${{ inputs.atlantis_web_password }}
-        # L2: Vault
-        VAULT_POSTGRES_PASSWORD: ${{ inputs.vault_postgres_password }}
-        # L2: OAuth2-Proxy
-        GITHUB_OAUTH_CLIENT_ID: ${{ inputs.github_oauth_client_id }}
-        GITHUB_OAUTH_CLIENT_SECRET: ${{ inputs.github_oauth_client_secret }}
-        # L3: Vault Access
-        VAULT_ROOT_TOKEN: ${{ inputs.vault_root_token }}
-        VAULT_ADDRESS: ${{ inputs.vault_address }}
       run: |
         set -euo pipefail
-
-        VPS_USER_VALUE="${VPS_USER:-root}"
+        
+        # VPS_SSH_KEY was exported as TF_VAR_ssh_private_key and VPS_SSH_KEY by Python script
+        # VPS_HOST and VPS_SSH_PORT were also exported
+        
         SSH_PORT_VALUE="${VPS_SSH_PORT:-22}"
-        CLUSTER_NAME_VALUE="${K3S_CLUSTER_NAME:-truealpha-k3s}"
-        API_ENDPOINT_VALUE="${K3S_API_ENDPOINT:-$VPS_HOST}"
-        CHANNEL_VALUE="${K3S_CHANNEL:-stable}"
-        VERSION_VALUE="${K3S_VERSION:-}"
-        PG_PASSWORD="${VAULT_POSTGRES_PASSWORD:-CHANGE_ME}"
-
+        
         WORKING_DIR="${{ inputs.working_directory }}"
         mkdir -p "${WORKING_DIR}"
-
-        # Export variables as TF_VAR_ for Terraform (ignores undeclared ones)
-        # L1 Bootstrap: R2 Backend
-        echo "TF_VAR_aws_access_key_id=${AWS_ACCESS_KEY_ID}" >> "$GITHUB_ENV"
-        echo "TF_VAR_aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}" >> "$GITHUB_ENV"
-        echo "TF_VAR_r2_bucket=${R2_BUCKET}" >> "$GITHUB_ENV"
-        echo "TF_VAR_r2_account_id=${R2_ACCOUNT_ID}" >> "$GITHUB_ENV"
-        
-        # L1 Bootstrap: VPS/SSH
-        echo "TF_VAR_vps_host=${VPS_HOST}" >> "$GITHUB_ENV"
-        echo "TF_VAR_vps_user=${VPS_USER_VALUE}" >> "$GITHUB_ENV"
-        echo "TF_VAR_ssh_port=${SSH_PORT_VALUE}" >> "$GITHUB_ENV"
-        
-        # L1 Bootstrap: K3s
-        echo "TF_VAR_cluster_name=${CLUSTER_NAME_VALUE}" >> "$GITHUB_ENV"
-        echo "TF_VAR_api_endpoint=${API_ENDPOINT_VALUE}" >> "$GITHUB_ENV"
-        echo "TF_VAR_k3s_channel=${CHANNEL_VALUE}" >> "$GITHUB_ENV"
-        echo "TF_VAR_k3s_version=${VERSION_VALUE}" >> "$GITHUB_ENV"
-        
-        # L1 Bootstrap: Cloudflare
-        echo "TF_VAR_cloudflare_api_token=${CLOUDFLARE_API_TOKEN}" >> "$GITHUB_ENV"
-        echo "TF_VAR_cloudflare_zone_id=${CLOUDFLARE_ZONE_ID}" >> "$GITHUB_ENV"
-        echo "TF_VAR_base_domain=${BASE_DOMAIN}" >> "$GITHUB_ENV"
-        echo "TF_VAR_internal_domain=${INTERNAL_DOMAIN}" >> "$GITHUB_ENV"
-        echo "TF_VAR_internal_zone_id=${INTERNAL_ZONE_ID}" >> "$GITHUB_ENV"
-        
-        # L1 Bootstrap: Atlantis/GitHub
-        echo "TF_VAR_github_token=${GITHUB_TOKEN}" >> "$GITHUB_ENV"
-        echo "TF_VAR_atlantis_webhook_secret=${ATLANTIS_WEBHOOK_SECRET}" >> "$GITHUB_ENV"
-        echo "TF_VAR_github_app_id=${GITHUB_APP_ID}" >> "$GITHUB_ENV"
-
-        # L2: Vault
-        echo "TF_VAR_vault_postgres_password=${PG_PASSWORD}" >> "$GITHUB_ENV"
-
-        # L1: Atlantis Web UI Auth
-        echo "TF_VAR_atlantis_web_password=${ATLANTIS_WEB_PASSWORD}" >> "$GITHUB_ENV"
-
-        # L2: OAuth2-Proxy
-        echo "TF_VAR_github_oauth_client_id=${GITHUB_OAUTH_CLIENT_ID}" >> "$GITHUB_ENV"
-        echo "TF_VAR_github_oauth_client_secret=${GITHUB_OAUTH_CLIENT_SECRET}" >> "$GITHUB_ENV"
-
-        # L3: Vault Access
-        echo "TF_VAR_vault_root_token=${VAULT_ROOT_TOKEN}" >> "$GITHUB_ENV"
-        # Vault provider also reads VAULT_TOKEN directly (in addition to token parameter)
-        echo "VAULT_TOKEN=${VAULT_ROOT_TOKEN}" >> "$GITHUB_ENV"
-        if [ -n "${VAULT_ADDRESS}" ]; then
-          echo "TF_VAR_vault_address=${VAULT_ADDRESS}" >> "$GITHUB_ENV"
-          echo "VAULT_ADDR=${VAULT_ADDRESS}" >> "$GITHUB_ENV"
-        fi
-
-        # Multiline Secrets
-        {
-          echo "TF_VAR_ssh_private_key<<EOF"
-          echo "${VPS_SSH_KEY}"
-          echo "EOF"
-        } >> "$GITHUB_ENV"
-
-        {
-          echo "TF_VAR_github_app_key<<EOF"
-          echo "${GITHUB_APP_KEY}"
-          echo "EOF"
-        } >> "$GITHUB_ENV"
-        
-        echo "CLUSTER_NAME_VALUE=${CLUSTER_NAME_VALUE}" >> "${GITHUB_ENV}"
 
         # Setup SSH for fetching kubeconfig
         mkdir -p ~/.ssh
@@ -263,10 +56,11 @@ runs:
       working-directory: ${{ inputs.working_directory }}
       shell: bash
       env:
-        AWS_ACCESS_KEY_ID: ${{ inputs.aws_access_key_id }}
-        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws_secret_access_key }}
-        R2_BUCKET: ${{ inputs.r2_bucket }}
-        R2_ACCOUNT_ID: ${{ inputs.r2_account_id }}
+        # Variables below were exported by Python script to GITHUB_ENV
+        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+        R2_BUCKET: ${{ env.R2_BUCKET }}
+        R2_ACCOUNT_ID: ${{ env.R2_ACCOUNT_ID }}
         STATE_KEY: ${{ inputs.tf_state_key }}
       run: |
         echo "DEBUG: STATE_KEY is '${STATE_KEY}'"
@@ -279,19 +73,14 @@ runs:
     - name: Fetch kubeconfig
       shell: bash
       env:
-        VPS_HOST: ${{ inputs.vps_host }}
-        VPS_SSH_PORT: ${{ inputs.vps_ssh_port }}
+        # Variables below were exported by Python script to GITHUB_ENV
+        VPS_HOST: ${{ env.VPS_HOST }}
+        VPS_SSH_PORT: ${{ env.VPS_SSH_PORT }}
+        K3S_CLUSTER_NAME: ${{ env.K3S_CLUSTER_NAME }}
       run: |
         set -euo pipefail
         SSH_PORT="${VPS_SSH_PORT:-22}"
-        # We need to access CLUSTER_NAME_VALUE from environment, but inputs are static.
-        # However, previous step exported CLUSTER_NAME_VALUE to GITHUB_ENV, which is available to subsequent steps in the same job,
-        # BUT composite actions runs don't share GITHUB_ENV immediately in the same 'uses' block logic?
-        # Actually GITHUB_ENV writes to file, so it persists.
-
-        # Re-derive CLUSTER_NAME_VALUE for safety if env not picked up
-        CLUSTER_NAME_VALUE="${{ inputs.k3s_cluster_name }}"
-        if [ -z "${CLUSTER_NAME_VALUE}" ]; then CLUSTER_NAME_VALUE="truealpha-k3s"; fi
+        CLUSTER_NAME_VALUE="${K3S_CLUSTER_NAME:-truealpha-k3s}"
 
         KUBECONFIG_PATH="${GITHUB_WORKSPACE}/1.bootstrap/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
         mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
