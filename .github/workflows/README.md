@@ -98,6 +98,13 @@ PR 创建/更新
 - Race condition 解决：`infra-flash-update.yml` 会等待或重试，直到找到对应 commit 的 infra-flash 评论（骨架已由 CI 率先创建）
 - 即使 Atlantis 先完成，只要骨架评论已存在，状态就能追加进去
 
+### Atlantis 缓存优化
+
+为了提高 Atlantis 的运行速度，本项目在 `atlantis.yaml` 中实现了基于 `backend.tfvars` 的智能缓存：
+- 仅在 `backend.tfvars` 发生变化时才执行 `rm -rf .terraform`。
+- 使用 `printf` 进行安全的字符串比较，兼容 `/bin/sh`。
+- 极大减少了每次 PR 重新初始化 provider 的耗时。
+
 
 ---
 
@@ -260,8 +267,9 @@ git push
 |:-----|:---------|
 | `403 permission denied` | Vault token 过期 → 更新 `VAULT_ROOT_TOKEN`，apply L1 |
 | `state lock` | `atlantis unlock` |
-| `provider mismatch` | `terraform init -upgrade`，提交 lock 文件 |
-| `sh: syntax error` in Atlantis | Atlantis 使用 `/bin/sh`，避免 heredoc 缩进或用 `printf` 替代 |
+| `provider mismatch` | `terraform init -upgrade`，并在对应层目录提交 `.terraform.lock.hcl` |
+| `sh: syntax error` | Atlantis 使用 `/bin/sh`，避免 heredoc 缩进或用 `printf` 替代 |
+| `RestAPI URI error` | 确保 `providers.tf` 中的 URI 以 `/` 结尾，所有路径以 `/` 开头 |
 
 
 ### 更新 Vault Token
