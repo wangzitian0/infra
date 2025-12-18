@@ -33,6 +33,13 @@ runs:
       run: |
         python3 0.tools/ci_load_secrets.py
 
+    - name: Debug Environment
+      shell: bash
+      run: |
+        echo "=== DEBUG: Checking Environment Variables ==="
+        env | grep -E "AWS_|R2_|VPS_|TF_VAR_|GITHUB_" | sort || true
+        echo "=== DEBUG: End ==="
+
     - name: Setup SSH and Directory
       shell: bash
       run: |
