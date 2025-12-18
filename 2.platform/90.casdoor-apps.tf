@@ -17,7 +17,7 @@
 
 import {
   to = restapi_object.provider_github[0]
-  id = "/get-provider?id=admin/GitHub"
+  id = "admin/GitHub"
 }
 
 # NOTE: App import blocks removed because they are conditionally enabled (count = 0 by default).
@@ -33,8 +33,8 @@ resource "restapi_object" "provider_github" {
   path         = "/add-provider"
   create_path  = "/add-provider"
   update_path  = "/update-provider"
-  read_path    = "/get-provider?id=admin" # Appends /{name} -> ?id=admin/GitHub
-  destroy_path = "/delete-provider"
+  read_path    = "/get-provider?id={id}"
+  destroy_path = "/delete-provider?id={id}"
   id_attribute = "name"
 
   data = jsonencode({
