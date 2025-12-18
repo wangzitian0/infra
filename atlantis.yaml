@@ -107,17 +107,12 @@ workflows:
         - run: echo "infra-flash-commit:$(git rev-parse --short ${HEAD_COMMIT:-HEAD}) "
         # Only reinit if .terraform doesn't exist or backend config changed
         - run: |
-            if [ ! -d .terraform ] || [ ! -f .terraform/terraform.tfstate ]; then
-              echo "Initializing Terraform (first run or cache miss)..."
-              cat > backend.tfvars <<EOF
-              bucket    = "${R2_BUCKET}"
-              key       = "k3s/data-${WORKSPACE}.tfstate"
-              endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-              EOF
-              terraform init -backend-config=backend.tfvars -input=false
-            else
-              echo "Reusing existing .terraform cache (faster!)"
-            fi
+            rm -rf .terraform
+            printf 'bucket    = "%s"\n' "${R2_BUCKET}" > backend.tfvars
+            printf 'key       = "k3s/data-%s.tfstate"\n' "${WORKSPACE}" >> backend.tfvars
+            printf 'endpoints = { s3 = "https://%s.r2.cloudflarestorage.com" }\n' "${R2_ACCOUNT_ID}" >> backend.tfvars
+        - init:
+            extra_args: ["-backend-config=backend.tfvars"]
         - plan
     apply:
       steps:
@@ -130,23 +125,14 @@ workflows:
     plan:
       steps:
         - run: echo "infra-flash-commit:$(git rev-parse --short ${HEAD_COMMIT:-HEAD}) "
-        # Only reinit if .terraform doesn't exist or backend config changed
         - run: |
-            if [ ! -d .terraform ] || [ ! -f .terraform/terraform.tfstate ]; then
-              echo "Initializing Terraform (first run or cache miss)..."
-              cat > backend.tfvars <<EOF
-              bucket    = "${R2_BUCKET}"
-              key       = "k3s/apps-${WORKSPACE}.tfstate"
-              endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-              EOF
-              # Write environment variable to tfvars file
-              echo "environment = \"${WORKSPACE}\"" > env.auto.tfvars
-              terraform init -backend-config=backend.tfvars -input=false
-            else
-              echo "Reusing existing .terraform cache (faster!)"
-              # Still need to write env.auto.tfvars for plan
-              echo "environment = \"${WORKSPACE}\"" > env.auto.tfvars
-            fi
+            rm -rf .terraform
+            printf 'bucket    = "%s"\n' "${R2_BUCKET}" > backend.tfvars
+            printf 'key       = "k3s/apps-%s.tfstate"\n' "${WORKSPACE}" >> backend.tfvars
+            printf 'endpoints = { s3 = "https://%s.r2.cloudflarestorage.com" }\n' "${R2_ACCOUNT_ID}" >> backend.tfvars
+            printf 'environment = "%s"\n' "${WORKSPACE}" > env.auto.tfvars
+        - init:
+            extra_args: ["-backend-config=backend.tfvars"]
         - plan
     apply:
       steps:
