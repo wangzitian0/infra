@@ -62,7 +62,7 @@ L2 services use **app-level authentication** (no unified ingress gate):
 
 | Service | Auth Method | Notes |
 |---------|-------------|-------|
-| **Vault** | Token / OIDC | Manual init/unseal required; OIDC client (`vault-oidc`) via REST API |
+| **Vault** | Token / OIDC | Manual init/unseal required; OIDC login requires manually entering role: `reader` |
 | **Dashboard** | Token | Get token: `kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' \| base64 -d` |
 | **Casdoor** | Admin password | SSO provider itself; admin password from `terraform output -raw casdoor_admin_password` |
 | **Portal SSO Gate** | Casdoor OIDC via OAuth2-Proxy | Optional：`enable_portal_sso_gate=true` 后为 Vault/Dashboard 打开统一入口 |
