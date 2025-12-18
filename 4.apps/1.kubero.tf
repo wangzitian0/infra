@@ -142,12 +142,8 @@ resource "kubectl_manifest" "kubero_instance" {
         initialDelaySeconds = 5
         periodSeconds       = 5
       }
-      persistence = {
-        enabled      = true
-        storageClass = "local-path"
-        accessModes  = ["ReadWriteOnce"]
-        size         = "1Gi"
-      }
+      # NOTE: persistence block is ignored by Kubero Helm chart
+      # The correct location is kubero.database (see below)
       ingress = {
         enabled   = true
         className = "traefik"
@@ -181,6 +177,12 @@ resource "kubectl_manifest" "kubero_instance" {
           github = {
             enabled = false
           }
+        }
+        # Database PVC config - this is where storageClassName belongs!
+        database = {
+          storageClassName = "local-path"
+          accessModes      = ["ReadWriteOnce"]
+          size             = "1Gi"
         }
         config = {
           kubero = {
