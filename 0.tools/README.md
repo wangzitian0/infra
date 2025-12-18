@@ -11,7 +11,29 @@ The central engine for CI variable injection. It parses the GitHub `secrets` con
 ### Features
 - **Clean Values**: Automatically strips surrounding quotes and whitespace from 1Password exports.
 - **PEM Handling**: Correctly handles multiline RSA private keys for SSH and GitHub Apps.
-- **Defaults**: Provides fallback values for optional infrastructure settings (e.g., SSH port, cluster name).
+- **Derived Logic**: Automatically推导 derived variables（如 `TF_VAR_vault_address`）。
+
+---
+
+## Integrity Check
+
+**File**: `check_integrity.py`
+
+A shift-left guard that ensures all variables defined in `.tf` files are correctly mapped in the Python Loader. This runs automatically in CI.
+
+---
+
+## Sync Secrets (Standardized)
+
+**File**: `sync_secrets.py`
+
+The authoritative tool for syncing 1Password secrets to GitHub. It uses a predefined **Contract** to ensure consistency.
+
+### Usage
+```bash
+# Before running, ensure you are logged into 'op' and 'gh' CLI
+python3 0.tools/sync_secrets.py
+```
 
 ---
 
@@ -19,21 +41,4 @@ The central engine for CI variable injection. It parses the GitHub `secrets` con
 
 **File**: `preflight-check.sh`
 
-Run before `terraform apply` to catch common issues early.
-
-### Checks Performed
-- **Helm URL Validation**: Verifies all Helm repository URLs in `.tf` files are reachable.
-
----
-
-## Check Images
-
-**File**: `check_images.py`
-
-Purpose: Pre-verify existence of Docker Hub image tags to avoid `ImagePullBackOff` during deployment.
-
----
-
-## Sync Secrets (Local)
-
-To sync secrets from 1Password to GitHub, use the pattern described in [docs/ssot/platform.secrets.md](../docs/ssot/platform.secrets.md).
+Run before `terraform apply` to catch common issues early (e.g., Helm URL validation).

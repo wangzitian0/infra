@@ -31,6 +31,7 @@ Per-commit infra-flash 评论流（CI → (autoplan) Plan/Apply 追加）见 [`d
 
 ## Recent Changes
 
+- **CI/CD**: 重构变量加载体系，引入 `ci_load_secrets.py` (Python Loader) 与一致性检查，移除 150+ 行冗余 YAML。
 - **SSO**: GitHub OAuth Provider 现通过 Terraform REST API 自动配置到 Casdoor (`2.platform/90.casdoor-apps.tf`)
 - **文件重编号**: 按拓扑依赖顺序重命名 (1→92, 98→90, 99→91)
 - **Shift-left 检查**: 各组件添加 precondition/postcondition

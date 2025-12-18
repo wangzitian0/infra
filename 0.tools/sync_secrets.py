@@ -4,28 +4,9 @@ import subprocess
 import os
 import sys
 
-# Mapping CI keys to 1Password Field Labels
-FIELD_MAP = {
-    "AWS_ACCESS_KEY_ID": "AWS_ACCESS_KEY_ID",
-    "AWS_SECRET_ACCESS_KEY": "AWS_SECRET_ACCESS_KEY",
-    "R2_BUCKET": "R2_BUCKET",
-    "R2_ACCOUNT_ID": "R2_ACCOUNT_ID",
-    "VPS_HOST": "VPS_HOST",
-    "VPS_SSH_KEY": "VPS_SSH_KEY",
-    "CLOUDFLARE_API_TOKEN": "CLOUDFLARE_API_TOKEN",
-    "CLOUDFLARE_ZONE_ID": "CLOUDFLARE_ZONE_ID",
-    "BASE_DOMAIN": "BASE_DOMAIN",
-    "INTERNAL_DOMAIN": "INTERNAL_DOMAIN",
-    "INTERNAL_ZONE_ID": "INTERNAL_ZONE_ID",
-    "ATLANTIS_WEBHOOK_SECRET": "ATLANTIS_WEBHOOK_SECRET",
-    "ATLANTIS_WEB_PASSWORD": "ATLANTIS_WEB_PASSWORD",
-    "ATLANTIS_GH_APP_ID": "ATLANTIS_GH_APP_ID",
-    "ATLANTIS_GH_APP_KEY": "ATLANTIS_GH_APP_KEY",
-    "GH_OAUTH_CLIENT_ID": "GH_OAUTH_CLIENT_ID",
-    "GH_OAUTH_CLIENT_SECRET": "GH_OAUTH_CLIENT_SECRET",
-    "VAULT_POSTGRES_PASSWORD": "VAULT_POSTGRES_PASSWORD",
-    "VAULT_ROOT_TOKEN": "VAULT_ROOT_TOKEN",
-}
+# Import contract from loader to keep them in sync
+sys.path.append(os.path.dirname(__file__))
+from ci_load_secrets import OP_CONTRACT
 
 def clean_value(val):
     if not val: return None
@@ -35,7 +16,6 @@ def clean_value(val):
     return s
 
 def verify_rsa_key(key_content):
-    """Run openssl to verify RSA key structure."""
     try:
         proc = subprocess.run(
             ["openssl", "rsa", "-check", "-noout"],
@@ -47,42 +27,40 @@ def verify_rsa_key(key_content):
         return False
 
 def sync():
-    print("🚀 Starting 1Password -> GitHub Sync with Left-Shift Validation...")
+    print("🚀 Starting 1Password -> GitHub Sync (Standardized)...")
     
-    # 1. Fetch from 1P
-    items = ["VPS SSH", "R2 Backend (AWS)", "Cloudflare API", "Atlantis", 
-             "PostgreSQL (Platform)", "GitHub OAuth", "Vault (zitian.party)"]
-    
-    all_fields = {}
-    for item in items:
+    for item_title, fields in OP_CONTRACT.items():
+        print(f"\nProcessing Item: {item_title}")
         try:
-            res = subprocess.run(["op", "item", "get", item, "--vault", "my_cloud", "--format", "json"], 
+            # Fetch all fields for this item at once
+            res = subprocess.run(["op", "item", "get", item_title, "--vault", "my_cloud", "--format", "json"], 
                                  capture_output=True, check=True)
             data = json.loads(res.stdout)
-            for f in data.get("fields", []):
-                if f.get("label") and f.get("value"):
-                    all_fields[f["label"]] = f["value"]
-        except:
-            print(f"⚠️  Skipping item: {item} (not found or error)")
-
-    # 2. Validate and Set
-    for target, source in FIELD_MAP.items():
-        val = clean_value(all_fields.get(source))
-        if not val:
-            continue
             
-        # RSA Verification
-        if "KEY" in target:
-            if not verify_rsa_key(val):
-                print(f"❌ ERROR: Key {target} is CORRUPTED. Sync aborted for this key.")
-                continue
-            print(f"✅ Key {target} passed OpenSSL check.")
+            # Map field labels to values
+            found_fields = {f.get("label"): f.get("value") for f in data.get("fields", []) if f.get("label") and f.get("value")}
+            
+            for field_name in fields:
+                val = clean_value(found_fields.get(field_name))
+                if not val:
+                    print(f"  ⚠️  Field {field_name} not found in {item_title}")
+                    continue
+                
+                # RSA Verification
+                if "KEY" in field_name:
+                    if not verify_rsa_key(val):
+                        print(f"  ❌ ERROR: Key {field_name} is CORRUPTED. Skipping.")
+                        continue
+                    print(f"  ✅ Key {field_name} valid.")
 
-        # Set Secret
-        print(f"📦 Syncing {target}...")
-        subprocess.run(["gh", "secret", "set", target], input=val.encode('utf-8'), check=True)
+                # Sync to GitHub
+                print(f"  📦 Syncing {field_name}...")
+                subprocess.run(["gh", "secret", "set", field_name], input=val.encode('utf-8'), check=True)
+                
+        except subprocess.CalledProcessError:
+            print(f"  ❌ Failed to fetch item {item_title}. Make sure it exists in 'my_cloud' vault.")
 
-    print("\n✨ Sync complete. Documentation and GitHub are aligned.")
+    print("\n✨ Sync complete.")
 
 if __name__ == "__main__":
     sync()
