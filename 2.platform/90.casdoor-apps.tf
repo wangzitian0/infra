@@ -20,25 +20,8 @@ import {
   id = "admin/GitHub"
 }
 
-import {
-  to = restapi_object.app_portal_gate[0]
-  id = "admin/portal-gate"
-}
-
-import {
-  to = restapi_object.app_vault_oidc[0]
-  id = "admin/vault-oidc"
-}
-
-import {
-  to = restapi_object.app_dashboard_oidc[0]
-  id = "admin/dashboard-oidc"
-}
-
-import {
-  to = restapi_object.app_kubero_oidc[0]
-  id = "admin/kubero-oidc"
-}
+# NOTE: App import blocks removed because they are conditionally enabled (count = 0 by default).
+# Importing to non-existent addresses causes Terraform plan to fail.
 
 # =============================================================================
 # 1. Identity Providers

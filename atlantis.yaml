@@ -64,13 +64,18 @@ workflows:
     plan:
       steps:
         - run: echo "infra-flash-commit:$(git rev-parse --short ${HEAD_COMMIT:-HEAD}) "
-        - run: rm -rf .terraform
         - run: |
-            cat > backend.tfvars <<EOF
-            bucket    = "${R2_BUCKET}"
-            key       = "k3s/platform.tfstate"
-            endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-            EOF
+            printf 'bucket    = "%s"\n' "${R2_BUCKET}" > backend.tfvars.new
+            printf 'key       = "k3s/platform.tfstate"\n' "${WORKSPACE}" >> backend.tfvars.new
+            printf 'endpoints = { s3 = "https://%s.r2.cloudflarestorage.com" }\n' "${R2_ACCOUNT_ID}" >> backend.tfvars.new
+            if [ ! -f backend.tfvars ] || ! cmp -s backend.tfvars backend.tfvars.new; then
+              echo "Backend config changed or missing. Reinitializing..."
+              rm -rf .terraform
+              mv backend.tfvars.new backend.tfvars
+            else
+              echo "Backend config unchanged. Keeping cache."
+              rm backend.tfvars.new
+            fi
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
         # Remove stale resources from L2 state (idempotent)
@@ -83,21 +88,6 @@ workflows:
     apply:
       steps:
         - run: echo "infra-flash-commit:$(git rev-parse --short ${HEAD_COMMIT:-HEAD}) "
-        - run: rm -rf .terraform
-        - run: |
-            cat > backend.tfvars <<EOF
-            bucket    = "${R2_BUCKET}"
-            key       = "k3s/platform.tfstate"
-            endpoints = { s3 = "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" }
-            EOF
-        - init:
-            extra_args: ["-backend-config=backend.tfvars"]
-        # Remove stale resources from L2 state (idempotent)
-        - run: |
-            terraform state rm kubernetes_namespace.platform 2>/dev/null || true
-            terraform state rm vault_mount.database 2>/dev/null || true
-            terraform state rm vault_mount.kv 2>/dev/null || true
-            terraform state rm random_password.l3_postgres 2>/dev/null || true
         - apply
 
   # L3: Data
