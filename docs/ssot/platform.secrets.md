@@ -1,80 +1,73 @@
 # 密钥管理 SSOT
 
-> **一句话**：所有密钥的 Single Source of Truth 在 1Password，GitHub Secrets 是部署副本，可随时从 1Password 恢复。
+> **一句话**：所有密钥的 Single Source of Truth 在 1Password，GitHub Secrets 是部署缓存，CI 运行时通过 Python 加载器统一注入。
 
 ## 信息流架构
 
 ```mermaid
 graph LR
-    OP[1Password<br/>my_cloud vault] -->|"op item get + gh secret set"| GH[GitHub Secrets]
-    GH -->|"${{ secrets.* }}"| CI[GitHub Actions]
-    CI -->|TF_VAR_*| TF[Terraform]
+    OP[1Password<br/>my_cloud vault] -->|"op + gh 脚本同步"| GH[GitHub Secrets]
+    GH -->|"toJSON(secrets)"| Loader["0.tools/ci_load_secrets.py<br/>(Python Loader)"]
+    Loader -->|导出 TF_VAR_*| TF[Terraform]
     TF -->|Helm values| K8S[Kubernetes]
-    K8S -->|运行时| VAULT[Vault]
+    K8S -->|运行时注入| VAULT[Vault]
 ```
 
-**灾难恢复**：GitHub Secrets 丢失 → 从 1Password 恢复所有值
+**核心逻辑**：
+- **存储**：1Password 是唯一的 master 记录。
+- **分发**：GitHub Secrets 仅作为中间缓存，不负责业务逻辑。
+- **注入**：`ci_load_secrets.py` 负责将 GitHub Secrets 映射为 IaC 环境所需的 `TF_VAR_` 变量，实现变量链条的 DRY（不重复）。
 
 ---
 
 ## 密钥清单
 
-### 1Password → GitHub Secrets 映射
+### 1. 1Password → GitHub Secrets 映射
 
-> **重要**：1Password 字段名必须与下表完全一致，区分大小写！读取时使用：
-> ```bash
-> op item get "<项目名>" --vault my_cloud --fields "<字段名>" --reveal
-> ```
+同步所有密钥到 GitHub 的一键命令：
 
-| 1Password 项目 | 字段（区分大小写） | GitHub Secret | 用途 |
-|----------------|---------------------|---------------|------|
-| `Cloudflare API` | BASE_DOMAIN | `BASE_DOMAIN` | 主域名 |
-| | CLOUDFLARE_ZONE_ID | `CLOUDFLARE_ZONE_ID` | 主 Zone |
-| | INTERNAL_DOMAIN | `INTERNAL_DOMAIN` | 内部域名 |
-| | INTERNAL_ZONE_ID | `INTERNAL_ZONE_ID` | 内部 Zone |
-| | CLOUDFLARE_API_TOKEN | `CLOUDFLARE_API_TOKEN` | DNS 管理 |
-| `R2 Backend (AWS)` | R2_BUCKET | `R2_BUCKET` | TF State |
-| | R2_ACCOUNT_ID | `R2_ACCOUNT_ID` | R2 账户 |
-| | AWS_ACCESS_KEY_ID | `AWS_ACCESS_KEY_ID` | R2 认证 |
-| | AWS_SECRET_ACCESS_KEY | `AWS_SECRET_ACCESS_KEY` | R2 认证 |
-| `VPS SSH` | VPS_HOST | `VPS_HOST` | VPS IP |
-| | VPS_SSH_KEY | `VPS_SSH_KEY` | SSH 私钥 |
-| `PostgreSQL (Platform)` | VAULT_POSTGRES_PASSWORD | `VAULT_POSTGRES_PASSWORD` | PG 密码 |
-| `GitHub OAuth` | GH_OAUTH_CLIENT_ID | `GH_OAUTH_CLIENT_ID` | OAuth |
-| | GH_OAUTH_CLIENT_SECRET | `GH_OAUTH_CLIENT_SECRET` | OAuth |
-| `Casdoor Portal Gate` | CASDOOR_PORTAL_CLIENT_SECRET | `CASDOOR_PORTAL_CLIENT_SECRET` | Portal SSO Gate |
-| `Atlantis` | ATLANTIS_WEBHOOK_SECRET | `ATLANTIS_WEBHOOK_SECRET` | Webhook |
-| | ATLANTIS_WEB_PASSWORD | `ATLANTIS_WEB_PASSWORD` | Web 密码 |
-| | ATLANTIS_GH_APP_ID | `ATLANTIS_GH_APP_ID` | App ID |
-| | ATLANTIS_GH_APP_KEY | `ATLANTIS_GH_APP_KEY` | App 私钥 |
-| `Vault (zitian.party)` | VAULT_UNSEAL_KEY | `VAULT_UNSEAL_KEY` | 解封密钥 |
-| | VAULT_ROOT_TOKEN | `VAULT_ROOT_TOKEN` | L2/L3 TF Provider |
-| `Casdoor Admin` | CASDOOR_ADMIN_PASSWORD | `CASDOOR_ADMIN_PASSWORD` | SSO 管理员密码 |
+```bash
+# 执行此命令前需 op signin
+op item get "GH-Actions-Secrets" --vault="Infra-Prod" --format json |
+  jq -r '.fields[] | select(.value != null) | "\(.label) \(.value)"' |
+  while read -r key value;
+    if [[ $key =~ ^[A-Z_]+$ ]]; then
+      echo "Syncing $key..."
+      gh secret set "$key" --body "$value"
+    fi
+  done
+```
 
-### 额外 GitHub Secrets（非 1Password 管理）
+| 1Password 项目 | 字段（Label） | GitHub Secret | 映射后的 TF_VAR |
+|----------------|---------------------|---------------|-----------------|
+| `Cloudflare API` | `BASE_DOMAIN` | `BASE_DOMAIN` | `base_domain` |
+| | `CLOUDFLARE_ZONE_ID` | `CLOUDFLARE_ZONE_ID` | `cloudflare_zone_id` |
+| | `INTERNAL_DOMAIN` | `INTERNAL_DOMAIN` | `internal_domain` |
+| | `INTERNAL_ZONE_ID` | `INTERNAL_ZONE_ID` | `internal_zone_id` |
+| | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_API_TOKEN` | `cloudflare_api_token` |
+| `R2 Backend (AWS)` | `R2_BUCKET` | `R2_BUCKET` | `r2_bucket` |
+| | `R2_ACCOUNT_ID` | `R2_ACCOUNT_ID` | `r2_account_id` |
+| | `AWS_ACCESS_KEY_ID` | `AWS_ACCESS_KEY_ID` | `aws_access_key_id` |
+| | `AWS_SECRET_ACCESS_KEY` | `AWS_SECRET_ACCESS_KEY` | `aws_secret_access_key` |
+| `VPS SSH` | `VPS_HOST` | `VPS_HOST` | `vps_host` |
+| | `VPS_SSH_KEY` | `VPS_SSH_KEY` | `ssh_private_key` |
+| `PostgreSQL (Platform)` | `VAULT_POSTGRES_PASSWORD` | `VAULT_POSTGRES_PASSWORD` | `vault_postgres_password` |
+| `GitHub OAuth` | `GH_OAUTH_CLIENT_ID` | `GH_OAUTH_CLIENT_ID` | `github_oauth_client_id` |
+| | `GH_OAUTH_CLIENT_SECRET` | `GH_OAUTH_CLIENT_SECRET` | `github_oauth_client_secret` |
+| `Atlantis` | `ATLANTIS_WEBHOOK_SECRET` | `ATLANTIS_WEBHOOK_SECRET` | `atlantis_webhook_secret` |
+| | `ATLANTIS_WEB_PASSWORD` | `ATLANTIS_WEB_PASSWORD` | `atlantis_web_password` |
+| | `ATLANTIS_GH_APP_ID` | `ATLANTIS_GH_APP_ID` | `github_app_id` |
+| | `ATLANTIS_GH_APP_KEY` | `ATLANTIS_GH_APP_KEY` | `github_app_key` |
+| `Vault (zitian.party)` | `VAULT_ROOT_TOKEN` | `VAULT_ROOT_TOKEN` | `vault_root_token` |
+| `GitHub Personal Access Token` | `token` | `GH_PAT` | `github_token` |
 
-| Secret | 用途 | 备注 |
-|--------|------|------|
-| `CLAUDE_CODE_OAUTH_TOKEN` | Claude Code 集成 | 单独管理 |
+### 2. 运行时默认变量 (Loader 自动处理)
 
-AI 接入相关的变量/密钥与注入方式见：`docs/ssot/ai.md`。
-
----
-
-> 同步/恢复命令见 [ops.recovery.md](./ops.recovery.md)
-
----
-
-## 层级认证模型
-
-| 层级 | 认证方式 | 密钥来源 |
-|------|----------|----------|
-| **L1 Bootstrap** | 根密钥 (SSH + Vault Root Token) | 1Password 直接 |
-| **L2 Platform** | 根密钥 + SSO (Casdoor OIDC) | GitHub Secrets → TF |
-| **L3 Data** | Vault + SSO | Vault KV |
-| **L4 Apps** | Vault + SSO | Vault 动态凭据 |
-
-详见 [platform.auth.md](platform.auth.md)
+以下变量由 `ci_load_secrets.py` 在缺失时自动填充默认值：
+- `VPS_USER`: `root`
+- `VPS_SSH_PORT`: `22`
+- `K3S_CLUSTER_NAME`: `truealpha-k3s`
+- `K3S_CHANNEL`: `stable`
 
 ---
 
@@ -82,16 +75,25 @@ AI 接入相关的变量/密钥与注入方式见：`docs/ssot/ai.md`。
 
 | 组件 | 状态 |
 |------|------|
-| 1Password SSOT | ✅ 9 项目，20+ 字段 |
-| GitHub Secrets | ✅ 20 secrets |
-| 1P → GH 同步 | ✅ VAULT_POSTGRES_PASSWORD 已同步 |
-| CI Auto-unseal | ✅ 已实现 |
-| Casdoor init_data.json | ✅ 正确挂载到 /init_data.json |
-
-## Vault-first 密钥策略
-
-- **1Password 仅存根密钥**（Atlantis 登录、Vault root token、Casdoor 管理密码），作为离线恢复源，不再做日常运维依赖。
-- **Vault 作为主库**：所有运行时凭据、Casdoor client secret、Webhook Token、Terraform `random_password` 等都优先写入 Vault，再由 Agent 注入或同步到 CI 环境，避免在 1Password 里频繁复制粘贴。
-- **Fallback 设计**：当需要同时保留 1Password 与 Vault 副本时，Vault 为 SSOT、1Password 仅做 backup（“Vault-first, 1Password fallback”），确保可以实现“1Password 0 依赖”或将全部凭据迁移到 Vault 的两条路径。
+| 1Password SSOT | ✅ 已覆盖 24+ 核心字段 |
+| Python Loader | ✅ `0.tools/ci_load_secrets.py` 已上线 |
+| Workflow DRY | ✅ `deploy-k3s.yml` 冗余减少 80% |
+| 变量链条 | ✅ 1Password -> GH -> Env -> TF 闭环 |
 
 ---
+
+## 维护 SOP
+
+### 1. 新增一个密钥
+1.  在 1Password 对应条目中增加字段（Label 建议大写）。
+2.  在 `0.tools/ci_load_secrets.py` 的 `MAPPING` 字典中增加一行映射。
+3.  运行同步脚本更新 GitHub Secrets。
+4.  在 Terraform `.tf` 文件中使用变量。
+
+### 2. 密钥泄露/轮换
+1.  在 1Password 中更新真值。
+2.  重新运行同步脚本。
+3.  重新触发 CI 流水线（`atlantis plan` / `push to main`）。
+
+---
+> 变更记录见 [change_log/](../change_log/README.md)
