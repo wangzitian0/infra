@@ -32,3 +32,17 @@ provider "vault" {
   # Skip TLS verification for internal communication
   skip_tls_verify = true
 }
+
+# RestAPI provider for ArangoDB health checks and operations
+# URI uses internal K8s DNS
+provider "restapi" {
+  uri = "https://arangodb.${local.namespace_name}.svc.cluster.local:8529"
+
+  username = "root"
+  password = data.vault_kv_secret_v2.arangodb.data["password"]
+
+  insecure              = true # Internal self-signed cert
+  write_returns_object  = false
+  create_returns_object = false
+  debug                 = true
+}

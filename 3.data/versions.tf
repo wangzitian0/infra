@@ -26,5 +26,9 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.9"
     }
+    restapi = {
+      source  = "mastercard/restapi"
+      version = "~> 1.19"
+    }
   }
 }

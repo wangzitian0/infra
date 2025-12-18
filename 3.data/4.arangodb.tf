@@ -162,6 +162,31 @@ resource "kubectl_manifest" "arangodb_deployment" {
 }
 
 # =============================================================================
+# ArangoDB API Health Check
+# =============================================================================
+
+# This resource performs a GET request to /_api/version to ensure the database
+# is responsive and ready after deployment.
+resource "restapi_object" "arangodb_health" {
+  path      = "/_api/version"
+  object_id = "health" # Arbitrary ID as we are only reading
+
+  # Only read/verify, do not attempt to create or delete
+  read_method    = "GET"
+  create_method  = "GET" # Placeholder
+  update_method  = "GET" # Placeholder
+  destroy_method = "GET" # Placeholder
+
+  data = jsonencode({})
+
+  debug = true
+
+  depends_on = [
+    kubectl_manifest.arangodb_deployment
+  ]
+}
+
+# =============================================================================
 # Outputs
 # =============================================================================
 
