@@ -12,39 +12,6 @@
 # - Kubero OIDC
 
 # =============================================================================
-# 0. Import Existing Resources (Native Drift Defense)
-# =============================================================================
-
-# These import blocks allow Terraform to automatically discover resources
-# that already exist in Casdoor, preventing "500 Internal Server Error" 
-# caused by name collisions during Apply.
-
-import {
-  to = restapi_object.provider_github[0]
-  id = "GitHub"
-}
-
-import {
-  to = restapi_object.app_portal_gate[0]
-  id = "portal-gate"
-}
-
-import {
-  to = restapi_object.app_vault_oidc[0]
-  id = "vault-oidc"
-}
-
-import {
-  to = restapi_object.app_dashboard_oidc[0]
-  id = "dashboard-oidc"
-}
-
-import {
-  to = restapi_object.app_kubero_oidc[0]
-  id = "kubero-oidc"
-}
-
-# =============================================================================
 # 1. Identity Providers
 # =============================================================================
 
