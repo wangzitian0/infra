@@ -31,9 +31,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ============================================================
+      # ============================================================ 
       # PRE-FLIGHT: Integrity and Security (from main)
-      # ============================================================
+      # ============================================================ 
       - name: Variable Integrity Check
         run: python3 0.tools/check_integrity.py
 
@@ -41,14 +41,14 @@ jobs:
         run: |
           echo "${{ secrets.ATLANTIS_GH_APP_KEY }}" > atlantis_key.pem
           echo "Checking key format..."
-          if ! openssl rsa -in atlantis_key.pem -check -noout;
+          if ! openssl rsa -in atlantis_key.pem -check -noout; then
             echo "::warning::ATLANTIS_GH_APP_KEY might be corrupted, using GITHUB_TOKEN fallback."
           fi
           rm atlantis_key.pem
 
-      # ============================================================
+      # ============================================================ 
       # STEP 1: Create skeleton comment FIRST (lock commit)
-      # ============================================================
+      # ============================================================ 
       # Generate App Token is bypassed due to OpenSSL compatibility issues
       # Using secrets.GITHUB_TOKEN directly for comment updates.
 
@@ -61,9 +61,9 @@ jobs:
           script: |
             const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}`;
-            const prUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${context.issue.number}`;
-            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+            const runUrl = "https://github.com/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId;
+            const prUrl = "https://github.com/" + context.repo.owner + "/" + context.repo.repo + "/pull/" + context.issue.number;
+            const MARKER = "<!-- infra-flash-commit:" + sha + " -->";
             
             // Check if comment already exists
             const comments = await github.rest.issues.listComments({
@@ -77,7 +77,7 @@ jobs:
             // Full skeleton with all sections
             const skeleton = [
               MARKER,
-              `## ⚡ Commit `${sha}``,
+              "## ⚡ Commit `" + sha + "`",
               '',
               '<details><summary>📖 Commands</summary>',
               '',
@@ -91,7 +91,7 @@ jobs:
               '',
               '---',
               '',
-              `### CI Validate ⌛ | [${sha}](${runUrl}) | ${timestamp}`,
+              "### CI Validate ⏳ | [" + sha + "](" + runUrl + ") | " + timestamp,
               '',
               '⏳ Running checks...', 
               '',
@@ -117,7 +117,7 @@ jobs:
               if (actionsMatch && actionsMatch[1].trim()) {
                 body = skeleton.replace(
                   /<!-- atlantis-actions -->\n\| Action[\s\S]*?<!-- \/atlantis-actions -->/,
-                  `<!-- atlantis-actions -->\n| Action | Commit | Trigger | Status | Output | Time |\n|:-------|:-------|:--------|:------:|:-------|:-----|${actionsMatch[1]}<!-- /atlantis-actions -->`
+                  "<!-- atlantis-actions -->\n| Action | Commit | Trigger | Status | Output | Time |\n|:-------|:-------|:--------|:------:|:-------|:-----|" + actionsMatch[1] + "<!-- /atlantis-actions -->"
                 );
               }
               
@@ -137,12 +137,12 @@ jobs:
               });
               commentId = created.data.id;
             }
-            console.log(`Created/updated skeleton for commit ${sha}`);
+            console.log("Created/updated skeleton for commit " + sha);
             return commentId.toString();
 
-      # ============================================================
+      # ============================================================ 
       # STEP 2: Run CI Checks
-      # ============================================================
+      # ============================================================ 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -212,9 +212,9 @@ jobs:
         run: terraform init -backend=false -input=false -no-color && terraform validate -no-color
         continue-on-error: true
 
-      # ============================================================
+      # ============================================================ 
       # STEP 3: Update comment with results
-      # ============================================================
+      # ============================================================ 
       - name: Update comment with results
         if: always()
         uses: actions/github-script@v7
@@ -236,9 +236,9 @@ jobs:
               .every(s => s === 'success' || s === 'skipped');
             const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${{ github.run_id }}`;
+            const runUrl = "https://github.com/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId;
             const commentId = ${{ steps.skeleton.outputs.result }};
-            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+            const MARKER = "<!-- infra-flash-commit:" + sha + " -->";
             
             // Get existing comment
             const existingComment = await github.rest.issues.getComment({
@@ -250,11 +250,11 @@ jobs:
             // CI section: simple if passed, detailed if failed
             let ciSection;
             if (allPass) {
-              ciSection = `### CI Validate ✅ | [${sha}](${runUrl}) | ${timestamp}`;
+              ciSection = "### CI Validate ✅ | [" + sha + "](" + runUrl + ") | " + timestamp;
             } else {
               const fixCmd = '```bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n```';
               ciSection = [
-                `### CI Validate ❌ | [${sha}](${runUrl}) | ${timestamp}`,
+                "### CI Validate ❌ | [" + sha + "](" + runUrl + ") | " + timestamp,
                 '',
                 '| Layer | Format | Lint | Validate |',
                 '|:------|:------:|:----:|:--------:|',
@@ -298,13 +298,13 @@ jobs:
             
             const actionsMatch = existingComment.data.body.match(/<!-- atlantis-actions -->([\s\S]*?)<!-- \/atlantis-actions -->/);
             if (actionsMatch && actionsMatch[1].includes('|')) {
-              atlantisSection = `<!-- atlantis-actions -->${actionsMatch[1]}<!-- /atlantis-actions -->`;
+              atlantisSection = "<!-- atlantis-actions -->" + actionsMatch[1] + "<!-- /atlantis-actions -->";
             }
             
             // Build final body
             const body = [
               MARKER,
-              `## ⚡ Commit `${sha}``,
+              "## ⚡ Commit `" + sha + "`",
               '',
               '<details><summary>📖 Commands</summary>',
               '',
@@ -337,11 +337,11 @@ jobs:
               comment_id: commentId,
               body: body
             });
-            console.log(`Updated comment: CI ${allPass ? 'PASS' : 'FAIL'}`);
+            console.log("Updated comment: CI " + (allPass ? 'PASS' : 'FAIL'));
 
-      # ============================================================
+      # ============================================================ 
       # Final Status
-      # ============================================================
+      # ============================================================ 
       - name: Check Results
         run: |
           FAILED=0

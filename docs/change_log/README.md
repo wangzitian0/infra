@@ -6,9 +6,6 @@ Time-ordered history of completed work. Each entry is an immutable snapshot (nam
 - [2025-12-19: Vault OIDC Permission Fix & Native Drift Defense](./2025-12-19.vault_oidc_drift_defense.md)
 - [2025-12-19: CI/CD Secret Chain Refactoring (DRY & Shift-Left)](./2025-12-19.ci_secrets_refactor.md)
 - [2025-12-15: Infra-Flash Per-Commit Implementation](./2025-12-15.infra_flash_per_commit.md)
-- [2025-12-10.domain_dns_alignment.md](./2025-12-10.domain_dns_alignment.md) - Align Terraform DNS/ingress to internal-domain (no prefix) naming
-- [2025-12-08.domain_naming.md](./2025-12-08.domain_naming.md) - i-/x- domain naming convention
-- [2025-12-08.layer_simplification.md](./2025-12-08.layer_simplification.md) - L5→L4 architecture refactor
 
 ---
-*Last updated: 2025-12-15*
+*Last updated: 2025-12-19*

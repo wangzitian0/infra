@@ -27,13 +27,7 @@ A shift-left guard that ensures all variables defined in `.tf` files are correct
 
 **File**: `sync_secrets.py`
 
-The authoritative tool for syncing 1Password secrets to GitHub. It uses a predefined **Contract** to ensure consistency.
-
-### Usage
-```bash
-# Before running, ensure you are logged into 'op' and 'gh' CLI
-python3 0.tools/sync_secrets.py
-```
+The authoritative tool for syncing 1Password secrets to GitHub. It uses a predefined **Contract** to ensure consistency. It also performs local RSA key validation to prevent corrupted secrets from reaching CI.
 
 ---
 
