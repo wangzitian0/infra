@@ -14,19 +14,12 @@ jobs:
   claude:
     runs-on: ubuntu-latest
     # Trigger conditions:
-    # 1. Manual: /review, @claude, PTAL from any user (not bot)
-    # 2. Auto: Atlantis plan success (infra-flash bot comments with "Ran Plan" and no "Plan Failed")
+    # Manual only: /review, @claude, PTAL from any user (not bot)
     if: |
       (
         github.event_name == 'issue_comment' &&
         github.event.comment.user.type != 'Bot' &&
         (contains(github.event.comment.body, '@claude') || contains(github.event.comment.body, '/review') || contains(github.event.comment.body, 'PTAL'))
-      ) ||
-      (
-        github.event_name == 'issue_comment' &&
-        github.event.comment.user.login == 'infra-flash[bot]' &&
-        contains(github.event.comment.body, 'Ran Plan for') &&
-        !contains(github.event.comment.body, 'Plan Failed')
       ) ||
       (
         github.event_name == 'pull_request_review_comment' &&
