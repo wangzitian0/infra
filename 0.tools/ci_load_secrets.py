@@ -51,7 +51,7 @@ def clean_value(val):
     if val is None: return None
     s = str(val).strip()
     # Remove surrounding quotes if they exist (common issue from 1P exports)
-    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'" ) and s.endswith("'" )):
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'" ) and s.endswith("'")):
         s = s[1:-1].strip()
     return s
 
@@ -102,6 +102,19 @@ def main():
         if source_key in SYSTEM_ENV_ONLY:
             export_to_github_env(SYSTEM_ENV_ONLY[source_key], val)
         count += 1
+
+    # Derived variables logic
+    # Construct Vault Address for CI (External Access)
+    internal_domain = clean_value(secrets.get("INTERNAL_DOMAIN"))
+    base_domain = clean_value(secrets.get("BASE_DOMAIN"))
+    
+    if internal_domain or base_domain:
+        domain = internal_domain if internal_domain else base_domain
+        # Assuming standard naming convention: secrets.domain
+        vault_addr = f"https://secrets.{domain}"
+        export_to_github_env("TF_VAR_vault_address", vault_addr)
+        export_to_github_env("VAULT_ADDR", vault_addr) # For Vault CLI
+        print(f"Derived VAULT_ADDR: {vault_addr}")
 
     if missing_required:
         for m in missing_required:
