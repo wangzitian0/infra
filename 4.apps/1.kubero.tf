@@ -102,7 +102,7 @@ resource "kubernetes_namespace" "kubero" {
 # and via data source for the CR spec.
 
 data "vault_kv_secret_v2" "kubero" {
-  mount = "secret"
+  mount = var.vault_kv_mount
   name  = "data/kubero"
 }
 
@@ -134,9 +134,9 @@ resource "kubectl_manifest" "kubero_instance" {
         # to use kubernetes_annotations resource to target the deployment.
         "vault.hashicorp.com/agent-inject"              = "true"
         "vault.hashicorp.com/role"                      = "kubero"
-        "vault.hashicorp.com/agent-inject-secret-env"   = "secret/data/data/kubero"
+        "vault.hashicorp.com/agent-inject-secret-env"   = "${var.vault_kv_mount}/data/data/kubero"
         "vault.hashicorp.com/agent-inject-template-env" = <<-EOT
-          {{- with secret "secret/data/data/kubero" -}}
+          {{- with secret "${var.vault_kv_mount}/data/data/kubero" -}}
           export KUBERO_WEBHOOK_SECRET="{{ .Data.data.KUBERO_WEBHOOK_SECRET }}"
           export KUBERO_SESSION_KEY="{{ .Data.data.KUBERO_SESSION_KEY }}"
           {{- end -}}

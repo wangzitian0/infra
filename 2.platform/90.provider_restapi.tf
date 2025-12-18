@@ -10,7 +10,7 @@ data "kubernetes_secret" "casdoor_builtin" {
 }
 
 provider "restapi" {
-  uri = "https://${local.casdoor_domain}"
+  uri = "https://${local.casdoor_domain}/"
 
   # Use M2M credentials from casdoor-builtin-app
   username = "casdoor-builtin-app"

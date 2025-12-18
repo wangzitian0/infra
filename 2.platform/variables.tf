@@ -203,4 +203,9 @@ variable "kubernetes_ca_cert" {
   description = "Kubernetes CA certificate (base64 encoded)."
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.kubernetes_ca_cert == "" || length(var.kubernetes_ca_cert) > 100
+    error_message = "kubernetes_ca_cert must be a valid base64-encoded certificate string."
+  }
 }

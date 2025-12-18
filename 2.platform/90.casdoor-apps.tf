@@ -17,7 +17,7 @@
 
 import {
   to = restapi_object.provider_github[0]
-  id = "admin/GitHub"
+  id = "/api/get-provider?id=admin/GitHub"
 }
 
 # NOTE: App import blocks removed because they are conditionally enabled (count = 0 by default).

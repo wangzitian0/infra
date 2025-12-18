@@ -65,3 +65,9 @@ variable "vault_address" {
   type        = string
   default     = "http://vault.platform.svc.cluster.local:8200"
 }
+
+variable "vault_kv_mount" {
+  description = "Vault KV secrets engine mount path."
+  type        = string
+  default     = "secret"
+}
