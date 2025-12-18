@@ -30,11 +30,11 @@
 resource "restapi_object" "provider_github" {
   count = local.casdoor_enabled ? 1 : 0
 
-  path         = "add-provider"
-  create_path  = "add-provider"
-  update_path  = "update-provider"
-  read_path    = "get-provider?id=admin" # Appends /{name} -> ?id=admin/GitHub
-  destroy_path = "delete-provider"
+  path         = "/add-provider"
+  create_path  = "/add-provider"
+  update_path  = "/update-provider"
+  read_path    = "/get-provider?id=admin" # Appends /{name} -> ?id=admin/GitHub
+  destroy_path = "/delete-provider"
   id_attribute = "name"
 
   data = jsonencode({
@@ -82,11 +82,11 @@ locals {
 resource "restapi_object" "app_portal_gate" {
   count = local.portal_gate_enabled ? 1 : 0
 
-  path         = "add-application"
-  create_path  = "add-application"
-  update_path  = "update-application"
-  read_path    = "get-application?id=admin"
-  destroy_path = "delete-application"
+  path         = "/add-application"
+  create_path  = "/add-application"
+  update_path  = "/update-application"
+  read_path    = "/get-application?id=admin"
+  destroy_path = "/delete-application"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -104,11 +104,11 @@ resource "restapi_object" "app_portal_gate" {
 resource "restapi_object" "app_vault_oidc" {
   count = local.portal_gate_enabled ? 1 : 0
 
-  path         = "add-application"
-  create_path  = "add-application"
-  update_path  = "update-application"
-  read_path    = "get-application?id=admin"
-  destroy_path = "delete-application"
+  path         = "/add-application"
+  create_path  = "/add-application"
+  update_path  = "/update-application"
+  read_path    = "/get-application?id=admin"
+  destroy_path = "/delete-application"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -126,11 +126,11 @@ resource "restapi_object" "app_vault_oidc" {
 resource "restapi_object" "app_dashboard_oidc" {
   count = local.portal_gate_enabled ? 1 : 0
 
-  path         = "add-application"
-  create_path  = "add-application"
-  update_path  = "update-application"
-  read_path    = "get-application?id=admin"
-  destroy_path = "delete-application"
+  path         = "/add-application"
+  create_path  = "/add-application"
+  update_path  = "/update-application"
+  read_path    = "/get-application?id=admin"
+  destroy_path = "/delete-application"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -148,11 +148,11 @@ resource "restapi_object" "app_dashboard_oidc" {
 resource "restapi_object" "app_kubero_oidc" {
   count = local.portal_gate_enabled ? 1 : 0
 
-  path         = "add-application"
-  create_path  = "add-application"
-  update_path  = "update-application"
-  read_path    = "get-application?id=admin"
-  destroy_path = "delete-application"
+  path         = "/add-application"
+  create_path  = "/add-application"
+  update_path  = "/update-application"
+  read_path    = "/get-application?id=admin"
+  destroy_path = "/delete-application"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
