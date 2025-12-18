@@ -38,8 +38,8 @@ runs:
       run: |
         set -euo pipefail
         
-        # VPS_SSH_KEY was exported as TF_VAR_ssh_private_key and VPS_SSH_KEY by Python script
-        # VPS_HOST and VPS_SSH_PORT were also exported
+        # VPS_SSH_KEY was exported to GITHUB_ENV by Python script
+        # So it is available as $VPS_SSH_KEY in the shell
         
         SSH_PORT_VALUE="${VPS_SSH_PORT:-22}"
         
@@ -56,14 +56,15 @@ runs:
       working-directory: ${{ inputs.working_directory }}
       shell: bash
       env:
-        # Variables below were exported by Python script to GITHUB_ENV
-        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-        R2_BUCKET: ${{ env.R2_BUCKET }}
-        R2_ACCOUNT_ID: ${{ env.R2_ACCOUNT_ID }}
+        # We ONLY map inputs here. 
+        # Secrets (AWS_*, R2_*) are already in the global env from Python script.
+        # Mapping them as ${{ env.VAR }} here would overwrite them with empty strings!
         STATE_KEY: ${{ inputs.tf_state_key }}
       run: |
         echo "DEBUG: STATE_KEY is '${STATE_KEY}'"
+        # Debug: Check if variables are present (without revealing values)
+        if [ -n "$AWS_ACCESS_KEY_ID" ]; then echo "DEBUG: AWS_ACCESS_KEY_ID is set"; else echo "ERROR: AWS_ACCESS_KEY_ID is missing"; fi
+        
         terraform init -input=false \
           -backend-config="bucket=${R2_BUCKET}" \
           -backend-config="key=${STATE_KEY}" \
@@ -72,15 +73,11 @@ runs:
     # Fetch kubeconfig explicity (before Plan, so state refresh works)
     - name: Fetch kubeconfig
       shell: bash
-      env:
-        # Variables below were exported by Python script to GITHUB_ENV
-        VPS_HOST: ${{ env.VPS_HOST }}
-        VPS_SSH_PORT: ${{ env.VPS_SSH_PORT }}
-        K3S_CLUSTER_NAME: ${{ env.K3S_CLUSTER_NAME }}
       run: |
         set -euo pipefail
         SSH_PORT="${VPS_SSH_PORT:-22}"
-        CLUSTER_NAME_VALUE="${K3S_CLUSTER_NAME:-truealpha-k3s}"
+        # K3S_CLUSTER_NAME is set by Python script if missing
+        CLUSTER_NAME_VALUE="${K3S_CLUSTER_NAME}"
 
         KUBECONFIG_PATH="${GITHUB_WORKSPACE}/1.bootstrap/output/${CLUSTER_NAME_VALUE}-kubeconfig.yaml"
         mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
