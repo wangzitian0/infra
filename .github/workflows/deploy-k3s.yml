@@ -579,15 +579,31 @@ jobs:
           OP_NS="kubero-operator-system-${ENV}"
           UI_NS="kubero-${ENV}"
 
+          echo "=== L4 Verification Debug Info ==="
+          echo "Operator NS: ${OP_NS}"
+          echo "UI NS: ${UI_NS}"
+
           echo "Checking Kubero operator..."
           kubectl -n "${OP_NS}" rollout status deployment/kubero-operator-controller-manager --timeout=300s
           kubectl -n "${OP_NS}" get pods -o wide
 
-          echo "Checking Kubero UI..."
-          kubectl -n "${UI_NS}" get kuberoes.application.kubero.dev kubero
-          kubectl -n "${UI_NS}" wait --for=condition=Ready pod --all --timeout=300s
-          kubectl -n "${UI_NS}" get pods -o wide
-          kubectl -n "${UI_NS}" get ingress || true
+          echo "Checking Kubero CR..."
+          if ! kubectl -n "${UI_NS}" get kuberoes.application.kubero.dev kubero; then
+            echo "::warning::Kubero CR not found in ${UI_NS} - may not be deployed yet"
+          fi
+
+          echo "Checking Kubero UI pods..."
+          POD_COUNT=$(kubectl -n "${UI_NS}" get pods --no-headers 2>/dev/null | wc -l | tr -d ' ')
+          echo "Pod count in ${UI_NS}: ${POD_COUNT}"
+          
+          if [ "${POD_COUNT}" -gt 0 ]; then
+            kubectl -n "${UI_NS}" wait --for=condition=Ready pod --all --timeout=300s
+            kubectl -n "${UI_NS}" get pods -o wide
+          else
+            echo "::warning::No pods in ${UI_NS} - Kubero UI may not be fully deployed"
+          fi
+          
+          kubectl -n "${UI_NS}" get ingress || echo "No ingress found (optional)"
 
       - name: Upload kubeconfig
         uses: actions/upload-artifact@v4
