@@ -484,32 +484,27 @@ jobs:
           if ! kubectl -n "${NS}" get pod "${KEEPER_POD}" >/dev/null 2>&1; then
             echo "Keeper: Pod not found (non-blocking)"
           else
-            # Use kubectl exec with echo to send 'ruok' command directly to Keeper
-            keeper_resp="$(kubectl exec -n "${NS}" "${KEEPER_POD}" -- sh -c 'echo ruok | nc 127.0.0.1 2181' 2>/dev/null || true)"
-            if echo "${keeper_resp}" | grep -q "imok"; then
-              echo "✅ Keeper: Reachable (${keeper_resp})"
+            # Container lacks nc, so check K8s readiness condition instead
+            KEEPER_READY="$(kubectl get pod -n "${NS}" "${KEEPER_POD}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
+            if [ "${KEEPER_READY}" = "True" ]; then
+              echo "✅ Keeper: Ready (K8s readiness)"
             else
-              echo "Keeper: Not reachable (non-blocking)"
+              echo "Keeper: Not ready (non-blocking)"
             fi
           fi
 
           echo "Checking ArangoDB..."
-          ARANGO_POD="$(kubectl get pods -n "${NS}" -l arango_deployment=arangodb -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
-          if [ -z "${ARANGO_POD}" ]; then
-            echo "::error::ArangoDB: Pod not found"
+          # Use ArangoDeployment CR status conditions (most reliable - operator-managed)
+          ARANGO_READY="$(kubectl get arangodeployment -n "${NS}" arangodb -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)"
+          ARANGO_REACHABLE="$(kubectl get arangodeployment -n "${NS}" arangodb -o jsonpath='{.status.conditions[?(@.type=="Reachable")].status}' 2>/dev/null || true)"
+          if [ "${ARANGO_READY}" = "True" ] && [ "${ARANGO_REACHABLE}" = "True" ]; then
+            echo "✅ ArangoDB: Ready & Reachable (CR status)"
+          elif [ -z "${ARANGO_READY}" ]; then
+            echo "::error::ArangoDB: CR not found or no Ready condition"
             FAILED=1
           else
-            # Check if ArangoDB HTTP server responds (using ephemeral curl pod as in-pod wget is limited)
-            ARANGO_IP="$(kubectl get pod -n "${NS}" "${ARANGO_POD}" -o jsonpath='{.status.podIP}')"
-            if kubectl run "arango-check-${GITHUB_RUN_ID}-${RANDOM}" \
-              --image=curlimages/curl:8.5.0 \
-              --restart=Never --rm -i \
-              -- curl -k -s -f --connect-timeout 5 "https://${ARANGO_IP}:8529/_api/version"; then
-              echo "✅ ArangoDB: Reachable"
-            else
-              echo "::error::ArangoDB: Unreachable"
-              FAILED=1
-            fi
+            echo "::error::ArangoDB: Ready=${ARANGO_READY}, Reachable=${ARANGO_REACHABLE}"
+            FAILED=1
           fi
 
           echo ""
