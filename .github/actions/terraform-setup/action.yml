@@ -1,12 +1,12 @@
 name: "Terraform Setup"
-description: "Sets up Terraform, loads secrets via Python, configures SSH, and fetches kubeconfig"
+description: "Sets up Terraform with high-reliability guardrails"
 inputs:
   terraform_version:
     description: "Terraform version to use"
     required: true
     default: "1.6.6"
   secrets_json:
-    description: "All GitHub Secrets in JSON format (from toJSON(secrets))"
+    description: "All GitHub Secrets in JSON format"
     required: true
   tf_state_key:
     description: "Terraform state file key in R2 bucket"
@@ -26,33 +26,40 @@ runs:
         terraform_version: ${{ inputs.terraform_version }}
         terraform_wrapper: false
 
-    - name: Load and Map Secrets (Python)
+    - name: Load Secrets (Python Loader)
       shell: bash
       env:
         INPUT_SECRETS_JSON: ${{ inputs.secrets_json }}
-      run: |
-        python3 0.tools/ci_load_secrets.py
+      run: python3 0.tools/ci_load_secrets.py
 
-    - name: Setup SSH and Directory
+    - name: Fail-Fast Env Check
+      shell: bash
+      run: |
+        # Verify that critical variables are actually present in the shell environment
+        CRITICAL="AWS_ACCESS_KEY_ID R2_BUCKET VPS_HOST TF_VAR_vault_address"
+        FAILED=0
+        for VAR in $CRITICAL; do
+          if [ -z "${!VAR}" ]; then
+            echo "::error::熔断：变量 $VAR 注入失败！可能是 Composite Action 作用域问题。"
+            FAILED=1
+          fi
+        done
+        if [ $FAILED -eq 1 ]; then exit 1; fi
+        echo "✅ 环境检查通过：所有核心变量已就绪。"
+
+    - name: Setup SSH
       shell: bash
       run: |
         set -euo pipefail
-        
-        # Use safe substitution for optional variables to prevent set -u crashes
         HOST="${VPS_HOST:-}"
         PORT="${VPS_SSH_PORT:-22}"
         KEY="${VPS_SSH_KEY:-}"
-        
-        if [ -z "$HOST" ] || [ -z "$KEY" ]; then
-          echo "::warning::VPS_HOST or VPS_SSH_KEY missing. Skipping SSH setup."
-        else
+        if [ -n "$HOST" ] && [ -n "$KEY" ]; then
           mkdir -p ~/.ssh
           echo "$KEY" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p "$PORT" "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
         fi
-        
-        mkdir -p "${{ inputs.working_directory }}"
 
     - name: Terraform init
       working-directory: ${{ inputs.working_directory }}
@@ -61,7 +68,6 @@ runs:
         STATE_KEY: ${{ inputs.tf_state_key }}
       run: |
         set -euo pipefail
-        # Backend config requires these. If Python script failed, they will be empty strings.
         terraform init -input=false \
           -backend-config="bucket=${R2_BUCKET}" \
           -backend-config="key=${STATE_KEY}" \
@@ -71,27 +77,15 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        
         HOST="${VPS_HOST:-}"
         PORT="${VPS_SSH_PORT:-22}"
         CLUSTER="${K3S_CLUSTER_NAME:-truealpha-k3s}"
-        
-        if [ -z "$HOST" ]; then
-          echo "::warning::VPS_HOST missing. Cannot fetch kubeconfig."
-          exit 0
-        fi
-
+        if [ -z "$HOST" ]; then exit 0; fi
         KUBECONFIG_PATH="${GITHUB_WORKSPACE}/1.bootstrap/output/${CLUSTER}-kubeconfig.yaml"
         mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
-        
-        echo "Attempting to fetch kubeconfig from VPS..."
         if ssh -i ~/.ssh/id_rsa -p "${PORT}" -o StrictHostKeyChecking=no "root@${HOST}" "sudo cat /etc/rancher/k3s/k3s.yaml" > "${KUBECONFIG_PATH}" 2>/dev/null; then
-          echo "Kubeconfig fetched successfully."
           sed -i "s/127.0.0.1/${HOST}/g" "${KUBECONFIG_PATH}"
           chmod 600 "${KUBECONFIG_PATH}"
           echo "KUBECONFIG_PATH=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
           echo "TF_VAR_kubeconfig_path=${KUBECONFIG_PATH}" >> "${GITHUB_ENV}"
-        else
-          echo "Warning: Failed to fetch kubeconfig. This is expected if the cluster is not yet deployed."
-          rm -f "${KUBECONFIG_PATH}"
         fi
