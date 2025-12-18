@@ -12,6 +12,39 @@
 # - Kubero OIDC
 
 # =============================================================================
+# 0. Import Existing Resources (Native Drift Defense)
+# =============================================================================
+
+# These import blocks allow Terraform to automatically discover resources
+# that already exist in Casdoor, preventing "500 Internal Server Error" 
+# caused by name collisions during Apply.
+
+import {
+  to = restapi_object.provider_github[0]
+  id = "admin/GitHub"
+}
+
+import {
+  to = restapi_object.app_portal_gate[0]
+  id = "admin/portal-gate"
+}
+
+import {
+  to = restapi_object.app_vault_oidc[0]
+  id = "admin/vault-oidc"
+}
+
+import {
+  to = restapi_object.app_dashboard_oidc[0]
+  id = "admin/dashboard-oidc"
+}
+
+import {
+  to = restapi_object.app_kubero_oidc[0]
+  id = "admin/kubero-oidc"
+}
+
+# =============================================================================
 # 1. Identity Providers
 # =============================================================================
 
@@ -21,6 +54,7 @@ resource "restapi_object" "provider_github" {
   path         = "/add-provider"
   create_path  = "/add-provider"
   update_path  = "/update-provider"
+  # Whitebox: {id} placeholder is replaced by name ("GitHub") resulting in id=admin/GitHub
   read_path    = "/get-provider?id=admin/{id}"
   destroy_path = "/delete-provider?id=admin/{id}"
   id_attribute = "name"
@@ -39,6 +73,13 @@ resource "restapi_object" "provider_github" {
 
   # Wait for Casdoor to be healthy
   depends_on = [helm_release.casdoor]
+
+  lifecycle {
+    precondition {
+      condition     = var.github_oauth_client_id != "" && var.github_oauth_client_secret != ""
+      error_message = "GitHub OAuth credentials are missing. Check ATLANTIS_GH_CLIENT_ID/SECRET."
+    }
+  }
 }
 
 # =============================================================================

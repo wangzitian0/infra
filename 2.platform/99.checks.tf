@@ -23,21 +23,24 @@ resource "time_sleep" "wait_for_portal_auth" {
   depends_on      = [helm_release.portal_auth]
 }
 
+# Whitebox tracking of the ping target
+resource "terraform_data" "health_check_target" {
+  count = local.portal_sso_gate_enabled ? 1 : 0
+  input = "https://auth.${local.internal_domain}/ping"
+}
+
 # 2. Verify readiness after the cooldown period
 data "http" "portal_auth_ping" {
   count = local.portal_sso_gate_enabled ? 1 : 0
 
-  url = "https://auth.${local.internal_domain}/ping"
+  url = terraform_data.health_check_target[0].output
 
-  # Use insecure skip verify if needed by adding a retry or ensuring cert is ready
-  # Note: data.http doesn't have retry, but 60s sleep usually guarantees success.
-  
   depends_on = [time_sleep.wait_for_portal_auth]
 
   lifecycle {
     postcondition {
       condition     = self.status_code == 200 || self.status_code == 202
-      error_message = "Portal auth (OAuth2-Proxy) /ping failed even after 60s wait. Status: ${self.status_code}"
+      error_message = "Portal auth (OAuth2-Proxy) at ${terraform_data.health_check_target[0].output} failed after 60s. Check Ingress/DNS/Pod."
     }
   }
 }
@@ -49,9 +52,10 @@ output "sso_e2e_status" {
   value = local.portal_sso_gate_enabled ? {
     oidc_discovery = try(data.http.casdoor_oidc_discovery[0].status_code, "skipped")
     portal_auth    = try(data.http.portal_auth_ping[0].status_code, "failed")
+    target_url     = try(terraform_data.health_check_target[0].output, "n/a")
     } : {
     oidc_discovery = "disabled"
     portal_auth    = "disabled"
   }
-  description = "E2E SSO validation results"
+  description = "E2E SSO validation results with target URL for debugging"
 }
