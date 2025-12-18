@@ -29,7 +29,9 @@
 # =============================================================================
 
 resource "restapi_object" "provider_github" {
-  count = local.casdoor_enabled ? 1 : 0
+  # TEMP: Disabled because Terraform state has stale data - resource was deleted from Casdoor
+  # Re-enable after terraform state rm restapi_object.provider_github[0] on main
+  count = 0 # local.casdoor_enabled ? 1 : 0
 
   path         = "/add-provider"
   create_path  = "/add-provider"
