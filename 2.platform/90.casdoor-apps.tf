@@ -12,32 +12,17 @@
 # - Kubero OIDC
 
 # =============================================================================
-# 0. Import Existing Resources (Sync State)
-# =============================================================================
-
-# NOTE: Import block removed - resource will be created fresh since it doesn't exist in Casdoor
-# import {
-#   to = restapi_object.provider_github[0]
-#   id = "admin/GitHub"
-# }
-
-# NOTE: App import blocks removed because they are conditionally enabled (count = 0 by default).
-# Importing to non-existent addresses causes Terraform plan to fail.
-
-# =============================================================================
 # 1. Identity Providers
 # =============================================================================
 
 resource "restapi_object" "provider_github" {
-  # TEMP: Disabled because Terraform state has stale data - resource was deleted from Casdoor
-  # Re-enable after terraform state rm restapi_object.provider_github[0] on main
-  count = 0 # local.casdoor_enabled ? 1 : 0
+  count = local.casdoor_enabled ? 1 : 0
 
   path         = "/add-provider"
   create_path  = "/add-provider"
   update_path  = "/update-provider"
-  read_path    = "/get-provider?id=admin/{id}"      # Casdoor requires owner/name format
-  destroy_path = "/delete-provider?id=admin/{id}"   # Casdoor requires owner/name format
+  read_path    = "/get-provider?id=admin/{id}"
+  destroy_path = "/delete-provider?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode({
@@ -88,8 +73,8 @@ resource "restapi_object" "app_portal_gate" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin/{id}"      # Casdoor requires owner/name format
-  destroy_path = "/delete-application?id=admin/{id}"   # Casdoor requires owner/name format
+  read_path    = "/get-application?id=admin/{id}"
+  destroy_path = "/delete-application?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -110,8 +95,8 @@ resource "restapi_object" "app_vault_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin/{id}"      # Casdoor requires owner/name format
-  destroy_path = "/delete-application?id=admin/{id}"   # Casdoor requires owner/name format
+  read_path    = "/get-application?id=admin/{id}"
+  destroy_path = "/delete-application?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -132,8 +117,8 @@ resource "restapi_object" "app_dashboard_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin/{id}"      # Casdoor requires owner/name format
-  destroy_path = "/delete-application?id=admin/{id}"   # Casdoor requires owner/name format
+  read_path    = "/get-application?id=admin/{id}"
+  destroy_path = "/delete-application?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -154,8 +139,8 @@ resource "restapi_object" "app_kubero_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin/{id}"      # Casdoor requires owner/name format
-  destroy_path = "/delete-application?id=admin/{id}"   # Casdoor requires owner/name format
+  read_path    = "/get-application?id=admin/{id}"
+  destroy_path = "/delete-application?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
