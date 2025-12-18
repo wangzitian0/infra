@@ -57,6 +57,12 @@ vault.hashicorp.com/agent-inject-secret-env: "secret/data/data/kubero"
 - [core.env.md](../docs/ssot/core.env.md) - Environment ↔ workspace/namespace/domain model
 - [platform.network.md](../docs/ssot/platform.network.md) - Domain rules and routing
 - [ops.pipeline.md](../docs/ssot/ops.pipeline.md) - PR → Plan/Apply workflow (Atlantis + infra-flash)
+- [platform.auth.md](../docs/ssot/platform.auth.md) - Authentication strategy (Casdoor + Vault)
+
+## Troubleshooting
+
+### Atlantis Lock Failure
+If Atlantis fails to delete PR locks, it might be due to a workspace lock. Use `atlantis unlock` command in the PR.
 
 ### Usage
 
@@ -113,5 +119,11 @@ If PVC is stuck in Pending with "no storage class set":
 - Delete PVC and let operator recreate: `kubectl delete pvc kubero-data -n kubero-prod`
 
 ---
-*Last updated: 2025-12-18*
+### Secret Not Found: `kubero-secrets`
+
+If Kubero pods fail with `CreateContainerConfigError: secret "kubero-secrets" not found`:
+- Verify `kubernetes_secret.kubero_secrets` exists in Namespace.
+- The secret is now synced from **Vault** via Terraform for operator compatibility.
+
+*Last updated: 2025-12-19*
 
