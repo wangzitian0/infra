@@ -38,16 +38,4 @@ data "cloudflare_zone" "internal" {
   name = local.internal_domain
 }
 
-# RestAPI provider for Casdoor management
-# Uses casdoor-builtin-app credentials (M2M) to manage resources via API
-# Docs: https://registry.terraform.io/providers/Mastercard/restapi/latest/docs
-provider "restapi" {
-  uri                  = "https://sso.${local.internal_domain}"
-  debug                = true
-  write_returns_object = true
-  username             = "casdoor-builtin-app"
-  password             = var.casdoor_admin_password
-  id_attribute         = "name" # Casdoor uses 'name' as the primary key in JSON
-}
-// trigger l2
-
+# NOTE: RestAPI provider is configured in 90.provider_restapi.tf
