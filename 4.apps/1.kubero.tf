@@ -109,6 +109,11 @@ data "vault_kv_secret_v2" "kubero" {
 # ============================================================
 # Kubero ServiceAccount (for Vault Auth)
 # ============================================================
+import {
+  to = kubernetes_service_account.kubero
+  id = "kubero-prod/kubero"
+}
+
 resource "kubernetes_service_account" "kubero" {
   metadata {
     name      = "kubero"
