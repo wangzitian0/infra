@@ -104,6 +104,30 @@ resource "random_id" "kubero_session_secret" {
 }
 
 # ============================================================
+# Kubero Webhook Secret (for Git webhooks)
+# ============================================================
+resource "random_id" "kubero_webhook_secret" {
+  byte_length = 32
+}
+
+# ============================================================
+# Kubero Secrets (required by deployment, not created by Helm chart)
+# ============================================================
+resource "kubernetes_secret" "kubero_secrets" {
+  metadata {
+    name      = "kubero-secrets"
+    namespace = kubernetes_namespace.kubero.metadata[0].name
+  }
+
+  data = {
+    KUBERO_WEBHOOK_SECRET = random_id.kubero_webhook_secret.hex
+    KUBERO_SESSION_KEY    = random_id.kubero_session_secret.hex
+  }
+
+  depends_on = [kubernetes_namespace.kubero]
+}
+
+# ============================================================
 # Kubero Custom Resource (deploys UI via operator)
 # ============================================================
 resource "kubectl_manifest" "kubero_instance" {
