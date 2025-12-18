@@ -15,10 +15,11 @@
 # 0. Import Existing Resources (Sync State)
 # =============================================================================
 
-import {
-  to = restapi_object.provider_github[0]
-  id = "admin/GitHub"
-}
+# NOTE: Import block removed - resource will be created fresh since it doesn't exist in Casdoor
+# import {
+#   to = restapi_object.provider_github[0]
+#   id = "admin/GitHub"
+# }
 
 # NOTE: App import blocks removed because they are conditionally enabled (count = 0 by default).
 # Importing to non-existent addresses causes Terraform plan to fail.
