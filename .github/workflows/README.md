@@ -261,6 +261,8 @@ git push
 | `403 permission denied` | Vault token 过期 → 更新 `VAULT_ROOT_TOKEN`，apply L1 |
 | `state lock` | `atlantis unlock` |
 | `provider mismatch` | `terraform init -upgrade`，提交 lock 文件 |
+| `sh: syntax error` in Atlantis | Atlantis 使用 `/bin/sh`，避免 heredoc 缩进或用 `printf` 替代 |
+
 
 ### 更新 Vault Token
 
