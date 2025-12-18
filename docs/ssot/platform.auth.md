@@ -70,9 +70,9 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 | 服务 | 域名 | SSO 形态 | 当前状态 |
 |------|------|-----------|----------|
-| Vault UI | `https://secrets.<internal_domain>` | Casdoor OIDC 客户端（`vault-oidc`）+ Vault OIDC 提供者 | 🔜 注册客户端并更新 Helm 值 |
-| Kubernetes Dashboard | `https://kdashboard.<internal_domain>` | Traefik forward-auth 指向 Casdoor（Dashboard 依旧靠 token 登录） | ⚙️ 中间件 + `dashboard-oidc` 回调对齐 |
-| Kubero UI | `https://kcloud.<internal_domain>` | Casdoor OAuth2 客户端（`kubero-oidc`） | ⏳ 需 Casdoor 应用并下发 Client Secret |
+| Vault UI | `https://secrets.<internal_domain>` | Casdoor OIDC 客户端（`vault-oidc`）+ Vault OIDC 提供者 | ✅ 已配置 (登录需手动填 Role: `reader`) |
+| Kubernetes Dashboard | `https://kdashboard.<internal_domain>` | Traefik forward-auth 指向 Casdoor（Dashboard 依旧靠 token 登录） | ✅ 中间件已部署 + `dashboard-oidc` 回调对齐 |
+| Kubero UI | `https://kcloud.<internal_domain>` | Casdoor OAuth2 客户端（`kubero-oidc`） | ✅ 已配置 |
 | Atlantis Web | `https://atlantis.<internal_domain>` | Basic Auth（继续当前机制） | ✅ 保持手动管理 |
 
 ### 实施路径
@@ -133,9 +133,9 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，�
 
 ## 密钥策略（1Password Zero 依赖 / Vault-first）
 
--   **目标一：1Password 仅存储根密钥**（Atlantis 管理密码、Vault Root Token、Casdoor Admin 密码等），作为离线恢复点，日常操作尽量不直接依赖 `op`。
--   **目标二：其他凭据均由 Vault/Terraform 生成、动态注入或同步到 Vault，Casdoor client secret、Webhook Token、业务 token 等都有 Vault 副本，保持“Vault-first”。
--   若某密钥必须同时存于 1Password 与 Vault，则让 Vault 成为 SSOT，1Password 仅做备份（“Vault-first, 1Password fallback”），明确区分“1Password 0 依赖”和“Vault 作为自动源”两条路径。
+- **目标一：1Password 仅存储根密钥**（Atlantis 管理密码、Vault Root Token、Casdoor Admin 密码等），作为离线恢复点，日常操作尽量不直接依赖 `op`。
+- **目标二：其他凭据均由 Vault/Terraform 生成、动态注入或同步到 Vault，Casdoor client secret、Webhook Token、业务 token 等都有 Vault 副本，保持“Vault-first”。
+- 若某密钥必须同时存于 1Password 与 Vault，则让 Vault 成为 SSOT，1Password 仅做备份（“Vault-first, 1Password fallback”），明确区分“1Password 0 依赖”和“Vault 作为自动源”两条路径。
 
 ---
 
@@ -150,6 +150,7 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，�
 | Kubero OIDC | ✅ REST API 自动创建 (`kubero-oidc`) |
 | Vault 策略/角色 | ✅ 已通过 Terraform 自动化 (`92.vault-kubero.tf`) |
 | 自动导入机制 | ✅ REST API 自动同步 |
+| OAuth2-Proxy | ✅ 重构 (作为 Traefik 中间件连接 Casdoor) |
 
 ---
 
@@ -190,4 +191,3 @@ curl -s "https://sso.zitian.party/api/get-application?id=admin/portal-gate" \
 ```
 
 ---
-

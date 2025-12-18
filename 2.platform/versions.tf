@@ -34,5 +34,9 @@ terraform {
       source  = "Mastercard/restapi"
       version = "1.20.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.11"
+    }
   }
 }

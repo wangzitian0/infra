@@ -89,3 +89,4 @@
 
 - [AGENTS.md](../../AGENTS.md) - AI 行为准则
 - [docs/project/](../project/) - 设计文档 (BRN-*)
+- *Last updated: 2025-12-19*

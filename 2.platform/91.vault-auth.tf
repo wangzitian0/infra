@@ -11,7 +11,7 @@ resource "vault_jwt_auth_backend" "oidc" {
   oidc_discovery_url = "https://${local.casdoor_domain}"
   oidc_client_id     = "vault-oidc"
   oidc_client_secret = local.vault_oidc_client_secret
-  default_role       = "reader"
+  # default_role       = "reader"
 
   tune {
     default_lease_ttl = "1h"
