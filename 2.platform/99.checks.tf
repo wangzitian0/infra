@@ -21,11 +21,12 @@ resource "terracurl_request" "portal_auth_ping" {
   url    = "https://auth.${local.internal_domain}/ping"
   method = "GET"
 
-  max_retry_duration = 90
-  retry_interval     = 5
+  # Wait up to 50 seconds (10 * 5s) for Ingress/DNS propagation
+  retry_count    = 10
+  retry_interval = 5
 
   # Consider 200 or 202 as success
-  response_codes = [200, 202]
+  response_codes = ["200", "202"]
 
   skip_tls_verify = true
 
