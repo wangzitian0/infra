@@ -15,10 +15,10 @@
 # 0. Import Existing Resources (Sync State)
 # =============================================================================
 
-# import {
-#   to = restapi_object.provider_github[0]
-#   id = "get-provider?id=admin/GitHub"
-# }
+import {
+  to = restapi_object.provider_github[0]
+  id = "/get-provider?id=admin/GitHub"
+}
 
 # NOTE: App import blocks removed because they are conditionally enabled (count = 0 by default).
 # Importing to non-existent addresses causes Terraform plan to fail.
