@@ -34,8 +34,8 @@ resource "restapi_object" "provider_github" {
   path         = "/add-provider"
   create_path  = "/add-provider"
   update_path  = "/update-provider"
-  read_path    = "/get-provider?id={id}"
-  destroy_path = "/delete-provider?id={id}"
+  read_path    = "/get-provider?id=admin/{id}"      # Casdoor requires owner/name format
+  destroy_path = "/delete-provider?id=admin/{id}"   # Casdoor requires owner/name format
   id_attribute = "name"
 
   data = jsonencode({
@@ -86,8 +86,8 @@ resource "restapi_object" "app_portal_gate" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin"
-  destroy_path = "/delete-application"
+  read_path    = "/get-application?id=admin/{id}"      # Casdoor requires owner/name format
+  destroy_path = "/delete-application?id=admin/{id}"   # Casdoor requires owner/name format
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -108,8 +108,8 @@ resource "restapi_object" "app_vault_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin"
-  destroy_path = "/delete-application"
+  read_path    = "/get-application?id=admin/{id}"      # Casdoor requires owner/name format
+  destroy_path = "/delete-application?id=admin/{id}"   # Casdoor requires owner/name format
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -130,8 +130,8 @@ resource "restapi_object" "app_dashboard_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin"
-  destroy_path = "/delete-application"
+  read_path    = "/get-application?id=admin/{id}"      # Casdoor requires owner/name format
+  destroy_path = "/delete-application?id=admin/{id}"   # Casdoor requires owner/name format
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -152,8 +152,8 @@ resource "restapi_object" "app_kubero_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin"
-  destroy_path = "/delete-application"
+  read_path    = "/get-application?id=admin/{id}"      # Casdoor requires owner/name format
+  destroy_path = "/delete-application?id=admin/{id}"   # Casdoor requires owner/name format
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
