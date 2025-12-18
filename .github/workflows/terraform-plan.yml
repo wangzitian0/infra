@@ -31,38 +31,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ============================================================
+      # ============================================================ 
       # STEP 1: Create skeleton comment FIRST (lock commit)
-      # ============================================================
-      - name: Verify Key Format (Strict)
-        run: |
-          echo "${{ secrets.ATLANTIS_GH_APP_KEY }}" > atlantis_key.pem
-          echo "Checking key format..."
-          if ! openssl rsa -in atlantis_key.pem -check -noout; then
-            echo "::error::ATLANTIS_GH_APP_KEY is corrupted in CI environment!"
-            echo "DEBUG INFO:"
-            echo "Length: $(wc -c < atlantis_key.pem)"
-            echo "First line: $(head -n 1 atlantis_key.pem)"
-            echo "Last line: $(tail -n 1 atlantis_key.pem)"
-            echo "Hex dump (first 32 bytes):"
-            head -c 32 atlantis_key.pem | xxd
-            exit 1
-          fi
-          echo "✅ Key format is valid."
-          rm atlantis_key.pem
-
-      - name: Generate App Token
-        id: app_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+      # ============================================================ 
+      # - name: Generate App Token
+      #   id: app_token
+      #   uses: actions/create-github-app-token@v1
+      #   with:
+      #     app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+      #     private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
       - name: Create skeleton comment
         id: skeleton
         uses: actions/github-script@v7
         with:
-          github-token: ${{ steps.app_token.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           result-encoding: string
           script: |
             const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
@@ -83,7 +66,8 @@ jobs:
             // Full skeleton with all sections
             const skeleton = [
               MARKER,
-              `## ⚡ Commit \`${sha}\``,
+              `## ⚡ Commit \`${sha}\
+``,
               '',
               '<details><summary>📖 Commands</summary>',
               '',
@@ -99,7 +83,7 @@ jobs:
               '',
               `### CI Validate ⏳ | [${sha}](${runUrl}) | ${timestamp}`,
               '',
-              '⏳ Running checks...',
+              '⏳ Running checks...', 
               '',
               '---',
               '',
@@ -146,9 +130,9 @@ jobs:
             console.log(`Created/updated skeleton for commit ${sha}`);
             return commentId.toString();
 
-      # ============================================================
+      # ============================================================ 
       # STEP 2: Run CI Checks
-      # ============================================================
+      # ============================================================ 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -218,14 +202,14 @@ jobs:
         run: terraform init -backend=false -input=false -no-color && terraform validate -no-color
         continue-on-error: true
 
-      # ============================================================
+      # ============================================================ 
       # STEP 3: Update comment with results
-      # ============================================================
+      # ============================================================ 
       - name: Update comment with results
         if: always()
         uses: actions/github-script@v7
         with:
-          github-token: ${{ steps.app_token.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fmt = '${{ steps.fmt.outcome }}' || 'skipped';
             const lint_l1 = '${{ steps.lint_l1.outcome }}' || 'skipped';
@@ -310,7 +294,8 @@ jobs:
             // Build final body
             const body = [
               MARKER,
-              `## ⚡ Commit \`${sha}\``,
+              `## ⚡ Commit \`${sha}\
+``,
               '',
               '<details><summary>📖 Commands</summary>',
               '',
@@ -345,9 +330,9 @@ jobs:
             });
             console.log(`Updated comment: CI ${allPass ? 'PASS' : 'FAIL'}`);
 
-      # ============================================================
+      # ============================================================ 
       # Final Status
-      # ============================================================
+      # ============================================================ 
       - name: Check Results
         run: |
           FAILED=0
