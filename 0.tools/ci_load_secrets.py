@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import subprocess
 
 # ==============================================================================
 # CONFIGURATION: Whitelist, Mapping, and Defaults
@@ -46,11 +47,15 @@ SYSTEM_ENV_ONLY = {
     "VAULT_ROOT_TOKEN": "VAULT_TOKEN",
 }
 
+REQUIRED = [
+    "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_ACCOUNT_ID",
+    "VPS_HOST", "VPS_SSH_KEY", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ZONE_ID", 
+    "BASE_DOMAIN"
+]
+
 def clean_value(val):
-    """Cleans secret value: strips whitespace and surrounding quotes."""
     if val is None: return None
     s = str(val).strip()
-    # Remove surrounding quotes if they exist (common issue from 1P exports)
     if (s.startswith('"') and s.endswith('"')) or (s.startswith("'" ) and s.endswith("'")):
         s = s[1:-1].strip()
     return s
@@ -60,11 +65,18 @@ def export_to_github_env(name, value):
     if not github_env:
         return
     with open(github_env, "a") as f:
-        # Using a unique EOF marker to prevent collisions
-        if "\n" in value:
+        if "\n" in str(value):
             f.write(f"{name}<<GITHUB_VAR_EOF\n{value}\nGITHUB_VAR_EOF\n")
         else:
             f.write(f"{name}={value}\n")
+
+def validate_pem(name, value):
+    """Fail fast if PEM format is suspicious."""
+    if "RSA PRIVATE KEY" in name or "GH_APP_KEY" in name or "SSH_KEY" in name:
+        if "-----BEGIN" not in value or "-----END" not in value:
+            print(f"::error::Variable {name} seems to be a corrupted PEM (missing headers/footers)")
+            return False
+    return True
 
 def main():
     raw_json = os.environ.get("INPUT_SECRETS_JSON")
@@ -78,16 +90,11 @@ def main():
         print(f"::error::Failed to parse secrets_json: {e}")
         sys.exit(1)
 
-    count = 0
+    loaded_count = 0
     missing_required = []
-    REQUIRED = [
-        "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_ACCOUNT_ID",
-        "VPS_HOST", "VPS_SSH_KEY", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_ZONE_ID", 
-        "BASE_DOMAIN"
-    ]
-
+    
+    # 1. Process Base Mappings
     for source_key, target_var in MAPPING.items():
-        # Clean both the input and the default
         val = clean_value(secrets.get(source_key))
         if not val:
             val = clean_value(DEFAULTS.get(source_key))
@@ -97,31 +104,36 @@ def main():
                 missing_required.append(source_key)
             continue
 
+        if not validate_pem(source_key, val):
+            sys.exit(1)
+
         export_to_github_env(target_var, val)
         export_to_github_env(source_key, val)
         if source_key in SYSTEM_ENV_ONLY:
             export_to_github_env(SYSTEM_ENV_ONLY[source_key], val)
-        count += 1
+        loaded_count += 1
 
-    # Derived variables logic
-    # Construct Vault Address for CI (External Access)
+    # 2. Derived Logic & Validation
     internal_domain = clean_value(secrets.get("INTERNAL_DOMAIN"))
     base_domain = clean_value(secrets.get("BASE_DOMAIN"))
+    domain = internal_domain or base_domain
     
-    if internal_domain or base_domain:
-        domain = internal_domain if internal_domain else base_domain
-        # Assuming standard naming convention: secrets.domain
+    if domain:
         vault_addr = f"https://secrets.{domain}"
         export_to_github_env("TF_VAR_vault_address", vault_addr)
-        export_to_github_env("VAULT_ADDR", vault_addr) # For Vault CLI
-        print(f"Derived VAULT_ADDR: {vault_addr}")
+        export_to_github_env("VAULT_ADDR", vault_addr)
+        print(f"✅ Derived VAULT_ADDR: {vault_addr}")
+    else:
+        print("::error::Could not derive Vault Address: Missing DOMAIN secrets")
+        sys.exit(1)
 
+    # 3. Final Integrity Check
     if missing_required:
         for m in missing_required:
             print(f"::error::Required secret missing: {m}")
         sys.exit(1)
 
-    print(f"Successfully loaded {count} secrets.")
+    print(f"✅ Successfully loaded {loaded_count} secrets. Ready for Terraform.")
 
 if __name__ == "__main__":
     main()
