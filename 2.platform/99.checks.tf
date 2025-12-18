@@ -21,8 +21,8 @@ resource "terracurl_request" "portal_auth_ping" {
   url    = "https://auth.${local.internal_domain}/ping"
   method = "GET"
 
-  timeout_overall = 90
-  retry_interval  = 5
+  max_retry_duration = 90
+  retry_interval     = 5
 
   # Consider 200 or 202 as success
   response_codes = [200, 202]
