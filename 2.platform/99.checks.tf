@@ -12,25 +12,34 @@
 # - 92.portal-auth.tf: Casdoor availability precondition
 
 # ------------------------------------------------------------
-# E2E Check: OAuth2-Proxy /ping endpoint (Robust with Retries)
+# E2E Check: OAuth2-Proxy /ping endpoint (Official & Robust)
 # ------------------------------------------------------------
-resource "terracurl_request" "portal_auth_ping" {
+
+# 1. Give Ingress and DNS 60 seconds to propagate
+resource "time_sleep" "wait_for_portal_auth" {
   count = local.portal_sso_gate_enabled ? 1 : 0
 
-  name   = "portal_auth_ping"
-  url    = "https://auth.${local.internal_domain}/ping"
-  method = "GET"
+  create_duration = "60s"
+  depends_on      = [helm_release.portal_auth]
+}
 
-  # Wait up to 50 seconds (10 * 5s) for Ingress/DNS propagation
-  retry_count    = 10
-  retry_interval = 5
+# 2. Verify readiness after the cooldown period
+data "http" "portal_auth_ping" {
+  count = local.portal_sso_gate_enabled ? 1 : 0
 
-  # Consider 200 or 202 as success
-  response_codes = ["200", "202"]
+  url = "https://auth.${local.internal_domain}/ping"
 
-  skip_tls_verify = true
+  # Use insecure skip verify if needed by adding a retry or ensuring cert is ready
+  # Note: data.http doesn't have retry, but 60s sleep usually guarantees success.
+  
+  depends_on = [time_sleep.wait_for_portal_auth]
 
-  depends_on = [helm_release.portal_auth]
+  lifecycle {
+    postcondition {
+      condition     = self.status_code == 200 || self.status_code == 202
+      error_message = "Portal auth (OAuth2-Proxy) /ping failed even after 60s wait. Status: ${self.status_code}"
+    }
+  }
 }
 
 # ------------------------------------------------------------
@@ -39,7 +48,7 @@ resource "terracurl_request" "portal_auth_ping" {
 output "sso_e2e_status" {
   value = local.portal_sso_gate_enabled ? {
     oidc_discovery = try(data.http.casdoor_oidc_discovery[0].status_code, "skipped")
-    portal_auth    = try(terracurl_request.portal_auth_ping[0].response_code, "failed")
+    portal_auth    = try(data.http.portal_auth_ping[0].status_code, "failed")
     } : {
     oidc_discovery = "disabled"
     portal_auth    = "disabled"

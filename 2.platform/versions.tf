@@ -34,9 +34,9 @@ terraform {
       source  = "Mastercard/restapi"
       version = "1.20.0"
     }
-    terracurl = {
-      source  = "devops-rob/terracurl"
-      version = "~> 1.1"
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.11"
     }
   }
 }
