@@ -35,38 +35,22 @@ The Kubero CR uses specific value paths (differs from typical Helm conventions):
 | Session Key | `kubero.sessionKey` | Used for session encryption |
 | Namespace | `kubero.namespace` | Target namespace for Kubero UI |
 
-### Required Resources
+### Required Secrets
 
-Kubero deployment requires a `kubero-secrets` Secret (not created by Helm chart):
+Kubero secrets (Webhook and Session keys) are centralized in **Vault KV** (`secret/data/data/kubero`) and injected into the pods via the **Vault Agent Injector**.
 
+The following annotations are required (and managed by Terraform in `1.kubero.tf`):
 ```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: kubero-secrets
-  namespace: kubero-{env}
-data:
-  KUBERO_WEBHOOK_SECRET: <base64>  # Required for Git webhooks
-  KUBERO_SESSION_KEY: <base64>      # Optional, for session management
+vault.hashicorp.com/agent-inject: "true"
+vault.hashicorp.com/role: "kubero"
+vault.hashicorp.com/agent-inject-secret-env: "secret/data/data/kubero"
 ```
-
-This is created by Terraform in `1.kubero.tf`.
 
 ### Multi-Environment Deployment
 
-**Known Issue**: Kubero Helm chart creates cluster-scoped `kuberorole` ClusterRole. When deploying to multiple environments (prod/staging), the second deployment fails due to Helm ownership conflict.
+**Issue**: Kubero Helm chart originally created a hardcoded `kuberorole` ClusterRole, causing conflicts between environments.
 
-**Current Workaround**: 
-1. First environment (staging) creates `kuberorole`
-2. For second environment (prod), manually annotate the ClusterRole:
-   ```bash
-   kubectl annotate clusterrole kuberorole \
-     meta.helm.sh/release-namespace=kubero-prod --overwrite
-   kubectl label clusterrole kuberorole \
-     app.kubernetes.io/managed-by=Helm --overwrite
-   ```
-
-**Long-term Fix**: Open issue with Kubero upstream to support customizable ClusterRole naming.
+**Resolution**: The `1.kubero.tf` file now programmatically replaces naming in the manifests with environment suffixes (e.g., `kuberorole-prod`, `kuberorole-staging`). No manual intervention is required.
 
 ## SSOT Links
 

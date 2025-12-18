@@ -12,6 +12,35 @@
 # - Kubero OIDC
 
 # =============================================================================
+# 0. Import Existing Resources (Sync State)
+# =============================================================================
+
+import {
+  to = restapi_object.provider_github[0]
+  id = "admin/GitHub"
+}
+
+import {
+  to = restapi_object.app_portal_gate[0]
+  id = "admin/portal-gate"
+}
+
+import {
+  to = restapi_object.app_vault_oidc[0]
+  id = "admin/vault-oidc"
+}
+
+import {
+  to = restapi_object.app_dashboard_oidc[0]
+  id = "admin/dashboard-oidc"
+}
+
+import {
+  to = restapi_object.app_kubero_oidc[0]
+  id = "admin/kubero-oidc"
+}
+
+# =============================================================================
 # 1. Identity Providers
 # =============================================================================
 

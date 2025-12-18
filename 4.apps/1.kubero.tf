@@ -96,32 +96,23 @@ resource "kubernetes_namespace" "kubero" {
   depends_on = [kubectl_manifest.kubero_operator]
 }
 
-# ============================================================
-# Kubero Session Secret
-# ============================================================
-resource "random_id" "kubero_session_secret" {
-  byte_length = 32
+# NOTE: Kubero random secrets (Session/Webhook) are now generated and stored in Vault 
+# by the Platform layer (2.platform/92.vault-kubero.tf).
+# Apps layer retrieves them via Vault Agent Injection for the pods,
+# and via data source for the CR spec.
+
+data "vault_kv_secret_v2" "kubero" {
+  mount = "secret"
+  name  = "data/kubero"
 }
 
 # ============================================================
-# Kubero Webhook Secret (for Git webhooks)
+# Kubero ServiceAccount (for Vault Auth)
 # ============================================================
-resource "random_id" "kubero_webhook_secret" {
-  byte_length = 32
-}
-
-# ============================================================
-# Kubero Secrets (required by deployment, not created by Helm chart)
-# ============================================================
-resource "kubernetes_secret" "kubero_secrets" {
+resource "kubernetes_service_account" "kubero" {
   metadata {
-    name      = "kubero-secrets"
+    name      = "kubero"
     namespace = kubernetes_namespace.kubero.metadata[0].name
-  }
-
-  data = {
-    KUBERO_WEBHOOK_SECRET = random_id.kubero_webhook_secret.hex
-    KUBERO_SESSION_KEY    = random_id.kubero_session_secret.hex
   }
 
   depends_on = [kubernetes_namespace.kubero]
@@ -137,6 +128,20 @@ resource "kubectl_manifest" "kubero_instance" {
     metadata = {
       name      = "kubero"
       namespace = kubernetes_namespace.kubero.metadata[0].name
+      annotations = {
+        # Vault Agent Injector Annotations
+        # Note: If the operator doesn't pass these to the UI pod, we may need 
+        # to use kubernetes_annotations resource to target the deployment.
+        "vault.hashicorp.com/agent-inject"              = "true"
+        "vault.hashicorp.com/role"                      = "kubero"
+        "vault.hashicorp.com/agent-inject-secret-env"   = "secret/data/data/kubero"
+        "vault.hashicorp.com/agent-inject-template-env" = <<-EOT
+          {{- with secret "secret/data/data/kubero" -}}
+          export KUBERO_WEBHOOK_SECRET="{{ .Data.data.KUBERO_WEBHOOK_SECRET }}"
+          export KUBERO_SESSION_KEY="{{ .Data.data.KUBERO_SESSION_KEY }}"
+          {{- end -}}
+        EOT
+      }
     }
     spec = {
       replicaCount = 1
@@ -196,7 +201,7 @@ resource "kubectl_manifest" "kubero_instance" {
       kubero = {
         namespace  = "kubero-${var.environment}"
         context    = "inClusterContext"
-        sessionKey = random_id.kubero_session_secret.hex
+        sessionKey = data.vault_kv_secret_v2.kubero.data["KUBERO_SESSION_KEY"]
         auth = {
           github = {
             enabled = false
@@ -221,10 +226,11 @@ resource "kubectl_manifest" "kubero_instance" {
     }
   })
 
-  # Wait for operator and namespace to be ready
+  # Wait for operator, namespace, and SA to be ready
   depends_on = [
     kubectl_manifest.kubero_operator,
-    kubernetes_namespace.kubero
+    kubernetes_namespace.kubero,
+    kubernetes_service_account.kubero
   ]
 
   # Use server-side apply for CRD instances
