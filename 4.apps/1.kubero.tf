@@ -107,6 +107,24 @@ data "vault_kv_secret_v2" "kubero" {
 }
 
 # ============================================================
+# Kubero Secrets (required by deployment, not created by Helm chart)
+# Sync'd from Vault to satisfy operator dependencies while maintaining SSOT
+# ============================================================
+resource "kubernetes_secret" "kubero_secrets" {
+  metadata {
+    name      = "kubero-secrets"
+    namespace = kubernetes_namespace.kubero.metadata[0].name
+  }
+
+  data = {
+    KUBERO_WEBHOOK_SECRET = data.vault_kv_secret_v2.kubero.data["KUBERO_WEBHOOK_SECRET"]
+    KUBERO_SESSION_KEY    = data.vault_kv_secret_v2.kubero.data["KUBERO_SESSION_KEY"]
+  }
+
+  depends_on = [kubernetes_namespace.kubero]
+}
+
+# ============================================================
 # Kubero ServiceAccount (for Vault Auth)
 # ============================================================
 import {

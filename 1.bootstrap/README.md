@@ -39,9 +39,13 @@ Managed by **GitHub Actions only** (not Atlantis).
 - Certificates: wildcard for `BASE_DOMAIN`; wildcard for `INTERNAL_DOMAIN` when distinct (separate secret). Ingresses also request per-host certs via cert-manager ingress shim.
 
 SSOT:
-- [core.env.md](../docs/ssot/core.env.md) (environment semantics)
-- [platform.network.md](../docs/ssot/platform.network.md) (domain rules and service mapping)
-- [ops.storage.md](../docs/ssot/ops.storage.md) (StorageClass and data retention)
+- [core.env.md](../docs/ssot/core.env.md) - IP/Domain assignments
+- [secrets.md](../docs/ssot/secrets.md) - 1Password secret map
+
+## Troubleshooting
+
+### Metadata Retrieval Failure
+If the `1.bootstrap` layer fails to retrieve VPS metadata, ensure the `VPS_HOST` is accessible via SSH.
 
 ## Bootstrap Command
 
