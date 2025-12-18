@@ -111,7 +111,7 @@ data "vault_kv_secret_v2" "kubero" {
 # ============================================================
 import {
   to = kubernetes_service_account.kubero
-  id = "kubero-prod/kubero"
+  id = "kubero-${var.environment}/kubero"
 }
 
 resource "kubernetes_service_account" "kubero" {
