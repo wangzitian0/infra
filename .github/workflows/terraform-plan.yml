@@ -37,15 +37,25 @@ jobs:
       - name: Generate App Token
         id: app_token
         uses: actions/create-github-app-token@v1
+        continue-on-error: true
         with:
           app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Debug Key Format
+        if: steps.app_token.outcome != 'success'
+        run: |
+          echo "Debug: App Token generation failed."
+          KEY="${{ secrets.ATLANTIS_GH_APP_KEY }}"
+          echo "Key length: ${#KEY}"
+          echo "First line: $(echo "$KEY" | head -n 1)"
+          echo "Hex dump of start: $(echo "$KEY" | head -c 20 | xxd)"
 
       - name: Create skeleton comment
         id: skeleton
         uses: actions/github-script@v7
         with:
-          github-token: ${{ steps.app_token.outputs.token }}
+          github-token: ${{ steps.app_token.outputs.token || secrets.GITHUB_TOKEN }}
           result-encoding: string
           script: |
             const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
