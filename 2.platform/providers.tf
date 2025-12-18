@@ -37,5 +37,5 @@ provider "vault" {
 data "cloudflare_zone" "internal" {
   name = local.internal_domain
 }
-// trigger l2
 
+# NOTE: RestAPI provider is configured in 90.provider_restapi.tf

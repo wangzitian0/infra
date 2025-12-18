@@ -17,8 +17,19 @@ locals {
   # Read and split the operator.yaml into individual documents
   operator_yaml_raw_content = file("${path.module}/manifests/kubero/operator.yaml")
 
-  # Replace namespace in the manifest content to allow multi-tenant deployment
-  operator_yaml_raw = replace(local.operator_yaml_raw_content, "kubero-operator-system", "kubero-operator-system-${var.environment}")
+  # Replace namespace AND cluster-scoped resource names for multi-tenant deployment
+  # ClusterRole/ClusterRoleBinding are cluster-scoped, need unique names per environment
+  operator_yaml_raw = replace(
+    replace(
+      replace(
+        local.operator_yaml_raw_content,
+        "kubero-operator-system", "kubero-operator-system-${var.environment}"
+      ),
+      "kuberorole", "kuberorole-${var.environment}"
+    ),
+    "kuberorolebinding", "kuberorolebinding-${var.environment}"
+  )
+
 
   # Split by document separator and filter empty docs
   operator_docs = [
@@ -93,6 +104,30 @@ resource "random_id" "kubero_session_secret" {
 }
 
 # ============================================================
+# Kubero Webhook Secret (for Git webhooks)
+# ============================================================
+resource "random_id" "kubero_webhook_secret" {
+  byte_length = 32
+}
+
+# ============================================================
+# Kubero Secrets (required by deployment, not created by Helm chart)
+# ============================================================
+resource "kubernetes_secret" "kubero_secrets" {
+  metadata {
+    name      = "kubero-secrets"
+    namespace = kubernetes_namespace.kubero.metadata[0].name
+  }
+
+  data = {
+    KUBERO_WEBHOOK_SECRET = random_id.kubero_webhook_secret.hex
+    KUBERO_SESSION_KEY    = random_id.kubero_session_secret.hex
+  }
+
+  depends_on = [kubernetes_namespace.kubero]
+}
+
+# ============================================================
 # Kubero Custom Resource (deploys UI via operator)
 # ============================================================
 resource "kubectl_manifest" "kubero_instance" {
@@ -131,12 +166,8 @@ resource "kubectl_manifest" "kubero_instance" {
         initialDelaySeconds = 5
         periodSeconds       = 5
       }
-      persistence = {
-        enabled      = true
-        storageClass = "local-path"
-        accessModes  = ["ReadWriteOnce"]
-        size         = "1Gi"
-      }
+      # NOTE: persistence block is ignored by Kubero Helm chart
+      # The correct location is kubero.database (see below)
       ingress = {
         enabled   = true
         className = "traefik"
@@ -170,6 +201,12 @@ resource "kubectl_manifest" "kubero_instance" {
           github = {
             enabled = false
           }
+        }
+        # Database PVC config - this is where storageClassName belongs!
+        database = {
+          storageClassName = "local-path"
+          accessModes      = ["ReadWriteOnce"]
+          size             = "1Gi"
         }
         config = {
           kubero = {
