@@ -1,6 +1,19 @@
 # Scripts
 
-Utility scripts for infrastructure management and CI/CD.
+Utility scripts for infrastructure management, CI/CD, and secret synchronization.
+
+## Secret Loader
+
+**File**: `ci_load_secrets.py`
+
+The central engine for CI variable injection. It parses the GitHub `secrets` context and maps them to Terraform variables.
+
+### Features
+- **Clean Values**: Automatically strips surrounding quotes and whitespace from 1Password exports.
+- **PEM Handling**: Correctly handles multiline RSA private keys for SSH and GitHub Apps.
+- **Defaults**: Provides fallback values for optional infrastructure settings (e.g., SSH port, cluster name).
+
+---
 
 ## Pre-flight Check
 
@@ -9,22 +22,9 @@ Utility scripts for infrastructure management and CI/CD.
 Run before `terraform apply` to catch common issues early.
 
 ### Checks Performed
+- **Helm URL Validation**: Verifies all Helm repository URLs in `.tf` files are reachable.
 
-| Check | Description |
-|-------|-------------|
-| Helm URL Validation | Verifies all Helm repository URLs in `.tf` files are reachable |
-
-### Usage
-
-```bash
-./preflight-check.sh
-```
-
-### Integration
-
-This script is automatically run by:
-- `terraform-plan.yml` (PR CI)
-- `deploy-k3s.yml` (Deploy CI)
+---
 
 ## Check Images
 
@@ -32,11 +32,8 @@ This script is automatically run by:
 
 Purpose: Pre-verify existence of Docker Hub image tags to avoid `ImagePullBackOff` during deployment.
 
-### Usage
+---
 
-```bash
-python3 0.tools/check_images.py nginx:1.27 postgres:16
-```
+## Sync Secrets (Local)
 
-> Requires internet access to `auth.docker.io` and `registry-1.docker.io`.# CI Path Fix
-# Test per-commit comments
+To sync secrets from 1Password to GitHub, use the pattern described in [docs/ssot/platform.secrets.md](../docs/ssot/platform.secrets.md).

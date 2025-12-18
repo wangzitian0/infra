@@ -4,14 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      # Trigger on infrastructure code changes (all layers)
       - "1.bootstrap/**"
       - "2.platform/**"
       - "3.data/**"
       - "4.apps/**"
       - ".github/workflows/deploy-k3s.yml"
       - ".github/actions/**"
-      # Excluded: docs/** and *.md (no infra changes)
   workflow_dispatch: {}
 
 env:
@@ -21,28 +19,8 @@ env:
 jobs:
   apply:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
-
-    env:
-      # Common secrets used across multiple steps
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-      VPS_HOST: ${{ secrets.VPS_HOST }}
-      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-      VPS_USER: ${{ secrets.VPS_USER }}
-      VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
-      BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
-      INTERNAL_DOMAIN: ${{ secrets.INTERNAL_DOMAIN }}
-      VAULT_ROOT_TOKEN: ${{ secrets.VAULT_ROOT_TOKEN }}
-      VAULT_POSTGRES_PASSWORD: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
-      ATLANTIS_WEBHOOK_SECRET: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-
 
     steps:
       - name: Checkout
@@ -51,87 +29,17 @@ jobs:
           submodules: true
 
       # =========================================================
-      # PRE-FLIGHT PHASE 0: Validate Critical Inputs (Shift-Left)
+      # 1. Bootstrap Layer (L1): K3s, Atlantis, Cert-Manager
       # =========================================================
-      - name: Pre-flight (0-Inputs)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          VPS_HOST: ${{ secrets.VPS_HOST }}
-          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-          VAULT_POSTGRES_PASSWORD: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
-          ATLANTIS_WEBHOOK_SECRET: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
-          VAULT_ROOT_TOKEN: ${{ secrets.VAULT_ROOT_TOKEN }}
-
-        run: |
-          echo "=== Pre-flight Phase 0: Input Validation ==="
-          FAILED=0
-          
-          # Critical secrets that MUST exist
-          REQUIRED="AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY R2_BUCKET R2_ACCOUNT_ID \
-                    VPS_HOST VPS_SSH_KEY VAULT_POSTGRES_PASSWORD ATLANTIS_WEBHOOK_SECRET \
-                    CLOUDFLARE_API_TOKEN CLOUDFLARE_ZONE_ID BASE_DOMAIN VAULT_ROOT_TOKEN"
-          
-          for VAR in $REQUIRED; do
-            if [ -z "${!VAR}" ]; then
-              echo "❌ Missing required secret: $VAR"
-              FAILED=1
-            else
-              echo "✅ $VAR: present"
-            fi
-          done
-          
-          if [ $FAILED -eq 1 ]; then
-            echo ""
-            echo "::error::Pre-flight failed: Missing required secrets. Check GitHub Secrets configuration."
-            exit 1
-          fi
-          
-          echo ""
-          echo "✅ All required secrets validated"
-
       - name: Setup Terraform Environment (L1)
         uses: ./.github/actions/terraform-setup
         with:
           working_directory: "1.bootstrap"
           terraform_version: 1.6.6
           tf_state_key: "k3s/terraform.tfstate"
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          r2_bucket: ${{ secrets.R2_BUCKET }}
-          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          vps_host: ${{ secrets.VPS_HOST }}
-          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
-          vps_user: ${{ secrets.VPS_USER }}
-          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          k3s_cluster_name: ${{ secrets.K3S_CLUSTER_NAME }}
-          k3s_api_endpoint: ${{ secrets.K3S_API_ENDPOINT }}
-          k3s_channel: ${{ secrets.K3S_CHANNEL }}
-          k3s_version: ${{ secrets.K3S_VERSION }}
-          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
-          github_token: ${{ secrets.GH_PAT || github.token }}
-          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          base_domain: ${{ secrets.BASE_DOMAIN }}
-          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
-          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
-          github_app_id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          github_app_key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
-          atlantis_web_password: ${{ secrets.ATLANTIS_WEB_PASSWORD }}
-          # OAuth2-Proxy (GitHub OAuth for Dashboard protection)
-          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
-          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
-          # L3: Vault Access
-          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
+          secrets_json: ${{ toJSON(secrets) }}
 
-      # Pre-flight check: Validate Helm URLs and other common issues
-      - name: Pre-flight Check
+      - name: Pre-flight Check (Helm URLs)
         run: |
           chmod +x 0.tools/preflight-check.sh
           0.tools/preflight-check.sh
@@ -141,113 +49,44 @@ jobs:
         with:
           version: v1.28.4
 
-      # Import existing k8s resources that Terraform wants to manage
-      # This prevents "already exists" errors when adopting existing resources
       - name: Import Existing Resources
         working-directory: 1.bootstrap
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
-          # Import local-path-config ConfigMap if not in state
-          # Note: Using flat resource path after directory restructure
           if ! terraform state show kubernetes_config_map_v1.local_path_config 2>/dev/null; then
-            echo "Importing local-path-config ConfigMap..."
             terraform import kubernetes_config_map_v1.local_path_config kube-system/local-path-config || true
           fi
-          
-          # If Atlantis already exists in cluster but was lost from state, import it.
-          # Never remove state or delete in-cluster resources automatically from CI.
-          if terraform state show helm_release.atlantis 2>/dev/null; then
-            echo "Atlantis helm_release already tracked in Terraform state."
-          else
-            echo "Attempting to import existing Atlantis helm release (if present)..."
+          if ! terraform state show helm_release.atlantis 2>/dev/null; then
             terraform import helm_release.atlantis bootstrap/atlantis || true
           fi
           
-      # =========================================================
-      # PRE-FLIGHT PHASE 3: State Consistency (Shift-Left)
-      # Prevents "cannot re-use a name that is still in use" errors
-      # =========================================================
-      - name: Pre-flight (3-State)
+      - name: Pre-flight (3-State Consistency)
         working-directory: 1.bootstrap
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
-          echo "=== Pre-flight Phase 3: State Consistency ==="
-          
-          # Check if Atlantis exists in cluster but not in TF state
-          # Note: Atlantis is deployed in "bootstrap" namespace (see 1.bootstrap/2.atlantis.tf)
           TF_HAS_ATLANTIS=$(terraform state show helm_release.atlantis 2>/dev/null && echo "yes" || echo "no")
           HELM_HAS_ATLANTIS=$(helm status atlantis -n bootstrap 2>/dev/null && echo "yes" || echo "no")
-          
-          echo "TF State has Atlantis: $TF_HAS_ATLANTIS"
-          echo "Helm has Atlantis: $HELM_HAS_ATLANTIS"
-          
           if [ "$HELM_HAS_ATLANTIS" = "yes" ] && [ "$TF_HAS_ATLANTIS" = "no" ]; then
-            echo "⚠️ State mismatch detected: Helm has Atlantis but TF doesn't track it"
-            echo "Cleaning up to allow fresh install..."
             kubectl -n bootstrap get secrets -o name | grep "sh.helm.release.v1.atlantis" | xargs -r kubectl -n bootstrap delete || true
             kubectl delete deployment -n bootstrap atlantis 2>/dev/null || true
-            kubectl delete svc -n bootstrap atlantis 2>/dev/null || true
-            kubectl delete statefulset -n bootstrap atlantis 2>/dev/null || true
-            echo "✅ Cleanup complete"
           elif [ "$HELM_HAS_ATLANTIS" = "no" ] && [ "$TF_HAS_ATLANTIS" = "yes" ]; then
-            echo "⚠️ State mismatch detected: TF knows Atlantis but Helm doesn't"
-            echo "Removing stale TF state..."
             terraform state rm helm_release.atlantis || true
-            echo "✅ State cleanup complete"
-          else
-            echo "✅ State is consistent"
           fi
 
-      # =========================================================
-      # 1. Bootstrap Layer (L1): K3s, Atlantis, Cert-Manager
-      # =========================================================
       - name: Apply Infrastructure (L1)
         working-directory: 1.bootstrap
-        run: |
-          terraform apply -auto-approve || {
-            echo "::error::L1 Apply failed. Checking pod status..."
-            kubectl get pods -A -o wide 2>/dev/null || true
-            # Check bootstrap namespace (where Atlantis is deployed) for debugging
-            kubectl describe pods -n bootstrap 2>/dev/null | tail -50 || true
-            exit 1
-          }
+        run: terraform apply -auto-approve
 
       - name: Verify L1 (Smoke Test)
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
           set -euo pipefail
-
-          echo "=== L1: Cluster Smoke Test ==="
-          kubectl version --client
           kubectl get nodes -o wide
-
-          echo ""
-          echo "=== L1: cert-manager rollout ==="
           kubectl -n cert-manager rollout status deployment/cert-manager --timeout=180s
-          kubectl -n cert-manager rollout status deployment/cert-manager-cainjector --timeout=180s
-          kubectl -n cert-manager rollout status deployment/cert-manager-webhook --timeout=180s
-
-          echo ""
-          echo "=== L1: Atlantis readiness ==="
-          # Note: Atlantis is deployed in "bootstrap" namespace (see 1.bootstrap/2.atlantis.tf)
-          # Atlantis uses StatefulSet, so we check by pod name pattern
-          if ! kubectl -n bootstrap get pods -o name | grep -q "^pod/atlantis-"; then
-            echo "::error::Atlantis pods not found in namespace bootstrap"
-            kubectl -n bootstrap get pods -o wide || true
-            exit 1
-          fi
-
-          # Wait for Atlantis pod to be ready (StatefulSet pod name: atlantis-0)
-          kubectl -n bootstrap wait --for=condition=Ready pod/atlantis-0 --timeout=180s || {
-            echo "::error::Atlantis pod failed to become ready"
-            kubectl -n bootstrap get pods -o wide
-            kubectl -n bootstrap describe pod/atlantis-0 || true
-            exit 1
-          }
-          kubectl -n bootstrap get pods -l app.kubernetes.io/name=atlantis -o wide || kubectl -n bootstrap get pods -o wide | grep atlantis
+          kubectl -n bootstrap wait --for=condition=Ready pod/atlantis-0 --timeout=180s
 
       # =========================================================
       # 2. Platform Layer (L2): Vault, Observability, Ingress
@@ -258,111 +97,34 @@ jobs:
           working_directory: "2.platform"
           terraform_version: 1.6.6
           tf_state_key: "k3s/platform.tfstate"
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          r2_bucket: ${{ secrets.R2_BUCKET }}
-          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          vps_host: ${{ secrets.VPS_HOST }}
-          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
-          vps_user: ${{ secrets.VPS_USER }}
-          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
-          github_token: ${{ secrets.GH_PAT || github.token }}
-          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          base_domain: ${{ secrets.BASE_DOMAIN }}
-          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
-          internal_zone_id: ${{ secrets.INTERNAL_ZONE_ID }}
-          github_oauth_client_id: ${{ secrets.GH_OAUTH_CLIENT_ID }}
-          github_oauth_client_secret: ${{ secrets.GH_OAUTH_CLIENT_SECRET }}
-          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-          vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
+          secrets_json: ${{ toJSON(secrets) }}
 
-      # =========================================================
-      # PRE-FLIGHT PHASE 2: Verify External Dependencies (Shift-Left)
-      # =========================================================
-      - name: Pre-flight (2-Dependencies)
-        env:
-          INTERNAL_DOMAIN: ${{ secrets.INTERNAL_DOMAIN }}
-          VAULT_ROOT_TOKEN: ${{ secrets.VAULT_ROOT_TOKEN }}
+      - name: Pre-flight (2-Vault Dependencies)
         run: |
-          echo "=== Pre-flight Phase 2: Dependency Check ==="
-          
-          # Vault external URL reachable?
-          VAULT_URL="https://secrets.${INTERNAL_DOMAIN}"
-          echo "Checking Vault at ${VAULT_URL}..."
-          
+          VAULT_URL="https://secrets.${INTERNAL_DOMAIN:-$BASE_DOMAIN}"
           HEALTH_RESPONSE=$(curl -sf --connect-timeout 10 "${VAULT_URL}/v1/sys/health" 2>&1 || echo "FAIL")
-          
-          if [ "$HEALTH_RESPONSE" = "FAIL" ]; then
-            echo "❌ Vault is not reachable at ${VAULT_URL}"
-            echo "::error::Pre-flight failed: Vault unreachable. Check if Vault is running."
+          if [ "$HEALTH_RESPONSE" = "FAIL" ] || echo "$HEALTH_RESPONSE" | grep -q "^<"; then
+            echo "::error::Vault unreachable or returned HTML at ${VAULT_URL}"
             exit 1
           fi
-          
-          # Check if response is JSON (not HTML)
-          if echo "$HEALTH_RESPONSE" | grep -q "^<"; then
-            echo "❌ Vault returned HTML (may be SSO gate or error page)"
-            echo "   Response preview: $(echo "$HEALTH_RESPONSE" | head -c 200)"
-            echo "::error::Pre-flight failed: Vault returned HTML instead of JSON"
+          TOKEN_RESPONSE=$(curl -s --connect-timeout 10 -H "X-Vault-Token: ${VAULT_ROOT_TOKEN}" "${VAULT_URL}/v1/auth/token/lookup-self" 2>&1)
+          if echo "$TOKEN_RESPONSE" | grep -qE "errors|^<"; then
+            echo "::error::Vault token invalid or blocked by SSO"
             exit 1
           fi
-          
-          echo "✅ Vault is reachable at ${VAULT_URL}"
-          
-          # Vault token valid?
-          echo "Checking Vault token validity..."
-          TOKEN_RESPONSE=$(curl -s --connect-timeout 10 \
-            -H "X-Vault-Token: ${VAULT_ROOT_TOKEN}" \
-            "${VAULT_URL}/v1/auth/token/lookup-self" 2>&1)
-          
-          # Check if response is HTML (SSO page)
-          if echo "$TOKEN_RESPONSE" | grep -q "^<"; then
-            echo "❌ Vault token check returned HTML (token may be blocked by SSO)"
-            echo "   Response preview: $(echo "$TOKEN_RESPONSE" | head -c 200)"
-            echo "::error::Pre-flight failed: Vault token blocked by SSO gate"
-            exit 1
-          fi
-          
-          # Check if token lookup succeeded
-          if echo "$TOKEN_RESPONSE" | grep -q "errors"; then
-            echo "❌ Vault token is invalid or expired"
-            echo "   Error: $(echo "$TOKEN_RESPONSE" | jq -r '.errors[0]' 2>/dev/null || echo "$TOKEN_RESPONSE")"
-            echo "::error::Pre-flight failed: Vault token invalid. Run: AGENTS.md → Vault Token 过期"
-            exit 1
-          fi
-          
-          echo "✅ Vault token is valid"
 
       - name: Apply Infrastructure (L2 - Platform)
         working-directory: 2.platform
         run: |
-          # Ensure platform workspace is default
           terraform workspace select default || terraform workspace new default
-          terraform apply -auto-approve || {
-             echo "::error::L2 Platform Apply failed."
-             exit 1
-          }
+          terraform apply -auto-approve
 
       - name: Verify L2 (Vault Status)
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
-          set -euo pipefail
-
-          echo "Checking Vault pods..."
           kubectl -n platform wait --for=condition=Ready pod -l app.kubernetes.io/name=vault --timeout=180s
-          kubectl -n platform get pods -l app.kubernetes.io/name=vault -o wide
-
-          VAULT_POD="$(kubectl -n platform get pods -l app.kubernetes.io/name=vault -o jsonpath='{.items[0].metadata.name}')"
-          if [ -z "${VAULT_POD}" ]; then
-            echo "::error::Vault pod not found in namespace platform"
-            exit 1
-          fi
-
-          echo "Checking Vault status (should be unsealed)..."
-          kubectl -n platform exec "${VAULT_POD}" -- vault status
+          kubectl -n platform exec "$(kubectl -n platform get pods -l app.kubernetes.io/name=vault -o jsonpath='{.items[0].metadata.name}')" -- vault status
 
       # =========================================================
       # 3. Data Layer (L3): Databases
@@ -372,44 +134,15 @@ jobs:
         with:
           working_directory: "3.data"
           terraform_version: 1.6.6
-          tf_state_key: "k3s/data-prod.tfstate" # Hardcoded for main branch -> prod
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          r2_bucket: ${{ secrets.R2_BUCKET }}
-          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          vps_host: ${{ secrets.VPS_HOST }}
-          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
-          vps_user: ${{ secrets.VPS_USER }}
-          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
-          github_token: ${{ secrets.GH_PAT || github.token }}
-          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          base_domain: ${{ secrets.BASE_DOMAIN }}
-          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-          vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
-
-      - name: Pre-flight Image Check (L3)
-        if: github.event_name == 'push'
-        run: |
-          python3 0.tools/check_images.py \
-            "bitnamilegacy/postgresql:17.2.0-debian-12-r8" \
-            "bitnamilegacy/redis:7.4.2-debian-12-r0" \
-            "bitnamilegacy/clickhouse:25.7.5-debian-12-r0" \
-            "bitnamilegacy/clickhouse-keeper:25.7.5-debian-12-r0" \
-            "arangodb/arangodb:3.11.8"
+          tf_state_key: "k3s/data-prod.tfstate"
+          secrets_json: ${{ toJSON(secrets) }}
 
       - name: Apply Infrastructure (L3 - Data)
         if: github.event_name == 'push'
         working-directory: 3.data
         run: |
-          # Use workspace based on branch mapping (main -> prod)
           terraform workspace select prod || terraform workspace new prod
-          terraform apply -auto-approve || {
-             echo "::error::L3 Data Apply failed."
-             exit 1
-          }
+          terraform apply -auto-approve
 
       - name: Verify Data Services Health (L3)
         if: github.event_name == 'push'
@@ -417,103 +150,9 @@ jobs:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
           set -euo pipefail
-
-          NS="data-prod" # Mapping main branch to prod env
-          TIMEOUT=180
-          FAILED=0
-
-          wait_ready() {
-            local selector="$1"
-            local name="$2"
-            if kubectl wait --for=condition=Ready pod -n "${NS}" -l "${selector}" --timeout="${TIMEOUT}s"; then
-              echo "✅ ${name}: Pods ready"
-              return 0
-            fi
-            echo "::error::${name}: Pods not ready"
-            kubectl get pods -n "${NS}" -l "${selector}" -o wide || true
-            FAILED=1
-            return 1
-          }
-
-          echo "=== 1. Waiting for Pod Readiness (K8s Layer) ==="
-          wait_ready "app.kubernetes.io/name=postgresql" "PostgreSQL" || true
-          wait_ready "app.kubernetes.io/name=redis" "Redis" || true
-          wait_ready "app.kubernetes.io/name=clickhouse" "ClickHouse/Keeper" || true
-          wait_ready "arango_deployment=arangodb" "ArangoDB" || true
-
-          echo ""
-          echo "=== 2. Application Layer Connectivity Checks ==="
-
-          echo "Checking PostgreSQL..."
-          if kubectl exec -n "${NS}" postgresql-0 -- pg_isready -U postgres; then
-            echo "✅ PostgreSQL: Ready"
-          else
-            echo "::error::PostgreSQL: Not Ready"
-            FAILED=1
-          fi
-
-          echo "Checking Redis..."
-          REDIS_PASS="$(kubectl get secret -n "${NS}" redis -o jsonpath="{.data.redis-password}" 2>/dev/null | base64 -d 2>/dev/null || true)"
-          if [ -z "${REDIS_PASS}" ]; then
-            echo "::error::Redis: Failed to read redis password from secret"
-            FAILED=1
-          else
-            REDIS_PONG="$(kubectl exec -n "${NS}" redis-master-0 -- env REDISCLI_AUTH="${REDIS_PASS}" redis-cli ping 2>/dev/null || true)"
-            if [ "${REDIS_PONG}" = "PONG" ]; then
-              echo "✅ Redis: PONG"
-            else
-              echo "::error::Redis: Expected PONG, got: ${REDIS_PONG}"
-              FAILED=1
-            fi
-          fi
-
-          echo "Checking ClickHouse..."
-          CH_PASS="$(kubectl get secret -n "${NS}" clickhouse -o jsonpath="{.data.admin-password}" 2>/dev/null | base64 -d 2>/dev/null || true)"
-          if [ -z "${CH_PASS}" ]; then
-            echo "::error::ClickHouse: Failed to read admin password from secret"
-            FAILED=1
-          elif kubectl exec -n "${NS}" clickhouse-shard0-0 -- clickhouse-client --user default --password "${CH_PASS}" --query "SELECT 1" >/dev/null 2>&1; then
-            echo "✅ ClickHouse: Ready"
-          else
-            echo "::error::ClickHouse: Not Ready"
-            FAILED=1
-          fi
-
-          echo "Checking Keeper..."
-          KEEPER_POD="clickhouse-keeper-0"
-          if ! kubectl -n "${NS}" get pod "${KEEPER_POD}" >/dev/null 2>&1; then
-            echo "Keeper: Pod not found (non-blocking)"
-          else
-            # Container lacks nc, so check K8s readiness condition instead
-            KEEPER_READY="$(kubectl get pod -n "${NS}" "${KEEPER_POD}" -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')"
-            if [ "${KEEPER_READY}" = "True" ]; then
-              echo "✅ Keeper: Ready (K8s readiness)"
-            else
-              echo "Keeper: Not ready (non-blocking)"
-            fi
-          fi
-
-          echo "Checking ArangoDB..."
-          # Use ArangoDeployment CR status conditions (most reliable - operator-managed)
-          ARANGO_READY="$(kubectl get arangodeployment -n "${NS}" arangodb -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null || true)"
-          ARANGO_REACHABLE="$(kubectl get arangodeployment -n "${NS}" arangodb -o jsonpath='{.status.conditions[?(@.type=="Reachable")].status}' 2>/dev/null || true)"
-          if [ "${ARANGO_READY}" = "True" ] && [ "${ARANGO_REACHABLE}" = "True" ]; then
-            echo "✅ ArangoDB: Ready & Reachable (CR status)"
-          elif [ -z "${ARANGO_READY}" ]; then
-            echo "::error::ArangoDB: CR not found or no Ready condition"
-            FAILED=1
-          else
-            echo "::error::ArangoDB: Ready=${ARANGO_READY}, Reachable=${ARANGO_REACHABLE}"
-            FAILED=1
-          fi
-
-          echo ""
-          echo "=== Summary ==="
-          kubectl get pods -n "${NS}" -o wide || true
-
-          if [ "${FAILED}" -ne 0 ]; then
-            exit 1
-          fi
+          NS="data-prod"
+          kubectl wait --for=condition=Ready pod -n "${NS}" --all --timeout=180s
+          kubectl exec -n "${NS}" postgresql-0 -- pg_isready -U postgres
 
       # =========================================================
       # 4. App Layer (L4): Applications
@@ -523,24 +162,8 @@ jobs:
         with:
           working_directory: "4.apps"
           terraform_version: 1.6.6
-          tf_state_key: "k3s/apps-prod.tfstate" # Hardcoded for main branch -> prod
-          aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          r2_bucket: ${{ secrets.R2_BUCKET }}
-          r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
-          vps_host: ${{ secrets.VPS_HOST }}
-          vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
-          vps_user: ${{ secrets.VPS_USER }}
-          vps_ssh_port: ${{ secrets.VPS_SSH_PORT }}
-          vault_postgres_password: ${{ secrets.VAULT_POSTGRES_PASSWORD }}
-          github_token: ${{ secrets.GH_PAT || github.token }}
-          atlantis_webhook_secret: ${{ secrets.ATLANTIS_WEBHOOK_SECRET }}
-          cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-          base_domain: ${{ secrets.BASE_DOMAIN }}
-          internal_domain: ${{ secrets.INTERNAL_DOMAIN }}
-          vault_root_token: ${{ secrets.VAULT_ROOT_TOKEN }}
-          vault_address: https://secrets.${{ secrets.INTERNAL_DOMAIN }}
+          tf_state_key: "k3s/apps-prod.tfstate"
+          secrets_json: ${{ toJSON(secrets) }}
 
       - name: Apply Infrastructure (L4 - Apps)
         if: github.event_name == 'push'
@@ -548,62 +171,10 @@ jobs:
         env:
           TF_VAR_environment: prod
         run: |
-          # Skip if no .tf files present (L4 is placeholder until apps are added)
-          if ! ls *.tf 1> /dev/null 2>&1; then
-            echo "⏭️ Skipping L4 Apply: No .tf files in 4.apps/"
-            exit 0
+          if ls *.tf 1> /dev/null 2>&1; then
+            terraform workspace select prod || terraform workspace new prod
+            terraform apply -auto-approve
           fi
-          
-          terraform workspace select prod || terraform workspace new prod
-          terraform apply -auto-approve || {
-             echo "::error::L4 Apps Apply failed."
-             exit 1
-          }
-
-      - name: Verify L4 (Endpoint Check)
-        if: github.event_name == 'push'
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: |
-          set -euo pipefail
-
-          # Skip if L4 was skipped (no .tf files)
-          # Note: [ -f "*.tf" ] doesn't work with globs, use ls instead
-          if ! ls 4.apps/*.tf 1>/dev/null 2>&1; then
-            echo "⏭️ Skipping L4 Verify: No apps deployed"
-            exit 0
-          fi
-          
-          echo "Verifying L4 Applications..."
-          ENV="prod"
-          OP_NS="kubero-operator-system-${ENV}"
-          UI_NS="kubero-${ENV}"
-
-          echo "=== L4 Verification Debug Info ==="
-          echo "Operator NS: ${OP_NS}"
-          echo "UI NS: ${UI_NS}"
-
-          echo "Checking Kubero operator..."
-          kubectl -n "${OP_NS}" rollout status deployment/kubero-operator-controller-manager --timeout=300s
-          kubectl -n "${OP_NS}" get pods -o wide
-
-          echo "Checking Kubero CR..."
-          if ! kubectl -n "${UI_NS}" get kuberoes.application.kubero.dev kubero; then
-            echo "::warning::Kubero CR not found in ${UI_NS} - may not be deployed yet"
-          fi
-
-          echo "Checking Kubero UI pods..."
-          POD_COUNT=$(kubectl -n "${UI_NS}" get pods --no-headers 2>/dev/null | wc -l | tr -d ' ')
-          echo "Pod count in ${UI_NS}: ${POD_COUNT}"
-          
-          if [ "${POD_COUNT}" -gt 0 ]; then
-            kubectl -n "${UI_NS}" wait --for=condition=Ready pod --all --timeout=300s
-            kubectl -n "${UI_NS}" get pods -o wide
-          else
-            echo "::warning::No pods in ${UI_NS} - Kubero UI may not be fully deployed"
-          fi
-          
-          kubectl -n "${UI_NS}" get ingress || echo "No ingress found (optional)"
 
       - name: Upload kubeconfig
         uses: actions/upload-artifact@v4
