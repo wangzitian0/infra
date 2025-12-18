@@ -35,7 +35,6 @@ MAPPING = {
     "VAULT_ROOT_TOKEN": "TF_VAR_vault_root_token",
 }
 
-# Values to use if missing from secrets_json
 DEFAULTS = {
     "VPS_USER": "root",
     "VPS_SSH_PORT": "22",
@@ -43,18 +42,27 @@ DEFAULTS = {
     "K3S_CHANNEL": "stable",
 }
 
-# Direct system environment mappings
 SYSTEM_ENV_ONLY = {
     "VAULT_ROOT_TOKEN": "VAULT_TOKEN",
 }
+
+def clean_value(val):
+    """Cleans secret value: strips whitespace and surrounding quotes."""
+    if val is None: return None
+    s = str(val).strip()
+    # Remove surrounding quotes if they exist (common issue from 1P exports)
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'" ) and s.endswith("'" )):
+        s = s[1:-1].strip()
+    return s
 
 def export_to_github_env(name, value):
     github_env = os.environ.get("GITHUB_ENV")
     if not github_env:
         return
     with open(github_env, "a") as f:
-        if "\n" in str(value):
-            f.write(f"{name}<<EOF\n{value}\nEOF\n")
+        # Using a unique EOF marker to prevent collisions
+        if "\n" in value:
+            f.write(f"{name}<<GITHUB_VAR_EOF\n{value}\nGITHUB_VAR_EOF\n")
         else:
             f.write(f"{name}={value}\n")
 
@@ -78,20 +86,17 @@ def main():
         "BASE_DOMAIN"
     ]
 
-    # Process all mappings
     for source_key, target_var in MAPPING.items():
-        val = secrets.get(source_key)
-        
-        # Apply defaults if missing
-        if val is None or str(val).strip() == "":
-            val = DEFAULTS.get(source_key)
+        # Clean both the input and the default
+        val = clean_value(secrets.get(source_key))
+        if not val:
+            val = clean_value(DEFAULTS.get(source_key))
         
         if val is None:
             if source_key in REQUIRED:
                 missing_required.append(source_key)
             continue
 
-        # Export!
         export_to_github_env(target_var, val)
         export_to_github_env(source_key, val)
         if source_key in SYSTEM_ENV_ONLY:
@@ -103,7 +108,7 @@ def main():
             print(f"::error::Required secret missing: {m}")
         sys.exit(1)
 
-    print(f"Successfully loaded {count} secrets (including defaults).")
+    print(f"Successfully loaded {count} secrets.")
 
 if __name__ == "__main__":
     main()
