@@ -148,7 +148,8 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，�
 | Vault OIDC | ✅ REST API 自动创建 (`vault-oidc`) |
 | Dashboard OIDC | ✅ REST API 自动创建 (`dashboard-oidc`) |
 | Kubero OIDC | ✅ REST API 自动创建 (`kubero-oidc`) |
-| OAuth2-Proxy | ✅ 已移除 (被 Casdoor 替代) |
+| Vault 策略/角色 | ✅ 已通过 Terraform 自动化 (`92.vault-kubero.tf`) |
+| 自动导入机制 | ✅ REST API 自动同步 |
 
 ---
 
