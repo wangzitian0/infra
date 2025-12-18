@@ -28,7 +28,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `91.vault-auth-kubernetes.tf` | Vault K8s Auth | Kubernetes authentication backend for pod identity |
 | `92.vault-kubero.tf` | Kubero Vault | Vault KV secrets, policies, and roles for Kubero |
 | `92.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |
-| `99.checks.tf` | SSO Validation | Shift-left checks for OIDC discovery, Casdoor health, Portal auth |
+| `99.checks.tf` | SSO Validation | Whitebox checks for OIDC discovery, Casdoor health, and Portal auth readiness |
 
 ### Secrets Strategy
 

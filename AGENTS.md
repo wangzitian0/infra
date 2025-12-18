@@ -60,6 +60,16 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 ## 4. Defensive Maintenance SOP (Infrastructure Reliability)
 - **Rule 1: No Blackbox Parameters**. Before using a new resource or provider argument, you MUST read the `versions.tf` and verify the exact argument name from the Official Terraform Registry. Never assume common names like `timeout` or `retry`.
 - **Rule 2: Whitebox Logic**. Any dynamic string construction (URLs, IDs, Paths) MUST be verifiable. Use `terraform_data` or `output` to echo the final constructed string in Plan output.
+- **Rule 3: Drift Detection First**. For external API resources (Casdoor, Vault), always prefer `data` sources with `precondition` to detect "already exists" errors during the **Plan** stage, not Apply.
+- **Rule 4: State Discrepancy Protocol**. If an Apply fails with a conflict (e.g., 500 Already Exists), DO NOT blindly re-run. You MUST:
+    1. Query the live API/DB to confirm the resource status.
+    2. Synchronize state via `terraform import` or manual cleanup of ghost resources.
+    3. Scale down cached services (like Casdoor) if necessary to clear memory drift.
+- **Rule 5: Cooldown for Ingress/DNS**. When deploying Ingress, Certs, or DNS records, always include a `time_sleep` resource (minimum 60s) before any Health Check data source to account for propagation delay.
+
+## 4. Defensive Maintenance SOP (Infrastructure Reliability)
+- **Rule 1: No Blackbox Parameters**. Before using a new resource or provider argument, you MUST read the `versions.tf` and verify the exact argument name from the Official Terraform Registry. Never assume common names like `timeout` or `retry`.
+- **Rule 2: Whitebox Logic**. Any dynamic string construction (URLs, IDs, Paths) MUST be verifiable. Use `terraform_data` or `output` to echo the final constructed string in Plan output.
 - **Rule 3: Drift Detection First**. For external API resources (Casdoor, Vault), always prefer `import` blocks or `data` sources with `precondition` to detect "already exists" errors during the **Plan** stage, not Apply.
 - **Rule 4: State Discrepancy Protocol**. If an Apply fails with a conflict (e.g., 500 Already Exists), DO NOT blindly re-run. You MUST:
     1. Query the live API/DB to confirm the resource status.
