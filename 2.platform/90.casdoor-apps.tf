@@ -21,27 +21,27 @@
 
 import {
   to = restapi_object.provider_github[0]
-  id = "admin/GitHub"
+  id = "GitHub"
 }
 
 import {
   to = restapi_object.app_portal_gate[0]
-  id = "admin/portal-gate"
+  id = "portal-gate"
 }
 
 import {
   to = restapi_object.app_vault_oidc[0]
-  id = "admin/vault-oidc"
+  id = "vault-oidc"
 }
 
 import {
   to = restapi_object.app_dashboard_oidc[0]
-  id = "admin/dashboard-oidc"
+  id = "dashboard-oidc"
 }
 
 import {
   to = restapi_object.app_kubero_oidc[0]
-  id = "admin/kubero-oidc"
+  id = "kubero-oidc"
 }
 
 # =============================================================================
@@ -54,9 +54,10 @@ resource "restapi_object" "provider_github" {
   path         = "/add-provider"
   create_path  = "/add-provider"
   update_path  = "/update-provider"
-  # Whitebox: {id} placeholder is replaced by name ("GitHub") resulting in id=admin/GitHub
-  read_path    = "/get-provider?id=admin/{id}"
-  destroy_path = "/delete-provider?id=admin/{id}"
+  # Whitebox: Provider appends '/{id}' to read_path. 
+  # Result: /get-provider?id=admin/GitHub
+  read_path    = "/get-provider?id=admin"
+  destroy_path = "/delete-provider?id=admin"
   id_attribute = "name"
 
   data = jsonencode({
@@ -114,8 +115,8 @@ resource "restapi_object" "app_portal_gate" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin/{id}"
-  destroy_path = "/delete-application?id=admin/{id}"
+  read_path    = "/get-application?id=admin"
+  destroy_path = "/delete-application?id=admin"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -136,8 +137,8 @@ resource "restapi_object" "app_vault_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin/{id}"
-  destroy_path = "/delete-application?id=admin/{id}"
+  read_path    = "/get-application?id=admin"
+  destroy_path = "/delete-application?id=admin"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -158,8 +159,8 @@ resource "restapi_object" "app_dashboard_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin/{id}"
-  destroy_path = "/delete-application?id=admin/{id}"
+  read_path    = "/get-application?id=admin"
+  destroy_path = "/delete-application?id=admin"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -180,8 +181,8 @@ resource "restapi_object" "app_kubero_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin/{id}"
-  destroy_path = "/delete-application?id=admin/{id}"
+  read_path    = "/get-application?id=admin"
+  destroy_path = "/delete-application?id=admin"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
