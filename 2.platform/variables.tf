@@ -188,3 +188,19 @@ variable "enable_postgres_backend" {
   # 2. Apply L3 (PostgreSQL deployed)
   # 3. Apply L2 with enable_postgres_backend=true (creates database connection)
 }
+
+# ============================================================
+# Kubernetes Configuration (for Vault Auth)
+# ============================================================
+
+variable "kubernetes_host" {
+  description = "Kubernetes API host (e.g., https://103.214.23.41:6443)."
+  type        = string
+  default     = "https://kubernetes.default.svc"
+}
+
+variable "kubernetes_ca_cert" {
+  description = "Kubernetes CA certificate (base64 encoded)."
+  type        = string
+  default     = ""
+}

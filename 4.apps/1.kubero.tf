@@ -247,7 +247,6 @@ output "kubero_ui_url" {
 }
 
 output "kubero_session_secret" {
-  value       = random_id.kubero_session_secret.hex
-  description = "Kubero session secret (for reference)"
-  sensitive   = true
+  value     = data.vault_kv_secret_v2.kubero.data["KUBERO_SESSION_KEY"]
+  sensitive = true
 }

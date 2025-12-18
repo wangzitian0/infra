@@ -48,3 +48,20 @@ variable "namespaces" {
     kubero   = "kubero"
   }
 }
+
+# ============================================================
+# Vault Configuration (for reading secrets)
+# ============================================================
+
+variable "vault_root_token" {
+  description = "Vault root token (set via TF_VAR_vault_root_token in Atlantis)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "vault_address" {
+  description = "Vault server address."
+  type        = string
+  default     = "http://vault.platform.svc.cluster.local:8200"
+}
