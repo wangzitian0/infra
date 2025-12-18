@@ -14,29 +14,20 @@
 # ------------------------------------------------------------
 # E2E Check: OAuth2-Proxy /ping endpoint (Robust with Retries)
 # ------------------------------------------------------------
-resource "null_resource" "portal_auth_ping" {
+resource "terracurl_request" "portal_auth_ping" {
   count = local.portal_sso_gate_enabled ? 1 : 0
 
-  triggers = {
-    # Re-run when helm release changes
-    release_version = helm_release.portal_auth[0].version
-  }
+  name   = "portal_auth_ping"
+  url    = "https://auth.${local.internal_domain}/ping"
+  method = "GET"
 
-  provisioner "local-exec" {
-    command = <<EOT
-      echo "Waiting for portal auth (OAuth2-Proxy) to be ready at https://auth.${local.internal_domain}/ping ..."
-      for i in {1..15}; do
-        if curl -s -k --fail https://auth.${local.internal_domain}/ping; then
-          echo "✅ Portal auth is ready!"
-          exit 0
-        fi
-        echo "⏳ Attempt $i: Portal auth not ready yet, retrying in 5s..."
-        sleep 5
-      done
-      echo "❌ Error: Portal auth failed to become ready after 75s"
-      exit 1
-    EOT
-  }
+  timeout_overall = 90
+  retry_interval  = 5
+
+  # Consider 200 or 202 as success
+  response_codes = [200, 202]
+
+  skip_tls_verify = true
 
   depends_on = [helm_release.portal_auth]
 }
@@ -47,7 +38,7 @@ resource "null_resource" "portal_auth_ping" {
 output "sso_e2e_status" {
   value = local.portal_sso_gate_enabled ? {
     oidc_discovery = try(data.http.casdoor_oidc_discovery[0].status_code, "skipped")
-    portal_auth    = "checked_via_null_resource"
+    portal_auth    = try(terracurl_request.portal_auth_ping[0].response_code, "failed")
     } : {
     oidc_discovery = "disabled"
     portal_auth    = "disabled"
