@@ -18,10 +18,10 @@
 # Requires: TF_VAR_vault_root_token set in Atlantis Pod env
 # =============================================================================
 
-# Vault Config: Uses shared module (Issue #301)
+# Vault Config: Read from L2 outputs via terraform_remote_state (Issue #301)
 data "vault_kv_secret_v2" "redis" {
-  mount = module.vault_config.vault_kv_mount
-  name  = module.vault_config.vault_db_secrets["redis"]
+  mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]
 }
 
 # =============================================================================
@@ -110,7 +110,7 @@ output "redis_port" {
 }
 
 output "redis_vault_path" {
-  value       = module.vault_config.vault_secret_paths["redis"]
+  value       = data.terraform_remote_state.l2_platform.outputs.vault_secret_paths["redis"]
   description = "Vault KV path for Redis credentials"
 }
 

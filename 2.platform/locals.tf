@@ -5,12 +5,22 @@ locals {
   # This allows CI to skip Vault config when Vault is unreachable
   # Use nonsensitive() to avoid tainting outputs as sensitive
   vault_enabled = nonsensitive(var.vault_root_token) != ""
-}
 
-# =============================================================================
-# Vault Config SSOT Module (Issue #301)
-# Single Source of Truth for all Vault paths
-# =============================================================================
-module "vault_config" {
-  source = "../modules/vault-config"
+  # =============================================================================
+  # Vault KV v2 SSOT - Single Source of Truth for all L3 DB secrets
+  # Issue #301: Centralized path definitions
+  # L3 reads these via terraform_remote_state
+  # =============================================================================
+  vault_kv_mount = "secret"
+
+  vault_db_secrets = {
+    postgres   = "postgres"
+    redis      = "redis"
+    clickhouse = "clickhouse"
+    arangodb   = "arangodb"
+  }
+
+  vault_secret_paths = {
+    for k, v in local.vault_db_secrets : k => "${local.vault_kv_mount}/data/${v}"
+  }
 }
