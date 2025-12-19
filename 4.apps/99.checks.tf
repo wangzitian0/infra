@@ -27,3 +27,16 @@ resource "terraform_data" "domain_config_check" {
     }
   }
 }
+
+# ============================================================
+# L4 Health Status Summary
+# ============================================================
+output "l4_health_status" {
+  value = {
+    kubero_operator_manifests = length(kubectl_manifest.kubero_operator)
+    kubero_cr_deployed        = kubectl_manifest.kubero_instance.id != ""
+    kubero_secrets_synced     = kubernetes_secret.kubero_secrets.id != ""
+    kubero_namespace          = kubernetes_namespace.kubero.metadata[0].name
+  }
+  description = "L4 Kubero deployment status summary"
+}

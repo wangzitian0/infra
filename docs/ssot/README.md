@@ -31,7 +31,8 @@
 
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
-| [db.overview.md](./db.overview.md) | 数据库分布总览 | 各层数据库矩阵 |
+| [db.overview.md](./db.overview.md) | 数据库总览 + Quick Start | 各库快速接入、Vault 机制概述 |
+| [db.vault-integration.md](./db.vault-integration.md) | Vault 接入详解 | Per-App Token、新应用接入流程、故障排查 |
 | [db.platform_pg.md](./db.platform_pg.md) | Platform PG (L1) | Vault/Casdoor 后端 |
 | [db.business_pg.md](./db.business_pg.md) | Business PG (L3) | 业务应用数据库 |
 | [db.redis.md](./db.redis.md) | Redis (L3) | 缓存、消息队列 |

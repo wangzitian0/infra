@@ -47,6 +47,11 @@ resource "helm_release" "clickhouse" {
       condition     = can(data.vault_kv_secret_v2.clickhouse.data["password"]) && length(data.vault_kv_secret_v2.clickhouse.data["password"]) >= 16
       error_message = "ClickHouse password must be available in Vault KV and at least 16 characters."
     }
+
+    postcondition {
+      condition     = self.status == "deployed"
+      error_message = "ClickHouse Helm release failed to deploy. Check pod logs and events."
+    }
   }
 
   values = [
