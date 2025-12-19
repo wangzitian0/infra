@@ -103,7 +103,7 @@ resource "kubernetes_namespace" "kubero" {
 
 data "vault_kv_secret_v2" "kubero" {
   mount = var.vault_kv_mount
-  name  = "data/kubero"
+  name  = "kubero"
 
   lifecycle {
     postcondition {

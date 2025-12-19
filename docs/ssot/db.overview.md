@@ -38,7 +38,7 @@ graph LR
 | 属性 | 值 |
 |------|------|
 | **服务地址** | `postgresql.data-<env>.svc.cluster.local:5432` |
-| **Vault 静态密码** | `secret/data/data/postgres` |
+| **Vault 静态密码** | `secret/data/postgres` |
 | **Vault 动态凭据** | `database/creds/app-readonly` / `app-readwrite` |
 
 ```yaml
@@ -46,9 +46,9 @@ graph LR
 annotations:
   vault.hashicorp.com/agent-inject: "true"
   vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-pg: "secret/data/data/postgres"
+  vault.hashicorp.com/agent-inject-secret-pg: "secret/data/postgres"
   vault.hashicorp.com/agent-inject-template-pg: |
-    {{- with secret "secret/data/data/postgres" -}}
+    {{- with secret "secret/data/postgres" -}}
     export PGPASSWORD="{{ .Data.data.password }}"
     {{- end }}
 ```
@@ -60,15 +60,15 @@ annotations:
 | 属性 | 值 |
 |------|------|
 | **服务地址** | `redis-master.data-<env>.svc.cluster.local:6379` |
-| **Vault 路径** | `secret/data/data/redis` |
+| **Vault 路径** | `secret/data/redis` |
 
 ```yaml
 annotations:
   vault.hashicorp.com/agent-inject: "true"
   vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-redis: "secret/data/data/redis"
+  vault.hashicorp.com/agent-inject-secret-redis: "secret/data/redis"
   vault.hashicorp.com/agent-inject-template-redis: |
-    {{- with secret "secret/data/data/redis" -}}
+    {{- with secret "secret/data/redis" -}}
     export REDIS_PASSWORD="{{ .Data.data.password }}"
     {{- end }}
 ```
@@ -81,15 +81,15 @@ annotations:
 |------|------|
 | **服务地址** | `clickhouse.data-<env>.svc.cluster.local` |
 | **端口** | 8123 (HTTP) / 9000 (Native) |
-| **Vault 路径** | `secret/data/data/clickhouse` |
+| **Vault 路径** | `secret/data/clickhouse` |
 
 ```yaml
 annotations:
   vault.hashicorp.com/agent-inject: "true"
   vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-ch: "secret/data/data/clickhouse"
+  vault.hashicorp.com/agent-inject-secret-ch: "secret/data/clickhouse"
   vault.hashicorp.com/agent-inject-template-ch: |
-    {{- with secret "secret/data/data/clickhouse" -}}
+    {{- with secret "secret/data/clickhouse" -}}
     export CLICKHOUSE_PASSWORD="{{ .Data.data.password }}"
     {{- end }}
 ```
@@ -101,16 +101,16 @@ annotations:
 | 属性 | 值 |
 |------|------|
 | **服务地址** | `arangodb.data-<env>.svc.cluster.local:8529` |
-| **Vault 路径** | `secret/data/data/arangodb` |
+| **Vault 路径** | `secret/data/arangodb` |
 | **字段** | `password` (root), `jwt_secret` |
 
 ```yaml
 annotations:
   vault.hashicorp.com/agent-inject: "true"
   vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-arango: "secret/data/data/arangodb"
+  vault.hashicorp.com/agent-inject-secret-arango: "secret/data/arangodb"
   vault.hashicorp.com/agent-inject-template-arango: |
-    {{- with secret "secret/data/data/arangodb" -}}
+    {{- with secret "secret/data/arangodb" -}}
     export ARANGO_PASSWORD="{{ .Data.data.password }}"
     {{- end }}
 ```
