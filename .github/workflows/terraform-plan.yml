@@ -31,9 +31,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ============================================================ 
+      # ============================================================
       # PRE-FLIGHT: Integrity and Security (from main)
-      # ============================================================ 
+      # ============================================================
       - name: Variable Integrity Check
         run: python3 0.tools/check_integrity.py
 
@@ -46,9 +46,9 @@ jobs:
           fi
           rm atlantis_key.pem
 
-      # ============================================================ 
+      # ============================================================
       # STEP 1: Create skeleton comment FIRST (lock commit)
-      # ============================================================ 
+      # ============================================================
       # Generate App Token is bypassed due to OpenSSL compatibility issues
       # Using secrets.GITHUB_TOKEN directly for comment updates.
 
@@ -59,17 +59,17 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           result-encoding: string
           script: |
-            const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
+            const sha = context.payload.pull_request.head.sha.substring(0, 7);
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const runUrl = "https://github.com/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId;
-            const prUrl = "https://github.com/" + context.repo.owner + "/" + context.repo.repo + "/pull/" + context.issue.number;
+            const prUrl = "https://github.com/" + context.repo.owner + "/" + context.repo.repo + "/pull/" + context.payload.pull_request.number;
             const MARKER = "<!-- infra-flash-commit:" + sha + " -->";
             
             // Check if comment already exists
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: context.payload.pull_request.number,
               per_page: 100
             });
             const existing = comments.data.find(c => c.body.includes(MARKER));
@@ -132,7 +132,7 @@ jobs:
               const created = await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
+                issue_number: context.payload.pull_request.number,
                 body: skeleton
               });
               commentId = created.data.id;
@@ -140,9 +140,9 @@ jobs:
             console.log("Created/updated skeleton for commit " + sha);
             return commentId.toString();
 
-      # ============================================================ 
+      # ============================================================
       # STEP 2: Run CI Checks
-      # ============================================================ 
+      # ============================================================
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -212,9 +212,9 @@ jobs:
         run: terraform init -backend=false -input=false -no-color && terraform validate -no-color
         continue-on-error: true
 
-      # ============================================================ 
+      # ============================================================
       # STEP 3: Update comment with results
-      # ============================================================ 
+      # ============================================================
       - name: Update comment with results
         if: always()
         uses: actions/github-script@v7
@@ -234,7 +234,7 @@ jobs:
             const icon = (s) => s === 'success' ? '✅' : (s === 'skipped' ? '⏭️' : '❌');
             const allPass = [fmt, lint_l1, lint_l2, lint_l3, lint_l4, validate_l1, validate_l2, validate_l3, validate_l4]
               .every(s => s === 'success' || s === 'skipped');
-            const sha = '${{ github.event.pull_request.head.sha }}'.substring(0, 7);
+            const sha = context.payload.pull_request.head.sha.substring(0, 7);
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const runUrl = "https://github.com/" + context.repo.owner + "/" + context.repo.repo + "/actions/runs/" + context.runId;
             const commentId = ${{ steps.skeleton.outputs.result }};
@@ -271,7 +271,7 @@ jobs:
             const changedFiles = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.issue.number,
+              pull_number: context.payload.pull_request.number,
               per_page: 100
             });
             const hasTfChanges = changedFiles.data.some(f => 
@@ -339,9 +339,9 @@ jobs:
             });
             console.log("Updated comment: CI " + (allPass ? 'PASS' : 'FAIL'));
 
-      # ============================================================ 
+      # ============================================================
       # Final Status
-      # ============================================================ 
+      # ============================================================
       - name: Check Results
         run: |
           FAILED=0

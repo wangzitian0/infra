@@ -18,9 +18,9 @@
 resource "restapi_object" "provider_github" {
   count = local.casdoor_enabled ? 1 : 0
 
-  path         = "/add-provider"
-  create_path  = "/add-provider"
-  update_path  = "/update-provider"
+  path        = "/add-provider"
+  create_path = "/add-provider"
+  update_path = "/update-provider"
   # Whitebox: Provider appends '/{id}' to read_path. 
   # Result: /get-provider?id=admin/GitHub
   read_path    = "/get-provider?id=admin"
