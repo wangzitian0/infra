@@ -11,7 +11,7 @@ from ci_load_secrets import OP_CONTRACT
 def clean_value(val):
     if not val: return None
     s = str(val).strip()
-    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'"') and s.endswith("'")):
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
         s = s[1:-1].strip()
     return s
 
