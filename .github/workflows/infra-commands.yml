@@ -1,6 +1,8 @@
 name: Infra Commands
 
 on:
+  pull_request:
+    types: [opened, synchronize]
   issue_comment:
     types: [created]
 
@@ -30,32 +32,44 @@ jobs:
       - name: Parse Command
         id: parse
         run: |
-          # Get the first line, lower case it
-          BODY_LOWER=$(echo "${{ github.event.comment.body }}" | head -n 1 | tr '[:upper:]' '[:lower:]')
-          
-          if [[ "$BODY_LOWER" == "infra review"* ]]; then
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "command=review" >> $GITHUB_OUTPUT
             echo "valid=true" >> $GITHUB_OUTPUT
-          elif [[ "$BODY_LOWER" == "infra dig"* ]]; then
-            echo "command=dig" >> $GITHUB_OUTPUT
-            echo "valid=true" >> $GITHUB_OUTPUT
-          elif [[ "$BODY_LOWER" == "infra help"* ]] || [[ "$BODY_LOWER" == "infra" ]]; then
-            echo "command=help" >> $GITHUB_OUTPUT
-            echo "valid=true" >> $GITHUB_OUTPUT
           else
-            echo "valid=false" >> $GITHUB_OUTPUT
+            # Get the first line, lower case it
+            BODY_LOWER=$(echo "${{ github.event.comment.body }}" | head -n 1 | tr '[:upper:]' '[:lower:]')
+            
+            if [[ "$BODY_LOWER" == "infra review"* ]]; then
+              echo "command=review" >> $GITHUB_OUTPUT
+              echo "valid=true" >> $GITHUB_OUTPUT
+            elif [[ "$BODY_LOWER" == "infra dig"* ]]; then
+              echo "command=dig" >> $GITHUB_OUTPUT
+              echo "valid=true" >> $GITHUB_OUTPUT
+            elif [[ "$BODY_LOWER" == "infra help"* ]] || [[ "$BODY_LOWER" == "infra" ]]; then
+              echo "command=help" >> $GITHUB_OUTPUT
+              echo "valid=true" >> $GITHUB_OUTPUT
+            else
+              echo "valid=false" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Get PR Info
         if: steps.parse.outputs.valid == 'true'
         id: pr
         run: |
-          PR_JSON=$(gh pr view ${{ github.event.issue.number }} --json headRefName,headRefOid)
-          BRANCH=$(echo "$PR_JSON" | jq -r .headRefName)
-          SHA=$(echo "$PR_JSON" | jq -r .headRefOid)
-          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-          echo "sha=${SHA:0:7}" >> $GITHUB_OUTPUT
-          echo "full_sha=$SHA" >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "branch=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+            SHA="${{ github.event.pull_request.head.sha }}"
+            echo "sha=${SHA:0:7}" >> $GITHUB_OUTPUT
+            echo "full_sha=$SHA" >> $GITHUB_OUTPUT
+          else
+            PR_JSON=$(gh pr view ${{ github.event.issue.number }} --json headRefName,headRefOid)
+            BRANCH=$(echo "$PR_JSON" | jq -r .headRefName)
+            SHA=$(echo "$PR_JSON" | jq -r .headRefOid)
+            echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+            echo "sha=${SHA:0:7}" >> $GITHUB_OUTPUT
+            echo "full_sha=$SHA" >> $GITHUB_OUTPUT
+          fi
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
 
@@ -154,7 +168,7 @@ jobs:
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: ${{ github.event.issue.number || github.event.pull_request.number }},
               per_page: 100
             });
             const existing = comments.data.find(c => c.body.includes(MARKER));
