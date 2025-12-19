@@ -77,39 +77,41 @@ jobs:
             });
             const existing = comments.data.find(c => c.body.includes(MARKER));
             
-            // Full skeleton with all sections
+            // Full skeleton with Status Table
             const skeleton = [
               MARKER,
-              "## ⚡ Commit `" + sha + "`",
-              '',
-              '<details><summary>📖 Commands</summary>',
-              '',
-              '| Command | Description |',
-              '|:--------|:------------|',
-              '| `atlantis plan` | Re-run plan |',
-              '| `atlantis apply` | Apply changes |',
-              '| `atlantis unlock` | Unlock PR |',
-              '',
-              '</details>',
-              '',
-              '---',
-              '',
-              "### CI Validate ⏳ | [" + sha + "](" + runUrl + ") | " + timestamp,
-              '',
+              "## ⚡ Commit `" + sha + "` Dashboard",
+              "",
+              "| Component | Status | Info/Link | Time |",
+              "|:---|:---:|:---|:---|",
+              `| **Static CI** | ⏳ | [Running Checks...](${runUrl}) | ${timestamp} |`,
+              "| **AI Review** | ⏳ | Pending | - |",
+              "| **Infra Plan** | ⏳ | Pending | - |",
+              "| **Infra Apply** | ⏭️ | - | - |",
+              "| **Health Check** | ⏭️ | - | - |",
+              "",
+              "---",
+              "",
+              "### 🛠️ CI Validate ⏳ | [" + sha + "](" + runUrl + ") | " + timestamp,
+              "",
               '⏳ Running checks...', 
-              '',
-              '---',
-              '',
-              '### Atlantis Actions',
-              '',
-              '<!-- atlantis-actions -->',
-              '| Action | Commit | Trigger | Status | Output | Time |',
-              '|:-------|:-------|:--------|:------:|:-------|:-----|',
-              '<!-- /atlantis-actions -->',
-              '',
-              '---',
-              '',
-              '⏳ **Waiting for CI...**'
+              "",
+              "<!-- copilot-review-placeholder -->",
+              "",
+              "---",
+              "",
+              "### 🚀 Atlantis Actions",
+              "",
+              "<!-- atlantis-actions -->",
+              "| Action | Commit | Trigger | Status | Output | Time |",
+              "|:-------|:-------|:--------|:------:|:-------|:-----|",
+              "<!-- /atlantis-actions -->",
+              "",
+              "<!-- health-check-placeholder -->",
+              "",
+              "---",
+              "",
+              "⏳ **Waiting for CI...**"
             ].join('\n');
             
             let commentId;
@@ -252,12 +254,13 @@ jobs:
             
             // CI section: simple if passed, detailed if failed
             let ciSection;
+            let statusIcon = icon(allPass);
             if (allPass) {
-              ciSection = "### CI Validate ✅ | [" + sha + "](" + runUrl + ") | " + timestamp;
+              ciSection = `### 🛠️ CI Validate ✅ | [${sha}](${runUrl}) | ${timestamp}`;
             } else {
               const fixCmd = '```bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n```';
               ciSection = [
-                "### CI Validate ❌ | [" + sha + "](" + runUrl + ") | " + timestamp,
+                `### 🛠️ CI Validate ❌ | [${sha}](${runUrl}) | ${timestamp}`,
                 '',
                 '| Layer | Format | Lint | Validate |',
                 '|:------|:------:|:----:|:--------:|',
@@ -270,7 +273,7 @@ jobs:
               ].join('\n');
             }
             
-            // Check if TF files were changed (Atlantis only runs for TF changes)
+            // Check if TF files were changed
             const changedFiles = await github.rest.pulls.listFiles({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -281,7 +284,6 @@ jobs:
               /^[1-4]\.(bootstrap|platform|data|apps)\/.*\.tf$/.test(f.filename)
             );
             
-            // Next step depends on CI result AND whether TF files changed
             let nextStep;
             if (!allPass) {
               nextStep = '❌ **CI failed.** Fix errors and push again.';
@@ -291,49 +293,21 @@ jobs:
               nextStep = '✅ **No Terraform changes. Ready to merge!**';
             }
             
-            // Preserve Atlantis actions
-            let atlantisSection = [
-              '<!-- atlantis-actions -->',
-              '| Action | Commit | Trigger | Status | Output | Time |',
-              '|:-------|:-------|:--------|:------:|:-------|:-----|',
-              '<!-- /atlantis-actions -->'
-            ].join('\n');
-            
-            const actionsMatch = existingComment.data.body.match(/<!-- atlantis-actions -->([\s\S]*?)<!-- \/atlantis-actions -->/);
-            if (actionsMatch && actionsMatch[1].includes('|')) {
-              atlantisSection = "<!-- atlantis-actions -->" + actionsMatch[1] + "<!-- /atlantis-actions -->";
-            }
-            
-            // Build final body
-            const body = [
-              MARKER,
-              "## ⚡ Commit `" + sha + "`",
-              '',
-              '<details><summary>📖 Commands</summary>',
-              '',
-              '| Command | Description |',
-              '|:--------|:------------|',
-              '| `atlantis plan` | Re-run plan |',
-              '| `atlantis apply` | Apply changes |',
-              '| `atlantis unlock` | Unlock PR |',
-              '',
-              '</details>',
-              '',
-              '---',
-              '',
-              ciSection,
-              '',
-              '---',
-              '',
-              '### Atlantis Actions',
-              '',
-              atlantisSection,
-              '',
-              '---',
-              '',
-              nextStep
-            ].join('\n');
-            
+            let body = existingComment.data.body;
+
+            // 1. Update Status Table Row for CI
+            body = body.replace(
+              /\| \*\*Static CI\*\* \| .* \| .* \| .* \|/,
+              `| **Static CI** | ${statusIcon} | [View Details](${runUrl}) | ${timestamp} |`
+            );
+
+            // 2. Update Details Section
+            const ciRegex = /### 🛠️ CI Validate [\s\S]*?---\n/;
+            body = body.replace(ciRegex, `${ciSection}\n\n---\n`);
+
+            // 3. Update Next Step
+            body = body.replace(/⏳ \*\*Waiting for CI\.\.\.\*\*|❌ \*\*CI failed\.\*\*.*|⏳ \*\*Atlantis autoplan running\.\.\.\*\*|✅ \*\*No Terraform changes\.\*\*.*/, nextStep);
+
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

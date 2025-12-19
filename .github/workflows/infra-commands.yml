@@ -158,13 +158,7 @@ jobs:
             const sha = '${{ steps.pr.outputs.sha }}';
             const cmd = '${{ steps.parse.outputs.command }}';
             const MARKER = `<!-- infra-flash-commit:${sha} -->`;
-            const SECTION_START = `<!-- section-${cmd} -->`;
-            const SECTION_END = `<!-- /section-${cmd} -->`;
             
-            let content = '';
-            if (cmd === 'review') content = `${{ steps.review.outputs.review_body }}`;
-            if (cmd === 'dig') content = `${{ steps.health_check.outputs.table }}`;
-
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -175,14 +169,38 @@ jobs:
             if (!existing) return;
 
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
-            const title = cmd === 'review' ? '🤖 Copilot Review' : '🔍 Health Check (dig)';
-            const newSection = [SECTION_START, `### ${title} | ${timestamp}`, '', content, '', SECTION_END].join('\n');
-
             let body = existing.body;
-            if (body.includes(SECTION_START)) {
-              body = body.replace(new RegExp(`${SECTION_START}[\s\S]*?${SECTION_END}`), newSection);
-            } else {
-              body = body.replace('### Atlantis Actions', `${newSection}\n\n---\n\n### Atlantis Actions`);
+
+            if (cmd === 'review') {
+              const reviewBody = `${{ steps.review.outputs.review_body }}`;
+              const section = [
+                '<!-- copilot-review-placeholder -->',
+                '### 🤖 Copilot Review | ' + timestamp,
+                '',
+                reviewBody,
+                '',
+                '---'
+              ].join('\n');
+              // Update status table
+              body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${timestamp} |`);
+              // Update details
+              body = body.replace('<!-- copilot-review-placeholder -->', section);
+            }
+
+            if (cmd === 'dig') {
+              const table = `${{ steps.health_check.outputs.table }}`;
+              const section = [
+                '<!-- health-check-placeholder -->',
+                '### 🔍 Health Check: [dig] | ' + timestamp,
+                '',
+                table,
+                '',
+                '---'
+              ].join('\n');
+              // Update status table
+              body = body.replace(/\| \*\*Health Check\*\* \| .* \| .* \| .* \|/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${timestamp} |`);
+              // Update details
+              body = body.replace('<!-- health-check-placeholder -->', section);
             }
 
             await github.rest.issues.updateComment({

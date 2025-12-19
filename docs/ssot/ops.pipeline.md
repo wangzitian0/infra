@@ -42,20 +42,29 @@
 
 ---
 
-## 3. 审计流 (infra-flash) 状态机
+## 3. infra-flash: 运维看板 (Dashboard)
 
-每条 `infra-flash` 评论代表一个 Commit 的生命周期：
+每条 `infra-flash` 评论不仅是审计日志，更是该 Commit 的 **SSOT 运维看板**。它必须具备极高的链接准确性和信息完整性。
 
-1. **Initialized**: 锚点 `<!-- infra-flash-commit:sha -->` 建立。
-2. **Validated**: CI 表格更新（✅/❌）。
-3. **Reviewed**: AI 审查意见注入。
-4. **Planned**: Atlantis Plan 结果追加，展示 `Plan: X to add, 0 to destroy`。
-5. **Applied**: Atlantis Apply 结果追加。
-6. **Closed**: `👉 Next: Merge PR`。
+### 反馈类型定义与区别
 
-**重复性规避**：
-- 禁止 `copilot.yml` 或 `dig.yml` 单独发新评论。
-- 所有的 `Update Comment` 逻辑必须通过 SHA 锚点定位到所属 Commit。
+| 类型 | 标识 (Title) | 性质 | 核心价值 | 触发方式 |
+|:---|:---|:---|:---|:---|
+| **CI 静态检查** | `### 🛠️ CI Validate` | 守卫 | 验证语法、Lint 与变量一致性 | 自动 (Push) |
+| **AI 代码审计** | `### 🤖 Copilot Review` | 护栏 | 文档一致性检查、层级架构审计 | 自动/指令 |
+| **Atlantis 部署** | `### 🚀 Atlantis Action` | 变更 | 真实的 Plan/Apply 状态与输出链接 | 自动/指令 |
+| **服务健康检查** | `### 🔍 Health Check` | 验证 | 探测真实环境的连通性与 HTTP 状态 | 指令 |
+
+### 交互规范 (SOP)
+
+1. **Dashboard 理念**：
+   - 禁止在 PR 中产生“流式”的新评论。
+   - 所有信息必须**追加或原地更新**到对应的 Commit 看板中。
+   - 必须包含 `[Run Log]` 或 `[Output]` 的精准跳转链接。
+2. **修改与追加**：
+   - CI 结果应原地更新（例如从 ⏳ 变为 ✅）。
+   - Review 和 Dig 结果采用追加模式，保留历史快照。
+   - Atlantis Actions 采用表格形式，记录该 Commit 的所有部署尝试。
 
 ---
 

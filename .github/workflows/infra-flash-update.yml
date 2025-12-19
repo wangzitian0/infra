@@ -117,6 +117,20 @@ jobs:
               .replace(/\n*⏳ \*\*Triggering Atlantis plan\.\.\.\*\*/g, '')
               .replace(/\n*❌ \*\*CI failed\.\*\*.*/g, '');
             
+            // Update Global Status Table for Atlantis
+            const statusIcon = isSuccess ? '✅' : '❌';
+            if (isPlan) {
+              updatedBody = updatedBody.replace(
+                /\| \*\*Infra Plan\*\* \| .* \| .* \| .* \|/,
+                `| **Infra Plan** | ${statusIcon} | [View Output](${atlantisCommentUrl}) | ${timestamp} |`
+              );
+            } else if (isApply) {
+              updatedBody = updatedBody.replace(
+                /\| \*\*Infra Apply\*\* \| .* \| .* \| .* \|/,
+                `| **Infra Apply** | ${statusIcon} | [View Output](${atlantisCommentUrl}) | ${timestamp} |`
+              );
+            }
+
             // 构建触发链接
             // 格式: [@user #comment-id](link) 或 [@autoplan #atlantis-id](link)
             let triggerLink;
