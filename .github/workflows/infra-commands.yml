@@ -86,9 +86,11 @@ jobs:
         if: steps.parse.outputs.command == 'review'
         id: review
         uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_MODEL: gemini-1.5-flash
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_model: 'gemini-1.5-flash'
+          gemini_model: gemini-1.5-flash
           prompt: "Review this Terraform PR. Focus on AGENTS.md compliance and L1-L4 structure."
 
       - name: Health Check
