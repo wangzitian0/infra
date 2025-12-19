@@ -1,8 +1,7 @@
 # Casdoor OIDC Applications Management via RestAPI Provider
 # Replaces previous local-exec/curl scripts for better state management.
 #
-# Provider: Mastercard/restapi
-# Configured in providers.tf
+# Provider: Mastercard/restapi (URI: .../api)
 #
 # Resources:
 # - GitHub Identity Provider
@@ -12,19 +11,48 @@
 # - Kubero OIDC
 
 # =============================================================================
+# 0. Import Existing Resources (Native Drift Defense)
+# =============================================================================
+
+import {
+  to = restapi_object.provider_github[0]
+  id = "GitHub"
+}
+
+import {
+  to = restapi_object.app_portal_gate[0]
+  id = "portal-gate"
+}
+
+import {
+  to = restapi_object.app_vault_oidc[0]
+  id = "vault-oidc"
+}
+
+import {
+  to = restapi_object.app_dashboard_oidc[0]
+  id = "dashboard-oidc"
+}
+
+import {
+  to = restapi_object.app_kubero_oidc[0]
+  id = "kubero-oidc"
+}
+
+# =============================================================================
 # 1. Identity Providers
 # =============================================================================
 
 resource "restapi_object" "provider_github" {
   count = local.casdoor_enabled ? 1 : 0
 
-  path        = "/add-provider"
-  create_path = "/add-provider"
-  update_path = "/update-provider"
-  # Whitebox: Provider appends '/{id}' to read_path. 
-  # Result: /get-provider?id=admin/GitHub
-  read_path    = "/get-provider?id=admin"
-  destroy_path = "/delete-provider?id=admin"
+  path         = "/add-provider"
+  create_path  = "/add-provider"
+  update_path  = "/update-provider"
+  # Whitebox Fix: Explicitly use {id} to force injection into query parameter.
+  # Expected result: /api/get-provider?id=admin/GitHub
+  read_path    = "/get-provider?id=admin/{id}"
+  destroy_path = "/delete-provider?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode({
@@ -35,7 +63,7 @@ resource "restapi_object" "provider_github" {
     category     = "OAuth"
     type         = "GitHub"
     clientId     = var.github_oauth_client_id
-    clientSecret = var.github_oauth_client_secret
+    client_secret = var.github_oauth_client_secret
     organization = "built-in"
   })
 
@@ -82,8 +110,8 @@ resource "restapi_object" "app_portal_gate" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin"
-  destroy_path = "/delete-application?id=admin"
+  read_path    = "/get-application?id=admin/{id}"
+  destroy_path = "/delete-application?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -104,8 +132,8 @@ resource "restapi_object" "app_vault_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin"
-  destroy_path = "/delete-application?id=admin"
+  read_path    = "/get-application?id=admin/{id}"
+  destroy_path = "/delete-application?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -126,8 +154,8 @@ resource "restapi_object" "app_dashboard_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin"
-  destroy_path = "/delete-application?id=admin"
+  read_path    = "/get-application?id=admin/{id}"
+  destroy_path = "/delete-application?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
@@ -148,8 +176,8 @@ resource "restapi_object" "app_kubero_oidc" {
   path         = "/add-application"
   create_path  = "/add-application"
   update_path  = "/update-application"
-  read_path    = "/get-application?id=admin"
-  destroy_path = "/delete-application?id=admin"
+  read_path    = "/get-application?id=admin/{id}"
+  destroy_path = "/delete-application?id=admin/{id}"
   id_attribute = "name"
 
   data = jsonencode(merge(local.common_app_config, {
