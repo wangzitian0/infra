@@ -57,8 +57,15 @@ root/
 │
 ├── 0.tools/
 │   ├── README.md                # 脚本索引
+│   ├── check-readme-coverage.sh # README 覆盖检查
 │   ├── preflight-check.sh       # Helm URL 验证
 │   └── migrate-state.sh         # State 迁移
+│
+├── modules/                     # Terraform 共享模块
+│   ├── README.md                # 模块索引
+│   └── vault-config/            # Vault 路径 SSOT (Issue #301)
+│       ├── outputs.tf           # vault_kv_mount, vault_db_secrets
+│       └── README.md
 │
 ├── docs/
 │   ├── README.md                # (!) 设计概念
