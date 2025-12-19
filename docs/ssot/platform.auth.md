@@ -91,16 +91,19 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 - **登录页白屏**：`portal-gate.signupItems=null` 触发 `AgreementModal` 报错（JS `Cannot read properties of null (find)`）。
 - **登录页不符合预期**：应用 `enablePassword=false` 且 providers `owner` 为空，无法同时展示“密码 + GitHub”。
 - **登录报错**：`unknown application TokenFormat:`（Casdoor v1.570.0 未显式设置 `tokenFormat` 时会直接报错）。
+- **登录回调失败**：OAuth2-Proxy 报 `id_token is expired`（应用 `expireInHours/refreshExpireInHours` 被写成 0）。
 
 #### 阻断点
 - `enable_portal_sso_gate` 未启用/未 apply → Portal Gate 与应用级 SSO 不生效。
 - Casdoor 应用未打开密码登录、provider 绑定不完整 → 登录页缺少“密码 + GitHub”并存。
 - `signupItems=null` → 登录页渲染异常（AgreementModal 依赖 `signupItems`）。
 - `tokenFormat` 为空 → Casdoor v1.570.0 发 Token 时直接抛错（`unknown application TokenFormat`）。
+- `expireInHours/refreshExpireInHours=0` → OAuth2-Proxy 校验 `id_token` 立刻过期。
 
 > TODO(platform.auth): 启用 `enable_portal_sso_gate=true` 并 apply，部署 OAuth2-Proxy + Traefik middleware。
 > TODO(platform.auth): 更新 Casdoor 应用默认值（`enablePassword=true`，`signupItems=[]`，补齐 `signinMethods/signinItems`，providers `owner=admin`），再 apply 同步。
 > TODO(platform.auth): 显式设置 `tokenFormat=JWT` 并 apply，解除 Casdoor v1.570.0 的 TokenFormat 报错。
+> TODO(platform.auth): 设置 `expireInHours=168`、`refreshExpireInHours=168` 并 apply，修复 `id_token is expired`。
 > TODO(platform.auth): 验证 `secrets/kdashboard/kcloud` 访问链路 302 → Casdoor 登录 → GitHub/Password → 回跳成功。
 
 ### 实施路径
