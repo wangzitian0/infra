@@ -19,9 +19,10 @@
 # Requires: TF_VAR_vault_root_token set in Atlantis Pod env
 # =============================================================================
 
+# SSOT Reference: Mount and name defined in 2.platform/locals.tf (vault_db_secrets)
 data "vault_kv_secret_v2" "arangodb" {
-  mount = "secret"
-  name  = "arangodb"
+  mount = "secret"   # Must match 2.platform/locals.tf: vault_kv_mount
+  name  = "arangodb" # Must match 2.platform/locals.tf: vault_db_secrets["arangodb"]
 }
 
 # =============================================================================
@@ -181,8 +182,8 @@ output "arangodb_port" {
 }
 
 output "arangodb_vault_path" {
-  value       = "secret/data/arangodb"
-  description = "Vault KV path for ArangoDB credentials"
+  value       = "secret/data/arangodb" # SSOT: 2.platform/locals.tf vault_secret_paths
+  description = "Vault KV path for ArangoDB credentials (see 2.platform/locals.tf)"
 }
 
 output "arangodb_username" {

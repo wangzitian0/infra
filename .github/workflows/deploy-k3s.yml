@@ -163,6 +163,7 @@ jobs:
           VAULT_POD=$(kubectl -n platform get pods -l app.kubernetes.io/name=vault -o jsonpath='{.items[0].metadata.name}')
           
           echo "=== Checking Static Credentials ==="
+          # SSOT: Secret names from 2.platform/locals.tf vault_db_secrets
           for secret in postgres redis clickhouse arangodb; do
             # vault kv get CLI auto-adds /data/ prefix for KV v2
             # Pass VAULT_TOKEN env to authenticate inside vault pod
