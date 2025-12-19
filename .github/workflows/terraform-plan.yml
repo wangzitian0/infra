@@ -310,6 +310,18 @@ jobs:
               `| **Static CI** | ${statusIcon} | [View Run](${runUrl}) | ${timestamp} |`
             );
 
+            // 1.5 If no TF changes, mark Infra Plan/Apply as skipped
+            if (!hasTfChanges) {
+              body = body.replace(
+                /\| \*\*Infra Plan\*\* \| .* \| .* \| .* \|/,
+                `| **Infra Plan** | ⏭️ | No TF changes | - |`
+              );
+              body = body.replace(
+                /\| \*\*Infra Apply\*\* \| .* \| .* \| .* \|/,
+                `| **Infra Apply** | ⏭️ | - | - |`
+              );
+            }
+
             // 2. Update Details Section
             const ciHeader = "### 🛠️ CI Validate";
             const reviewPlaceholder = "<!-- claude-review-placeholder -->";
