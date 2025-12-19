@@ -5,10 +5,10 @@
 
 ## Key Documents
 
-- **[SSOT 话题文档](./ssot/README.md)** - 密钥/流程/数据库/认证/网络
-- **[Docs Site (MkDocs)](../website/mkdocs.yml)** - 本地/CI 生成静态文档站点（CI: [`.github/workflows/docs-site.yml`](../.github/workflows/docs-site.yml)）
-- [Directory Map](./ssot/core.dir.md) - 目录结构 SSOT
-- [Project Implementation Status](./project/README.md) - Active BRNs and execution state
+- **[SSOT 运维看板规范](./ssot/ops.pipeline.md)** - 核心运维体系流程图、状态机与操作手册。
+- **[SSOT 话题索引](./ssot/README.md)** - 密钥/数据库/认证/网络/存储等话题。
+- **[Directory Map](./ssot/core.dir.md)** - 目录结构 SSOT。
+- [Project Status](./project/README.md) - 进行中的任务 (BRNs) 与执行状态。
 - [Current Context](../0.check_now.md) and [Change Log](./change_log) - Sprint notes and history roll-ups
 - [Env & EaaS Design (BRN-004)](./project/BRN-004.md)
 - Design Decisions: [DD-001](./deep_dives/DD-001.secret_and_ci_practices.md) (Secrets & CI) · [DD-002](./deep_dives/DD-002.why_atlantis.md) (Atlantis rationale)

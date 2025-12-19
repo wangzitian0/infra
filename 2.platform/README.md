@@ -40,6 +40,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 This layer supports both **Atlantis (CI)** and **Standalone/Local** execution.
 
 - **Backend state**: Stored in Cloudflare R2 (`backend.tf`)
+- **Pipeline Feedback**: All Plan/Apply actions are synchronized to the **`infra-flash` Dashboard** in the PR.
 - **Providers**: Auto-configured for both local kubeconfig and in-cluster ServiceAccount (`providers.tf`)
 - **Variables**: Defaults provided in `variables.tf`; Atlantis injects environment-specific values via `TF_VAR_*` env vars.
 

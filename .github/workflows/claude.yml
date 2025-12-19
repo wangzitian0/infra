@@ -79,10 +79,17 @@ jobs:
 
             const status = '${{ steps.claude.outcome }}' === 'success' ? '✅' : '❌';
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             
+            // 成功时显示反馈链接，失败时显示日志链接
+            const linkText = status === '✅' ? '[View Feedback]' : '[View Run Log]';
+            const linkUrl = status === '✅' 
+              ? (context.payload.comment ? context.payload.comment.html_url : context.payload.review.html_url)
+              : runUrl;
+
             let body = dashboard.body.replace(
               /\| \*\*AI Review\*\* \| .* \| .* \| .* \|/,
-              `| **AI Review** | ${status} | [View Feedback](${context.payload.comment ? context.payload.comment.html_url : context.payload.review.html_url}) | ${timestamp} |`
+              `| **AI Review** | ${status} | ${linkText}(${linkUrl}) | ${timestamp} |`
             );
 
             await github.rest.issues.updateComment({
