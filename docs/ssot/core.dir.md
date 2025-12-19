@@ -73,6 +73,7 @@ root/
 │   │   ├── platform.ai.md       # AI 接入
 │   │   ├── db.*.md              # 各数据库 SSOT
 │   │   ├── ops.pipeline.md      # (!) 部署流程
+│   │   ├── ops.standards.md     # (!) 运维标准 (Guards/Admission)
 │   │   ├── ops.recovery.md      # 故障恢复
 │   │   ├── ops.storage.md       # 存储备份
 │   │   ├── ops.observability.md # 可观测
@@ -88,7 +89,7 @@ root/
 │       ├── README.md            # CI 索引
 │       ├── terraform-plan.yml   # (!) TF 验证
 │       ├── deploy-k3s.yml       # (!) K3s 部署
-│       └── copilot.yml          # AI Review
+│       └── infra-commands.yml   # Infra Commands (review, dig)
 │
 ├── 1.bootstrap/                 # L1: GitHub Actions 部署
 │   ├── README.md                # (!) L1 文档

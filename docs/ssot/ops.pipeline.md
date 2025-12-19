@@ -1,367 +1,112 @@
-# Pipeline SSOT
+# Pipeline SSOT (运维流水线)
 
-> **现状**：PR CI 做语法检查与 infra-flash；PR 的 plan/apply 由 Atlantis 驱动；`deploy-k3s.yml` 作为 bootstrap/recovery pipeline（包含 apply）。
-
----
-
-## 1. 整体架构
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                            PR 创建/更新                                  │
-└──────────────────────────────┬──────────────────────────────────────────┘
-                               │
-          ┌────────────────────┴────────────────────┐
-          │                                         │
-          ▼                                         ▼
-┌─────────────────────┐                   ┌─────────────────────┐
-│   GitHub Actions    │                   │      Atlantis       │
-│ (terraform-plan.yml)│                   │    (via webhook)    │
-├─────────────────────┤                   ├─────────────────────┤
-│ • terraform fmt     │                   │ • terraform plan    │
-│ • tflint            │                   │ • terraform apply   │
-│ • terraform validate│                   │ • state management  │
-├─────────────────────┤                   ├─────────────────────┤
-│ 输出: infra-flash   │                   │ 输出: Atlantis      │
-│     评论 (per-commit)│                  │       评论 (per project) │
-└─────────────────────┘                   └─────────────────────┘
-          │                                         │
-          ▼                                         ▼
-┌─────────────────────┐                   ┌─────────────────────┐
-│  GitHub Checks ✓/✗  │                   │  GitHub Checks ✓/✗  │
-└─────────────────────┘                   └─────────────────────┘
-```
-
-### 为什么分离？
-
-| 组件 | 职责 | 环境 |
-|:-----|:-----|:-----|
-| **CI** | 语法检查 (fmt/lint/validate) | GitHub Actions Runner |
-| **Atlantis** | 真正的 plan/apply | 集群内 Pod（可访问 Vault/K8s） |
-
-**CI 不做 plan** 的原因：
-- PR CI 仅做 `init -backend=false` + `validate`（不访问远端 backend / K8s / Vault）
-- 真正的 plan/apply 需要访问 Kubernetes API（集群内）
-- 真正的 plan/apply 需要访问 Vault（集群内 + SSO Gate）
+> **核心原则**：所有变更必须可审计。`infra-flash` 评论流是 PR 状态的单一真理来源 (SSOT)。
 
 ---
 
-## 2. 流程详解
+## 1. 核心问题域与解决方案
 
-### 正常流程 (Happy Path)
-
-```
-Commit abc1234 push
-    │
-    └──► CI 完成
-              │
-              └──► 新建 Comment 1:
-                        "CI ✅ | abc1234"
-                        │
-                        ▼
-              Atlantis autoplan 自动触发
-                        │
-                        ▼
-              Atlantis plan 完成
-                        │
-                        └──► 追加到 Comment 1:
-                                  "Plan ✅"
-                                  "👉 Next: atlantis apply"
-                                  │
-                                  ▼
-                        人: "atlantis apply"
-                                  │
-                                  ▼
-                        Atlantis apply 完成
-                                  │
-                                  └──► 追加到 Comment 1:
-                                            "Apply ✅"
-                                            "👉 Next: Merge PR"
-                                            │
-                                            ▼
-                                      Merge PR
-```
-
-### 多 Commit 场景
-
-```
-Commit abc1234 push  →  新建 Comment 1
-    │
-    └──► CI ✅ → (autoplan) Plan ✅ → Apply ❌ (失败)
-              │
-              ▼
-Commit def5678 push  →  新建 Comment 2 (新评论)
-    │
-    └──► CI ✅ → (autoplan) Plan ✅ → Apply ✅
-              │
-              └──► "👉 Next: Merge PR"
-```
-
-### CI 失败分支
-
-```
-PR 创建
-    │
-    └──► CI: fmt ❌
-              │
-              └──► infra-flash 评论: "CI Failed"
-                        │
-                        ▼
-                   本地修复
-                   terraform fmt -recursive
-                        │
-                        ▼
-                   git push
-                        │
-                        └──► CI 重新运行
-```
-
-### Atlantis Plan 失败分支
-
-```
-PR 创建
-    │
-    ├──► CI: ✅
-    │
-    └──► Atlantis: plan ❌
-              │
-              ├──► "403 permission denied"
-              │         │
-              │         └──► Vault token 过期
-              │                   │
-              │                   ▼
-              │              更新 VAULT_ROOT_TOKEN
-              │                   │
-              │                   ▼
-              │              手动 apply L1
-              │              (cd 1.bootstrap && terraform apply)
-              │                   │
-              │                   └──► 评论 "atlantis plan" 重试（或 push 触发 autoplan）
-              │
-              ├──► "state lock"
-              │         │
-              │         └──► "atlantis unlock"
-              │
-              └──► "provider mismatch"
-                        │
-                        ▼
-                   terraform init -upgrade
-                   git add .terraform.lock.hcl
-                   git push
-```
+| 解决的问题 | 实际方案 | 执行位置 | 理由 |
+|:---|:---|:---|:---|
+| **静态质量** | `fmt`, `lint`, `validate` | GitHub Actions | 快速反馈，不依赖集群环境 |
+| **动态预览** | `terraform plan` | Atlantis (Pod) | 必须访问集群内 Vault 和 Backend |
+| **AI 护栏** | `infra review` | Copilot Action | 自动化文档检查与 IaC 规范审计 |
+| **审计合规** | `infra-flash` 评论流 | GHA + Atlantis | 每一笔操作都有 Commit 级别的记录 |
+| **环境健康** | `infra dig` | GitHub Actions | 外部视角验证服务连通性 |
+| **全量恢复** | `deploy-k3s.yml` | GitHub Actions | 灾备与初始引导 (Bootstrap) |
 
 ---
 
-## 3. infra-flash 评论设计
+## 2. 运维节点与触发矩阵
 
-### 每个 commit 一条评论
+我们将流程分为 **自动 (Push)** 和 **指令 (Comment)** 两个平面。
 
-**设计原则**：
-- 每个 commit push 创建**新评论**
-- 同一个 commit 的所有操作（CI、plan、apply）追加到**同一条评论**
-- 每条评论包含**下一步指引**
-- Atlantis workflow 会输出 `infra-flash-commit:xxxxxxx` 标记，供 `infra-flash-update.yml` 精确定位对应 commit 评论
+### A. 自动平面 (Push Trigger)
+每当代码推送到 PR 分支，系统自动启动“三位一体”检查：
 
-```markdown
-<!-- infra-flash-commit:abc1234 -->
-## ⚡ Commit `abc1234`
+1. **Skeleton (骨架)**: `terraform-plan.yml` 立即创建或锁定一个 `infra-flash` 评论。
+2. **Static (静态)**: 同上，执行 `validate` 并更新评论中的 CI 表格。
+3. **AI Review**: `infra-commands.yml` 自动运行 `review` 逻辑，并将建议追加到评论中。
+4. **Autoplan**: Atlantis 监听到 push，自动执行 `plan`，由 `infra-flash-update.yml` 将结果追加到评论。
 
-### CI Validate ✅ | 12:30 UTC
+### B. 指令平面 (Comment Trigger)
+通过在 PR 下发表评论手动触发：
 
-| Layer | Format | Lint | Validate |
-|:------|:------:|:----:|:--------:|
-| L1 Bootstrap | ✅ | ✅ | ✅ |
-| L2 Platform | ✅ | ✅ | ✅ |
-| L3 Data | ✅ | ⏭️ | ⏭️ |
-| L4 Apps | ✅ | ⏭️ | ⏭️ |
-
----
-
-### Atlantis Plan ✅ | 12:32 UTC
-
-[View full output](#link)
+| 命令 | 作用 | 触发时机 | 反馈位置 |
+|:---|:---|:---|:---|
+| `atlantis plan` | 重新生成 Plan | 自动 Plan 失败或需要刷新时 | `infra-flash` 追加 |
+| `atlantis apply` | 执行部署 | **必须**在 Plan 成功且 Review 通过后 | `infra-flash` 追加 |
+| `infra review` | 手动触发 AI 审计 | 随时，或针对特定问题追问时 | `infra-flash` 追加 |
+| `infra dig` | 探测环境连通性 | 部署后验证或排查 Ingress 故障时 | `infra-flash` 追加 |
+| `infra help` | 获取指令帮助 | 任何时候 | 新评论回复 |
 
 ---
 
-### Atlantis Apply ✅ | 12:45 UTC
+## 3. infra-flash: 运维看板 (Dashboard)
 
-[View full output](#link)
+每条 `infra-flash` 评论不仅是审计日志，更是该 Commit 的 **SSOT 运维看板**。它必须具备极高的链接准确性和信息完整性。
 
-👉 **Next:** Merge PR ✅
-```
+### 反馈类型定义与区别
 
-### 状态流转
+| 类型 | 标识 (Title) | 性质 | 核心价值 | 触发方式 |
+|:---|:---|:---|:---|:---|
+| **CI 静态检查** | `### 🛠️ CI Validate` | 守卫 | 验证语法、Lint 与变量一致性 | 自动 (Push) |
+| **AI 代码审计** | `### 🤖 Copilot Review` | 护栏 | 文档一致性检查、层级架构审计 | 自动/指令 |
+| **Atlantis 部署** | `### 🚀 Atlantis Action` | 变更 | 真实的 Plan/Apply 状态与输出链接 | 自动/指令 |
+| **服务健康检查** | `### 🔍 Health Check` | 验证 | 探测真实环境的连通性与 HTTP 状态 | 指令 |
 
-| 事件 | 评论变化 |
-|:-----|:---------|
-| Commit 1 push | **新建** Comment 1: CI 状态 + "⏳ Atlantis autoplan" |
-| Atlantis autoplan | **追加** Plan 状态 + "👉 Next: atlantis apply" |
-| `atlantis apply` | **追加** Apply 状态 + "👉 Next: Merge PR" |
-| Commit 2 push | **新建** Comment 2: 新 CI 状态 |
+### 交互规范 (SOP)
 
-### 审计清晰
-
-```
-PR #123
-├─ Comment 1 (Commit abc1234)
-│   ├─ CI ✅
-│   ├─ Plan ✅
-│   └─ Apply ❌ (failed, fixed in next commit)
-│
-├─ Comment 2 (Commit def5678)  ← 修复后的 commit
-│   ├─ CI ✅
-│   ├─ Plan ✅
-│   └─ Apply ✅
-│       └─ 👉 Next: Merge PR
-│
-└─ Merged ✅
-```
+1. **Dashboard 理念**：
+   - 禁止在 PR 中产生“流式”的新评论。
+   - 所有信息必须**追加或原地更新**到对应的 Commit 看板中。
+   - 必须包含 `[Run Log]` 或 `[Output]` 的精准跳转链接。
+2. **修改与追加**：
+   - CI 结果应原地更新（例如从 ⏳ 变为 ✅）。
+   - Review 和 Dig 结果采用追加模式，保留历史快照。
+   - Atlantis Actions 采用表格形式，记录该 Commit 的所有部署尝试。
 
 ---
 
-## 4. Workflows 清单
+## 4. 守卫节点与准入标准 (Guards & Admission)
 
-| Workflow | 触发 | 作用 |
-|:---------|:-----|:-----|
-| `terraform-plan.yml` | `pull_request` (paths filter) | CI 语法检查，每个 commit **新建** infra-flash 评论 |
-| `infra-flash-update.yml` | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
-| `deploy-k3s.yml` | main push (paths filter) / `workflow_dispatch` | Bootstrap/恢复：按顺序 apply L1→L2→L3→L4（部分步骤仅在 push 执行） |
-| `dig.yml` | `/dig` 评论 | 服务连通性检查 |
-| `copilot.yml` | 评论/Review/Issue/Autoplan | AI 代码审查（best-effort） |
+为了确保流水线的健壮性，执行过程中嵌入了多个“守卫”节点。
 
----
-
-## 5. Atlantis 配置
-
-### atlantis.yaml
-
-```yaml
-version: 3
-parallel_plan: true    # 多 PR 并行 plan
-parallel_apply: false  # apply 串行避免冲突
-
-projects:
-  # L1 由 GitHub Actions 管理，不在 Atlantis
-  
-  - name: platform       # L2
-    dir: 2.platform
-    autoplan:
-      enabled: true      # PR 更新自动触发 plan
-
-  - name: data-staging   # L3
-    dir: 3.data
-    workspace: staging
-    autoplan:
-      enabled: true      # PR 更新自动触发 plan
-
-  - name: data-prod      # L3
-    dir: 3.data
-    workspace: prod
-    autoplan:
-      enabled: true      # PR 更新自动触发 plan
-```
-
-> **Note**: `autoplan: true` 会在每次 PR 更新（push 新 commit）时自动触发 `atlantis plan`；`atlantis apply` 仍需人工评论触发
+| 守卫名称 | 职责 | 规范来源 | 强制位置 |
+|:---|:---|:---|:---|
+| **Variable Guard** | 校验变量是否已在 1P 映射 | [AGENTS.md (Sec 3)](../../AGENTS.md#3-secret--variable-pipeline-the-variable-chain) | `terraform-plan.yml` |
+| **Doc Guard** | 强制更新文档与 `check_now` | [AGENTS.md (Principles)](../../AGENTS.md#原则) | `infra review` (AI) |
+| **Identity Guard** | 统一 `infra-flash` 发件身份 | [ops.standards.md](./ops.standards.md#3-防御性配置要求-defensive-rules) | 所有 `*.yml` |
+| **Admission Guard** | 检查组件是否符合健康检查标准 | [ops.standards.md](./ops.standards.md#1-健康检查分层规范) | `terraform validate` |
+| **Propagation Guard**| 强制等待 DNS/网络生效 | [AGENTS.md (SOP Rule 5)](../../AGENTS.md#4-defensive-maintenance-sop-infrastructure-reliability) | `.tf` 代码层 |
 
 ---
 
-## 6. 变量一致性
+## 5. 关键工作流清单 (Workflows)
 
-### 变量与密钥来源（事实）
-
-```
-1Password (SSOT)
-     ↓ op item get + gh secret set
-GitHub Secrets
-     │
-     ├──► PR CI (`terraform-plan.yml`)
-     │         └──► 仅需 GitHub App 凭据（发 infra-flash 评论）
-     │
-     ├──► Deploy (`deploy-k3s.yml`)
-     │         └──► 通过 `.github/actions/terraform-setup` 导出 TF_VAR_* + backend init + apply（L1-L4；L3/L4 仅 push）
-     │
-     └──► Atlantis Pod
-               └──► 集群内运行 plan/apply（从 K8s Secret / Vault 获取运行期密钥）
-```
-
-### 关键点
-
-- PR CI 不注入业务/基础设施密钥：`terraform validate` 使用 `init -backend=false`，只做语法与静态检查。
-- PR CI 写评论使用 GitHub App token（`ATLANTIS_GH_APP_ID/ATLANTIS_GH_APP_KEY`）。
-- 真正需要 backend / provider 凭据的是：`deploy-k3s.yml`（apply）与 Atlantis（plan/apply）。
-
-> **TODO（理想态）**
-> - CI/Deploy/Atlantis 统一 Terraform 版本，并在关键步骤输出 `terraform version` 做断言。
-> - `deploy-k3s.yml` 的“破坏性清理”改为显式开关（`workflow_dispatch` input），默认只做 `terraform import` 或直接失败提示人工处理。
-> - L2/L3/L4 的日常变更只通过 Atlantis；`deploy-k3s.yml` 默认只跑 L1 bootstrap（需要全量恢复时再显式开启）。
+| 文件 | 身份 | 职责 |
+|:---|:---|:---|
+| `terraform-plan.yml` | `infra-flash` | 静态 CI + 骨架评论创建 |
+| `infra-commands.yml` | `infra-flash` | 指令分发器 (`review`, `dig`, `help`) |
+| `infra-flash-update.yml` | `infra-flash` | 监听并搬运 Atlantis 的输出到主评论 |
+| `deploy-k3s.yml` | `infra-flash` | **灾备平面**：全量 L1-L4 Flash (仅在 merge 或手动触发) |
 
 ---
 
-## 7. 故障恢复
+## 5. 常见异常路径
 
-> 详见 [ops.recovery.md](./ops.recovery.md)
-
----
-
-## 8. 健康检查分层
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  时机        │  机制                │  作用                 │
-├─────────────────────────────────────────────────────────────┤
-│  CI         │  fmt/lint/validate   │  语法正确性           │
-│  Pre-flight │  0-Inputs            │  Secrets 完整性 (左移) │
-│  Plan       │  variable.validation │  拒绝无效输入          │
-│  Pre-flight │  2-Dependencies      │  Vault/外部服务可达    │
-│  Apply 前   │  precondition        │  验证依赖就绪          │
-│  Pod 启动   │  initContainer       │  等待依赖可用          │
-│  运行时     │  readiness/liveness  │  流量控制 / 自动重启   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 组件健康检查规范
-
-#### 强制要求
-
-| 检查类型 | 适用场景 | 强制 |
-|----------|----------|------|
-| **initContainer** | 有外部依赖的 Pod | ✅ 必须 (120s 超时) |
-| **Probes** | 所有长期运行 Pod | ✅ 必须 |
-| **validation** | 敏感变量（密码/密钥/URL） | ✅ 必须 |
-| **precondition** | 依赖其他 TF 资源的组件 | ✅ 必须 |
-| **Helm timeout** | 所有 Helm release | ✅ 必须 (300s) |
-| **postcondition** | Helm release | 建议 |
-
-#### 覆盖度矩阵
-
-| 层级 | 组件 | 依赖 | initContainer | Probes | validation | precondition | timeout |
-|------|------|------|---------------|--------|------------|--------------|---------|
-| **L1** | k3s | 无 | N/A | N/A | N/A | N/A | 5m |
-| | Atlantis | k3s | N/A | ✅ R+L | ✅ | ✅ | 300s |
-| | DNS/Cert | k3s | N/A | N/A | ✅ | N/A | 300s |
-| | Storage | k3s | N/A | N/A | N/A | N/A | 2m |
-| | Platform PG | storage | N/A | ✅ Helm | ✅ | ✅ | 300s |
-| **L2** | Vault | PG | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
-| | Casdoor | PG | ✅ 120s | ✅ S+R+L | ✅ | ✅ | 300s |
-| | Portal-Auth | Casdoor | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
-| | Dashboard | namespace | N/A | ✅ Helm | N/A | N/A | 300s |
-| | Vault-DB | Vault | N/A | N/A | ✅ | ✅ | N/A |
-| **L3** | L3 Postgres | Vault KV | ✅ 120s | ✅ Helm | ✅ | ✅ | 300s |
-| **L4** | Kubero | namespace | N/A | ✅ R+L | N/A | N/A | N/A (manifest) |
-
-**图例**：R=readiness, L=liveness, S=startup, Helm=Chart 默认, N/A=不适用, 120s=initContainer 超时
+- **CI 挂了**：查看 `infra-flash` 中的 CI 表格，点击链接看日志，修复后重新 push。
+- **Plan 挂了**：
+    - 若是权限问题（Vault 过期），手动执行 L1 更新或重启 Atlantis。
+    - 若是代码问题，修复后 push。
+- **Apply 挂了**：
+    - **禁止盲目重试**。必须先 `infra dig` 检查网络或手动进入集群查看 Pod 状态。
+    - 确认为状态冲突后，使用 `terraform import` 修复。
 
 ---
 
-## 相关文件
+## 6. 维护规范
 
-| 文件 | 用途 |
-|:-----|:-----|
-| `.github/workflows/terraform-plan.yml` | CI workflow |
-| `atlantis.yaml` | Atlantis 项目配置 |
-| `1.bootstrap/2.atlantis.tf` | Atlantis 部署定义 |
-| `docs/ssot/secrets.md` | 密钥管理 |
-| `docs/ssot/vars.md` | 变量定义 |
-
----
-
+1. **修改任何 Workflow**：必须同步更新本 SSOT 及其对应的 `README.md`。
+2. **新增命令**：必须在 `infra-commands.yml` 中实现，并在此文档的“指令平面”表格中登记。
+3. ** identity**：除了 `deploy-k3s.yml` 在 push main 时可能以 `github-actions` 身份运行，PR 期间的所有动作必须模拟 `infra-flash[bot]` 身份。

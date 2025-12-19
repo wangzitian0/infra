@@ -22,7 +22,7 @@ CI/CD 与 bot 配置位于 `.github/`；Workflows 在 `.github/workflows/`。
 | `terraform-plan.yml` | Static checks + per-commit infra-flash comment; Atlantis autoplan runs plan on PR updates |
 | `infra-flash-update.yml` | Appends Atlantis plan/apply results to the matching infra-flash comment |
 | `infra-flash-update.yml` | Full infra flash (per commit/manual) |
-| `copilot.yml` | AI code review via GitHub Copilot (auto after Atlantis success comment, or manual `/review`/`@copilot`/`PTAL`) |
+| `infra-commands.yml` | Unified Infra Commands: `infra review`, `infra dig`, `infra help` (consolidated into `infra-flash`) |
 | `docs-site.yml` | MkDocs build/deploy |
 
 Per-commit infra-flash 评论流（CI → (autoplan) Plan/Apply 追加）见 [`docs/ssot/ops.pipeline.md`](./docs/ssot/ops.pipeline.md)。
