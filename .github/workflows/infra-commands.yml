@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'pull_request') ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.user.type != 'Bot' && contains(lower(github.event.comment.body), 'infra')) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.user.type != 'Bot' && (contains(github.event.comment.body, 'infra') || contains(github.event.comment.body, 'Infra'))) ||
       (github.event_name == 'workflow_dispatch')
 
     permissions:
