@@ -20,7 +20,7 @@
 
 data "vault_kv_secret_v2" "clickhouse" {
   mount = "secret"
-  name  = "data/clickhouse"
+  name  = "clickhouse"
 }
 
 # =============================================================================

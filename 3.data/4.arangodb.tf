@@ -21,7 +21,7 @@
 
 data "vault_kv_secret_v2" "arangodb" {
   mount = "secret"
-  name  = "data/arangodb"
+  name  = "arangodb"
 }
 
 # =============================================================================

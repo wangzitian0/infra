@@ -51,7 +51,7 @@ resource "random_password" "l3_postgres" {
 # Store L3 PostgreSQL credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_postgres" {
   mount               = vault_mount.kv.path
-  name                = "data/postgres"
+  name                = "postgres"
   delete_all_versions = true
 
   data_json = jsonencode({
@@ -76,7 +76,7 @@ resource "random_password" "l3_redis" {
 # Store L3 Redis credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_redis" {
   mount               = vault_mount.kv.path
-  name                = "data/redis"
+  name                = "redis"
   delete_all_versions = true
 
   data_json = jsonencode({
@@ -99,7 +99,7 @@ resource "random_password" "l3_clickhouse" {
 # Store L3 ClickHouse credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_clickhouse" {
   mount               = vault_mount.kv.path
-  name                = "data/clickhouse"
+  name                = "clickhouse"
   delete_all_versions = true
 
   data_json = jsonencode({
@@ -129,7 +129,7 @@ resource "random_bytes" "l3_arangodb_jwt" {
 # Store L3 ArangoDB credentials in Vault KV
 resource "vault_kv_secret_v2" "l3_arangodb" {
   mount               = vault_mount.kv.path
-  name                = "data/arangodb"
+  name                = "arangodb"
   delete_all_versions = true
 
   data_json = jsonencode({

@@ -10,7 +10,7 @@ resource "random_id" "kubero_webhook_secret" {
 # 2. Store secrets in Vault KV
 resource "vault_kv_secret_v2" "kubero" {
   mount               = vault_mount.kv.path
-  name                = "data/kubero"
+  name                = "kubero"
   delete_all_versions = true
 
   data_json = jsonencode({
@@ -24,7 +24,7 @@ resource "vault_policy" "kubero" {
   name = "kubero"
 
   policy = <<-EOT
-    path "secret/data/data/kubero" {
+    path "secret/data/kubero" {
       capabilities = ["read"]
     }
   EOT

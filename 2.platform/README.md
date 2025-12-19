@@ -121,4 +121,4 @@ To deploy Portal SSO Gate for Vault/Dashboard:
    - https://kdashboard.zitian.party (Dashboard)
 
 ---
-*Last updated: 2025-12-19 (Added Vault K8s auth and Kubero integration)*
+*Last updated: 2025-12-19 (Fixed Vault KV secret paths - removed data/ prefix from vault_kv_secret_v2 names)*

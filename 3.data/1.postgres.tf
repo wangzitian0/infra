@@ -44,7 +44,7 @@ resource "kubernetes_namespace" "data" {
 
 data "vault_kv_secret_v2" "postgres" {
   mount = "secret"
-  name  = "data/postgres"
+  name  = "postgres"
 }
 
 # =============================================================================

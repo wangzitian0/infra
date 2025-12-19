@@ -20,7 +20,7 @@
 
 data "vault_kv_secret_v2" "redis" {
   mount = "secret"
-  name  = "data/redis"
+  name  = "redis"
 }
 
 # =============================================================================

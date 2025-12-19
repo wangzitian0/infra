@@ -51,10 +51,10 @@ resource "vault_policy" "myapp" {
   name = "myapp"
 
   policy = <<-EOT
-    path "secret/data/data/postgres" {
+    path "secret/data/postgres" {
       capabilities = ["read"]
     }
-    path "secret/data/data/redis" {
+    path "secret/data/redis" {
       capabilities = ["read"]
     }
   EOT
@@ -94,9 +94,9 @@ spec:
         vault.hashicorp.com/agent-inject: "true"
         vault.hashicorp.com/role: "myapp"
         # PostgreSQL
-        vault.hashicorp.com/agent-inject-secret-pg: "secret/data/data/postgres"
+        vault.hashicorp.com/agent-inject-secret-pg: "secret/data/postgres"
         vault.hashicorp.com/agent-inject-template-pg: |
-          {{- with secret "secret/data/data/postgres" -}}
+          {{- with secret "secret/data/postgres" -}}
           export PGHOST="{{ .Data.data.host }}"
           export PGPORT="{{ .Data.data.port }}"
           export PGUSER="{{ .Data.data.username }}"
@@ -121,7 +121,7 @@ psql -c "SELECT 1"
 
 | 类型 | Vault 路径 | TTL | 使用场景 |
 |------|-----------|-----|---------|
-| **静态** | `secret/data/data/<db>` | 永久（直到 L2 重新 apply） | 大多数应用 |
+| **静态** | `secret/data/<db>` | 永久（直到 L2 重新 apply） | 大多数应用 |
 | **动态** | `database/creds/app-readonly` | 1h（可续期） | 高安全要求场景 |
 
 ### 动态凭据（PostgreSQL Only）
