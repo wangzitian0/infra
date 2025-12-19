@@ -20,7 +20,7 @@
 
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
-| [platform.auth.md](./platform.auth.md) | 统一认证 | Casdoor SSO 门户覆盖、GitHub OAuth 自动化、验证命令 |
+| [platform.auth.md](./platform.auth.md) | 统一认证 | Casdoor SSO 门户覆盖、宏观进度看板、验证命令 |
 | [platform.network.md](./platform.network.md) | 域名规则 | Internal vs Env 模式（环境模型见 `core.env.md`） |
 | [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单、Vault（SSOT） |
 | [platform.ai.md](./platform.ai.md) | AI 接入 | OpenRouter、变量/密钥、注入方式 |

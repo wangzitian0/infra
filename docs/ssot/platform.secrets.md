@@ -28,9 +28,9 @@ graph LR
 
 ```bash
 # 执行此命令前需 op signin
-op item get "GH-Actions-Secrets" --vault="Infra-Prod" --format json |
+op item get "Infra-GHA-Secrets" --vault="my_cloud" --format json |
   jq -r '.fields[] | select(.value != null) | "\(.label) \(.value)"' |
-  while read -r key value;
+  while read -r key value; do
     if [[ $key =~ ^[A-Z_]+$ ]]; then
       echo "Syncing $key..."
       gh secret set "$key" --body "$value"
@@ -40,26 +40,27 @@ op item get "GH-Actions-Secrets" --vault="Infra-Prod" --format json |
 
 | 1Password 项目 | 字段（Label） | GitHub Secret | 映射后的 TF_VAR |
 |----------------|---------------------|---------------|-----------------|
-| `Cloudflare API` | `BASE_DOMAIN` | `BASE_DOMAIN` | `base_domain` |
+| `Infra-Cloudflare` | `BASE_DOMAIN` | `BASE_DOMAIN` | `base_domain` |
 | | `CLOUDFLARE_ZONE_ID` | `CLOUDFLARE_ZONE_ID` | `cloudflare_zone_id` |
 | | `INTERNAL_DOMAIN` | `INTERNAL_DOMAIN` | `internal_domain` |
 | | `INTERNAL_ZONE_ID` | `INTERNAL_ZONE_ID` | `internal_zone_id` |
 | | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_API_TOKEN` | `cloudflare_api_token` |
-| `R2 Backend (AWS)` | `R2_BUCKET` | `R2_BUCKET` | `r2_bucket` |
+| `Infra-R2` | `R2_BUCKET` | `R2_BUCKET` | `r2_bucket` |
 | | `R2_ACCOUNT_ID` | `R2_ACCOUNT_ID` | `r2_account_id` |
 | | `AWS_ACCESS_KEY_ID` | `AWS_ACCESS_KEY_ID` | `aws_access_key_id` |
 | | `AWS_SECRET_ACCESS_KEY` | `AWS_SECRET_ACCESS_KEY` | `aws_secret_access_key` |
-| `VPS SSH` | `VPS_HOST` | `VPS_HOST` | `vps_host` |
+| `Infra-VPS` | `VPS_HOST` | `VPS_HOST` | `vps_host` |
 | | `VPS_SSH_KEY` | `VPS_SSH_KEY` | `ssh_private_key` |
 | `PostgreSQL (Platform)` | `VAULT_POSTGRES_PASSWORD` | `VAULT_POSTGRES_PASSWORD` | `vault_postgres_password` |
-| `GitHub OAuth` | `GH_OAUTH_CLIENT_ID` | `GH_OAUTH_CLIENT_ID` | `github_oauth_client_id` |
+| `Infra-OAuth` | `GH_OAUTH_CLIENT_ID` | `GH_OAUTH_CLIENT_ID` | `github_oauth_client_id` |
 | | `GH_OAUTH_CLIENT_SECRET` | `GH_OAUTH_CLIENT_SECRET` | `github_oauth_client_secret` |
-| `Atlantis` | `ATLANTIS_WEBHOOK_SECRET` | `ATLANTIS_WEBHOOK_SECRET` | `atlantis_webhook_secret` |
+| `Infra-Atlantis` | `ATLANTIS_WEBHOOK_SECRET` | `ATLANTIS_WEBHOOK_SECRET` | `atlantis_webhook_secret` |
 | | `ATLANTIS_WEB_PASSWORD` | `ATLANTIS_WEB_PASSWORD` | `atlantis_web_password` |
 | | `ATLANTIS_GH_APP_ID` | `ATLANTIS_GH_APP_ID` | `github_app_id` |
 | | `ATLANTIS_GH_APP_KEY` | `ATLANTIS_GH_APP_KEY` | `github_app_key` |
-| `Vault (zitian.party)` | `VAULT_ROOT_TOKEN` | `VAULT_ROOT_TOKEN` | `vault_root_token` |
-| `GitHub Personal Access Token` | `token` | `GH_PAT` | `github_token` |
+| `Infra-Vault` | `VAULT_ROOT_TOKEN` | `VAULT_ROOT_TOKEN` | `vault_root_token` |
+| `Infra-GHA-Secrets` | `api_key` | `GEMINI_API_KEY` | - |
+| `GitHub PAT` | `token` | `GH_PAT` | `github_token` |
 
 ### 2. 运行时默认变量 (Loader 自动处理)
 
@@ -95,5 +96,20 @@ op item get "GH-Actions-Secrets" --vault="Infra-Prod" --format json |
 2.  重新运行同步脚本。
 3.  重新触发 CI 流水线（`atlantis plan` / `push to main`）。
 
+### 3. 新增独立 GHA 密钥 (如 GEMINI_API_KEY)
+
+对于仅在工作流中使用、不参与 Terraform 的密钥：
+
+1.  在 1Password 的 `Infra-GHA-Secrets` 项目中新增一个字段（Label 为 `GEMINI_API_KEY`）。
+
+2.  运行一键同步脚本（见上文）将其推送到 GitHub。
+
+
+
+3.  在 `.github/workflows/*.yml` 中通过 `${{ secrets.GEMINI_API_KEY }}` 引用。
+
+
+
 ---
+
 > 变更记录见 [change_log/](../change_log/README.md)

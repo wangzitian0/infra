@@ -105,7 +105,22 @@
 
 ---
 
-## 6. 维护规范
+## 7. 验收准则与测试场景 (UAT)
+
+为了验证流水线的健壮性，任何重大变更后应执行以下场景测试：
+
+| 场景 | 操作 | 预期 Dashboard 行为 | 预期 Identity |
+|:---|:---|:---|:---|
+| **CI 守卫测试** | 推送包含格式错误的代码 | `Static CI` 显示 ❌，看板底部显示修复命令 | `infra-flash` |
+| **AI 审计测试** | 推送代码但不更新 README | `AI Review` 自动运行，追加文档缺失警告 | `infra-flash` |
+| **指令分发测试** | 评论 `infra help` | 产生一条新评论，列出所有可用指令 | `infra-flash` |
+| **手动复审测试** | 评论 `infra review` | `AI Review` 状态更新，追加最新的审查建议 | `infra-flash` |
+| **环境探测测试** | 评论 `infra dig` | `Health Check` 状态更新，追加连通性表格 | `infra-flash` |
+| **SSOT 闭环测试** | 多次推送/评论 | 所有信息均有序汇聚在同一条 Commit 评论中 | `infra-flash` |
+
+---
+
+## 8. 维护规范
 
 1. **修改任何 Workflow**：必须同步更新本 SSOT 及其对应的 `README.md`。
 2. **新增命令**：必须在 `infra-commands.yml` 中实现，并在此文档的“指令平面”表格中登记。

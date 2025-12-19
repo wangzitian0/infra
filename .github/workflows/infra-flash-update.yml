@@ -94,27 +94,88 @@ jobs:
             );
             
             if (!flashComment) {
-              console.log(`No infra-flash comment found for commit ${currentSha}`);
-              return;
+              console.log(`No infra-flash comment found for commit ${targetSha}. Creating skeleton now.`);
+              
+              // Define skeleton matching terraform-plan.yml
+              const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions`;
+              const commandHelp = [
+                '<details><summary>📖 Available Infra Commands</summary>',
+                '',
+                '| Command | Description | Feedback |',
+                '|:---|:---|:---|',
+                '| `atlantis plan` | Re-run infrastructure plan | Append to this table |',
+                '| `atlantis apply` | Deploy changes | Append to this table |',
+                '| `infra review` | AI Code Review (Copilot) | Append to dashboard |',
+                '| `infra dig` | Service Health Check | Append to dashboard |',
+                '| `infra help` | Show detailed help | New reply |',
+                '',
+                '</details>'
+              ].join('\n');
+
+              const skeleton = [
+                MARKER,
+                `## ⚡ Commit \`${targetSha}\` Dashboard`,
+                "",
+                "| Component | Status | Info/Link | Time |",
+                "|:---|:---:|:---|:---|",
+                "| **Static CI** | ⏳ | Pending | - |",
+                "| **AI Review** | ⏳ | Pending | - |",
+                `| **Infra Plan** | ⏳ | [Running Output](${atlantisCommentUrl}) | ${timestamp} |`,
+                "| **Infra Apply** | ⏭️ | - | - |",
+                "| **Health Check** | ⏭️ | - | - |",
+                "",
+                "---",
+                "",
+                "<!-- copilot-review-placeholder -->",
+                "",
+                "---",
+                "",
+                "### 🚀 Atlantis Actions",
+                "",
+                "<!-- atlantis-actions -->",
+                "| Action | Commit | Trigger | Status | Output | Time |",
+                "|:-------|:-------|:--------|:------:|:-------|:-----|",
+                "<!-- /atlantis-actions -->",
+                "",
+                "<!-- health-check-placeholder -->",
+                "",
+                "---",
+                commandHelp,
+                "",
+                "---",
+                "⏳ **Waiting for results...**"
+              ].join('\n');
+
+              const created = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: skeleton
+              });
+              
+              // Reload flashComment to continue update logic
+              flashComment = { id: created.data.id, body: skeleton };
             }
             
             // 确定下一步操作
             let nextStep = '';
             if (isPlan && isSuccess) {
-              nextStep = '\n\n👉 **Next:** Review plan, then comment `atlantis apply`';
+              nextStep = '\n\n👉 **Recommended Next Step:** Review plan, then comment `atlantis apply`';
             } else if (isApply && isSuccess) {
-              nextStep = '\n\n✅ **Ready to merge!**';
+              nextStep = '\n\n👉 **Recommended Next Step:** ✅ **Ready to merge!**';
             } else if (!isSuccess) {
               nextStep = isPlan
-                ? '\n\n👉 **Next:** Fix errors, then comment `atlantis plan`'
-                : '\n\n👉 **Next:** Fix errors, then comment `atlantis apply` (or rerun `atlantis plan`)';
+                ? '\n\n👉 **Recommended Next Step:** ❌ **Plan failed.** Fix errors, then comment `atlantis plan` (or push again)'
+                : '\n\n👉 **Recommended Next Step:** ❌ **Apply failed.** Fix errors, then comment `atlantis apply`';
             }
             
             // 移除旧的 next step 提示
             let updatedBody = flashComment.body
+              .replace(/\n*👉 \*\*Recommended Next Step:\*\*.*/g, '')
               .replace(/\n*👉 \*\*Next:\*\*.*/g, '')
               .replace(/\n*✅ \*\*Ready to merge!\*\*/g, '')
               .replace(/\n*⏳ \*\*Triggering Atlantis plan\.\.\.\*\*/g, '')
+              .replace(/\n*⏳ \*\*Waiting for Atlantis autoplan\.\.\.\*\*/g, '')
               .replace(/\n*❌ \*\*CI failed\.\*\*.*/g, '');
             
             // Update Global Status Table for Atlantis

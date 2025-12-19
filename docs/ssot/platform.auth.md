@@ -70,16 +70,42 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 | 服务 | 域名 | SSO 形态 | 当前状态 |
 |------|------|-----------|----------|
-| Vault UI | `https://secrets.<internal_domain>` | Casdoor OIDC 客户端（`vault-oidc`）+ Vault OIDC 提供者 | ✅ 已配置 (登录需手动填 Role: `reader`) |
-| Kubernetes Dashboard | `https://kdashboard.<internal_domain>` | Traefik forward-auth 指向 Casdoor（Dashboard 依旧靠 token 登录） | ✅ 中间件已部署 + `dashboard-oidc` 回调对齐 |
-| Kubero UI | `https://kcloud.<internal_domain>` | Casdoor OAuth2 客户端（`kubero-oidc`） | ✅ 已配置 |
+| Vault UI | `https://secrets.<internal_domain>` | Casdoor OIDC 客户端（`vault-oidc`）+ Vault OIDC 提供者 | ⏳ OIDC 客户端已创建；Vault 侧 OIDC 依赖 `enable_portal_sso_gate` apply |
+| Kubernetes Dashboard | `https://kdashboard.<internal_domain>` | Traefik forward-auth 指向 Casdoor（Dashboard 依旧靠 token 登录） | ⏳ Portal Gate 未部署（无 `portal-auth`） |
+| Kubero UI | `https://kcloud.<internal_domain>` | Casdoor OAuth2 客户端（`kubero-oidc`） | ⏳ OIDC 客户端已创建；Portal Gate 未部署 |
 | Atlantis Web | `https://atlantis.<internal_domain>` | Basic Auth（继续当前机制） | ✅ 保持手动管理 |
+
+---
+
+### 宏观进度（统一登录入口）
+
+#### 最终态标准
+- **统一入口**：应用访问统一跳转到 Casdoor 登录页，同一页显示 **密码 + GitHub**。
+- **统一规则**：原生 OIDC 的应用直接对接 Casdoor；不支持 OIDC 的应用统一走 Portal Gate（OAuth2-Proxy + Traefik forwardAuth）。
+- **域名策略**：业务应用域名不变，仅使用 `sso.<internal_domain>` + `auth.<internal_domain>` 作为登录/回调入口。
+
+#### 当前快照（2025-12-19）
+- **Casdoor 已部署**：`sso.<internal_domain>` 可访问，GitHub Provider 已存在。
+- **OIDC 应用已创建**：`portal-gate` / `vault-oidc` / `dashboard-oidc` / `kubero-oidc` 已写入 Casdoor DB。
+- **Portal Gate 未部署**：集群无 `portal-auth`，应用未进入 SSO 跳转。
+- **登录页不符合预期**：应用 `enablePassword=false` 且 providers `owner` 为空，无法同时展示“密码 + GitHub”。
+
+#### 阻断点
+- `enable_portal_sso_gate` 未启用/未 apply → Portal Gate 与应用级 SSO 不生效。
+- Casdoor 应用未打开密码登录、provider 绑定不完整 → 登录页缺少“密码 + GitHub”并存。
+
+> TODO(platform.auth): 启用 `enable_portal_sso_gate=true` 并 apply，部署 OAuth2-Proxy + Traefik middleware。
+> TODO(platform.auth): 更新 Casdoor 应用默认值（`enablePassword=true`，补齐 `signinMethods/signinItems`，providers `owner=admin`），再 apply 同步。
+> TODO(platform.auth): 验证 `secrets/kdashboard/kcloud` 访问链路 302 → Casdoor 登录 → GitHub/Password → 回跳成功。
 
 ### 实施路径
 
-1. **前置填写**：保持 `enable_portal_sso_gate=false` 部署 Casdoor。门户客户端可手动创建并填入 `casdoor_portal_client_id/secret`；若留空，开关开启时 Terraform 自动生成 secret 并写入 Casdoor `init_data`（同时生成 Vault/Dashboard 客户端）。
-2. **自动化执行**：在 2.platform 设置变量后 `terraform init && terraform apply`，开关置 `true` 时 Ingress 自动挂 Traefik ForwardAuth（OAuth2-Proxy→Casdoor），相关 Casdoor 应用与凭据自动创建。
-3. **事后验证/切流**：依次验证 `secrets/kdashboard` 登录链路。若异常可关回 `false` 并重跑 apply，避免锁死。随后按需启用 Vault/Dashboard 的 OIDC/OAuth 回调。
+1. **前置填写**：准备 GitHub OAuth 与 Casdoor Admin 密码，保持 `enable_portal_sso_gate=false` 先落 Casdoor，避免锁死。
+2. **自动化执行**：在 2.platform 设置变量后 `terraform init && terraform apply`。开关置 `true` 时：
+   - 自动创建 Casdoor 应用（Portal/Vault/Dashboard/Kubero）
+   - 生成 client secret（未手填时）
+   - 部署 OAuth2-Proxy 并挂 Traefik ForwardAuth
+3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 登录链路。若异常可关回 `false` 并重跑 apply，避免锁死。
 
 这一部分的更多细节参考 BRN-008 中的“场景 5：所有 Portal 走 Casdoor”。
 
@@ -156,12 +182,12 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
 |------|------|
 | Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
 | GitHub OAuth | ✅ REST API 自动配置 (`90.casdoor-apps.tf`) |
-| Vault OIDC | ✅ REST API 自动创建 (`vault-oidc`) |
-| Dashboard OIDC | ✅ REST API 自动创建 (`dashboard-oidc`) |
-| Kubero OIDC | ✅ REST API 自动创建 (`kubero-oidc`) |
+| Vault OIDC | ⏳ Casdoor 应用已创建；Vault 侧 OIDC 待启用 |
+| Dashboard OIDC | ⏳ Casdoor 应用已创建；Portal Gate 未部署 |
+| Kubero OIDC | ⏳ Casdoor 应用已创建；Portal Gate 未部署 |
 | Vault 策略/角色 | ✅ 已通过 Terraform 自动化 (`92.vault-kubero.tf`) |
 | 自动导入机制 | ✅ REST API 自动同步 |
-| OAuth2-Proxy | ✅ 重构 (作为 Traefik 中间件连接 Casdoor) |
+| OAuth2-Proxy | ⏳ 未部署（`enable_portal_sso_gate=false`） |
 
 ---
 
@@ -170,6 +196,8 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
 - [platform.secrets.md](./platform.secrets.md) - 密钥管理 SSOT
 - [5.casdoor.tf](../../2.platform/5.casdoor.tf) - Casdoor Helm release + Bootstrap
 - [90.casdoor-apps.tf](../../2.platform/90.casdoor-apps.tf) - OIDC 应用 (local-exec API)
+- [91.vault-auth.tf](../../2.platform/91.vault-auth.tf) - Vault OIDC 配置
+- [92.portal-auth.tf](../../2.platform/92.portal-auth.tf) - Portal Gate (OAuth2-Proxy + Traefik)
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 配置
 
 ---
