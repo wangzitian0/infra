@@ -1,0 +1,179 @@
+name: Infra Commands
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    if: |
+      github.event.issue.pull_request &&
+      github.event.comment.user.type != 'Bot' &&
+      startsWith(lower(github.event.comment.body), 'infra')
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+
+    steps:
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Parse Command
+        id: parse
+        run: |
+          # Get the first line, lower case it
+          BODY_LOWER=$(echo "${{ github.event.comment.body }}" | head -n 1 | tr '[:upper:]' '[:lower:]')
+          
+          if [[ "$BODY_LOWER" == "infra review"* ]]; then
+            echo "command=review" >> $GITHUB_OUTPUT
+            echo "valid=true" >> $GITHUB_OUTPUT
+          elif [[ "$BODY_LOWER" == "infra dig"* ]]; then
+            echo "command=dig" >> $GITHUB_OUTPUT
+            echo "valid=true" >> $GITHUB_OUTPUT
+          elif [[ "$BODY_LOWER" == "infra help"* ]] || [[ "$BODY_LOWER" == "infra" ]]; then
+            echo "command=help" >> $GITHUB_OUTPUT
+            echo "valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "valid=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get PR Info
+        if: steps.parse.outputs.valid == 'true'
+        id: pr
+        run: |
+          PR_JSON=$(gh pr view ${{ github.event.issue.number }} --json headRefName,headRefOid)
+          BRANCH=$(echo "$PR_JSON" | jq -r .headRefName)
+          SHA=$(echo "$PR_JSON" | jq -r .headRefOid)
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "sha=${SHA:0:7}" >> $GITHUB_OUTPUT
+          echo "full_sha=$SHA" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+
+      - name: Checkout
+        if: steps.parse.outputs.valid == 'true' && steps.parse.outputs.command != 'help'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.full_sha }}
+          fetch-depth: 0
+
+      # ==========================================
+      # COMMAND: infra help
+      # ==========================================
+      - name: Help Command
+        if: steps.parse.outputs.command == 'help'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            const body = [
+              "### 🛠️ Available Infra Commands",
+              "",
+              "| Command | Description | Feedback |",
+              "|:---|:---|:---|",
+              "| `infra review` | AI Code Review by Copilot | Append to `infra-flash` |",
+              "| `infra dig` | Global Service Health Check | Append to `infra-flash` |",
+              "| `infra help` | Show this help message | New reply |",
+              "",
+              "---",
+              "_Commands are case-insensitive. Consistent with `atlantis plan` style._"
+            ].join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+
+      # ==========================================
+      # COMMAND: infra review
+      # ==========================================
+      - name: Copilot Review
+        if: steps.parse.outputs.command == 'review'
+        id: review
+        uses: github/copilot-review-action@v1
+        with:
+          github_token: ${{ steps.app_token.outputs.token }}
+          custom_prompt: |
+            (Output ONLY the markdown body)
+            Review for IaC Layers (L1-L4) & SSOT alignment. Check AGENTS.md.
+          post_comment: false
+
+      # ==========================================
+      # COMMAND: infra dig
+      # ==========================================
+      - name: Run Health Checks
+        if: steps.parse.outputs.command == 'dig'
+        id: health_check
+        env:
+          BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
+        run: |
+          # Defining services and performing curl checks
+          SERVICES=("L1|K3s API|i-k3s:6443" "L1|Atlantis|i-atlantis" "L2|Vault|i-secrets" "L2|K8s Dashboard|i-kdashboard" "L2|Kubero UI|i-kcloud" "L4|SigNoz|i-signoz" "Prod|Root|@")
+          TABLE="| Layer | Service | Status |\n|:---|:---|:---|"
+          for entry in "${SERVICES[@]}"; do
+            IFS='|' read -r layer service sub <<< "$entry"
+            domain="${sub}.${BASE_DOMAIN}"; [[ "$sub" == "@" ]] && domain="${BASE_DOMAIN}"
+            [[ "$sub" == *":"* ]] && domain="${sub%%:*}.${BASE_DOMAIN}:${sub##*:}"
+            code=$(curl -s -o /dev/null -w "%{{http_code}}" --connect-timeout 3 "https://${domain}" || echo "000")
+            icon="❌"; [[ "$code" == "200" || "$code" == "401" ]] && icon="✅"
+            TABLE+="\n| $layer | $service | $icon $code |"
+          done
+          echo "table<<EOFTABLE" >> $GITHUB_OUTPUT
+          echo -e "$TABLE" >> $GITHUB_OUTPUT
+          echo "EOFTABLE" >> $GITHUB_OUTPUT
+
+      # ==========================================
+      # SSOT UPDATE: Unified infra-flash update
+      # ==========================================
+      - name: Update infra-flash
+        if: always() && steps.parse.outputs.valid == 'true' && (steps.parse.outputs.command == 'review' || steps.parse.outputs.command == 'dig')
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            const sha = '${{ steps.pr.outputs.sha }}';
+            const cmd = '${{ steps.parse.outputs.command }}';
+            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+            const SECTION_START = `<!-- section-${cmd} -->`;
+            const SECTION_END = `<!-- /section-${cmd} -->`;
+            
+            let content = '';
+            if (cmd === 'review') content = `${{ steps.review.outputs.review_body }}`;
+            if (cmd === 'dig') content = `${{ steps.health_check.outputs.table }}`;
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100
+            });
+            const existing = comments.data.find(c => c.body.includes(MARKER));
+            if (!existing) return;
+
+            const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+            const title = cmd === 'review' ? '🤖 Copilot Review' : '🔍 Health Check (dig)';
+            const newSection = [SECTION_START, `### ${title} | ${timestamp}`, '', content, '', SECTION_END].join('\n');
+
+            let body = existing.body;
+            if (body.includes(SECTION_START)) {
+              body = body.replace(new RegExp(`${SECTION_START}[\s\S]*?${SECTION_END}`), newSection);
+            } else {
+              body = body.replace('### Atlantis Actions', `${newSection}\n\n---\n\n### Atlantis Actions`);
+            }
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: existing.id,
+              body: body
+            });

@@ -231,7 +231,27 @@ PR #123
 
 ---
 
-## 5. Atlantis 配置
+## 5. Infra Commands (指令集)
+
+为了统一交互体验，项目支持通过 GitHub PR 评论触发运维命令（风格与 `atlantis plan` 一致）。
+
+### 可用命令
+
+| 命令 | 描述 | 反馈位置 | 权限 |
+|:---|:---|:---|:---|
+| `infra review` | 触发 Copilot AI 代码审查 | 追加至 `infra-flash` | Collaborator |
+| `infra dig` | 触发全局服务健康检查 | 追加至 `infra-flash` | Collaborator |
+| `infra help` | 列出所有命令及用法 | 新评论回复 | Everyone |
+
+### 交互规范
+
+1. **统一入口**：所有命令通过 `.github/workflows/infra-commands.yml` 统一分发。
+2. **SSOT 反馈**：涉及代码变更或环境状态的命令（`infra review`, `infra dig`），结果必须通过 `infra-flash-commit:${sha}` 锚点追加到对应 Commit 的主评论中。
+3. **前缀触发**：不再使用 `/` 斜杠，统一使用 `infra` 作为前缀，确保风格正交。
+
+---
+
+## 6. Atlantis 配置
 
 ### atlantis.yaml
 
