@@ -1,0 +1,101 @@
+name: Claude Code
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  claude:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
+      id-token: write
+      actions: read # Required for Claude to read CI results on PRs
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # This is an optional setting that allows Claude to read CI results on PRs
+          additional_permissions: |
+            actions: read
+
+          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
+          # prompt: 'Update the pull request description to include a summary of changes.'
+
+          # Optional: Add claude_args to customize behavior and configuration
+          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
+          # or https://code.claude.com/docs/en/cli-reference for available options
+          # Using Haiku 4.5 - fastest model with Sonnet-level coding performance
+          # Pricing: $1/MTok input, $5/MTok output (~3x cheaper than Sonnet 4)
+          claude_args: '--model claude-haiku-4-5'
+
+      - name: Update Dashboard
+        if: always() && (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment' || github.event_name == 'pull_request_review')
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request ? context.payload.pull_request.number : (context.payload.issue ? context.payload.issue.number : null);
+            if (!prNumber) return;
+
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            const sha = pr.data.head.sha.substring(0, 7);
+            const marker = `<!-- infra-flash-commit:${sha} -->`;
+            
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100
+            });
+            
+            const dashboard = comments.find(c => c.body.includes(marker));
+            if (!dashboard) return;
+
+            const status = '${{ steps.claude.outcome }}' === 'success' ? '✅' : '❌';
+            const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            // 成功时显示反馈链接，失败时显示日志链接
+            const linkText = status === '✅' ? '[View Feedback]' : '[View Run Log]';
+            const linkUrl = status === '✅' 
+              ? (context.payload.comment ? context.payload.comment.html_url : context.payload.review.html_url)
+              : runUrl;
+
+            let body = dashboard.body.replace(
+              /\| \*\*AI Review\*\* \| .* \| .* \| .* \|/,
+              `| **AI Review** | ${status} | ${linkText}(${linkUrl}) | ${timestamp} |`
+            );
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: dashboard.id,
+              body: body
+            });
+

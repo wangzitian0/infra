@@ -22,7 +22,7 @@
 |------|----------|----------|
 | [platform.auth.md](./platform.auth.md) | 统一认证 | Casdoor SSO 门户覆盖、宏观进度看板、验证命令 |
 | [platform.network.md](./platform.network.md) | 域名规则 | Internal vs Env 模式（环境模型见 `core.env.md`） |
-| [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单、Vault（SSOT） |
+| [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单、Portal SSO flag |
 | [platform.ai.md](./platform.ai.md) | AI 接入 | OpenRouter、变量/密钥、注入方式 |
 
 > 注：`platform.auth.md` 已包含登录白屏排障、TokenFormat 与 Token 过期问题跟踪。
@@ -33,7 +33,8 @@
 
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
-| [db.overview.md](./db.overview.md) | 数据库分布总览 | 各层数据库矩阵 |
+| [db.overview.md](./db.overview.md) | 数据库总览 + Quick Start | 各库快速接入、Vault 机制概述 |
+| [db.vault-integration.md](./db.vault-integration.md) | Vault 接入详解 | Per-App Token、新应用接入流程、故障排查 |
 | [db.platform_pg.md](./db.platform_pg.md) | Platform PG (L1) | Vault/Casdoor 后端 |
 | [db.business_pg.md](./db.business_pg.md) | Business PG (L3) | 业务应用数据库 |
 | [db.redis.md](./db.redis.md) | Redis (L3) | 缓存、消息队列 |

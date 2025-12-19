@@ -44,7 +44,7 @@ resource "kubernetes_namespace" "data" {
 
 data "vault_kv_secret_v2" "postgres" {
   mount = "secret"
-  name  = "data/postgres"
+  name  = "postgres"
 }
 
 # =============================================================================
@@ -108,6 +108,11 @@ resource "helm_release" "postgresql" {
     precondition {
       condition     = can(data.vault_kv_secret_v2.postgres.data["password"]) && length(data.vault_kv_secret_v2.postgres.data["password"]) >= 16
       error_message = "L3 PostgreSQL password must be available in Vault KV and at least 16 characters."
+    }
+
+    postcondition {
+      condition     = self.status == "deployed"
+      error_message = "PostgreSQL Helm release failed to deploy. Check pod logs and events."
     }
   }
 }

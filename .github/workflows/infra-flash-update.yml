@@ -105,7 +105,7 @@ jobs:
                 '|:---|:---|:---|',
                 '| `atlantis plan` | Re-run infrastructure plan | Append to this table |',
                 '| `atlantis apply` | Deploy changes | Append to this table |',
-                '| `infra review` | AI Code Review (Copilot) | Append to dashboard |',
+                '| `@claude review this` | AI Code Review | New comment reply |',
                 '| `infra dig` | Service Health Check | Append to dashboard |',
                 '| `infra help` | Show detailed help | New reply |',
                 '',
@@ -126,7 +126,7 @@ jobs:
                 "",
                 "---",
                 "",
-                "<!-- copilot-review-placeholder -->",
+                "<!-- claude-review-placeholder -->",
                 "",
                 "---",
                 "",
@@ -160,23 +160,16 @@ jobs:
             // 确定下一步操作
             let nextStep = '';
             if (isPlan && isSuccess) {
-              nextStep = '\n\n👉 **Recommended Next Step:** Review plan, then comment `atlantis apply`';
+              nextStep = '👉 **Recommended Next Step:** Review plan, then comment `atlantis apply`';
             } else if (isApply && isSuccess) {
-              nextStep = '\n\n👉 **Recommended Next Step:** ✅ **Ready to merge!**';
+              nextStep = '👉 **Recommended Next Step:** ✅ **Ready to merge!**';
             } else if (!isSuccess) {
               nextStep = isPlan
-                ? '\n\n👉 **Recommended Next Step:** ❌ **Plan failed.** Fix errors, then comment `atlantis plan` (or push again)'
-                : '\n\n👉 **Recommended Next Step:** ❌ **Apply failed.** Fix errors, then comment `atlantis apply`';
+                ? '👉 **Recommended Next Step:** ❌ **Plan failed.** Fix errors, then comment `atlantis plan` (or push again)'
+                : '👉 **Recommended Next Step:** ❌ **Apply failed.** Fix errors, then comment `atlantis apply`';
             }
             
-            // 移除旧的 next step 提示
-            let updatedBody = flashComment.body
-              .replace(/\n*👉 \*\*Recommended Next Step:\*\*.*/g, '')
-              .replace(/\n*👉 \*\*Next:\*\*.*/g, '')
-              .replace(/\n*✅ \*\*Ready to merge!\*\*/g, '')
-              .replace(/\n*⏳ \*\*Triggering Atlantis plan\.\.\.\*\*/g, '')
-              .replace(/\n*⏳ \*\*Waiting for Atlantis autoplan\.\.\.\*\*/g, '')
-              .replace(/\n*❌ \*\*CI failed\.\*\*.*/g, '');
+            let updatedBody = flashComment.body;
             
             // Update Global Status Table for Atlantis
             const statusIcon = isSuccess ? '✅' : '❌';
@@ -192,52 +185,36 @@ jobs:
               );
             }
 
+            // Update Next Step using placeholder
+            const nextStepSection = `<!-- next-step-placeholder -->\n${nextStep}\n<!-- /next-step-placeholder -->`;
+            if (updatedBody.includes('<!-- next-step-placeholder -->')) {
+              updatedBody = updatedBody.replace(/<!-- next-step-placeholder -->[\s\S]*?<!-- \/next-step-placeholder -->/, nextStepSection);
+            } else {
+              // Cleanup old styles and append new section
+              updatedBody = updatedBody
+                .replace(/\n*👉 \*\*Recommended Next Step:\*\*.*/g, '')
+                .replace(/\n*⏳ \*\*Waiting for results\.\.\.\*\*/g, '')
+                .trim() + '\n\n' + nextStepSection;
+            }
+
             // 构建触发链接
-            // 格式: [@user #comment-id](link) 或 [@autoplan #atlantis-id](link)
             let triggerLink;
             if (triggerComment) {
-              // 人类或 bot 评论触发
-              const commentId = triggerComment.id;
               const username = triggerComment.user.login.replace('[bot]', '');
-              triggerLink = `[@${username} #${commentId}](${triggerComment.html_url})`;
+              triggerLink = `[@${username} #${triggerComment.id}](${triggerComment.html_url})`;
             } else {
-              // autoplan: 链接到 Atlantis 输出评论本身
-              const atlantisCommentId = context.payload.comment.id;
-              triggerLink = `[@autoplan #${atlantisCommentId}](${atlantisCommentUrl})`;
+              triggerLink = `[@autoplan #${context.payload.comment.id}](${atlantisCommentUrl})`;
             }
             const outputLink = `[output](${atlantisCommentUrl})`;
             
             // 构建新操作记录行
             const commitLink = `[\`${targetSha}\`](${prUrl}/commits/${targetSha})`;
-            const actionRow = `| ${stage} | ${commitLink} | ${triggerLink} | ${icon} | ${outputLink} | ${timestamp} |`;
+            const actionRow = `| ${stage} | ${commitLink} | ${triggerLink} | ${statusIcon} | ${outputLink} | ${timestamp} |`;
             
-            // 找到或创建 Atlantis Actions 表格
-            const tableMarker = '<!-- atlantis-actions -->';
-            if (updatedBody.includes(tableMarker)) {
-              // 追加新行到表格
-              const tableEnd = updatedBody.indexOf('<!-- /atlantis-actions -->');
-              if (tableEnd > 0) {
-                updatedBody = updatedBody.slice(0, tableEnd) + actionRow + '\n' + updatedBody.slice(tableEnd);
-              }
-            } else {
-              // 创建新表格
-              const newTable = [
-                '',
-                '---',
-                '### Atlantis Actions',
-                '',
-                tableMarker,
-                '| Action | Commit | Trigger | Status | Output | Time |',
-                '|:-------|:-------|:--------|:------:|:-------|:-----|',
-                actionRow,
-                '<!-- /atlantis-actions -->',
-                ''
-              ].join('\n');
-              updatedBody = updatedBody.trim() + newTable;
+            // 找到 Atlantis Actions 表格并追加
+            if (updatedBody.includes('<!-- atlantis-actions -->')) {
+              updatedBody = updatedBody.replace('<!-- /atlantis-actions -->', `${actionRow}\n<!-- /atlantis-actions -->`);
             }
-            
-            // 追加 next step
-            updatedBody = updatedBody.trim() + nextStep;
             
             await github.rest.issues.updateComment({
               owner: context.repo.owner,

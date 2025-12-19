@@ -20,7 +20,7 @@
 
 data "vault_kv_secret_v2" "redis" {
   mount = "secret"
-  name  = "data/redis"
+  name  = "redis"
 }
 
 # =============================================================================
@@ -44,6 +44,11 @@ resource "helm_release" "redis" {
     precondition {
       condition     = can(data.vault_kv_secret_v2.redis.data["password"]) && length(data.vault_kv_secret_v2.redis.data["password"]) >= 16
       error_message = "Redis password must be available in Vault KV and at least 16 characters."
+    }
+
+    postcondition {
+      condition     = self.status == "deployed"
+      error_message = "Redis Helm release failed to deploy. Check pod logs and events."
     }
   }
 

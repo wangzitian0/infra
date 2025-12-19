@@ -21,7 +21,7 @@
 
 data "vault_kv_secret_v2" "arangodb" {
   mount = "secret"
-  name  = "data/arangodb"
+  name  = "arangodb"
 }
 
 # =============================================================================
@@ -46,6 +46,11 @@ resource "helm_release" "arangodb_operator" {
     precondition {
       condition     = can(data.vault_kv_secret_v2.arangodb.data["password"]) && length(data.vault_kv_secret_v2.arangodb.data["password"]) >= 16
       error_message = "ArangoDB password must be available in Vault KV and at least 16 characters."
+    }
+
+    postcondition {
+      condition     = self.status == "deployed"
+      error_message = "ArangoDB operator Helm release failed to deploy. Check pod logs and events."
     }
   }
 

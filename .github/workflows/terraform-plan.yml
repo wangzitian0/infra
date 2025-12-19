@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "0.tools/**"
       - "1.bootstrap/**"
       - "2.platform/**"
       - "3.data/**"
@@ -84,7 +85,7 @@ jobs:
               '|:---|:---|:---|',
               '| `atlantis plan` | Re-run infrastructure plan | Append to this table |',
               '| `atlantis apply` | Deploy changes | Append to this table |',
-              '| `infra review` | AI Code Review (Copilot) | Append to dashboard |',
+              '| `@claude review this` | AI Code Review | New comment reply |',
               '| `infra dig` | Service Health Check | Append to dashboard |',
               '| `infra help` | Show detailed help | New reply |',
               '',
@@ -104,13 +105,13 @@ jobs:
               "| **Infra Apply** | ⏭️ | - | - |",
               "| **Health Check** | ⏭️ | - | - |",
               "",
+              "<!-- next-step-placeholder -->",
+              "⏳ **Waiting for CI...**",
+              "<!-- /next-step-placeholder -->",
+              "",
               "---",
               "",
-              "### 🛠️ CI Validate ⏳ | [" + sha + "](" + runUrl + ") | " + timestamp,
-              "",
-              '⏳ Running checks...', 
-              "",
-              "<!-- copilot-review-placeholder -->",
+              "<!-- claude-review-placeholder -->",
               "",
               "---",
               "",
@@ -127,8 +128,7 @@ jobs:
               commandHelp,
               "",
               "---",
-              "",
-              "⏳ **Waiting for CI...**"
+              "*(Dashboard auto-updates on every action)*"
             ].join('\n');
             
             let commentId;
@@ -234,9 +234,9 @@ jobs:
         run: terraform init -backend=false -input=false -no-color && terraform validate -no-color
         continue-on-error: true
 
-      # ============================================================
+      # ========================================== 
       # STEP 3: Update comment with results
-      # ============================================================
+      # ========================================== 
       - name: Update comment with results
         if: always()
         uses: actions/github-script@v7
@@ -271,7 +271,7 @@ jobs:
             
             // CI section: only show error link if failed
             let ciDetails = "";
-            let statusIcon = icon(allPass);
+            let statusIcon = allPass ? '✅' : '❌';
             if (!allPass) {
               ciDetails = [
                 '---',
@@ -309,24 +309,26 @@ jobs:
               `| **Static CI** | ${statusIcon} | [View Run](${runUrl}) | ${timestamp} |`
             );
 
-            // 2. Update Details Section
-            const ciHeader = "### 🛠️ CI Validate";
-            const reviewPlaceholder = "<!-- copilot-review-placeholder -->";
-            
-            if (body.includes(ciHeader)) {
-               // Replace from header until the next HR or placeholder
-               const regex = /### 🛠️ CI Validate [\s\S]*?---\n/;
-               body = body.replace(regex, ciDetails ? ciDetails + "\n" : "");
-            } else if (ciDetails) {
-               // Prepend before Review placeholder if failed
-               body = body.replace(reviewPlaceholder, `${ciDetails}\n\n${reviewPlaceholder}`);
+            // 1.5 If no TF changes, mark Infra Plan/Apply as skipped
+            if (!hasTfChanges) {
+              body = body.replace(
+                /\| \*\*Infra Plan\*\* \| .* \| .* \| .* \|/,
+                `| **Infra Plan** | ⏭️ | No TF changes | - |`
+              );
+              body = body.replace(
+                /\| \*\*Infra Apply\*\* \| .* \| .* \| .* \|/,
+                `| **Infra Apply** | ⏭️ | - | - |`
+              );
             }
-            
-            // Clean up double HRs that might occur during healing/replacement
-            body = body.replace(/---\n\n---/g, '---\n');
 
-            // 3. Update Next Step
-            const nextStepPattern = /👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/;
+            // 2. Update Next Step using placeholder
+            const nextStepSection = `<!-- next-step-placeholder -->\n${nextStep}\n<!-- /next-step-placeholder -->`;
+            if (body.includes('<!-- next-step-placeholder -->')) {
+              body = body.replace(/<!-- next-step-placeholder -->[\s\S]*?<!-- \/next-step-placeholder -->/, nextStepSection);
+            } else {
+              // Fallback for older comments
+              body = body.replace(/👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/, nextStepSection);
+            }
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,

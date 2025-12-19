@@ -40,6 +40,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 This layer supports both **Atlantis (CI)** and **Standalone/Local** execution.
 
 - **Backend state**: Stored in Cloudflare R2 (`backend.tf`)
+- **Pipeline Feedback**: All Plan/Apply actions are synchronized to the **`infra-flash` Dashboard** in the PR.
 - **Providers**: Auto-configured for both local kubeconfig and in-cluster ServiceAccount (`providers.tf`)
 - **Variables**: Defaults provided in `variables.tf`; Atlantis injects environment-specific values via `TF_VAR_*` env vars.
 
@@ -124,4 +125,4 @@ To deploy Portal SSO Gate for Vault/Dashboard:
    - https://kdashboard.zitian.party (Dashboard)
 
 ---
-*Last updated: 2025-12-19 (Added Vault K8s auth and Kubero integration)*
+*Last updated: 2025-12-19 (Fixed Vault KV secret paths - removed data/ prefix from vault_kv_secret_v2 names)*

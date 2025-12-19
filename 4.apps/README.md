@@ -37,13 +37,13 @@ The Kubero CR uses specific value paths (differs from typical Helm conventions):
 
 ### Required Secrets
 
-Kubero secrets (Webhook and Session keys) are centralized in **Vault KV** (`secret/data/data/kubero`) and injected into the pods via the **Vault Agent Injector**.
+Kubero secrets (Webhook and Session keys) are centralized in **Vault KV** (`secret/data/kubero`) and injected into the pods via the **Vault Agent Injector**.
 
 The following annotations are required (and managed by Terraform in `1.kubero.tf`):
 ```yaml
 vault.hashicorp.com/agent-inject: "true"
 vault.hashicorp.com/role: "kubero"
-vault.hashicorp.com/agent-inject-secret-env: "secret/data/data/kubero"
+vault.hashicorp.com/agent-inject-secret-env: "secret/data/kubero"
 ```
 
 ### Multi-Environment Deployment

@@ -15,26 +15,15 @@
 
 ## GitHub Automation（CI/CD）
 
-CI/CD 与 bot 配置位于 `.github/`；Workflows 在 `.github/workflows/`。
+基于 **`infra-flash` 运维看板** 打造的闭环流水线。详见：[`docs/ssot/ops.pipeline.md`](./docs/ssot/ops.pipeline.md)。
 
-| Workflow | Purpose |
-| :--- | :--- |
-| `terraform-plan.yml` | Static checks + per-commit infra-flash comment; Atlantis autoplan runs plan on PR updates |
-| `infra-flash-update.yml` | Appends Atlantis plan/apply results to the matching infra-flash comment |
-| `infra-flash-update.yml` | Full infra flash (per commit/manual) |
-| `infra-commands.yml` | Unified Infra Commands: `infra review`, `infra dig`, `infra help` (consolidated into `infra-flash`) |
-| `docs-site.yml` | MkDocs build/deploy |
-
-Per-commit infra-flash 评论流（CI → (autoplan) Plan/Apply 追加）见 [`docs/ssot/ops.pipeline.md`](./docs/ssot/ops.pipeline.md)。
-
-更完整的 CI/CD 设计与变更流程见 [`.github/workflows/README.md`](./.github/workflows/README.md)。
-
-## Recent Changes
-
-- **CI/CD**: 重构变量加载体系，引入 `ci_load_secrets.py` (Python Loader) 与一致性检查，移除 150+ 行冗余 YAML。
-- **SSO**: GitHub OAuth Provider 现通过 Terraform REST API 自动配置到 Casdoor (`2.platform/90.casdoor-apps.tf`)
-- **文件重编号**: 按拓扑依赖顺序重命名 (1→92, 98→90, 99→91)
-- **Shift-left 检查**: 各组件添加 precondition/postcondition
+| Workflow | 职责 | 核心价值 |
+| :--- | :--- | :--- |
+| `terraform-plan.yml` | CI 静态检查 + 看板骨架创建 | 每个 Commit 独立的 **SSOT 仪表盘** |
+| `infra-flash-update.yml` | Atlantis 结果搬运 | Plan/Apply 输出实时同步至看板 |
+| `claude-code-review.yml` | **AI 自动化审计** | Apply 成功后自动执行代码规范与文档一致性检查 |
+| `infra-commands.yml` | 指令分发器 (`dig`, `help`) | 通过评论手动触发环境健康探测，结果回写看板 |
+| `deploy-k3s.yml` | 全量灾备 Flash | 灾备与初始引导 (Bootstrap) |
 
 ---
-*Last updated: 2025-12-17*
+*Last updated: 2025-12-19*
