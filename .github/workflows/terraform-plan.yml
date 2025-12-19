@@ -110,7 +110,7 @@ jobs:
               "",
               '⏳ Running checks...', 
               "",
-              "<!-- copilot-review-placeholder -->",
+              "<!-- claude-review-placeholder -->",
               "",
               "---",
               "",
@@ -311,7 +311,7 @@ jobs:
 
             // 2. Update Details Section
             const ciHeader = "### 🛠️ CI Validate";
-            const reviewPlaceholder = "<!-- copilot-review-placeholder -->";
+            const reviewPlaceholder = "<!-- claude-review-placeholder -->";
             
             if (body.includes(ciHeader)) {
                // Replace from header until the next HR or placeholder
