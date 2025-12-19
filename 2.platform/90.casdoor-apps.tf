@@ -59,12 +59,19 @@ locals {
   common_app_config = {
     owner          = "admin"
     organization   = "built-in"
-    enablePassword = false
-    grantTypes     = ["authorization_code", "refresh_token"]
+    enablePassword = true
+    signinMethods = [
+      {
+        name        = "Password"
+        displayName = "Password"
+        rule        = "All"
+      }
+    ]
+    grantTypes = ["authorization_code", "refresh_token"]
     # Updated API fields for Casdoor v1.570+
     providers = [
       {
-        owner     = ""
+        owner     = "admin"
         name      = "GitHub"
         canSignUp = true
         canSignIn = true
