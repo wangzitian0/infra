@@ -269,22 +269,14 @@ jobs:
               comment_id: commentId
             });
             
-            // CI section: only detailed if failed
+            // CI section: only show error link if failed
             let ciDetails = "";
             let statusIcon = icon(allPass);
             if (!allPass) {
-              const fixCmd = '```bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n```';
               ciDetails = [
-                `### 🛠️ CI Validate ❌ | [${sha}](${runUrl})`,
-                '',
-                '| Layer | Format | Lint | Validate |',
-                '|:------|:------:|:----:|:--------:|',
-                `| L1 Bootstrap | ${icon(fmt)} | ${icon(lint_l1)} | ${icon(validate_l1)} |`,
-                `| L2 Platform | ${icon(fmt)} | ${icon(lint_l2)} | ${icon(validate_l2)} |`,
-                `| L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |`,
-                `| L4 Apps | ${icon(fmt)} | ${icon(lint_l4)} | ${icon(validate_l4)} |`,
-                '',
-                fixCmd,
+                '---',
+                `### ❌ Static CI Failed`,
+                `> Detailed logs and fix commands: [View Run Log](${runUrl})`,
                 '---'
               ].join('\n');
             }
@@ -317,13 +309,12 @@ jobs:
               `| **Static CI** | ${statusIcon} | [View Run](${runUrl}) | ${timestamp} |`
             );
 
-            // 2. Update Details Section (Empty if pass, detailed if fail)
+            // 2. Update Details Section (Remove matrix, only show error link if any)
             const ciPlaceholder = "### 🛠️ CI Validate";
+            const detailRegex = /### 🛠️ CI Validate [\s\S]*?---\n/;
             if (body.includes(ciPlaceholder)) {
-               const regex = /### 🛠️ CI Validate [\s\S]*?---\n/;
-               body = body.replace(regex, ciDetails ? ciDetails + "\n" : "");
+               body = body.replace(detailRegex, ciDetails ? ciDetails + "\n" : "");
             } else if (ciDetails) {
-               // If somehow missing but we have errors, prepend it before Review placeholder
                body = body.replace("<!-- copilot-review-placeholder -->", `${ciDetails}\n\n<!-- copilot-review-placeholder -->`);
             }
 

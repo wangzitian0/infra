@@ -44,13 +44,16 @@ jobs:
 
       - name: Parse Command
         id: parse
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
             echo "command=review" >> $GITHUB_OUTPUT
             echo "valid=true" >> $GITHUB_OUTPUT
           else
-            # Get the first line, lower case it, and trim whitespace
-            BODY_LOWER=$(echo "${{ github.event.comment.body }}" | head -n 1 | tr '[:upper:]' '[:lower:]' | xargs)
+            # Safe parsing for issue_comment
+            BODY_LOWER=$(echo "$COMMENT_BODY" | head -n 1 | tr '[:upper:]' '[:lower:]' | xargs)
             
             if [[ "$BODY_LOWER" == "infra review"* ]]; then
               echo "command=review" >> $GITHUB_OUTPUT
@@ -122,18 +125,17 @@ jobs:
             });
 
       # ==========================================
-      # COMMAND: infra review
+      # COMMAND: infra review (Native Integration)
       # ==========================================
-      - name: Copilot Review
+      - name: Request Native Copilot Review
         if: steps.parse.outputs.command == 'review'
         id: review
-        uses: github/copilot-review-action@v1
-        with:
-          github_token: ${{ steps.app_token.outputs.token }}
-          custom_prompt: |
-            (Output ONLY the markdown body)
-            Review for IaC Layers (L1-L4) & SSOT alignment. Check AGENTS.md.
-          post_comment: false
+        run: |
+          echo "Requesting review from @github-copilot..."
+          gh pr edit ${{ github.event.issue.number || github.event.pull_request.number }} --add-reviewer github-copilot
+          echo "review_body=Native @github-copilot review requested. Please check the 'Files Changed' tab or individual comments below." >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
 
       # ==========================================
       # COMMAND: infra dig
