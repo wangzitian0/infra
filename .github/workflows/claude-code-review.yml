@@ -94,10 +94,14 @@ jobs:
 
             const status = '${{ steps.claude-review.outcome }}' === 'success' ? '✅' : '❌';
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             
+            const linkText = status === '✅' ? 'Automated Review' : '[View Run Log]';
+            const linkUrl = status === '✅' ? runUrl : runUrl; // 自动审计目前统一跳到 Run Log
+
             let body = dashboard.body.replace(
               /\| \*\*AI Review\*\* \| .* \| .* \| .* \|/,
-              `| **AI Review** | ${status} | Automated Review | ${timestamp} |`
+              `| **AI Review** | ${status} | [${linkText}](${linkUrl}) | ${timestamp} |`
             );
 
             await github.rest.issues.updateComment({
