@@ -1,0 +1,64 @@
+name: Copilot Review
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  copilot:
+    runs-on: ubuntu-latest
+    # Trigger conditions:
+    # Manual only: /review, @copilot, PTAL from any user (not bot)
+    if: |
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.comment.user.type != 'Bot' &&
+        (contains(github.event.comment.body, '@copilot') || contains(github.event.comment.body, '/review') || contains(github.event.comment.body, 'PTAL'))
+      ) ||
+      (
+        github.event_name == 'pull_request_review_comment' &&
+        github.event.comment.user.type != 'Bot' &&
+        (contains(github.event.comment.body, '@copilot') || contains(github.event.comment.body, '/review') || contains(github.event.comment.body, 'PTAL'))
+      ) ||
+      (
+        github.event_name == 'pull_request_review' &&
+        github.event.review.user.type != 'Bot' &&
+        (contains(github.event.review.body, '@copilot') || contains(github.event.review.body, '/review') || contains(github.event.review.body, 'PTAL'))
+      )
+
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Copilot Review
+        uses: github/copilot-review-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          proxy_url: ${{ secrets.COPILOT_PROXY_URL }} # Optional if using custom endpoint
+          custom_prompt: |
+            This is a Terraform IaC project with layered architecture (L1-L4).
+            
+            ## Documentation Guard (REQUIRED)
+            Check if:
+            1. `0.check_now.md` is updated
+            2. Each changed directory's `README.md` is updated
+
+            ## Code Review Criteria
+            1. Structure: L1-nodep/L2-platform/L3-data/L4-insight alignment.
+            2. SSOT: No duplicate config or hardcoded secrets.
+            3. Terraform: `terraform fmt` and naming conventions.
+
+            Reference AGENTS.md for detailed project conventions.
+            Be concise. Use `gh pr comment` to post results if needed.

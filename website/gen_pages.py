@@ -27,7 +27,7 @@ EXCLUDE_TOP_LEVEL = {
 }
 
 EXCLUDE_FILES = {
-    "CLAUDE.md",  # symlink to AGENTS.md
+    "COPILOT.md",  # symlink to AGENTS.md
 }
 
 EXTRA_STATIC_FILES = [
