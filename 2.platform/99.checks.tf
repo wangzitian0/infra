@@ -65,6 +65,6 @@ output "sso_e2e_status" {
 # ------------------------------------------------------------
 resource "null_resource" "pipeline_test" {
   triggers = {
-    uuid = "test-${timestamp()}-v2"
+    uuid = "test-${timestamp()}-v3-final"
   }
 }

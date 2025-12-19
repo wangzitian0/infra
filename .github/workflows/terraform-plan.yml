@@ -105,11 +105,11 @@ jobs:
               "| **Infra Apply** | ⏭️ | - | - |",
               "| **Health Check** | ⏭️ | - | - |",
               "",
+              "<!-- next-step-placeholder -->",
+              "⏳ **Waiting for CI...**",
+              "<!-- /next-step-placeholder -->",
+              "",
               "---",
-              "",
-              "### 🛠️ CI Validate ⏳ | [" + sha + "](" + runUrl + ") | " + timestamp,
-              "",
-              '⏳ Running checks...',
               "",
               "<!-- claude-review-placeholder -->",
               "",
@@ -128,8 +128,7 @@ jobs:
               commandHelp,
               "",
               "---",
-              "",
-              "⏳ **Waiting for CI...**"
+              "*(Dashboard auto-updates on every action)*"
             ].join('\n');
             
             let commentId;
@@ -322,25 +321,14 @@ jobs:
               );
             }
 
-            // 2. Update Details Section
-            const ciHeader = "### 🛠️ CI Validate";
-            const reviewPlaceholder = "<!-- claude-review-placeholder -->";
-            
-            if (body.includes(ciHeader)) {
-               // Replace from header until the next HR or placeholder
-               const regex = /### 🛠️ CI Validate [\s\S]*?---\n/;
-               body = body.replace(regex, ciDetails ? ciDetails + "\n" : "");
-            } else if (ciDetails) {
-               // Prepend before Review placeholder if failed
-               body = body.replace(reviewPlaceholder, `${ciDetails}\n\n${reviewPlaceholder}`);
+            // 2. Update Next Step using placeholder
+            const nextStepSection = `<!-- next-step-placeholder -->\n${nextStep}\n<!-- /next-step-placeholder -->`;
+            if (body.includes('<!-- next-step-placeholder -->')) {
+              body = body.replace(/<!-- next-step-placeholder -->[\s\S]*?<!-- \/next-step-placeholder -->/, nextStepSection);
+            } else {
+              // Fallback for older comments
+              body = body.replace(/👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/, nextStepSection);
             }
-            
-            // Clean up double HRs that might occur during healing/replacement
-            body = body.replace(/---\n\n---/g, '---\n');
-
-            // 3. Update Next Step
-            const nextStepPattern = /👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/;
-            body = body.replace(nextStepPattern, nextStep);
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
