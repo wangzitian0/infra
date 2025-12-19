@@ -17,11 +17,80 @@
 
 ---
 
-## 2. 运维节点与触发矩阵
+## 2. Dashboard 状态机
+
+Dashboard 是每个 Commit 的 SSOT 看板，状态转换遵循以下规则：
+
+```mermaid
+graph TD
+    Push[Push Event] --> Create[Create/Lock Skeleton]
+    Create --> CI_Wait[CI: ⏳ / Plan: ⏳]
+    CI_Wait --> CI_Pass{CI Passed?}
+    CI_Pass -- No --> CI_Fail[CI: ❌ / NextStep: Fix]
+    CI_Pass -- Yes --> CI_Ok[CI: ✅]
+    CI_Ok --> TF_Check{Has TF Changes?}
+    TF_Check -- No --> TF_Skip[Plan: ⏭️ / Ready to Merge]
+    TF_Check -- Yes --> Plan_Wait[Plan: ⏳ / Wait Atlantis]
+    Plan_Wait --> Plan_Result{Plan Success?}
+    Plan_Result -- No --> Plan_Fail[Plan: ❌]
+    Plan_Result -- Yes --> Plan_Ok[Plan: ✅]
+    Plan_Ok --> Apply_Cmd[atlantis apply]
+    Apply_Cmd --> Apply_Wait[Apply: ⏳]
+    Apply_Wait --> Apply_Result{Apply Success?}
+    Apply_Result -- No --> Apply_Fail[Apply: ❌]
+    Apply_Result -- Yes --> Apply_Ok[Apply: ✅]
+    Apply_Ok --> Review[Auto Review]
+    Review --> Final[AI Review: ✅ / Ready to Merge]
+```
+
+### 状态图标定义
+
+| 图标 | 含义 | 说明 |
+|:---:|:---|:---|
+| ⏳ | Pending/Running | 等待中或执行中 |
+| ✅ | Success | 成功完成 |
+| ❌ | Failed | 执行失败 |
+| ⏭️ | Skipped/N/A | 跳过或不适用 |
+
+---
+
+## 3. 时序图：Push 到 Merge 全流程
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant GHA_Plan as terraform-plan.yml
+    participant Atlantis
+    participant GHA_Update as infra-flash-update.yml
+    participant GHA_Claude as claude.yml
+
+    User->>GHA_Plan: git push
+    GHA_Plan->>GHA_Plan: Create Skeleton (infra-flash[bot])
+    GHA_Plan->>Atlantis: Run CI (Validate/Lint)
+    Atlantis-->>GHA_Plan: Autoplan Trigger
+    Atlantis->>GHA_Update: Post "Ran Plan"
+    GHA_Update->>GHA_Plan: Update Dashboard (Plan Status)
+    
+    User->>Atlantis: atlantis apply (Comment)
+    Atlantis->>Atlantis: Execute Apply
+    Atlantis->>GHA_Update: Post "Ran Apply"
+    GHA_Update->>GHA_Plan: Update Dashboard (Apply Status)
+    
+    GHA_Update->>GHA_Claude: workflow_run (Trigger Review)
+    GHA_Claude->>GHA_Claude: AI Review & Post Comment
+    GHA_Claude->>GHA_Plan: Update Dashboard (Review Status)
+    
+    Note over User,GHA_Claude: Ready to Merge
+```
+
+---
+
+## 4. 运维节点与触发矩阵
 
 我们将流程分为 **自动 (Push)** 和 **指令 (Comment)** 两个平面。
 
 ### A. 自动平面 (Push Trigger)
+
 每当代码推送到 PR 分支，系统自动启动以下检查：
 
 1. **Skeleton (骨架)**: `terraform-plan.yml` 立即创建或锁定一个 `infra-flash` 评论。
@@ -30,6 +99,7 @@
 4. **Post-Apply Review**: `claude-code-review.yml` 在 `atlantis apply` 成功后自动触发，Claude 审查已部署的变更。
 
 ### B. 指令平面 (Comment Trigger)
+
 通过在 PR 下发表评论手动触发：
 
 | 命令 | 作用 | 触发时机 | 反馈位置 |
@@ -37,98 +107,257 @@
 | `atlantis plan` | 重新生成 Plan | 自动 Plan 失败或需要刷新时 | `infra-flash` 追加 |
 | `atlantis apply` | 执行部署 | **必须**在 Plan 成功后 | `infra-flash` 追加 |
 | `@claude review this` | 手动触发 AI 审计 | 随时，或针对特定问题时 | 新评论回复 |
-| `@claude <任意指令>` | Claude 执行任意任务 | 需要 AI 协助时 | 新评论回复 |
-| `infra dig` | 探测环境连通性 | 部署后验证或排查 Ingress 故障时 | `infra-flash` 追加 |
+| `@claude <指令>` | Claude 执行任务 | 需要 AI 协助时 | 新评论回复 |
+| `infra dig` | 探测环境连通性 | 部署后验证或故障排错 | `infra-flash` 追加 |
 | `infra help` | 获取指令帮助 | 任何时候 | 新评论回复 |
 
 ---
 
-## 3. infra-flash: 运维看板 (Dashboard)
+## 5. Dashboard Schema
 
-每条 `infra-flash` 评论不仅是审计日志，更是该 Commit 的 **SSOT 运维看板**。它必须具备极高的链接准确性和信息完整性。
+每个 `infra-flash` 评论遵循以下结构：
 
-### 反馈类型定义与区别
+```markdown
+<!-- infra-flash-commit:{7位SHA} -->
+## ⚡ Commit `{SHA}` Dashboard
 
-| 类型 | 标识 (Title) | 性质 | 核心价值 | 触发方式 |
-|:---|:---|:---|:---|:---|
-| **CI 静态检查** | `### 🛠️ CI Validate` | 守卫 | 验证语法、Lint 与变量一致性 | 自动 (Push) |
-| **AI 代码审计** | `### 🤖 AI Review (Claude)` | 护栏 | 文档一致性检查、层级架构审计、安全审查 | Apply后自动 / @claude手动 |
-| **Atlantis 部署** | `### 🚀 Atlantis Action` | 变更 | 真实的 Plan/Apply 状态与输出链接 | 自动/指令 |
-| **服务健康检查** | `### 🔍 Health Check` | 验证 | 探测真实环境的连通性与 HTTP 状态 | 指令 |
+| Component | Status | Info/Link | Time |
+|:---|:---:|:---|:---|
+| **Static CI** | {⏳/✅/❌} | [View Run]({url}) | {HH:MM UTC} |
+| **AI Review** | {⏳/✅/⏭️} | {Pending/link} | {time} |
+| **Infra Plan** | {⏳/✅/❌/⏭️} | {status/link} | {time} |
+| **Infra Apply** | {⏳/✅/❌/⏭️} | {status/link} | {time} |
+| **Health Check** | {⏳/✅/⏭️} | {status/link} | {time} |
 
-### 交互规范 (SOP)
+---
+<!-- claude-review-placeholder -->
 
-1. **Dashboard 理念**：
-   - 禁止在 PR 中产生“流式”的新评论。
-   - 所有信息必须**追加或原地更新**到对应的 Commit 看板中。
-   - 必须包含 `[Run Log]` 或 `[Output]` 的精准跳转链接。
-2. **修改与追加**：
-   - CI 结果应原地更新（例如从 ⏳ 变为 ✅）。
-   - Review 和 Dig 结果采用追加模式，保留历史快照。
-   - Atlantis Actions 采用表格形式，记录该 Commit 的所有部署尝试。
+---
+### 🚀 Atlantis Actions
+<!-- atlantis-actions -->
+| Action | Commit | Trigger | Status | Output | Time |
+|:-------|:-------|:--------|:------:|:-------|:-----|
+{追加的action记录}
+<!-- /atlantis-actions -->
+
+<!-- health-check-placeholder -->
+
+---
+<details><summary>📖 Available Infra Commands</summary>
+
+| Command | Description |
+|:---|:---|
+| `infra dig` | Run connectivity tests |
+| `infra help` | Show this help |
+| `atlantis plan` | Force a new terraform plan |
+| `atlantis apply` | Apply the current plan |
+</details>
+
+---
+👉 **Recommended Next Step:** {下一步建议}
+```
+
+### Marker 规范
+
+| Marker | 用途 | 更新者 |
+|:---|:---|:---|
+| `<!-- infra-flash-commit:{sha} -->` | Dashboard 锁定标识 | terraform-plan.yml |
+| `<!-- claude-review-placeholder -->` | AI Review 插入点 | claude.yml |
+| `<!-- atlantis-actions -->` | Atlantis 记录表格区域 | infra-flash-update.yml |
+| `<!-- health-check-placeholder -->` | Health Check 插入点 | infra-commands.yml |
 
 ---
 
-## 4. 守卫节点与准入标准 (Guards & Admission)
+## 6. SLA 与超时预期
+
+| 阶段 | 正常耗时 | 超时阈值 | 超时处理 |
+|:---|:---|:---|:---|
+| Skeleton 创建 | <10s | 30s | 检查 GHA runner 状态 |
+| CI Validate | 30-60s | 2min | 检查 TFLint/Validate 死循环 |
+| Atlantis Plan | 1-3min | 5min | 检查 Atlantis Pod 日志 |
+| Atlantis Apply | 2-5min | 10min | 检查资源创建阻塞点 |
+| Claude Review | 30-60s | 2min | 检查 OAuth Token 有效性 |
+| Health Check | 10-30s | 1min | 检查网络连通性 |
+
+---
+
+## 7. 并发与竞态处理
+
+### 快速连续 Push
+- **策略**: 使用 `concurrency` 取消旧的 CI run。
+- **配置**: `concurrency: { group: terraform-${{ pr_number }}-${{ sha }}, cancel-in-progress: true }`。
+- **结果**: 只有最新 commit 的 Dashboard 会被更新。
+
+### 同一 Commit 多次触发
+- **幂等性**: 如果 marker 已存在，复用现有评论而非创建新评论。
+
+### Atlantis 队列
+- **内置串行**: Atlantis 对同一 workspace 的 plan/apply 串行执行。
+- **锁机制**: apply 期间会锁定 workspace，阻止其他 plan。
+
+---
+
+## 8. 回滚策略
+
+### Apply 失败场景
+
+| 场景 | 症状 | 回滚方式 | 命令 |
+|:---|:---|:---|:---|
+| Apply 中断（部分成功） | 部分资源已创建 | terraform import | `terraform import <resource> <id>` |
+| Apply 完成但服务异常 | HTTP 5xx/无响应 | git revert + apply | `git revert HEAD && atlantis apply` |
+| 配置错误需紧急回滚 | 服务不可用 | 手动 kubectl | 联系 on-call，参考 L1 README |
+| State 损坏 | plan 报 inconsistent | State 修复 | `terraform state rm` + `import` |
+
+### 回滚决策树
+
+```
+Apply 失败了?
+├── 部分资源创建成功?
+│   ├── 是 → terraform import 补齐 state → 重新 apply
+│   └── 否 → 修复代码 → 重新 push
+├── 服务已部署但异常?
+│   ├── 配置问题 → git revert → atlantis apply
+│   └── 资源问题 → kubectl describe → 手动修复
+└── State 不一致?
+    └── terraform state rm → terraform import → apply
+```
+
+---
+
+## 9. Troubleshooting 决策树
+
+```
+Dashboard 显示异常?
+│
+├── CI 一直 ⏳?
+│   ├── 检查 Actions tab → workflow 是否触发?
+│   │   ├── 没触发 → 检查 paths 过滤器
+│   │   └── 触发了 → 查看 job 日志
+│   └── runner 排队 → 等待或检查 runner 状态
+│
+├── Plan 一直 ⏳?
+│   ├── 检查 Atlantis Pod → kubectl logs -n platform atlantis-0
+│   │   ├── Vault 401 → Token 过期 → 重启 Atlantis Pod
+│   │   ├── Backend 403 → R2 权限 → 检查 Secrets
+│   │   └── 无日志 → Webhook 未收到 → 检查 GitHub App 配置
+│   └── 没有 TF 文件变化 → 正常，应显示 ⏭️
+│
+├── Apply 失败?
+│   ├── 资源已存在 → terraform import
+│   ├── 权限不足 → 检查 ServiceAccount
+│   ├── 资源配额 → 清理或扩容
+│   └── 依赖缺失 → 检查 depends_on
+│
+├── @claude 无响应?
+│   ├── 检查 claude.yml 是否在 main 分支
+│   ├── 检查 CLAUDE_CODE_OAUTH_TOKEN secret
+│   └── 查看 Actions 日志
+│
+├── infra dig 无响应?
+│   ├── 检查 infra-commands.yml 语法
+│   ├── 检查评论是否包含 "infra"
+│   └── 查看 Actions 日志
+│
+└── 评论没更新?
+    ├── 检查 workflow 是否成功执行
+    ├── 检查 app_token 权限 (issues:write, pull-requests:write)
+    └── 检查 marker 是否匹配 (commit SHA)
+```
+
+---
+
+## 10. 守卫节点与准入标准 (Guards & Admission)
 
 为了确保流水线的健壮性，执行过程中嵌入了多个“守卫”节点。
 
 | 守卫名称 | 职责 | 规范来源 | 强制位置 |
 |:---|:---|:---|:---|
-| **Variable Guard** | 校验变量是否已在 1P 映射 | [AGENTS.md (Sec 3)](../../AGENTS.md#3-secret--variable-pipeline-the-variable-chain) | `terraform-plan.yml` |
-| **Doc Guard** | 强制更新文档与 `check_now` | [AGENTS.md (Principles)](../../AGENTS.md#原则) | `infra review` (AI) |
-| **Identity Guard** | 统一 `infra-flash` 发件身份 | [ops.standards.md](./ops.standards.md#3-防御性配置要求-defensive-rules) | 所有 `*.yml` |
-| **Admission Guard** | 检查组件是否符合健康检查标准 | [ops.standards.md](./ops.standards.md#1-健康检查分层规范) | `terraform validate` |
-| **Propagation Guard**| 强制等待 DNS/网络生效 | [AGENTS.md (SOP Rule 5)](../../AGENTS.md#4-defensive-maintenance-sop-infrastructure-reliability) | `.tf` 代码层 |
+| **Variable Guard** | 校验变量是否已在 1P 映射 | [AGENTS.md](../../AGENTS.md#3-secret--variable-pipeline-the-variable-chain) | `terraform-plan.yml` |
+| **Doc Guard** | 强制更新文档与 `check_now` | [AGENTS.md](../../AGENTS.md#原则) | `infra review` (AI) |
+| **Identity Guard** | 统一 `infra-flash` 发件身份 | [ops.standards.md](./ops.standards.md) | 所有 `*.yml` |
+| **Admission Guard** | 检查组件是否符合健康检查标准 | [ops.standards.md](./ops.standards.md) | `terraform validate` |
 
 ---
 
-## 5. 关键工作流清单 (Workflows)
+## 11. 关键工作流清单 (Workflows)
 
-| 文件 | 身份 | 职责 |
-|:---|:---|:---|
-| `terraform-plan.yml` | `infra-flash` | 静态 CI + 骨架评论创建 |
-| `infra-commands.yml` | `infra-flash` | 指令分发器 (`dig`, `help`) |
-| `infra-flash-update.yml` | `infra-flash` | 监听并搬运 Atlantis 的输出到主评论 |
-| `claude.yml` | `claude[bot]` | 响应 @claude 评论，执行 AI 任务（review/coding/analysis） |
-| `claude-code-review.yml` | `claude[bot]` | Apply 成功后自动审查部署变更 |
-| `deploy-k3s.yml` | `infra-flash` | **灾备平面**：全量 L1-L4 Flash (仅在 merge 或手动触发) |
-
----
-
-## 5. 常见异常路径
-
-- **CI 挂了**：查看 `infra-flash` 中的 CI 表格，点击链接看日志，修复后重新 push。
-- **Plan 挂了**：
-    - 若是权限问题（Vault 过期），手动执行 L1 更新或重启 Atlantis。
-    - 若是代码问题，修复后 push。
-- **Apply 挂了**：
-    - **禁止盲目重试**。必须先 `infra dig` 检查网络或手动进入集群查看 Pod 状态。
-    - 确认为状态冲突后，使用 `terraform import` 修复。
+| 文件 | 身份 | 职责 | 触发器 |
+|:---|:---|:---|:---|
+| `terraform-plan.yml` | `infra-flash[bot]` | 静态 CI + 骨架评论创建 + CI 结果更新 | `pull_request` |
+| `infra-commands.yml` | `infra-flash[bot]` | 指令分发器 (`dig`, `help`) | `issue_comment` |
+| `infra-flash-update.yml` | `infra-flash[bot]` | 监听并搬运 Atlantis 的输出到主评论 | `issue_comment` |
+| `claude.yml` | `claude[bot]` | 响应 @claude 评论，执行 AI 任务 | `issue_comment` |
+| `claude-code-review.yml` | `claude[bot]` | Apply 成功后自动审查部署变更 | `workflow_run` |
+| `deploy-k3s.yml` | `github-actions` | 灾备平面：全量 L1-L4 Flash | `push` to main |
 
 ---
 
-## 7. 验收准则与测试场景 (UAT)
-
-为了验证流水线的健壮性，任何重大变更后应执行以下场景测试：
+## 12. 验收准则与测试场景 (UAT)
 
 | 场景 | 操作 | 预期 Dashboard 行为 | 预期 Identity |
 |:---|:---|:---|:---|
-| **CI 守卫测试** | 推送包含格式错误的代码 | `Static CI` 显示 ❌，看板底部显示修复命令 | `infra-flash` |
-| **手动 AI 审计** | 评论 `@claude review this` | 产生一条新评论，包含 Claude 的审查建议 | `claude[bot]` |
-| **Apply 后审计** | `atlantis apply` 成功 | `claude-code-review.yml` 触发，Claude 审查已部署变更 | `claude[bot]` |
-| **指令分发测试** | 评论 `infra help` | 产生一条新评论，列出所有可用指令 | `infra-flash` |
-| **环境探测测试** | 评论 `infra dig` | `Health Check` 状态更新，追加连通性表格 | `infra-flash` |
-| **SSOT 闭环测试** | 多次推送/评论 | 所有信息均有序汇聚在同一条 Commit 评论中 | `infra-flash` |
+| **CI 守卫测试** | 推送包含格式错误的代码 | `Static CI` 显示 ❌，NextStep 显示修复建议 | `infra-flash[bot]` |
+| **CI 通过测试** | 推送正确代码 | `Static CI` 显示 ✅ | `infra-flash[bot]` |
+| **无 TF 变化测试** | 推送仅 .md/.yml 变化 | `Plan/Apply` 显示 ⏭️ | `infra-flash[bot]` |
+| **手动 AI 审计** | 评论 `@claude review this` | 产生新评论包含审查建议 | `claude[bot]` |
+| **Apply 后审计** | `atlantis apply` 成功 | `claude-code-review.yml` 触发 | `claude[bot]` |
+| **指令分发测试** | 评论 `infra help` | 产生新评论，列出所有指令 | `infra-flash[bot]` |
+| **环境探测测试** | 评论 `infra dig` | `Health Check` 状态更新 | `infra-flash[bot]` |
 
 ---
 
-## 8. 维护规范
+## 13. 版本要求
 
-1. **修改任何 Workflow**：必须同步更新本 SSOT 及其对应的 `README.md`。
-2. **新增 infra 命令**：必须在 `infra-commands.yml` 中实现，并在此文档的"指令平面"表格中登记。
-3. **AI 审查定制**：通过仓库根目录的 `CLAUDE.md` 文件定义 Claude 的行为准则和审查标准。
-4. **Identity 规范**：
-   - `infra-flash[bot]`：所有 Atlantis 和 infra 命令相关的评论
-   - `claude[bot]`：所有 Claude AI 相关的评论和审查
-   - `github-actions`：仅用于 `deploy-k3s.yml` 在 merge 到 main 时的部署
+| 组件 | 最低版本 | 原因 |
+|:---|:---|:---|
+| Atlantis | 0.28+ | 支持 GitHub App 身份 |
+| actions/github-script | v7 | 支持 paginate API |
+| anthropics/claude-code-action | v1 | Claude GitHub App |
+
+---
+
+## 14. 实现状态与 TODO
+
+### 当前实现状态 (2025-12)
+
+| 能力 | 理想态 | 当前状态 | Drift |
+|:---|:---|:---:|:---|
+| Dashboard 创建 | 每次 push 自动创建 | ✅ | - |
+| CI 状态回写 | 更新 Static CI 行 | ✅ | - |
+| 无 TF 变化处理 | Plan/Apply 显示 ⏭️ | ✅ | - |
+| NextStep 提示 | 根据状态显示建议 | ✅ | - |
+| 评论身份 | infra-flash[bot] | ✅ | - |
+| Atlantis Plan 回写 | 更新 Infra Plan 行 | ✅ | 已通过 `infra-flash-update.yml` 实现 |
+| Atlantis Apply 回写 | 更新 Infra Apply 行 | ✅ | 已通过 `infra-flash-update.yml` 实现 |
+| @claude 手动触发 | 响应评论执行任务 | ✅ | 已实现，但未回写 Dashboard |
+| infra dig | 更新 Health Check | ✅ | 已实现，但需在 main 生效 |
+| Claude 自动 review | apply 后自动触发 | ✅ | 已通过 `claude-code-review.yml` 实现，但未回写 Dashboard |
+| AI Review 回写 Dashboard | 更新 AI Review 行 | ❌ | **Drift**: 尚未实现状态回写 |
+
+### TODO Backlog
+
+#### P0 - 合并后立即测试
+
+- [ ] **合并 PR #287** 到 main，使所有 workflow 生效
+- [ ] **测试 @claude 命令**: 在 PR 中评论 `@claude hello`
+- [ ] **测试 infra dig**: 在 PR 中评论 `infra dig`
+- [ ] **测试 infra help**: 在 PR 中评论 `infra help`
+
+#### P1 - 功能完善
+
+- [ ] **AI Review 回写 Dashboard**: 
+    - [ ] 在 `claude.yml` 中添加回写 Dashboard 的步骤
+    - [ ] 在 `claude-code-review.yml` 中添加回写 Dashboard 的步骤
+- [ ] **验证 Atlantis Plan/Apply 回写**: 在实际 PR 中验证 `infra-flash-update.yml` 的 marker 匹配准确性
+
+#### P2 - 健壮性增强
+
+- [ ] **错误处理**: workflow 失败时应在 Dashboard 显示明确错误信息
+- [ ] **超时处理**: 各阶段超时后应自动标记为 ❌ 并提示
+- [ ] **Marker 校验**: 优化 SHA 匹配逻辑，支持多种 SHA 长度
+
+#### P3 - 可观测性
+
+- [ ] **文档-代码同步检查**: CI 检查 workflow 变更是否同步更新了本 SSOT
+
+*Last Updated: 2025-12-19*
