@@ -99,6 +99,10 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **Namespace ownership**: `platform` namespace is created in L1 (`1.bootstrap/5.platform_pg.tf`), not L2. The Atlantis workflow removes stale namespace refs from L2 state automatically.
 - **Casdoor login bug**: Requires `copyrequestbody = true` in `app.conf` to fix "unexpected end of JSON input" error. See [#3224](https://github.com/casdoor/casdoor/issues/3224).
 - **Casdoor init_data**: Only loads on first startup. If `casdoor_admin_password` changes, manually update `casdoor-builtin-app` clientSecret via Casdoor UI or API. For disaster recovery (fresh install), init_data re-creates all bootstrap entities.
+- **Casdoor login white screen**: If app `signupItems` is `null`, the login page crashes in `AgreementModal`. Keep `signupItems=[]` in `2.platform/90.casdoor-apps.tf`.
+- **Casdoor token format**: v1.570.0 requires explicit `tokenFormat`; empty causes `unknown application TokenFormat` during login. Set `tokenFormat="JWT"` in `2.platform/90.casdoor-apps.tf`.
+- **Casdoor token TTL**: If `expireInHours/refreshExpireInHours` are `0`, OAuth2-Proxy will reject with `id_token is expired`. Set both to `168` in `2.platform/90.casdoor-apps.tf`.
+- **Casdoor REST API updates**: `restapi_object` updates default to PUT, but `update-application`/`update-provider` require POST and `?id=admin/{id}`. Set `update_method = "POST"` and include the id query to avoid 404/500s.
 
 
 ### Disaster Recovery

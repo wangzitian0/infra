@@ -68,7 +68,11 @@ locals {
         rule        = "All"
       }
     ]
-    grantTypes = ["authorization_code", "refresh_token"]
+    signupItems = []
+    grantTypes  = ["authorization_code", "refresh_token"]
+    tokenFormat = "JWT"
+    expireInHours        = 168
+    refreshExpireInHours = 168
     # Updated API fields for Casdoor v1.570+
     providers = [
       {
