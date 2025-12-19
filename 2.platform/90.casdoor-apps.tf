@@ -70,6 +70,7 @@ locals {
     ]
     signupItems = []
     grantTypes  = ["authorization_code", "refresh_token"]
+    tokenFormat = "JWT"
     # Updated API fields for Casdoor v1.570+
     providers = [
       {
