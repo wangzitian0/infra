@@ -21,8 +21,10 @@ CI/CD 与 bot 配置位于 `.github/`；Workflows 在 `.github/workflows/`。
 | :--- | :--- |
 | `terraform-plan.yml` | Static checks + per-commit infra-flash comment; Atlantis autoplan runs plan on PR updates |
 | `infra-flash-update.yml` | Appends Atlantis plan/apply results to the matching infra-flash comment |
-| `infra-flash-update.yml` | Full infra flash (per commit/manual) |
-| `infra-commands.yml` | Unified Infra Commands: `infra review`, `infra dig`, `infra help` (consolidated into `infra-flash`) |
+| `infra-commands.yml` | Unified Infra Commands: `infra dig`, `infra help` (consolidated into `infra-flash`) |
+| `claude.yml` | Responds to `@claude` mentions in PRs/Issues for AI-assisted code review and tasks |
+| `claude-code-review.yml` | Auto-triggers Claude review after successful `atlantis apply` for post-deployment audit |
+| `deploy-k3s.yml` | Full infra flash (per commit/manual) |
 | `docs-site.yml` | MkDocs build/deploy |
 
 Per-commit infra-flash 评论流（CI → (autoplan) Plan/Apply 追加）见 [`docs/ssot/ops.pipeline.md`](./docs/ssot/ops.pipeline.md)。

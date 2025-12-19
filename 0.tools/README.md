@@ -1,4 +1,14 @@
-# Scripts
+## 🛠️ Operational Commands (Operations Hub)
+
+This project supports unified infrastructure commands directly from PR comments.
+
+| Command | Action | Output |
+|:---|:---|:---|
+| `infra review` | AI Code Review | Appends to commit dashboard |
+| `infra dig` | Connectivity Check | Appends to commit dashboard |
+| `infra help` | Show help | New comment reply |
+
+> **Note**: Commands are case-insensitive and integrated with the `infra-flash` dashboard system.
 
 Utility scripts for infrastructure management, CI/CD, and secret synchronization.
 

@@ -10,7 +10,7 @@
 |:---|:---|:---|:---|
 | **静态质量** | `fmt`, `lint`, `validate` | GitHub Actions | 快速反馈，不依赖集群环境 |
 | **动态预览** | `terraform plan` | Atlantis (Pod) | 必须访问集群内 Vault 和 Backend |
-| **AI 护栏** | `infra review` | Copilot Action | 自动化文档检查与 IaC 规范审计 |
+| **AI 护栏** | `@claude review` / 自动 | Claude App (Haiku 4.5) | 文档一致性、IaC 规范、安全审计 |
 | **审计合规** | `infra-flash` 评论流 | GHA + Atlantis | 每一笔操作都有 Commit 级别的记录 |
 | **环境健康** | `infra dig` | GitHub Actions | 外部视角验证服务连通性 |
 | **全量恢复** | `deploy-k3s.yml` | GitHub Actions | 灾备与初始引导 (Bootstrap) |
@@ -22,12 +22,12 @@
 我们将流程分为 **自动 (Push)** 和 **指令 (Comment)** 两个平面。
 
 ### A. 自动平面 (Push Trigger)
-每当代码推送到 PR 分支，系统自动启动“三位一体”检查：
+每当代码推送到 PR 分支，系统自动启动以下检查：
 
 1. **Skeleton (骨架)**: `terraform-plan.yml` 立即创建或锁定一个 `infra-flash` 评论。
 2. **Static (静态)**: 同上，执行 `validate` 并更新评论中的 CI 表格。
-3. **AI Review**: `infra-commands.yml` 自动运行 `review` 逻辑，并将建议追加到评论中。
-4. **Autoplan**: Atlantis 监听到 push，自动执行 `plan`，由 `infra-flash-update.yml` 将结果追加到评论。
+3. **Autoplan**: Atlantis 监听到 push，自动执行 `plan`，由 `infra-flash-update.yml` 将结果追加到评论。
+4. **Post-Apply Review**: `claude-code-review.yml` 在 `atlantis apply` 成功后自动触发，Claude 审查已部署的变更。
 
 ### B. 指令平面 (Comment Trigger)
 通过在 PR 下发表评论手动触发：
@@ -35,8 +35,9 @@
 | 命令 | 作用 | 触发时机 | 反馈位置 |
 |:---|:---|:---|:---|
 | `atlantis plan` | 重新生成 Plan | 自动 Plan 失败或需要刷新时 | `infra-flash` 追加 |
-| `atlantis apply` | 执行部署 | **必须**在 Plan 成功且 Review 通过后 | `infra-flash` 追加 |
-| `infra review` | 手动触发 AI 审计 | 随时，或针对特定问题追问时 | `infra-flash` 追加 |
+| `atlantis apply` | 执行部署 | **必须**在 Plan 成功后 | `infra-flash` 追加 |
+| `@claude review this` | 手动触发 AI 审计 | 随时，或针对特定问题时 | 新评论回复 |
+| `@claude <任意指令>` | Claude 执行任意任务 | 需要 AI 协助时 | 新评论回复 |
 | `infra dig` | 探测环境连通性 | 部署后验证或排查 Ingress 故障时 | `infra-flash` 追加 |
 | `infra help` | 获取指令帮助 | 任何时候 | 新评论回复 |
 
@@ -51,7 +52,7 @@
 | 类型 | 标识 (Title) | 性质 | 核心价值 | 触发方式 |
 |:---|:---|:---|:---|:---|
 | **CI 静态检查** | `### 🛠️ CI Validate` | 守卫 | 验证语法、Lint 与变量一致性 | 自动 (Push) |
-| **AI 代码审计** | `### 🤖 Copilot Review` | 护栏 | 文档一致性检查、层级架构审计 | 自动/指令 |
+| **AI 代码审计** | `### 🤖 AI Review (Claude)` | 护栏 | 文档一致性检查、层级架构审计、安全审查 | Apply后自动 / @claude手动 |
 | **Atlantis 部署** | `### 🚀 Atlantis Action` | 变更 | 真实的 Plan/Apply 状态与输出链接 | 自动/指令 |
 | **服务健康检查** | `### 🔍 Health Check` | 验证 | 探测真实环境的连通性与 HTTP 状态 | 指令 |
 
@@ -87,8 +88,10 @@
 | 文件 | 身份 | 职责 |
 |:---|:---|:---|
 | `terraform-plan.yml` | `infra-flash` | 静态 CI + 骨架评论创建 |
-| `infra-commands.yml` | `infra-flash` | 指令分发器 (`review`, `dig`, `help`) |
+| `infra-commands.yml` | `infra-flash` | 指令分发器 (`dig`, `help`) |
 | `infra-flash-update.yml` | `infra-flash` | 监听并搬运 Atlantis 的输出到主评论 |
+| `claude.yml` | `claude[bot]` | 响应 @claude 评论，执行 AI 任务（review/coding/analysis） |
+| `claude-code-review.yml` | `claude[bot]` | Apply 成功后自动审查部署变更 |
 | `deploy-k3s.yml` | `infra-flash` | **灾备平面**：全量 L1-L4 Flash (仅在 merge 或手动触发) |
 
 ---
@@ -112,9 +115,9 @@
 | 场景 | 操作 | 预期 Dashboard 行为 | 预期 Identity |
 |:---|:---|:---|:---|
 | **CI 守卫测试** | 推送包含格式错误的代码 | `Static CI` 显示 ❌，看板底部显示修复命令 | `infra-flash` |
-| **AI 审计测试** | 推送代码但不更新 README | `AI Review` 自动运行，追加文档缺失警告 | `infra-flash` |
+| **手动 AI 审计** | 评论 `@claude review this` | 产生一条新评论，包含 Claude 的审查建议 | `claude[bot]` |
+| **Apply 后审计** | `atlantis apply` 成功 | `claude-code-review.yml` 触发，Claude 审查已部署变更 | `claude[bot]` |
 | **指令分发测试** | 评论 `infra help` | 产生一条新评论，列出所有可用指令 | `infra-flash` |
-| **手动复审测试** | 评论 `infra review` | `AI Review` 状态更新，追加最新的审查建议 | `infra-flash` |
 | **环境探测测试** | 评论 `infra dig` | `Health Check` 状态更新，追加连通性表格 | `infra-flash` |
 | **SSOT 闭环测试** | 多次推送/评论 | 所有信息均有序汇聚在同一条 Commit 评论中 | `infra-flash` |
 
@@ -123,5 +126,9 @@
 ## 8. 维护规范
 
 1. **修改任何 Workflow**：必须同步更新本 SSOT 及其对应的 `README.md`。
-2. **新增命令**：必须在 `infra-commands.yml` 中实现，并在此文档的“指令平面”表格中登记。
-3. ** identity**：除了 `deploy-k3s.yml` 在 push main 时可能以 `github-actions` 身份运行，PR 期间的所有动作必须模拟 `infra-flash[bot]` 身份。
+2. **新增 infra 命令**：必须在 `infra-commands.yml` 中实现，并在此文档的"指令平面"表格中登记。
+3. **AI 审查定制**：通过仓库根目录的 `CLAUDE.md` 文件定义 Claude 的行为准则和审查标准。
+4. **Identity 规范**：
+   - `infra-flash[bot]`：所有 Atlantis 和 infra 命令相关的评论
+   - `claude[bot]`：所有 Claude AI 相关的评论和审查
+   - `github-actions`：仅用于 `deploy-k3s.yml` 在 merge 到 main 时的部署
