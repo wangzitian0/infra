@@ -155,9 +155,9 @@ jobs:
             let body = existing.body;
             if (cmd === 'review') {
               const reviewText = `${{ steps.review_text.outputs.text }}` || "AI Review Completed.";
-              const section = ['<!-- copilot-review-placeholder -->', `### 🤖 AI Review (Claude Haiku) | ${ts}`, '```', reviewText, '```', '---'].join('\n');
-              body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${ts} |`);
-              body = body.includes('<!-- copilot-review-placeholder -->') ? body.replace('<!-- copilot-review-placeholder -->', section) : body.replace('### 🚀 Atlantis Actions', `${section}\n\n### 🚀 Atlantis Actions`);
+              const section = ['<!-- claude-review-placeholder -->', `### 🤖 AI Review (Claude Haiku) | ${ts}`, '```', reviewText, '```', '---'].join('\n');
+              body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#claude-review-placeholder) | ${ts} |`);
+              body = body.includes('<!-- claude-review-placeholder -->') ? body.replace('<!-- claude-review-placeholder -->', section) : body.replace('### 🚀 Atlantis Actions', `${section}\n\n### 🚀 Atlantis Actions`);
             }
             if (cmd === 'dig') {
               const content = `${{ steps.dig.outputs.table }}`;
