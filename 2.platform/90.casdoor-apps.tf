@@ -20,7 +20,7 @@ resource "restapi_object" "provider_github" {
 
   path          = "/add-provider"
   create_path   = "/add-provider"
-  update_path   = "/update-provider"
+  update_path   = "/update-provider?id=admin/{id}"
   update_method = "POST"
   # Whitebox: Explicitly use {id} to force ID into the query parameter.
   # Expected: /api/get-provider?id=admin/GitHub
@@ -90,7 +90,7 @@ resource "restapi_object" "app_portal_gate" {
 
   path          = "/add-application"
   create_path   = "/add-application"
-  update_path   = "/update-application"
+  update_path   = "/update-application?id=admin/{id}"
   update_method = "POST"
   read_path     = "/get-application?id=admin/{id}"
   destroy_path  = "/delete-application?id=admin/{id}"
@@ -113,7 +113,7 @@ resource "restapi_object" "app_vault_oidc" {
 
   path          = "/add-application"
   create_path   = "/add-application"
-  update_path   = "/update-application"
+  update_path   = "/update-application?id=admin/{id}"
   update_method = "POST"
   read_path     = "/get-application?id=admin/{id}"
   destroy_path  = "/delete-application?id=admin/{id}"
@@ -136,7 +136,7 @@ resource "restapi_object" "app_dashboard_oidc" {
 
   path          = "/add-application"
   create_path   = "/add-application"
-  update_path   = "/update-application"
+  update_path   = "/update-application?id=admin/{id}"
   update_method = "POST"
   read_path     = "/get-application?id=admin/{id}"
   destroy_path  = "/delete-application?id=admin/{id}"
@@ -159,7 +159,7 @@ resource "restapi_object" "app_kubero_oidc" {
 
   path          = "/add-application"
   create_path   = "/add-application"
-  update_path   = "/update-application"
+  update_path   = "/update-application?id=admin/{id}"
   update_method = "POST"
   read_path     = "/get-application?id=admin/{id}"
   destroy_path  = "/delete-application?id=admin/{id}"
