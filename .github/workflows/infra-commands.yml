@@ -88,7 +88,7 @@ jobs:
         uses: google-github-actions/run-gemini-cli@v0
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          model: 'gemini-1.5-flash'
+          gemini_model: 'gemini-1.5-flash'
           prompt: "Review this Terraform PR. Focus on AGENTS.md compliance and L1-L4 structure."
 
       - name: Health Check
@@ -138,7 +138,7 @@ jobs:
             if (cmd === 'dig') {
               const content = `${{ steps.dig.outputs.table }}`;
               const section = ['<!-- health-check-placeholder -->', `### 🔍 Health Check | ${ts}`, content, '---'].join('\n');
-              body = body.replace(/| **Health Check** | .* | .* | .* |/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${ts} |`);
+              body = body.replace(/\| \*\*Health Check\*\* \| .* \| .* \| .* \|/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${ts} |`);
               body = body.includes('<!-- health-check-placeholder -->') ? body.replace('<!-- health-check-placeholder -->', section) : body.replace('---', `${section}\n\n---`);
             }
             await github.rest.issues.updateComment({
