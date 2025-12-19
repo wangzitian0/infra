@@ -164,10 +164,11 @@ jobs:
           
           echo "=== Checking Static Credentials ==="
           for secret in postgres redis clickhouse arangodb; do
-            if kubectl exec -n platform "$VAULT_POD" -- vault kv get "secret/data/${secret}" >/dev/null 2>&1; then
-              echo "✅ secret/data/${secret}: available"
+            # vault kv get CLI auto-adds /data/ prefix for KV v2
+            if kubectl exec -n platform "$VAULT_POD" -- vault kv get "secret/${secret}" >/dev/null 2>&1; then
+              echo "✅ secret/${secret}: available"
             else
-              echo "::error::secret/data/${secret}: NOT FOUND"
+              echo "::error::secret/${secret}: NOT FOUND"
               exit 1
             fi
           done
