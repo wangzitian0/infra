@@ -44,29 +44,32 @@ jobs:
 
       - name: Parse Command
         id: parse
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
+          EVENT_NAME="${{ github.event_name }}"
           if [[ "$EVENT_NAME" == "pull_request" ]]; then
             echo "command=review" >> $GITHUB_OUTPUT
             echo "valid=true" >> $GITHUB_OUTPUT
-          else
-            # Safe parsing for issue_comment
-            BODY_LOWER=$(echo "$COMMENT_BODY" | head -n 1 | tr '[:upper:]' '[:lower:]' | xargs)
+          elif [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            # Trim and lowercase
+            RAW_BODY="${{ github.event.comment.body }}"
+            FIRST_LINE=$(echo "$RAW_BODY" | head -n 1 | xargs | tr '[:upper:]' '[:lower:]')
             
-            if [[ "$BODY_LOWER" == "infra review"* ]]; then
+            echo "Processing command line: $FIRST_LINE"
+            
+            if [[ "$FIRST_LINE" == "infra review"* ]]; then
               echo "command=review" >> $GITHUB_OUTPUT
               echo "valid=true" >> $GITHUB_OUTPUT
-            elif [[ "$BODY_LOWER" == "infra dig"* ]]; then
+            elif [[ "$FIRST_LINE" == "infra dig"* ]]; then
               echo "command=dig" >> $GITHUB_OUTPUT
               echo "valid=true" >> $GITHUB_OUTPUT
-            elif [[ "$BODY_LOWER" == "infra help"* ]] || [[ "$BODY_LOWER" == "infra" ]]; then
+            elif [[ "$FIRST_LINE" == "infra help"* ]] || [[ "$FIRST_LINE" == "infra" ]]; then
               echo "command=help" >> $GITHUB_OUTPUT
               echo "valid=true" >> $GITHUB_OUTPUT
             else
               echo "valid=false" >> $GITHUB_OUTPUT
             fi
+          else
+            echo "valid=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Get PR Info
@@ -135,26 +138,22 @@ jobs:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
           model: 'gemini-1.5-flash'
           prompt: |
-            You are a Senior SRE reviewing a Terraform IaC Pull Request.
-            PR: ${{ github.event.issue.number || github.event.pull_request.number }}
+            You are a Senior SRE reviewing a Terraform IaC project.
+            Reference AGENTS.md conventions.
+            Review for:
+            1. Layers (L1-L4) correctness.
+            2. SSOT principles.
+            3. Doc Guard (0.check_now.md and README.md).
             
-            ## CRITERIA (REQUIRED):
-            1. **Structure**: Is code in correct layer (L1-nodep/L2-platform/L3-data/L4-apps)?
-            2. **SSOT**: No hardcoded secrets.
-            3. **Documentation**: Ensure `0.check_now.md` and `README.md` in changed directories are updated.
-            4. **Health Checks**: Are Probes and initContainers present for new workloads?
-
-            Reference AGENTS.md for detailed conventions. 
             Output your review in concise Markdown.
 
       - name: Extract Review Body
         if: steps.parse.outputs.command == 'review'
         id: extract
         run: |
-          # The action outputs to a file or stdout. We use the custom output mechanism.
-          # For run-gemini-cli, we can capture the response.
+          # Use a stable delimiter for multi-line output
           echo "review_body<<EOF" >> $GITHUB_OUTPUT
-          echo "${{ steps.review.outputs.text }}" >> $GITHUB_OUTPUT
+          echo "${{ steps.review.outputs.text }}" | head -c 50000 >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       # ==========================================

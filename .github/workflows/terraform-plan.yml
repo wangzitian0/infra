@@ -309,13 +309,17 @@ jobs:
               `| **Static CI** | ${statusIcon} | [View Run](${runUrl}) | ${timestamp} |`
             );
 
-            // 2. Update Details Section (Remove matrix, only show error link if any)
-            const ciPlaceholder = "### 🛠️ CI Validate";
-            const detailRegex = /### 🛠️ CI Validate [\s\S]*?---\n/;
-            if (body.includes(ciPlaceholder)) {
-               body = body.replace(detailRegex, ciDetails ? ciDetails + "\n" : "");
+            // 2. Update Details Section
+            const ciHeader = "### 🛠️ CI Validate";
+            const reviewPlaceholder = "<!-- copilot-review-placeholder -->";
+            
+            if (body.includes(ciHeader)) {
+               // Replace from header until the next HR or placeholder
+               const regex = /### 🛠️ CI Validate [\s\S]*?---\n/;
+               body = body.replace(regex, ciDetails ? ciDetails + "\n" : "");
             } else if (ciDetails) {
-               body = body.replace("<!-- copilot-review-placeholder -->", `${ciDetails}\n\n<!-- copilot-review-placeholder -->`);
+               // Prepend before Review placeholder if failed
+               body = body.replace(reviewPlaceholder, `${ciDetails}\n\n${reviewPlaceholder}`);
             }
             
             // Clean up double HRs that might occur during healing/replacement
