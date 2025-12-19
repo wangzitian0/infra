@@ -18,9 +18,9 @@
 resource "restapi_object" "provider_github" {
   count = local.casdoor_enabled ? 1 : 0
 
-  path         = "/add-provider"
-  create_path  = "/add-provider"
-  update_path  = "/update-provider"
+  path        = "/add-provider"
+  create_path = "/add-provider"
+  update_path = "/update-provider"
   # Whitebox: Explicitly use {id} to force ID into the query parameter.
   # Expected: /api/get-provider?id=admin/GitHub
   read_path    = "/get-provider?id=admin/{id}"
