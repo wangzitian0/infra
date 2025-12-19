@@ -88,7 +88,7 @@ root/
 │       ├── README.md            # CI 索引
 │       ├── terraform-plan.yml   # (!) TF 验证
 │       ├── deploy-k3s.yml       # (!) K3s 部署
-│       └── claude.yml           # AI Review
+│       └── copilot.yml          # AI Review
 │
 ├── 1.bootstrap/                 # L1: GitHub Actions 部署
 │   ├── README.md                # (!) L1 文档

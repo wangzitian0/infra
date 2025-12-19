@@ -227,7 +227,7 @@ PR #123
 | `infra-flash-update.yml` | Atlantis 评论 | 追加 Atlantis 状态到 infra-flash 评论 |
 | `deploy-k3s.yml` | main push (paths filter) / `workflow_dispatch` | Bootstrap/恢复：按顺序 apply L1→L2→L3→L4（部分步骤仅在 push 执行） |
 | `dig.yml` | `/dig` 评论 | 服务连通性检查 |
-| `claude.yml` | 评论/Review/Issue/Autoplan | AI 代码审查（best-effort） |
+| `copilot.yml` | 评论/Review/Issue/Autoplan | AI 代码审查（best-effort） |
 
 ---
 
