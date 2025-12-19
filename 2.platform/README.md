@@ -99,6 +99,7 @@ Note: `base_domain` (`truealpha.club`) is for business/production apps, `interna
 - **Casdoor login bug**: Requires `copyrequestbody = true` in `app.conf` to fix "unexpected end of JSON input" error. See [#3224](https://github.com/casdoor/casdoor/issues/3224).
 - **Casdoor init_data**: Only loads on first startup. If `casdoor_admin_password` changes, manually update `casdoor-builtin-app` clientSecret via Casdoor UI or API. For disaster recovery (fresh install), init_data re-creates all bootstrap entities.
 - **Casdoor login white screen**: If app `signupItems` is `null`, the login page crashes in `AgreementModal`. Keep `signupItems=[]` in `2.platform/90.casdoor-apps.tf`.
+- **Casdoor REST API updates**: `update-application` and `update-provider` require POST. Ensure `update_method = "POST"` in `restapi_object` resources to avoid 404s.
 
 
 ### Disaster Recovery
