@@ -25,6 +25,8 @@
 | [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单、Vault（SSOT） |
 | [platform.ai.md](./platform.ai.md) | AI 接入 | OpenRouter、变量/密钥、注入方式 |
 
+> 注：`platform.auth.md` 已包含登录白屏排障与修复跟踪。
+
 ---
 
 ## Data - 数据层
