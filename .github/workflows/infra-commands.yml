@@ -1,8 +1,6 @@
 name: Operations Hub
 
 on:
-  pull_request:
-    types: [opened, synchronize]
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -11,7 +9,6 @@ jobs:
   dispatch:
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'pull_request') ||
       (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.user.type != 'Bot' && (contains(github.event.comment.body, 'infra') || contains(github.event.comment.body, 'Infra'))) ||
       (github.event_name == 'workflow_dispatch')
 
@@ -44,18 +41,19 @@ jobs:
       - name: Parse
         id: parse
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "command=review" >> $GITHUB_OUTPUT
-            echo "valid=true" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
             if [[ -z "${{ github.event.issue.pull_request }}" ]]; then
               echo "valid=false" >> $GITHUB_OUTPUT
               exit 0
             fi
             BODY=$(echo "${{ github.event.comment.body }}" | head -n 1 | tr '[:upper:]' '[:lower:]')
-            if [[ "$BODY" == *"infra review"* ]]; then echo "command=review" >> $GITHUB_OUTPUT; echo "valid=true" >> $GITHUB_OUTPUT;
-            elif [[ "$BODY" == *"infra dig"* ]]; then echo "command=dig" >> $GITHUB_OUTPUT; echo "valid=true" >> $GITHUB_OUTPUT;
-            else echo "command=help" >> $GITHUB_OUTPUT; echo "valid=true" >> $GITHUB_OUTPUT; fi
+            if [[ "$BODY" == *"infra dig"* ]]; then
+              echo "command=dig" >> $GITHUB_OUTPUT
+              echo "valid=true" >> $GITHUB_OUTPUT
+            else
+              echo "command=help" >> $GITHUB_OUTPUT
+              echo "valid=true" >> $GITHUB_OUTPUT
+            fi
           else
             echo "valid=false" >> $GITHUB_OUTPUT
           fi
@@ -82,26 +80,6 @@ jobs:
           ref: ${{ steps.pr.outputs.sha }}
           fetch-depth: 0
 
-      - name: Claude Review
-        if: steps.parse.outputs.command == 'review'
-        id: review
-        uses: anthropics/claude-code-action@v1
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        with:
-          prompt: |
-            Review this Terraform PR for:
-            1. AGENTS.md compliance
-            2. L1-L4 layered structure adherence
-            3. Security best practices
-            4. Resource naming consistency
-
-            Provide concise, actionable feedback.
-          claude_args: |
-            {
-              "model": "claude-3-5-haiku-20241022"
-            }
-
       - name: Health Check
         if: steps.parse.outputs.command == 'dig'
         id: dig
@@ -122,19 +100,6 @@ jobs:
           echo -e "$TABLE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Read Claude Review
-        if: steps.parse.outputs.command == 'review' && steps.review.outcome == 'success'
-        id: review_text
-        run: |
-          if [ -f "${{ steps.review.outputs.execution_file }}" ]; then
-            REVIEW=$(cat "${{ steps.review.outputs.execution_file }}" | tail -100 | head -80)
-            echo "text<<EOF" >> $GITHUB_OUTPUT
-            echo "$REVIEW" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "text=Claude review completed." >> $GITHUB_OUTPUT
-          fi
-
       - name: Update Dashboard
         if: always() && steps.parse.outputs.valid == 'true' && steps.parse.outputs.command != 'help'
         uses: actions/github-script@v7
@@ -153,12 +118,6 @@ jobs:
             if (!existing) return;
             const ts = new Date().toISOString().slice(11, 16) + ' UTC';
             let body = existing.body;
-            if (cmd === 'review') {
-              const reviewText = `${{ steps.review_text.outputs.text }}` || "AI Review Completed.";
-              const section = ['<!-- claude-review-placeholder -->', `### 🤖 AI Review (Claude Haiku) | ${ts}`, '```', reviewText, '```', '---'].join('\n');
-              body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#claude-review-placeholder) | ${ts} |`);
-              body = body.includes('<!-- claude-review-placeholder -->') ? body.replace('<!-- claude-review-placeholder -->', section) : body.replace('### 🚀 Atlantis Actions', `${section}\n\n### 🚀 Atlantis Actions`);
-            }
             if (cmd === 'dig') {
               const content = `${{ steps.dig.outputs.table }}`;
               const section = ['<!-- health-check-placeholder -->', `### 🔍 Health Check | ${ts}`, content, '---'].join('\n');
@@ -176,7 +135,7 @@ jobs:
         with:
           github-token: ${{ steps.app_token.outputs.token }}
           script: |
-            const body = "### 🛠️ Operations Hub\n\n- `infra review`: AI Audit\n- `infra dig`: Health Check\n- `infra help`: This message";
+            const body = "### 🛠️ Operations Hub\n\n- `@claude review this`: AI Code Review\n- `infra dig`: Health Check\n- `infra help`: This message";
             await github.rest.issues.createComment({
               owner: context.repo.owner, repo: context.repo.repo,
               issue_number: ${{ github.event.issue.number || github.event.pull_request.number }},
