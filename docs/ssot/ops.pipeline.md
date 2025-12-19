@@ -327,18 +327,37 @@ Dashboard 显示异常?
 | 无 TF 变化处理 | Plan/Apply 显示 ⏭️ | ✅ | - |
 | NextStep 提示 | 根据状态显示建议 | ✅ | - |
 | 评论身份 | infra-flash[bot] | ✅ | - |
-| Atlantis Plan 回写 | 更新 Infra Plan 行 | ⚠️ | 待验证 |
-| Atlantis Apply 回写 | 更新 Infra Apply 行 | ⚠️ | 待验证 |
-| @claude 手动触发 | 响应评论执行任务 | ⚠️ | 待验证 |
-| infra dig | 更新 Health Check | ❌ | 未在 main 分支生效 |
-| Claude 自动 review | apply 后自动触发 | ❌ | 未测试 |
+| Atlantis Plan 回写 | 更新 Infra Plan 行 | ✅ | 已通过 `infra-flash-update.yml` 实现 |
+| Atlantis Apply 回写 | 更新 Infra Apply 行 | ✅ | 已通过 `infra-flash-update.yml` 实现 |
+| @claude 手动触发 | 响应评论执行任务 | ✅ | 已实现，但未回写 Dashboard |
+| infra dig | 更新 Health Check | ✅ | 已实现，但需在 main 生效 |
+| Claude 自动 review | apply 后自动触发 | ✅ | 已通过 `claude-code-review.yml` 实现，但未回写 Dashboard |
+| AI Review 回写 Dashboard | 更新 AI Review 行 | ❌ | **Drift**: 尚未实现状态回写 |
 
 ### TODO Backlog
 
-- [ ] **P0**: 合并所有 workflow 到 main 分支，确保 `issue_comment` 触发生效。
-- [ ] **P1**: 实现 AI Review 自动更新 Dashboard 的 `AI Review` 状态行。
-- [ ] **P1**: 验证 Atlantis Plan/Apply 的回写逻辑在实际 PR 中的准确性。
-- [ ] **P2**: 增强错误处理，当 workflow 失败时在 Dashboard 提供具体错误链接。
-- [ ] **P3**: 实现文档-代码同步检查 CI，确保修改 workflow 时更新了此 SSOT。
+#### P0 - 合并后立即测试
+
+- [ ] **合并 PR #287** 到 main，使所有 workflow 生效
+- [ ] **测试 @claude 命令**: 在 PR 中评论 `@claude hello`
+- [ ] **测试 infra dig**: 在 PR 中评论 `infra dig`
+- [ ] **测试 infra help**: 在 PR 中评论 `infra help`
+
+#### P1 - 功能完善
+
+- [ ] **AI Review 回写 Dashboard**: 
+    - [ ] 在 `claude.yml` 中添加回写 Dashboard 的步骤
+    - [ ] 在 `claude-code-review.yml` 中添加回写 Dashboard 的步骤
+- [ ] **验证 Atlantis Plan/Apply 回写**: 在实际 PR 中验证 `infra-flash-update.yml` 的 marker 匹配准确性
+
+#### P2 - 健壮性增强
+
+- [ ] **错误处理**: workflow 失败时应在 Dashboard 显示明确错误信息
+- [ ] **超时处理**: 各阶段超时后应自动标记为 ❌ 并提示
+- [ ] **Marker 校验**: 优化 SHA 匹配逻辑，支持多种 SHA 长度
+
+#### P3 - 可观测性
+
+- [ ] **文档-代码同步检查**: CI 检查 workflow 变更是否同步更新了本 SSOT
 
 *Last Updated: 2025-12-19*
