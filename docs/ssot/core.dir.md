@@ -73,6 +73,7 @@ root/
 │   │   ├── platform.ai.md       # AI 接入
 │   │   ├── db.*.md              # 各数据库 SSOT
 │   │   ├── ops.pipeline.md      # (!) 部署流程
+│   │   ├── ops.standards.md     # (!) 运维标准 (Guards/Admission)
 │   │   ├── ops.recovery.md      # 故障恢复
 │   │   ├── ops.storage.md       # 存储备份
 │   │   ├── ops.observability.md # 可观测
