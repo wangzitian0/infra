@@ -18,10 +18,10 @@
 # Requires: TF_VAR_vault_root_token set in Atlantis Pod env
 # =============================================================================
 
-# SSOT Reference: Mount and name defined in 2.platform/locals.tf (vault_db_secrets)
+# Vault Config: Uses shared module (Issue #301)
 data "vault_kv_secret_v2" "clickhouse" {
-  mount = "secret"     # Must match 2.platform/locals.tf: vault_kv_mount
-  name  = "clickhouse" # Must match 2.platform/locals.tf: vault_db_secrets["clickhouse"]
+  mount = module.vault_config.vault_kv_mount
+  name  = module.vault_config.vault_db_secrets["clickhouse"]
 }
 
 # =============================================================================
@@ -124,6 +124,6 @@ output "clickhouse_native_port" {
 }
 
 output "clickhouse_vault_path" {
-  value       = "secret/data/clickhouse" # SSOT: 2.platform/locals.tf vault_secret_paths
-  description = "Vault KV path for ClickHouse credentials (see 2.platform/locals.tf)"
+  value       = module.vault_config.vault_secret_paths["clickhouse"]
+  description = "Vault KV path for ClickHouse credentials"
 }

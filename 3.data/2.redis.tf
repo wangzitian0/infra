@@ -18,10 +18,10 @@
 # Requires: TF_VAR_vault_root_token set in Atlantis Pod env
 # =============================================================================
 
-# SSOT Reference: Mount and name defined in 2.platform/locals.tf (vault_db_secrets)
+# Vault Config: Uses shared module (Issue #301)
 data "vault_kv_secret_v2" "redis" {
-  mount = "secret" # Must match 2.platform/locals.tf: vault_kv_mount
-  name  = "redis"  # Must match 2.platform/locals.tf: vault_db_secrets["redis"]
+  mount = module.vault_config.vault_kv_mount
+  name  = module.vault_config.vault_db_secrets["redis"]
 }
 
 # =============================================================================
@@ -110,7 +110,7 @@ output "redis_port" {
 }
 
 output "redis_vault_path" {
-  value       = "secret/data/redis" # SSOT: 2.platform/locals.tf vault_secret_paths
-  description = "Vault KV path for Redis credentials (see 2.platform/locals.tf)"
+  value       = module.vault_config.vault_secret_paths["redis"]
+  description = "Vault KV path for Redis credentials"
 }
 
