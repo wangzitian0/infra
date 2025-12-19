@@ -59,6 +59,7 @@ op item get "GH-Actions-Secrets" --vault="Infra-Prod" --format json |
 | | `ATLANTIS_GH_APP_ID` | `ATLANTIS_GH_APP_ID` | `github_app_id` |
 | | `ATLANTIS_GH_APP_KEY` | `ATLANTIS_GH_APP_KEY` | `github_app_key` |
 | `Vault (zitian.party)` | `VAULT_ROOT_TOKEN` | `VAULT_ROOT_TOKEN` | `vault_root_token` |
+| `Google AI Studio` | `api_key` | `GEMINI_API_KEY` | - |
 | `GitHub Personal Access Token` | `token` | `GH_PAT` | `github_token` |
 
 ### 2. 运行时默认变量 (Loader 自动处理)
@@ -95,5 +96,18 @@ op item get "GH-Actions-Secrets" --vault="Infra-Prod" --format json |
 2.  重新运行同步脚本。
 3.  重新触发 CI 流水线（`atlantis plan` / `push to main`）。
 
+### 3. 新增独立 GHA 密钥 (如 GEMINI_API_KEY)
+
+对于仅在工作流中使用、不参与 Terraform 的密钥：
+
+1.  在 1Password 的 `GH-Actions-Secrets` 条目中新增一个字段（Label 为 `GEMINI_API_KEY`）。
+
+2.  运行一键同步脚本（见上文）将其推送到 GitHub。
+
+3.  在 `.github/workflows/*.yml` 中通过 `${{ secrets.GEMINI_API_KEY }}` 引用。
+
+
+
 ---
+
 > 变更记录见 [change_log/](../change_log/README.md)
