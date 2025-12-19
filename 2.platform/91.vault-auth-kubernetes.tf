@@ -11,4 +11,11 @@ resource "vault_kubernetes_auth_backend_config" "config" {
   kubernetes_host        = var.kubernetes_host
   kubernetes_ca_cert     = var.kubernetes_ca_cert != "" ? base64decode(var.kubernetes_ca_cert) : null
   disable_iss_validation = true
+
+  lifecycle {
+    precondition {
+      condition     = var.kubernetes_host != ""
+      error_message = "kubernetes_host is required for Vault Kubernetes auth configuration."
+    }
+  }
 }

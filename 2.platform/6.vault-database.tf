@@ -23,6 +23,11 @@ resource "vault_mount" "kv" {
       condition     = var.vault_root_token != ""
       error_message = "vault_root_token is required for Vault secrets engine configuration."
     }
+
+    postcondition {
+      condition     = self.accessor != ""
+      error_message = "Vault KV mount failed - accessor is empty. Check Vault connectivity and permissions."
+    }
   }
 }
 

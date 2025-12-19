@@ -104,6 +104,13 @@ resource "kubernetes_namespace" "kubero" {
 data "vault_kv_secret_v2" "kubero" {
   mount = var.vault_kv_mount
   name  = "data/kubero"
+
+  lifecycle {
+    postcondition {
+      condition     = can(self.data["KUBERO_SESSION_KEY"]) && can(self.data["KUBERO_WEBHOOK_SECRET"])
+      error_message = "Kubero secrets not found in Vault. Ensure L2 92.vault-kubero.tf has been applied."
+    }
+  }
 }
 
 # ============================================================
