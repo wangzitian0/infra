@@ -29,6 +29,19 @@ jobs:
           app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
+      - name: Acknowledge Command
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes'
+            });
+
       - name: Parse Command
         id: parse
         run: |
@@ -36,8 +49,8 @@ jobs:
             echo "command=review" >> $GITHUB_OUTPUT
             echo "valid=true" >> $GITHUB_OUTPUT
           else
-            # Get the first line, lower case it
-            BODY_LOWER=$(echo "${{ github.event.comment.body }}" | head -n 1 | tr '[:upper:]' '[:lower:]')
+            # Get the first line, lower case it, and trim whitespace
+            BODY_LOWER=$(echo "${{ github.event.comment.body }}" | head -n 1 | tr '[:upper:]' '[:lower:]' | xargs)
             
             if [[ "$BODY_LOWER" == "infra review"* ]]; then
               echo "command=review" >> $GITHUB_OUTPUT
@@ -146,66 +159,150 @@ jobs:
           echo -e "$TABLE" >> $GITHUB_OUTPUT
           echo "EOFTABLE" >> $GITHUB_OUTPUT
 
-      # ==========================================
-      # SSOT UPDATE: Unified infra-flash update
-      # ==========================================
-      - name: Update infra-flash
-        if: always() && steps.parse.outputs.valid == 'true' && (steps.parse.outputs.command == 'review' || steps.parse.outputs.command == 'dig')
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ steps.app_token.outputs.token }}
-          script: |
-            const sha = '${{ steps.pr.outputs.sha }}';
-            const cmd = '${{ steps.parse.outputs.command }}';
-            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
-            
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: ${{ github.event.issue.number || github.event.pull_request.number }},
-              per_page: 100
-            });
-            const existing = comments.data.find(c => c.body.includes(MARKER));
-            if (!existing) return;
+            # ==========================================
 
-            const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
-            let body = existing.body;
+            # SSOT UPDATE: Unified infra-flash update
 
-            if (cmd === 'review') {
-              const reviewBody = `${{ steps.review.outputs.review_body }}`;
-              const section = [
-                '<!-- copilot-review-placeholder -->',
-                '### 🤖 Copilot Review | ' + timestamp,
-                '',
-                reviewBody,
-                '',
-                '---'
-              ].join('\n');
-              // Update status table
-              body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${timestamp} |`);
-              // Update details
-              body = body.replace('<!-- copilot-review-placeholder -->', section);
-            }
+            # ==========================================
 
-            if (cmd === 'dig') {
-              const table = `${{ steps.health_check.outputs.table }}`;
-              const section = [
-                '<!-- health-check-placeholder -->',
-                '### 🔍 Health Check: [dig] | ' + timestamp,
-                '',
-                table,
-                '',
-                '---'
-              ].join('\n');
-              // Update status table
-              body = body.replace(/\| \*\*Health Check\*\* \| .* \| .* \| .* \|/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${timestamp} |`);
-              // Update details
-              body = body.replace('<!-- health-check-placeholder -->', section);
-            }
+            - name: Update infra-flash
 
-            await github.rest.issues.updateComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: existing.id,
-              body: body
-            });
+              if: always() && steps.parse.outputs.valid == 'true' && (steps.parse.outputs.command == 'review' || steps.parse.outputs.command == 'dig')
+
+              uses: actions/github-script@v7
+
+              with:
+
+                github-token: ${{ steps.app_token.outputs.token }}
+
+                script: |
+
+                  const sha = '${{ steps.pr.outputs.sha }}';
+
+                  const cmd = '${{ steps.parse.outputs.command }}';
+
+                  const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+
+                  
+
+                  // Attribution logic
+
+                  let triggerInfo = '🤖 [Automatic]';
+
+                  if (context.eventName === 'issue_comment') {
+
+                    const user = context.payload.comment.user.login;
+
+                    const link = context.payload.comment.html_url;
+
+                    triggerInfo = `🙋 Triggered by [@${user}](${link})`;
+
+                  }
+
+      
+
+                  const comments = await github.rest.issues.listComments({
+
+                    owner: context.repo.owner,
+
+                    repo: context.repo.repo,
+
+                    issue_number: ${{ github.event.issue.number || github.event.pull_request.number }},
+
+                    per_page: 100
+
+                  });
+
+                  const existing = comments.data.find(c => c.body.includes(MARKER));
+
+                  if (!existing) return;
+
+      
+
+                  const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+
+                  let body = existing.body;
+
+      
+
+                  if (cmd === 'review') {
+
+                    const reviewBody = `${{ steps.review.outputs.review_body }}`;
+
+                    const section = [
+
+                      '<!-- copilot-review-placeholder -->',
+
+                      `### 🤖 Copilot Review | ${timestamp}`,
+
+                      `> ${triggerInfo}`,
+
+                      '',
+
+                      reviewBody,
+
+                      '',
+
+                      '---'
+
+                    ].join('\n');
+
+                    // Update status table
+
+                    body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${timestamp} |`);
+
+                    // Update details
+
+                    body = body.replace('<!-- copilot-review-placeholder -->', section);
+
+                  }
+
+      
+
+                  if (cmd === 'dig') {
+
+                    const table = `${{ steps.health_check.outputs.table }}`;
+
+                    const section = [
+
+                      '<!-- health-check-placeholder -->',
+
+                      `### 🔍 Health Check: [dig] | ${timestamp}`,
+
+                      `> ${triggerInfo}`,
+
+                      '',
+
+                      table,
+
+                      '',
+
+                      '---'
+
+                    ].join('\n');
+
+                    // Update status table
+
+                    body = body.replace(/\| \*\*Health Check\*\* \| .* \| .* \| .* \|/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${timestamp} |`);
+
+                    // Update details
+
+                    body = body.replace('<!-- health-check-placeholder -->', section);
+
+                  }
+
+      
+
+                  await github.rest.issues.updateComment({
+
+                    owner: context.repo.owner,
+
+                    repo: context.repo.repo,
+
+                    comment_id: existing.id,
+
+                    body: body
+
+                  });
+
+      

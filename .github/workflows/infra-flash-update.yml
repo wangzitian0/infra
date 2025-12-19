@@ -101,20 +101,22 @@ jobs:
             // 确定下一步操作
             let nextStep = '';
             if (isPlan && isSuccess) {
-              nextStep = '\n\n👉 **Next:** Review plan, then comment `atlantis apply`';
+              nextStep = '\n\n👉 **Recommended Next Step:** Review plan, then comment `atlantis apply`';
             } else if (isApply && isSuccess) {
-              nextStep = '\n\n✅ **Ready to merge!**';
+              nextStep = '\n\n👉 **Recommended Next Step:** ✅ **Ready to merge!**';
             } else if (!isSuccess) {
               nextStep = isPlan
-                ? '\n\n👉 **Next:** Fix errors, then comment `atlantis plan`'
-                : '\n\n👉 **Next:** Fix errors, then comment `atlantis apply` (or rerun `atlantis plan`)';
+                ? '\n\n👉 **Recommended Next Step:** ❌ **Plan failed.** Fix errors, then comment `atlantis plan` (or push again)'
+                : '\n\n👉 **Recommended Next Step:** ❌ **Apply failed.** Fix errors, then comment `atlantis apply`';
             }
             
             // 移除旧的 next step 提示
             let updatedBody = flashComment.body
+              .replace(/\n*👉 \*\*Recommended Next Step:\*\*.*/g, '')
               .replace(/\n*👉 \*\*Next:\*\*.*/g, '')
               .replace(/\n*✅ \*\*Ready to merge!\*\*/g, '')
               .replace(/\n*⏳ \*\*Triggering Atlantis plan\.\.\.\*\*/g, '')
+              .replace(/\n*⏳ \*\*Waiting for Atlantis autoplan\.\.\.\*\*/g, '')
               .replace(/\n*❌ \*\*CI failed\.\*\*.*/g, '');
             
             // Update Global Status Table for Atlantis

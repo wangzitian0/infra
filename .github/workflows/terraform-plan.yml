@@ -77,6 +77,20 @@ jobs:
             });
             const existing = comments.data.find(c => c.body.includes(MARKER));
             
+            const commandHelp = [
+              '<details><summary>📖 Available Infra Commands</summary>',
+              '',
+              '| Command | Description | Feedback |',
+              '|:---|:---|:---|',
+              '| `atlantis plan` | Re-run infrastructure plan | Append to this table |',
+              '| `atlantis apply` | Deploy changes | Append to this table |',
+              '| `infra review` | AI Code Review (Copilot) | Append to dashboard |',
+              '| `infra dig` | Service Health Check | Append to dashboard |',
+              '| `infra help` | Show detailed help | New reply |',
+              '',
+              '</details>'
+            ].join('\n');
+
             // Full skeleton with Status Table
             const skeleton = [
               MARKER,
@@ -108,6 +122,9 @@ jobs:
               "<!-- /atlantis-actions -->",
               "",
               "<!-- health-check-placeholder -->",
+              "",
+              "---",
+              commandHelp,
               "",
               "---",
               "",
@@ -286,11 +303,11 @@ jobs:
             
             let nextStep;
             if (!allPass) {
-              nextStep = '❌ **CI failed.** Fix errors and push again.';
+              nextStep = '👉 **Recommended Next Step:** ❌ **CI failed.** Fix errors and push again.';
             } else if (hasTfChanges) {
-              nextStep = '⏳ **Atlantis autoplan running...**';
+              nextStep = '👉 **Recommended Next Step:** ⏳ **Waiting for Atlantis autoplan...** (Then comment `atlantis apply`)';
             } else {
-              nextStep = '✅ **No Terraform changes. Ready to merge!**';
+              nextStep = '👉 **Recommended Next Step:** ✅ **No Terraform changes.** Ready to merge!';
             }
             
             let body = existingComment.data.body;
@@ -305,8 +322,13 @@ jobs:
             const ciRegex = /### 🛠️ CI Validate [\s\S]*?---\n/;
             body = body.replace(ciRegex, `${ciSection}\n\n---\n`);
 
-            // 3. Update Next Step
-            body = body.replace(/⏳ \*\*Waiting for CI\.\.\.\*\*|❌ \*\*CI failed\.\*\*.*|⏳ \*\*Atlantis autoplan running\.\.\.\*\*|✅ \*\*No Terraform changes\.\*\*.*/, nextStep);
+            // 3. Update Next Step (with fallback placeholder support)
+            const nextStepPattern = /👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/;
+            if (body.match(nextStepPattern)) {
+              body = body.replace(nextStepPattern, nextStep);
+            } else {
+              body += `\n\n${nextStep}`;
+            }
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
