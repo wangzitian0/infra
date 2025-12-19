@@ -159,150 +159,158 @@ jobs:
           echo -e "$TABLE" >> $GITHUB_OUTPUT
           echo "EOFTABLE" >> $GITHUB_OUTPUT
 
-            # ==========================================
+                  # ==========================================
 
-            # SSOT UPDATE: Unified infra-flash update
+                  # SSOT UPDATE: Unified infra-flash update
 
-            # ==========================================
+                  # ==========================================
 
-            - name: Update infra-flash
+                  - name: Update infra-flash
 
-              if: always() && steps.parse.outputs.valid == 'true' && (steps.parse.outputs.command == 'review' || steps.parse.outputs.command == 'dig')
+                    if: always() && steps.parse.outputs.valid == 'true' && (steps.parse.outputs.command == 'review' || steps.parse.outputs.command == 'dig')
 
-              uses: actions/github-script@v7
+                    uses: actions/github-script@v7
 
-              with:
+                    with:
 
-                github-token: ${{ steps.app_token.outputs.token }}
+                      github-token: ${{ steps.app_token.outputs.token }}
 
-                script: |
+                      script: |
 
-                  const sha = '${{ steps.pr.outputs.sha }}';
+                        const sha = '${{ steps.pr.outputs.sha }}';
 
-                  const cmd = '${{ steps.parse.outputs.command }}';
+                        const cmd = '${{ steps.parse.outputs.command }}';
 
-                  const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+                        const MARKER = `<!-- infra-flash-commit:${sha} -->`;
 
-                  
+                        
 
-                  // Attribution logic
+                        // Attribution logic
 
-                  let triggerInfo = '🤖 [Automatic]';
+                        let triggerInfo = '🤖 [Automatic]';
 
-                  if (context.eventName === 'issue_comment') {
+                        if (context.eventName === 'issue_comment') {
 
-                    const user = context.payload.comment.user.login;
+                          const user = context.payload.comment.user.login;
 
-                    const link = context.payload.comment.html_url;
+                          const link = context.payload.comment.html_url;
 
-                    triggerInfo = `🙋 Triggered by [@${user}](${link})`;
+                          triggerInfo = `🙋 Triggered by [@${user}](${link})`;
 
-                  }
+                        }
 
-      
+            
 
-                  const comments = await github.rest.issues.listComments({
+                        const comments = await github.paginate(github.rest.issues.listComments, {
 
-                    owner: context.repo.owner,
+                          owner: context.repo.owner,
 
-                    repo: context.repo.repo,
+                          repo: context.repo.repo,
 
-                    issue_number: ${{ github.event.issue.number || github.event.pull_request.number }},
+                          issue_number: ${{ github.event.issue.number || github.event.pull_request.number }},
 
-                    per_page: 100
+                          per_page: 100
 
-                  });
+                        });
 
-                  const existing = comments.data.find(c => c.body.includes(MARKER));
+                        const existing = comments.find(c => c.body.includes(MARKER));
 
-                  if (!existing) return;
+                        if (!existing) {
 
-      
+                          console.log("No Dashboard found for commit " + sha);
 
-                  const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+                          return;
 
-                  let body = existing.body;
+                        }
 
-      
+            
 
-                  if (cmd === 'review') {
+                        const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
 
-                    const reviewBody = `${{ steps.review.outputs.review_body }}`;
+                        let body = existing.body;
 
-                    const section = [
+            
 
-                      '<!-- copilot-review-placeholder -->',
+                        if (cmd === 'review') {
 
-                      `### 🤖 Copilot Review | ${timestamp}`,
+                          const reviewBody = `${{ steps.review.outputs.review_body }}` || "AI Review Completed.";
 
-                      `> ${triggerInfo}`,
+                          const section = [
 
-                      '',
+                            '<!-- copilot-review-placeholder -->',
 
-                      reviewBody,
+                            `### 🤖 Copilot Review | ${timestamp}`,
 
-                      '',
+                            `> ${triggerInfo}`,
 
-                      '---'
+                            '',
 
-                    ].join('\n');
+                            reviewBody,
 
-                    // Update status table
+                            '',
 
-                    body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${timestamp} |`);
+                            '---'
 
-                    // Update details
+                          ].join('\n');
 
-                    body = body.replace('<!-- copilot-review-placeholder -->', section);
+                          // Update status table row
 
-                  }
+                          body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${timestamp} |`);
 
-      
+                          // Update details section (replace placeholder)
 
-                  if (cmd === 'dig') {
+                          body = body.replace('<!-- copilot-review-placeholder -->', section);
 
-                    const table = `${{ steps.health_check.outputs.table }}`;
+                        }
 
-                    const section = [
+            
 
-                      '<!-- health-check-placeholder -->',
+                        if (cmd === 'dig') {
 
-                      `### 🔍 Health Check: [dig] | ${timestamp}`,
+                          const table = `${{ steps.health_check.outputs.table }}`;
 
-                      `> ${triggerInfo}`,
+                          const section = [
 
-                      '',
+                            '<!-- health-check-placeholder -->',
 
-                      table,
+                            `### 🔍 Health Check: [dig] | ${timestamp}`,
 
-                      '',
+                            `> ${triggerInfo}`,
 
-                      '---'
+                            '',
 
-                    ].join('\n');
+                            table,
 
-                    // Update status table
+                            '',
 
-                    body = body.replace(/\| \*\*Health Check\*\* \| .* \| .* \| .* \|/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${timestamp} |`);
+                            '---'
 
-                    // Update details
+                          ].join('\n');
 
-                    body = body.replace('<!-- health-check-placeholder -->', section);
+                          // Update status table row
 
-                  }
+                          body = body.replace(/\| \*\*Health Check\*\* \| .* \| .* \| .* \|/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${timestamp} |`);
 
-      
+                          // Update details section
 
-                  await github.rest.issues.updateComment({
+                          body = body.replace('<!-- health-check-placeholder -->', section);
 
-                    owner: context.repo.owner,
+                        }
 
-                    repo: context.repo.repo,
+            
 
-                    comment_id: existing.id,
+                        await github.rest.issues.updateComment({
 
-                    body: body
+                          owner: context.repo.owner,
 
-                  });
+                          repo: context.repo.repo,
+
+                          comment_id: existing.id,
+
+                          body: body
+
+                        });
+
+            
 
       

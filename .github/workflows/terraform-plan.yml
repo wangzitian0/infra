@@ -269,15 +269,13 @@ jobs:
               comment_id: commentId
             });
             
-            // CI section: simple if passed, detailed if failed
-            let ciSection;
+            // CI section: only detailed if failed
+            let ciDetails = "";
             let statusIcon = icon(allPass);
-            if (allPass) {
-              ciSection = `### 🛠️ CI Validate ✅ | [${sha}](${runUrl}) | ${timestamp}`;
-            } else {
+            if (!allPass) {
               const fixCmd = '```bash\n# Fix locally:\nterraform fmt -recursive\nterraform validate\ngit push\n```';
-              ciSection = [
-                `### 🛠️ CI Validate ❌ | [${sha}](${runUrl}) | ${timestamp}`,
+              ciDetails = [
+                `### 🛠️ CI Validate ❌ | [${sha}](${runUrl})`,
                 '',
                 '| Layer | Format | Lint | Validate |',
                 '|:------|:------:|:----:|:--------:|',
@@ -286,7 +284,8 @@ jobs:
                 `| L3 Data | ${icon(fmt)} | ${icon(lint_l3)} | ${icon(validate_l3)} |`,
                 `| L4 Apps | ${icon(fmt)} | ${icon(lint_l4)} | ${icon(validate_l4)} |`,
                 '',
-                fixCmd
+                fixCmd,
+                '---'
               ].join('\n');
             }
             
@@ -315,20 +314,21 @@ jobs:
             // 1. Update Status Table Row for CI
             body = body.replace(
               /\| \*\*Static CI\*\* \| .* \| .* \| .* \|/,
-              `| **Static CI** | ${statusIcon} | [View Details](${runUrl}) | ${timestamp} |`
+              `| **Static CI** | ${statusIcon} | [View Run](${runUrl}) | ${timestamp} |`
             );
 
-            // 2. Update Details Section
-            const ciRegex = /### 🛠️ CI Validate [\s\S]*?---\n/;
-            body = body.replace(ciRegex, `${ciSection}\n\n---\n`);
-
-            // 3. Update Next Step (with fallback placeholder support)
-            const nextStepPattern = /👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/;
-            if (body.match(nextStepPattern)) {
-              body = body.replace(nextStepPattern, nextStep);
-            } else {
-              body += `\n\n${nextStep}`;
+            // 2. Update Details Section (Empty if pass, detailed if fail)
+            const ciPlaceholder = "### 🛠️ CI Validate";
+            if (body.includes(ciPlaceholder)) {
+               const regex = /### 🛠️ CI Validate [\s\S]*?---\n/;
+               body = body.replace(regex, ciDetails ? ciDetails + "\n" : "");
+            } else if (ciDetails) {
+               // If somehow missing but we have errors, prepend it before Review placeholder
+               body = body.replace("<!-- copilot-review-placeholder -->", `${ciDetails}\n\n<!-- copilot-review-placeholder -->`);
             }
+
+            // 3. Update Next Step
+            const nextStepPattern = /👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/;
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
