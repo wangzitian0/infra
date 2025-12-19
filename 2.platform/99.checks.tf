@@ -59,12 +59,3 @@ output "sso_e2e_status" {
   }
   description = "E2E SSO validation results with target URL for debugging"
 }
-
-# ------------------------------------------------------------
-# Pipeline Verification Dummy Resource
-# ------------------------------------------------------------
-resource "null_resource" "pipeline_test" {
-  triggers = {
-    uuid = "final-validation-${timestamp()}"
-  }
-}
