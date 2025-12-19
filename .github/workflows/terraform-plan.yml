@@ -272,7 +272,7 @@ jobs:
             
             // CI section: only show error link if failed
             let ciDetails = "";
-            let statusIcon = icon(allPass);
+            let statusIcon = allPass ? '✅' : '❌';
             if (!allPass) {
               ciDetails = [
                 '---',
@@ -328,6 +328,7 @@ jobs:
 
             // 3. Update Next Step
             const nextStepPattern = /👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/;
+            body = body.replace(nextStepPattern, nextStep);
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
