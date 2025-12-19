@@ -67,7 +67,7 @@ locals {
         rule        = "All"
       }
     ]
-    grantTypes     = ["authorization_code", "refresh_token"]
+    grantTypes = ["authorization_code", "refresh_token"]
     # Updated API fields for Casdoor v1.570+
     providers = [
       {
