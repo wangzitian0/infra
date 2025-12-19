@@ -82,17 +82,25 @@ jobs:
           ref: ${{ steps.pr.outputs.sha }}
           fetch-depth: 0
 
-      - name: Gemini Review
+      - name: Claude Review
         if: steps.parse.outputs.command == 'review'
         id: review
-        uses: google-github-actions/run-gemini-cli@v0
+        uses: anthropics/claude-code-action@v1
         env:
-          GEMINI_MODEL: gemini-1.5-flash
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
-          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_model: gemini-1.5-flash
-          gemini_debug: true
-          prompt: "Review this Terraform PR. Focus on AGENTS.md compliance and L1-L4 structure."
+          prompt: |
+            Review this Terraform PR for:
+            1. AGENTS.md compliance
+            2. L1-L4 layered structure adherence
+            3. Security best practices
+            4. Resource naming consistency
+
+            Provide concise, actionable feedback.
+          claude_args: |
+            {
+              "model": "claude-3-5-haiku-20241022"
+            }
 
       - name: Health Check
         if: steps.parse.outputs.command == 'dig'
@@ -114,6 +122,19 @@ jobs:
           echo -e "$TABLE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Read Claude Review
+        if: steps.parse.outputs.command == 'review' && steps.review.outcome == 'success'
+        id: review_text
+        run: |
+          if [ -f "${{ steps.review.outputs.execution_file }}" ]; then
+            REVIEW=$(cat "${{ steps.review.outputs.execution_file }}" | tail -100 | head -80)
+            echo "text<<EOF" >> $GITHUB_OUTPUT
+            echo "$REVIEW" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "text=Claude review completed." >> $GITHUB_OUTPUT
+          fi
+
       - name: Update Dashboard
         if: always() && steps.parse.outputs.valid == 'true' && steps.parse.outputs.command != 'help'
         uses: actions/github-script@v7
@@ -133,8 +154,8 @@ jobs:
             const ts = new Date().toISOString().slice(11, 16) + ' UTC';
             let body = existing.body;
             if (cmd === 'review') {
-              const reviewText = `${{ steps.review.outputs.text }}` || "AI Review Completed.";
-              const section = ['<!-- copilot-review-placeholder -->', `### 🤖 AI Review (Gemini) | ${ts}`, reviewText, '---'].join('\n');
+              const reviewText = `${{ steps.review_text.outputs.text }}` || "AI Review Completed.";
+              const section = ['<!-- copilot-review-placeholder -->', `### 🤖 AI Review (Claude Haiku) | ${ts}`, '```', reviewText, '```', '---'].join('\n');
               body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${ts} |`);
               body = body.includes('<!-- copilot-review-placeholder -->') ? body.replace('<!-- copilot-review-placeholder -->', section) : body.replace('### 🚀 Atlantis Actions', `${section}\n\n### 🚀 Atlantis Actions`);
             }
