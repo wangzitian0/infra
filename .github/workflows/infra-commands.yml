@@ -125,17 +125,37 @@ jobs:
             });
 
       # ==========================================
-      # COMMAND: infra review (Native Integration)
+      # COMMAND: infra review (Gemini Flash)
       # ==========================================
-      - name: Request Native Copilot Review
+      - name: Run Gemini Review
         if: steps.parse.outputs.command == 'review'
         id: review
+        uses: google-github-actions/run-gemini-cli@v0
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          model: 'gemini-1.5-flash'
+          prompt: |
+            You are a Senior SRE reviewing a Terraform IaC Pull Request.
+            PR: ${{ github.event.issue.number || github.event.pull_request.number }}
+            
+            ## CRITERIA (REQUIRED):
+            1. **Structure**: Is code in correct layer (L1-nodep/L2-platform/L3-data/L4-apps)?
+            2. **SSOT**: No hardcoded secrets.
+            3. **Documentation**: Ensure `0.check_now.md` and `README.md` in changed directories are updated.
+            4. **Health Checks**: Are Probes and initContainers present for new workloads?
+
+            Reference AGENTS.md for detailed conventions. 
+            Output your review in concise Markdown.
+
+      - name: Extract Review Body
+        if: steps.parse.outputs.command == 'review'
+        id: extract
         run: |
-          echo "Requesting review from @github-copilot..."
-          gh pr edit ${{ github.event.issue.number || github.event.pull_request.number }} --add-reviewer github-copilot
-          echo "review_body=Native @github-copilot review requested. Please check the 'Files Changed' tab or individual comments below." >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          # The action outputs to a file or stdout. We use the custom output mechanism.
+          # For run-gemini-cli, we can capture the response.
+          echo "review_body<<EOF" >> $GITHUB_OUTPUT
+          echo "${{ steps.review.outputs.text }}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       # ==========================================
       # COMMAND: infra dig
@@ -233,27 +253,51 @@ jobs:
 
             
 
-                        if (cmd === 'review') {
+                                    if (cmd === 'review') {
 
-                          const reviewBody = `${{ steps.review.outputs.review_body }}` || "AI Review Completed.";
+            
 
-                          const section = [
+                                      const reviewBody = `${{ steps.extract.outputs.review_body }}` || "AI Review Completed.";
 
-                            '<!-- copilot-review-placeholder -->',
+            
 
-                            `### 🤖 Copilot Review | ${timestamp}`,
+                                      const section = [
 
-                            `> ${triggerInfo}`,
+            
 
-                            '',
+                                        '<!-- copilot-review-placeholder -->',
 
-                            reviewBody,
+            
 
-                            '',
+                                        `### 🤖 AI Review (Gemini) | ${timestamp}`,
 
-                            '---'
+            
 
-                          ].join('\n');
+                                        `> ${triggerInfo}`,
+
+            
+
+                                        '',
+
+            
+
+                                        reviewBody,
+
+            
+
+                                        '',
+
+            
+
+                                        '---'
+
+            
+
+                                      ].join('\n');
+
+            
+
+                        
 
                           // Update status table row
 
