@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "0.tools/**"
       - "1.bootstrap/**"
       - "2.platform/**"
       - "3.data/**"
