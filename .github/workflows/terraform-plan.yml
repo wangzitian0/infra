@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "0.tools/**"
       - "1.bootstrap/**"
       - "2.platform/**"
       - "3.data/**"
@@ -59,7 +60,7 @@ jobs:
         id: skeleton
         uses: actions/github-script@v7
         with:
-          github-token: ${{ steps.app_token.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           result-encoding: string
           script: |
             const sha = context.payload.pull_request.head.sha.substring(0, 7);
@@ -84,7 +85,7 @@ jobs:
               '|:---|:---|:---|',
               '| `atlantis plan` | Re-run infrastructure plan | Append to this table |',
               '| `atlantis apply` | Deploy changes | Append to this table |',
-              '| `infra review` | AI Code Review (Copilot) | Append to dashboard |',
+              '| `@claude review this` | AI Code Review | New comment reply |',
               '| `infra dig` | Service Health Check | Append to dashboard |',
               '| `infra help` | Show detailed help | New reply |',
               '',
@@ -108,7 +109,7 @@ jobs:
               "",
               "### 🛠️ CI Validate ⏳ | [" + sha + "](" + runUrl + ") | " + timestamp,
               "",
-              '⏳ Running checks...', 
+              '⏳ Running checks...',
               "",
               "<!-- claude-review-placeholder -->",
               "",
@@ -234,14 +235,14 @@ jobs:
         run: terraform init -backend=false -input=false -no-color && terraform validate -no-color
         continue-on-error: true
 
-      # ============================================================
+      # ========================================== 
       # STEP 3: Update comment with results
-      # ============================================================
+      # ========================================== 
       - name: Update comment with results
         if: always()
         uses: actions/github-script@v7
         with:
-          github-token: ${{ steps.app_token.outputs.token }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fmt = '${{ steps.fmt.outcome }}' || 'skipped';
             const lint_l1 = '${{ steps.lint_l1.outcome }}' || 'skipped';
