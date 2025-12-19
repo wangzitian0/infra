@@ -253,95 +253,171 @@ jobs:
 
             
 
-                                    if (cmd === 'review') {
+                                                if (cmd === 'review') {
 
             
 
-                                      const reviewBody = `${{ steps.extract.outputs.review_body }}` || "AI Review Completed.";
+                                                  const reviewBody = `${{ steps.extract.outputs.review_body }}` || "AI Review Completed.";
 
             
 
-                                      const section = [
+                                                  const section = [
 
             
 
-                                        '<!-- copilot-review-placeholder -->',
+                                                    '<!-- copilot-review-placeholder -->',
 
             
 
-                                        `### 🤖 AI Review (Gemini) | ${timestamp}`,
+                                                    `### 🤖 AI Review (Gemini) | ${timestamp}`,
 
             
 
-                                        `> ${triggerInfo}`,
+                                                    `> ${triggerInfo}`,
 
             
 
-                                        '',
+                                                    '',
 
             
 
-                                        reviewBody,
+                                                    reviewBody,
 
             
 
-                                        '',
+                                                    '',
 
             
 
-                                        '---'
+                                                    '---'
 
             
 
-                                      ].join('\n');
+                                                  ].join('\n');
 
             
 
-                        
-
-                          // Update status table row
-
-                          body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${timestamp} |`);
-
-                          // Update details section (replace placeholder)
-
-                          body = body.replace('<!-- copilot-review-placeholder -->', section);
-
-                        }
+                                                  // Update status table row
 
             
 
-                        if (cmd === 'dig') {
+                                                  body = body.replace(/\| \*\*AI Review\*\* \| .* \| .* \| .* \|/, `| **AI Review** | ✅ | [View Details](#copilot-review-placeholder) | ${timestamp} |`);
 
-                          const table = `${{ steps.health_check.outputs.table }}`;
+            
 
-                          const section = [
+                                                  // Update details section (with fallback)
 
-                            '<!-- health-check-placeholder -->',
+            
 
-                            `### 🔍 Health Check: [dig] | ${timestamp}`,
+                                                  if (body.includes('<!-- copilot-review-placeholder -->')) {
 
-                            `> ${triggerInfo}`,
+            
 
-                            '',
+                                                    body = body.replace('<!-- copilot-review-placeholder -->', section);
 
-                            table,
+            
 
-                            '',
+                                                  } else {
 
-                            '---'
+            
 
-                          ].join('\n');
+                                                    body = body.replace('### 🚀 Atlantis Actions', `${section}\n\n### 🚀 Atlantis Actions`);
 
-                          // Update status table row
+            
 
-                          body = body.replace(/\| \*\*Health Check\*\* \| .* \| .* \| .* \|/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${timestamp} |`);
+                                                  }
 
-                          // Update details section
+            
 
-                          body = body.replace('<!-- health-check-placeholder -->', section);
+                                                }
 
-                        }
+            
+
+                                    
+
+            
+
+                                                if (cmd === 'dig') {
+
+            
+
+                                                  const table = `${{ steps.health_check.outputs.table }}`;
+
+            
+
+                                                  const section = [
+
+            
+
+                                                    '<!-- health-check-placeholder -->',
+
+            
+
+                                                    `### 🔍 Health Check: [dig] | ${timestamp}`,
+
+            
+
+                                                    `> ${triggerInfo}`,
+
+            
+
+                                                    '',
+
+            
+
+                                                    table,
+
+            
+
+                                                    '',
+
+            
+
+                                                    '---'
+
+            
+
+                                                  ].join('\n');
+
+            
+
+                                                  // Update status table row
+
+            
+
+                                                  body = body.replace(/\| \*\*Health Check\*\* \| .* \| .* \| .* \|/, `| **Health Check** | ✅ | [View Details](#health-check-placeholder) | ${timestamp} |`);
+
+            
+
+                                                  // Update details section (with fallback)
+
+            
+
+                                                  if (body.includes('<!-- health-check-placeholder -->')) {
+
+            
+
+                                                    body = body.replace('<!-- health-check-placeholder -->', section);
+
+            
+
+                                                  } else {
+
+            
+
+                                                    body = body.replace('---', `${section}\n\n---`);
+
+            
+
+                                                  }
+
+            
+
+                                                }
+
+            
+
+                                    
 
             
 

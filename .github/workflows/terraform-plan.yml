@@ -317,6 +317,9 @@ jobs:
             } else if (ciDetails) {
                body = body.replace("<!-- copilot-review-placeholder -->", `${ciDetails}\n\n<!-- copilot-review-placeholder -->`);
             }
+            
+            // Clean up double HRs that might occur during healing/replacement
+            body = body.replace(/---\n\n---/g, '---\n');
 
             // 3. Update Next Step
             const nextStepPattern = /👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/;
