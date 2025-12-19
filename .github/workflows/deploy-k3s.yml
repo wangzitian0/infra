@@ -165,7 +165,8 @@ jobs:
           echo "=== Checking Static Credentials ==="
           for secret in postgres redis clickhouse arangodb; do
             # vault kv get CLI auto-adds /data/ prefix for KV v2
-            if kubectl exec -n platform "$VAULT_POD" -- vault kv get "secret/${secret}" >/dev/null 2>&1; then
+            # Pass VAULT_TOKEN env to authenticate inside vault pod
+            if kubectl exec -n platform "$VAULT_POD" -- env VAULT_TOKEN="${VAULT_TOKEN}" vault kv get "secret/${secret}" >/dev/null 2>&1; then
               echo "✅ secret/${secret}: available"
             else
               echo "::error::secret/${secret}: NOT FOUND"
@@ -174,7 +175,7 @@ jobs:
           done
           
           echo "=== Checking Dynamic Credentials (optional) ==="
-          if kubectl exec -n platform "$VAULT_POD" -- vault read database/creds/app-readonly 2>/dev/null; then
+          if kubectl exec -n platform "$VAULT_POD" -- env VAULT_TOKEN="${VAULT_TOKEN}" vault read database/creds/app-readonly 2>/dev/null; then
             echo "✅ Dynamic credentials: configured"
           else
             echo "⚠️ Dynamic credentials: not configured (enable_postgres_backend=false)"
