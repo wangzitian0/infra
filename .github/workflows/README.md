@@ -15,11 +15,21 @@ PR 创建/更新
 
 ## 密钥注入架构 (CI Refactor)
 
+
+
 所有 Workflow 现在统一使用 `secrets_json: ${{ toJSON(secrets) }}` 传递上下文，由 `terraform-setup` Action 内部的 Python 脚本统一解析。这消除了 `deploy-k3s.yml` 中大量的冗余环境变量映射。
 
+
+
 **左移守护**：
+
 - **Variable Integrity Check**: 在 CI Validate 阶段运行 `check_integrity.py`，确保所有 TF 变量都在加载器中映射。
+
 - **PEM Strict Check**: 强制验证 RSA 私钥格式。
+
+- **Token Fallback**: 评论更新逻辑已切换至 `GITHUB_TOKEN`，以绕过 GitHub App Token 的兼容性问题。
+
+
 
 ---
 

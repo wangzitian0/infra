@@ -100,7 +100,9 @@ L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提�
 
 ### Identity Providers
 
-GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，无需手动操作。
+GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
+
+> **技术细节 (白盒化)**: 为了解决 Casdoor API 在 Query Parameter 中拼接 ID 导致的 500 Panic，我们使用了 `read_path = "/get-provider?id=admin/{id}"`。这里的 `{id}` 占位符确保了 ID 被正确注入到参数中而非追加到路径末尾。
 
 | Provider | 用途 | 状态 |
 |----------|------|------|
@@ -117,6 +119,15 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置，�
 | Vault | `vault-oidc` | `https://secrets.<internal_domain>/ui/vault/auth/oidc/oidc/callback` | REST API |
 | Dashboard | `dashboard-oidc` | `https://kdashboard.<internal_domain>/oauth2/callback` | REST API |
 | Kubero | `kubero-oidc` | `https://kcloud.<internal_domain>/auth/callback` | REST API |
+
+---
+
+## 验证与健康检查
+
+为了确保 SSO 链路的稳定性，我们在部署流程中引入了 **“白盒化健康检查”**：
+1. **强制冷静期**：在 Ingress 创建后增加 `time_sleep` (60s)，确保 DNS 传播。
+2. **可视化路径**：使用 `terraform_data` 显式输出检查的目标 URL（如 `https://auth.zitian.party/ping`），在 Atlantis Plan 阶段即可预览诊断路径。
+3. **状态回显**：在 `sso_e2e_status` output 中包含 `target_url`，方便排查 Ingress 404 或证书错误。
 
 ---
 

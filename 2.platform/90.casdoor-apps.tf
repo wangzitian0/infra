@@ -18,9 +18,11 @@
 resource "restapi_object" "provider_github" {
   count = local.casdoor_enabled ? 1 : 0
 
-  path         = "/add-provider"
-  create_path  = "/add-provider"
-  update_path  = "/update-provider"
+  path        = "/add-provider"
+  create_path = "/add-provider"
+  update_path = "/update-provider"
+  # Whitebox: Explicitly use {id} to force ID into the query parameter.
+  # Expected: /api/get-provider?id=admin/GitHub
   read_path    = "/get-provider?id=admin/{id}"
   destroy_path = "/delete-provider?id=admin/{id}"
   id_attribute = "name"
@@ -39,6 +41,13 @@ resource "restapi_object" "provider_github" {
 
   # Wait for Casdoor to be healthy
   depends_on = [helm_release.casdoor]
+
+  lifecycle {
+    precondition {
+      condition     = var.github_oauth_client_id != "" && var.github_oauth_client_secret != ""
+      error_message = "GitHub OAuth credentials are missing. Check ATLANTIS_GH_CLIENT_ID/SECRET."
+    }
+  }
 }
 
 # =============================================================================
