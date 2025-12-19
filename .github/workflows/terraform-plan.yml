@@ -41,7 +41,7 @@ jobs:
         run: |
           echo "${{ secrets.ATLANTIS_GH_APP_KEY }}" > atlantis_key.pem
           echo "Checking key format..."
-          if ! openssl rsa -in atlantis_key.pem -check -noout;
+          if ! openssl rsa -in atlantis_key.pem -check -noout; then
             echo "::error::ATLANTIS_GH_APP_KEY is corrupted in CI environment!"
             exit 1
           fi
