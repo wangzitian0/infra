@@ -30,8 +30,9 @@ resource "vault_kv_secret_v2" "signoz_clickhouse" {
 
 # 3. Create SigNoz User
 resource "clickhousedbops_user" "signoz" {
-  name     = "signoz"
-  password = random_password.signoz_clickhouse.result
+  name                            = "signoz"
+  password_sha256_hash_wo         = sha256(random_password.signoz_clickhouse.result)
+  password_sha256_hash_wo_version = 1
 }
 
 # Create SigNoz Databases
@@ -50,22 +51,22 @@ resource "clickhousedbops_database" "signoz_logs" {
 # Grant Privileges
 # signoz user needs ALL on signoz_* databases
 resource "clickhousedbops_grant_privilege" "signoz_traces" {
-  user      = clickhousedbops_user.signoz.name
-  privilege = "ALL"
-  database  = clickhousedbops_database.signoz_traces.name
-  table     = "*"
+  grantee_user_name = clickhousedbops_user.signoz.name
+  privilege_name    = "ALL"
+  database_name     = clickhousedbops_database.signoz_traces.name
+  table_name        = null # All tables
 }
 
 resource "clickhousedbops_grant_privilege" "signoz_metrics" {
-  user      = clickhousedbops_user.signoz.name
-  privilege = "ALL"
-  database  = clickhousedbops_database.signoz_metrics.name
-  table     = "*"
+  grantee_user_name = clickhousedbops_user.signoz.name
+  privilege_name    = "ALL"
+  database_name     = clickhousedbops_database.signoz_metrics.name
+  table_name        = null # All tables
 }
 
 resource "clickhousedbops_grant_privilege" "signoz_logs" {
-  user      = clickhousedbops_user.signoz.name
-  privilege = "ALL"
-  database  = clickhousedbops_database.signoz_logs.name
-  table     = "*"
+  grantee_user_name = clickhousedbops_user.signoz.name
+  privilege_name    = "ALL"
+  database_name     = clickhousedbops_database.signoz_logs.name
+  table_name        = null # All tables
 }
