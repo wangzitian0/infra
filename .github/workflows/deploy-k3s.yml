@@ -190,17 +190,15 @@ jobs:
         with:
           working_directory: "4.apps"
           terraform_version: 1.6.6
-          tf_state_key: "k3s/apps-prod.tfstate"
+          tf_state_key: "k3s/apps.tfstate"
           secrets_json: ${{ toJSON(secrets) }}
 
       - name: Apply Infrastructure (L4 - Apps)
         if: github.event_name == 'push'
         working-directory: 4.apps
-        env:
-          TF_VAR_environment: prod
         run: |
           if ls *.tf 1> /dev/null 2>&1; then
-            terraform workspace select prod || terraform workspace new prod
+            terraform workspace select default || terraform workspace new default
             terraform apply -auto-approve || {
                echo "::error::L4 Apps Apply failed."
                exit 1
@@ -221,9 +219,8 @@ jobs:
           fi
           
           echo "Verifying L4 Applications..."
-          ENV="prod"
-          OP_NS="kubero-operator-system-${ENV}"
-          UI_NS="kubero-${ENV}"
+          OP_NS="kubero-operator-system"
+          UI_NS="kubero"
 
           echo "=== L4 Verification Debug Info ==="
           echo "Operator NS: ${OP_NS}"
