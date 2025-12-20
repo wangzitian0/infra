@@ -164,9 +164,10 @@ resource "kubernetes_service_account" "kubero" {
 # ============================================================
 
 # Import existing CR created by previous apps-prod apply
+# Format: apiVersion//kind//name//namespace
 import {
   to = kubectl_manifest.kubero_instance
-  id = "/apis/application.kubero.dev/v1alpha1/namespaces/kubero/kuberos/kubero"
+  id = "application.kubero.dev/v1alpha1//Kubero//kubero//kubero"
 }
 
 resource "kubectl_manifest" "kubero_instance" {
