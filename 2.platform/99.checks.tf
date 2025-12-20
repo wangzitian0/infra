@@ -49,13 +49,10 @@ data "http" "portal_auth_ping" {
 # E2E Summary Output
 # ------------------------------------------------------------
 output "sso_e2e_status" {
-  value = local.portal_sso_gate_enabled ? {
-    oidc_discovery = try(data.http.casdoor_oidc_discovery[0].status_code, "skipped")
-    portal_auth    = try(data.http.portal_auth_ping[0].status_code, "failed")
-    target_url     = try(terraform_data.health_check_target[0].output, "n/a")
-    } : {
-    oidc_discovery = "disabled"
-    portal_auth    = "disabled"
+  value = {
+    oidc_discovery = local.casdoor_oidc_enabled ? try(data.http.casdoor_oidc_discovery[0].status_code, "failed") : "disabled"
+    portal_auth    = local.portal_sso_gate_enabled ? try(data.http.portal_auth_ping[0].status_code, "failed") : "disabled"
+    target_url     = local.portal_sso_gate_enabled ? try(terraform_data.health_check_target[0].output, "n/a") : "n/a"
   }
   description = "E2E SSO validation results with target URL for debugging"
 }

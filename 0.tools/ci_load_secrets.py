@@ -15,7 +15,7 @@ OP_CONTRACT = {
     "Infra-Cloudflare": ["BASE_DOMAIN", "CLOUDFLARE_ZONE_ID", "INTERNAL_DOMAIN", "INTERNAL_ZONE_ID", "CLOUDFLARE_API_TOKEN"],
     "Infra-Atlantis": ["ATLANTIS_WEBHOOK_SECRET", "ATLANTIS_WEB_PASSWORD", "ATLANTIS_GH_APP_ID", "ATLANTIS_GH_APP_KEY"],
     "Infra-Vault": ["VAULT_ROOT_TOKEN", "VAULT_POSTGRES_PASSWORD", "VAULT_UNSEAL_KEY"],
-    "Infra-OAuth": ["GH_OAUTH_CLIENT_ID", "GH_OAUTH_CLIENT_SECRET", "ENABLE_PORTAL_SSO_GATE", "GH_PAT"],
+    "Infra-OAuth": ["GH_OAUTH_CLIENT_ID", "GH_OAUTH_CLIENT_SECRET", "ENABLE_CASDOOR_OIDC", "ENABLE_PORTAL_SSO_GATE", "GH_PAT"],
 }
 
 # Mapping: GitHub Secret Name -> Terraform Variable Name
@@ -45,6 +45,7 @@ MAPPING = {
     "VAULT_POSTGRES_PASSWORD": "TF_VAR_vault_postgres_password",
     "GH_OAUTH_CLIENT_ID": "TF_VAR_github_oauth_client_id",
     "GH_OAUTH_CLIENT_SECRET": "TF_VAR_github_oauth_client_secret",
+    "ENABLE_CASDOOR_OIDC": "TF_VAR_enable_casdoor_oidc",
     "ENABLE_PORTAL_SSO_GATE": "TF_VAR_enable_portal_sso_gate",
     "VAULT_ROOT_TOKEN": "TF_VAR_vault_root_token",
 }

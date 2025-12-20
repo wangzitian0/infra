@@ -112,7 +112,7 @@ resource "restapi_object" "app_portal_gate" {
 
 # Vault OIDC Application
 resource "restapi_object" "app_vault_oidc" {
-  count = local.portal_gate_enabled ? 1 : 0
+  count = local.casdoor_oidc_enabled ? 1 : 0
 
   path          = "/add-application"
   create_path   = "/add-application"
@@ -135,7 +135,7 @@ resource "restapi_object" "app_vault_oidc" {
 
 # Dashboard OIDC Application
 resource "restapi_object" "app_dashboard_oidc" {
-  count = local.portal_gate_enabled ? 1 : 0
+  count = local.casdoor_oidc_enabled ? 1 : 0
 
   path          = "/add-application"
   create_path   = "/add-application"
@@ -158,7 +158,7 @@ resource "restapi_object" "app_dashboard_oidc" {
 
 # Kubero OIDC Application
 resource "restapi_object" "app_kubero_oidc" {
-  count = local.portal_gate_enabled ? 1 : 0
+  count = local.casdoor_oidc_enabled ? 1 : 0
 
   path          = "/add-application"
   create_path   = "/add-application"
@@ -183,7 +183,7 @@ resource "restapi_object" "app_kubero_oidc" {
 # Checks / Discovery
 # =============================================================================
 data "http" "casdoor_oidc_discovery" {
-  count = local.portal_gate_enabled ? 1 : 0
+  count = local.casdoor_oidc_enabled ? 1 : 0
 
   url = "https://${local.casdoor_domain}/.well-known/openid-configuration"
 
@@ -192,7 +192,6 @@ data "http" "casdoor_oidc_discovery" {
   }
 
   depends_on = [
-    restapi_object.app_portal_gate,
     restapi_object.app_vault_oidc,
     restapi_object.app_dashboard_oidc,
     restapi_object.app_kubero_oidc

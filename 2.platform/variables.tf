@@ -123,8 +123,14 @@ variable "casdoor_admin_password" {
   }
 }
 
+variable "enable_casdoor_oidc" {
+  description = "Enable native Casdoor OIDC integrations (Vault/Kubero/etc). When null, falls back to enable_portal_sso_gate for backward compatibility."
+  type        = bool
+  default     = null
+}
+
 variable "enable_portal_sso_gate" {
-  description = "Enable Casdoor-based SSO gate for platform portals (Vault/Dashboard/Kubero) via OAuth2-Proxy; keep false until Casdoor + client credentials are ready to avoid lockout."
+  description = "Enable Casdoor-based SSO gate for non-OIDC portals (e.g., Dashboard) via OAuth2-Proxy; keep false until Casdoor + client credentials are ready to avoid lockout."
   type        = bool
   default     = false
 }

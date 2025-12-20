@@ -1,6 +1,6 @@
 # 认证与授权 SSOT
 
-> **一句话**：L1 使用根密钥，L2 支持根密钥+SSO 双认证，L3/L4 完全走 Vault+SSO。
+> **一句话**：L1 保持独立根密钥，L2/L4 原生 OIDC 直连，Portal Gate 仅用于不支持 OIDC 的应用（避免双重认证），根密钥作为故障恢复通道。
 
 ## 分层认证架构
 
@@ -8,8 +8,9 @@
 graph TD
     subgraph "认证方式"
         ROOT[根密钥<br/>1Password]
-        SSO[Casdoor SSO<br/>GitHub/Google OAuth]
+        SSO[Casdoor SSO<br/>GitHub/Password]
         VAULT_AUTH[Vault Auth<br/>Token/OIDC]
+        GATE[Portal Gate<br/>OAuth2-Proxy + ForwardAuth]
     end
 
     subgraph "L1 Bootstrap"
@@ -18,8 +19,8 @@ graph TD
     end
 
     subgraph "L2 Platform"
-        L2_VAULT[Vault UI]
-        L2_DASH[K8s Dashboard]
+        L2_VAULT[Vault UI (OIDC)]
+        L2_DASH[K8s Dashboard (no OIDC)]
         L2_CASDOOR[Casdoor]
     end
 
@@ -29,7 +30,8 @@ graph TD
     end
 
     subgraph "L4 Apps"
-        L4_APPS[应用]
+        L4_OIDC[Apps (Native OIDC)]
+        L4_GATE[Apps (No OIDC)]
     end
 
     ROOT -->|Basic Auth| L1_ATLANTIS
@@ -37,14 +39,16 @@ graph TD
     
     ROOT -->|Root Token| L2_VAULT
     SSO -->|OIDC| L2_VAULT
-    SSO -->|OIDC| L2_DASH
     SSO -->|管理| L2_CASDOOR
 
+    SSO --> GATE
+    GATE --> L2_DASH
+    GATE --> L4_GATE
+    SSO -->|OIDC| L4_OIDC
+
     VAULT_AUTH --> L3_PG
-    SSO --> L3_PG
-    
-    VAULT_AUTH --> L4_APPS
-    SSO --> L4_APPS
+    VAULT_AUTH --> L3_REDIS
+    VAULT_AUTH --> L4_OIDC
 ```
 
 ---
@@ -55,67 +59,82 @@ graph TD
 |------|------|----------|------|
 | **L1** | Atlantis | 根密钥 (Basic Auth) | 不能依赖 L2 SSO (循环依赖) |
 | **L1** | K3s API | 根密钥 (Token) | 系统级 |
-| **L2** | Vault | 根密钥 (Root Token) + 原生 OIDC | **分治策略** - 原生 OIDC 直连 Casdoor，无 Portal Gate |
-| **L2** | Dashboard | Token + Portal Gate (SSO) | **分治策略** - 不支持原生 OIDC，走 Portal Gate |
+| **L2** | Vault | 根密钥 (Root Token) + SSO (OIDC 直连) | **不挂 Portal Gate**，避免双重认证 |
+| **L2** | Dashboard | Portal Gate (ForwardAuth) + Token | Dashboard 无原生 OIDC |
 | **L2** | Casdoor | 根密钥 (admin 密码) | SSO 入口本身 |
 | **L3** | PostgreSQL | Vault 动态凭据 | 业务 DB |
 | **L3** | Redis | Vault 动态凭据 | 业务缓存 |
-| **L4** | Apps (如 Kubero) | 原生 OIDC / Portal Gate (按需) | **分治策略** - 原生 OIDC 优先，不支持则用 Portal Gate |
+| **L4** | Apps (原生 OIDC) | Casdoor OIDC 直连 | Kubero / SigNoz / PostHog |
+| **L4** | Apps (无 OIDC) | Portal Gate | Django CMS 等 |
+
+## 紧急绕过与恢复（Break-glass）
+
+- **原则**：SSO 不是信任根；L1/L2 的根密钥路径必须独立可用。
+- **Vault Root Token**：用于 SSO 失效时的恢复入口；过期处理见 `docs/ssot/ops.recovery.md`。
+- **Portal Gate**：只用于无 OIDC 的应用，避免挡住根密钥或原生 OIDC 的应急通道。
 
 ---
 
-## 门户级统一 SSO（Casdoor）
+## 门户级认证分治（Issue 302）
 
-L2 门户级服务正在按照 BRN-008 的设计，逐步迁移到 Casdoor 提供的统一登录入口，减少各自的 Token 配置并提升运维一致性。
+Portal Gate 与原生 OIDC 同时启用会导致双重认证：OAuth2-Proxy 只透传 `X-Auth-Request-*` 头，Vault OSS / 原生 OIDC 应用不会识别这些头，结果是 Casdoor 登录成功后仍回到应用登录页。策略是**分治**：原生 OIDC 直连，Portal Gate 仅用于无 OIDC 的应用，独立入口保留为应急通道。
 
-| 服务 | 域名 | SSO 形态 | 当前状态 |
-|------|------|-----------|----------|
-| Vault UI | `https://secrets.<internal_domain>` | 原生 OIDC 直连 Casdoor（`vault-oidc`） | ✅ 已部署，无 Portal Gate（方案 1 分治策略） |
-| Kubernetes Dashboard | `https://kdashboard.<internal_domain>` | Portal Gate (OAuth2-Proxy) | ✅ Portal Gate 已配置，条件启用 |
-| Kubero UI | `https://kcloud.<internal_domain>` | Portal Gate (OAuth2-Proxy) | ✅ Portal Gate 已配置，条件启用 |
-| Atlantis Web | `https://atlantis.<internal_domain>` | Basic Auth（继续当前机制） | ✅ 保持独立认证（L1 不依赖 L2） |
+开关语义：
+- `enable_casdoor_oidc`：控制原生 OIDC 应用（Vault/Kubero/预留 Dashboard）。
+- `enable_portal_sso_gate`：控制 Portal Gate（仅无 OIDC 门户）。
+- 向后兼容：`enable_casdoor_oidc` 未设置时默认沿用 `enable_portal_sso_gate`。
+
+| 分类 | 服务 | 域名 | 认证路径 | 备注 |
+|------|------|------|----------|------|
+| 原生 OIDC | Vault UI | `https://secrets.<internal_domain>` | Casdoor OIDC 直连 | 禁用 forwardAuth |
+| 原生 OIDC | Kubero UI | `https://kcloud.<internal_domain>` | Casdoor OIDC 直连 | Kubero 侧配置中 |
+| 原生 OIDC | SigNoz / PostHog | *(未部署)* | Casdoor OIDC 直连 | 规划 |
+| Portal Gate | K8s Dashboard | `https://kdashboard.<internal_domain>` | ForwardAuth -> Casdoor | 登录后仍需 token |
+| Portal Gate | Django CMS | *(未部署)* | ForwardAuth -> Casdoor | 无 OIDC |
+| 独立认证 | Atlantis | `https://atlantis.<internal_domain>` | Basic Auth | break-glass |
+| 独立认证 | Vault CLI | *(无 UI)* | Root Token | break-glass |
 
 ---
 
-### 宏观进度（统一登录入口）
+### 宏观进度（分治策略）
 
 #### 最终态标准
-- **统一入口**：应用访问统一跳转到 Casdoor 登录页，同一页显示 **密码 + GitHub**。
-- **统一规则**：原生 OIDC 的应用直接对接 Casdoor；不支持 OIDC 的应用统一走 Portal Gate（OAuth2-Proxy + Traefik forwardAuth）。
+- **统一入口**：所有 SSO 流程最终进入 Casdoor 登录页，同一页显示 **密码 + GitHub**。
+- **统一规则**：原生 OIDC 的应用直接对接 Casdoor；不支持 OIDC 的应用走 Portal Gate（OAuth2-Proxy + Traefik forwardAuth）。
+- **零冲突**：原生 OIDC 应用不挂 forwardAuth，避免双重认证。
 - **域名策略**：业务应用域名不变，仅使用 `sso.<internal_domain>` + `auth.<internal_domain>` 作为登录/回调入口。
+- **应急通道**：L1/L2 根密钥路径始终可用（参见 `docs/ssot/ops.recovery.md`）。
 
 #### 当前快照（2025-12-20）
-
-**✅ 方案 1（分治策略）已实施**：
 - **Casdoor 已部署**：`sso.<internal_domain>` 可访问，GitHub Provider 已存在。
-- **OIDC 应用已创建**：`portal-gate` / `vault-oidc` / `dashboard-oidc` / `kubero-oidc` 已通过 REST API 自动配置。
-- **Portal Gate 已配置**：`enable_portal_sso_gate=true` 在 Atlantis 配置中，OAuth2-Proxy + Traefik middleware 已部署。
-- **Vault 无 Portal Gate**：PR #231 已移除 Vault Ingress 的 ForwardAuth，仅保留原生 OIDC 直连 Casdoor（避免双重认证和 CI API 阻塞）。
-- **Dashboard 走 Portal Gate**：不支持原生 OIDC，通过 Portal Gate 统一入口。
-- **Kubero 走 Portal Gate**：虽支持原生 OIDC，但当前配置为通过 Portal Gate 统一入口。
+- **OIDC 应用已创建**：`enable_casdoor_oidc=true` 时写入 `vault-oidc` / `kubero-oidc` / `dashboard-oidc(预留)`；`enable_portal_sso_gate=true` 时写入 `portal-gate`。
+- **Portal Gate 已部署**：仅用于无 OIDC 应用；若 Vault/Kubero 仍挂 forwardAuth 需移除。
+- **登录页白屏已修复**：`signupItems=[]` 避免 `AgreementModal` 报错。
+- **登录页策略已修复**：`enablePassword=true` 且 providers `owner=admin`，支持“密码 + GitHub”。
+- **TokenFormat 已修复**：显式设置 `tokenFormat=JWT`。
+- **Token TTL 已修复**：`expireInHours=168`、`refreshExpireInHours=168`。
+- **Kubero OIDC**：接入中（Vault secret + Kubero 配置待完成）。
 
-**认证路径分治**：
-```
-原生 OIDC (直连):    Vault UI → Casdoor
-Portal Gate (代理):  Dashboard/Kubero → OAuth2-Proxy → Casdoor
-独立认证 (绕过):     Atlantis (Basic Auth), Vault CLI (Root Token)
-```
+#### 阻断点
+- forwardAuth 与原生 OIDC 同时启用 → 双重认证（Vault OSS 不识别 `X-Auth-Request-*`）。
+- Portal Gate 路由范围过大 → 原生 OIDC 应用被挡。
+- Casdoor 应用未打开密码登录、provider 绑定不完整 → 登录页缺少“密码 + GitHub”并存。
+- `signupItems=null` → 登录页渲染异常（AgreementModal 依赖 `signupItems`）。
+- `tokenFormat` 为空 → Casdoor v1.570.0 发 Token 时直接抛错（`unknown application TokenFormat`）。
+- `expireInHours/refreshExpireInHours=0` → OAuth2-Proxy 校验 `id_token` 立刻过期。
 
-#### 已解决的问题
-- ✅ **双重认证问题**：Vault 已移除 Portal Gate，用户通过原生 OIDC 登录，体验流畅。
-- ✅ **CI API 阻塞**：Vault API 不再被 ForwardAuth 拦截，CI runners 可使用 Token 认证。
-- ✅ **架构清晰**：原生 OIDC 走直连，不支持的走 Portal Gate，各司其职。
+> TODO(platform.auth): 移除 Vault/Kubero 的 forwardAuth，仅保留原生 OIDC 直连。
+> TODO(platform.auth): 完成 Kubero 侧 OIDC 配置并 apply，验证 `kcloud` 回跳与免密登录链路。
+> TODO(platform.auth): Portal Gate 仅保留 Dashboard/Django 等无 OIDC 应用，验证 token 登录路径。
 
-### 实施路径
+### 实施路径（分治）
 
-1. **前置填写**：准备 GitHub OAuth 与 Casdoor Admin 密码，保持 `enable_portal_sso_gate=false` 先落 Casdoor，避免锁死。
-2. **自动化执行**：在 2.platform 设置变量后 `terraform init && terraform apply`。开关置 `true` 时：
-   - 自动创建 Casdoor 应用（Portal/Vault/Dashboard/Kubero）
-   - 生成 client secret（未手填时）
-   - 部署 OAuth2-Proxy 并挂 Traefik ForwardAuth
-3. **事后验证/切流**：依次验证 `secrets/kdashboard/kcloud` 登录链路。若异常可关回 `false` 并重跑 apply，避免锁死。
+1. **前置准备**：确认 Casdoor 应用与登录页参数已就绪（`enablePassword=true`、`signupItems=[]`、`tokenFormat=JWT`、TTL 168h）。保持 `enable_casdoor_oidc=false` / `enable_portal_sso_gate=false` 先落 Casdoor，避免锁死。
+2. **原生 OIDC 应用**：设置 `enable_casdoor_oidc=true` 并 apply，逐个接入 OIDC（Vault/Kubero/未来 SigNoz、PostHog），**移除 forwardAuth**，验证直连回跳。
+3. **无 OIDC 应用**：开启 `enable_portal_sso_gate=true`，只在对应 Ingress 挂 forwardAuth（Dashboard、Django CMS 等），验证 token 登录路径。
+4. **应急通道**：保留 L1/L2 根密钥入口（Atlantis Basic Auth、Vault Root Token），恢复流程见 `docs/ssot/ops.recovery.md`。
 
-这一部分的更多细节参考 BRN-008 中的“场景 5：所有 Portal 走 Casdoor”。
+更多细节参考 Issue 302 的分治策略与 BRN-008 的认证设计约束。
 
 ---
 
@@ -149,10 +168,10 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
 
 | 应用 | Client ID | Redirect URI | 管理方式 |
 |------|-----------|--------------|----------|
-| Portal Gate | `portal-gate` | `https://auth.<internal_domain>/oauth2/callback` | REST API |
-| Vault | `vault-oidc` | `https://secrets.<internal_domain>/ui/vault/auth/oidc/oidc/callback` | REST API |
-| Dashboard | `dashboard-oidc` | `https://kdashboard.<internal_domain>/oauth2/callback` | REST API |
-| Kubero | `kubero-oidc` | `https://kcloud.<internal_domain>/auth/callback` | REST API |
+| Portal Gate | `portal-gate` | `https://auth.<internal_domain>/oauth2/callback` | REST API (`enable_portal_sso_gate`) |
+| Vault | `vault-oidc` | `https://secrets.<internal_domain>/ui/vault/auth/oidc/oidc/callback` | REST API (`enable_casdoor_oidc`) |
+| Dashboard | `dashboard-oidc` | `https://kdashboard.<internal_domain>/oauth2/callback` | REST API (`enable_casdoor_oidc`, 预留) |
+| Kubero | `kubero-oidc` | `https://kcloud.<internal_domain>/auth/callback` | REST API (`enable_casdoor_oidc`) |
 
 ---
 
@@ -184,18 +203,18 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
 
 ---
 
-## 实施状态（方案 1 - 分治策略）
+## 实施状态（分治）
 
 | 组件 | 状态 |
 |------|------|
-| Casdoor 部署 | ✅ 已部署 (sso.zitian.party) |
+| Casdoor 部署 | ✅ 已部署 (`sso.<internal_domain>`) |
 | GitHub OAuth | ✅ REST API 自动配置 (`90.casdoor-apps.tf`) |
-| Vault 原生 OIDC | ✅ 已配置（`91.vault-auth.tf`），无 Portal Gate（PR #231） |
-| Dashboard Portal Gate | ✅ 已配置（`3.dashboard.tf`），条件启用 |
-| Kubero Portal Gate | ✅ 已配置（`4.apps/1.kubero.tf`），条件启用 |
+| Portal Gate | ✅ 已部署（`92.portal-auth.tf`），仅用于无 OIDC 应用 |
+| Vault 原生 OIDC | ✅ 已配置（`91.vault-auth.tf`），**无 Portal Gate**（PR #231） |
+| Dashboard | ✅ Portal Gate 已配置（`3.dashboard.tf`），条件启用 |
+| Kubero OIDC | 🛠️ 接入中（PR #307 - 待 apply） |
 | Vault 策略/角色 | ✅ 已通过 Terraform 自动化 (`92.vault-kubero.tf`) |
 | 自动导入机制 | ✅ REST API 自动同步 |
-| OAuth2-Proxy | ✅ 已配置（`92.portal-auth.tf`），`enable_portal_sso_gate=true` |
 
 ---
 
@@ -209,13 +228,14 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
 - [92.portal-auth.tf](../../2.platform/92.portal-auth.tf) - Portal Gate (OAuth2-Proxy + Traefik)
 - [2.secret.tf](../../2.platform/2.secret.tf) - Vault 部署（无 Portal Gate）
 - [3.dashboard.tf](../../2.platform/3.dashboard.tf) - Dashboard 部署（有 Portal Gate）
-- [1.kubero.tf](../../4.apps/1.kubero.tf) - Kubero 部署（有 Portal Gate）
+- [1.kubero.tf](../../4.apps/1.kubero.tf) - Kubero 部署（原生 OIDC）
 
 ## 相关 Issue & PR
 
 - Issue #302: SSO 双重认证问题分析与方案对比
 - PR #231: 移除 Vault Ingress 的 SSO Gate（方案 1 核心实施）
 - PR #304: SSO 死锁分析与恢复手册文档
+- PR #307: 解耦 Casdoor OIDC 与 Portal Gate（Kubero 原生 OIDC）
 
 ---
 
@@ -247,3 +267,19 @@ curl -s "https://sso.zitian.party/api/get-application?id=admin/portal-gate" \
 ```
 
 ---
+
+### 行为验证（分治）
+
+- Vault UI：Casdoor 登录后直接进入 UI；若再次出现登录页，说明仍挂了 forwardAuth。
+- Dashboard：Casdoor 登录后仍需输入 token（预期）。
+- Kubero：Casdoor 登录后回跳进入 UI（不再出现二次登录）。
+
+---
+
+## Used by
+
+- [docs/ssot/README.md](./README.md)
+- [2.platform/README.md](../../2.platform/README.md)
+- [4.apps/README.md](../../4.apps/README.md)
+- [docs/ssot/db.vault-integration.md](./db.vault-integration.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)

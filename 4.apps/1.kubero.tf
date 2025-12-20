@@ -111,7 +111,18 @@ data "vault_kv_secret_v2" "kubero" {
 
   lifecycle {
     postcondition {
-      condition     = can(self.data["KUBERO_SESSION_KEY"]) && can(self.data["KUBERO_WEBHOOK_SECRET"])
+      condition = (
+        can(self.data["KUBERO_SESSION_KEY"]) &&
+        can(self.data["KUBERO_WEBHOOK_SECRET"]) &&
+        (
+          !local.casdoor_oidc_enabled ||
+          (
+            can(self.data["KUBERO_OIDC_CLIENT_ID"]) &&
+            can(self.data["KUBERO_OIDC_CLIENT_SECRET"]) &&
+            self.data["KUBERO_OIDC_CLIENT_SECRET"] != ""
+          )
+        )
+      )
       error_message = "Kubero secrets not found in Vault. Ensure L2 92.vault-kubero.tf has been applied."
     }
   }
@@ -225,16 +236,10 @@ resource "kubectl_manifest" "kubero_instance" {
       ingress = {
         enabled   = true
         className = "traefik"
-        annotations = merge(
-          {
-            "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
-          },
-          # Middleware Reference:
-          # Using cross-namespace reference enabled in L1 (namespace-name@provider)
-          local.portal_sso_gate_enabled ? {
-            "traefik.ingress.kubernetes.io/router.middlewares" = "${var.namespaces["platform"]}-portal-auth@kubernetescrd"
-          } : {}
-        )
+        # Kubero uses native OIDC; avoid forwardAuth to prevent double auth.
+        annotations = {
+          "cert-manager.io/cluster-issuer" = "letsencrypt-prod"
+        }
         hosts = [{
           host = "kcloud.${local.internal_domain}"
           paths = [{
@@ -253,6 +258,18 @@ resource "kubectl_manifest" "kubero_instance" {
         sessionKey = data.vault_kv_secret_v2.kubero.data["KUBERO_SESSION_KEY"]
         auth = {
           github = {
+            enabled = false
+          }
+          oauth2 = local.casdoor_oidc_enabled ? {
+            enabled     = true
+            name        = "Casdoor"
+            id          = data.vault_kv_secret_v2.kubero.data["KUBERO_OIDC_CLIENT_ID"]
+            authUrl     = "https://${local.casdoor_domain}/login/oauth/authorize"
+            tokenUrl    = "https://${local.casdoor_domain}/api/login/oauth/access_token"
+            secret      = data.vault_kv_secret_v2.kubero.data["KUBERO_OIDC_CLIENT_SECRET"]
+            callbackUrl = "https://kcloud.${local.internal_domain}/auth/callback"
+            scopes      = "openid profile email"
+            } : {
             enabled = false
           }
         }

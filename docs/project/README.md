@@ -13,6 +13,10 @@
   - **Goal**: Consolidate topic-based SSOT docs under `docs/ssot/` and migrate Casdoor admin password to 1Password SSOT (via GitHub Secrets → TF_VAR).
   - **Status**: In progress (see `0.check_now.md` and `docs/change_log/2025-12-12.brn_008_infrastructure_ssot.md`).
 
+## Active Issues
+
+- [ISSUE-2025-12-20: Kubero SSO rollout + emergency access](./ISSUE-2025-12-20.kubero-sso.md) - **Open**
+
 ## Archived Projects
 
 (None)
@@ -22,4 +26,4 @@
 - [apps/docs/index.md](../../apps/docs/index.md) - Apps documentation index (submodule)
 
 ---
-*Last updated: 2025-12-17*
+*Last updated: 2025-12-20*

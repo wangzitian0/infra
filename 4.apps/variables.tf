@@ -23,9 +23,15 @@ variable "internal_domain" {
 }
 
 variable "enable_portal_sso_gate" {
-  description = "Enable Casdoor-based SSO gate for platform portals (Vault/Dashboard/Kubero) via OAuth2-Proxy."
+  description = "Enable Casdoor-based SSO gate for non-OIDC portals via OAuth2-Proxy."
   type        = bool
   default     = false
+}
+
+variable "enable_casdoor_oidc" {
+  description = "Enable native Casdoor OIDC integrations for apps (e.g., Kubero). When null, falls back to enable_portal_sso_gate for backward compatibility."
+  type        = bool
+  default     = null
 }
 
 variable "kubero_ui_image_tag" {

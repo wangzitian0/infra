@@ -14,8 +14,10 @@ resource "vault_kv_secret_v2" "kubero" {
   delete_all_versions = true
 
   data_json = jsonencode({
-    KUBERO_WEBHOOK_SECRET = random_id.kubero_webhook_secret.hex
-    KUBERO_SESSION_KEY    = random_id.kubero_session_secret.hex
+    KUBERO_WEBHOOK_SECRET     = random_id.kubero_webhook_secret.hex
+    KUBERO_SESSION_KEY        = random_id.kubero_session_secret.hex
+    KUBERO_OIDC_CLIENT_ID     = "kubero-oidc"
+    KUBERO_OIDC_CLIENT_SECRET = local.kubero_oidc_client_secret
   })
 }
 

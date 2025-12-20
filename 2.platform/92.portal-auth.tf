@@ -1,13 +1,13 @@
 # Portal SSO Gate - OAuth2-Proxy backed by Casdoor OIDC
-# Provides a forward-auth middleware for Vault/Dashboard/Kubero Ingresses.
+# Provides a forward-auth middleware for portals without native OIDC (e.g., Dashboard).
 # Retry: 2025-12-17 trigger apply
 #
-# Status: Atlantis has enable_portal_sso_gate=true, ready to deploy
+# Status: Controlled by enable_portal_sso_gate
 #
 # Rollout guidance:
 # 1) Deploy Casdoor (with GitHub OAuth creds) and ensure https://sso.<internal_domain> works.
 # 2) Create a Casdoor application for the portal gate and set TF_VAR_casdoor_portal_client_id/secret.
-# 3) Set enable_portal_sso_gate=true and apply to gate the portals.
+# 3) Set enable_portal_sso_gate=true and apply to gate non-OIDC portals.
 
 locals {
   casdoor_enabled_for_gate = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""

@@ -15,12 +15,12 @@ locals {
   # Use nonsensitive() to avoid tainting downstream outputs as sensitive.
   casdoor_enabled                   = nonsensitive(var.github_oauth_client_id) != "" && nonsensitive(var.github_oauth_client_secret) != ""
   casdoor_domain                    = "sso.${local.internal_domain}"
-  portal_gate_enabled               = local.casdoor_enabled && var.enable_portal_sso_gate
+  portal_gate_enabled               = local.casdoor_enabled && local.portal_sso_gate_enabled
   casdoor_portal_gate_client_secret = var.casdoor_portal_client_secret != "" ? var.casdoor_portal_client_secret : (local.portal_gate_enabled ? random_password.portal_gate_client_secret[0].result : "")
 
-  vault_oidc_client_secret     = local.portal_gate_enabled ? random_password.vault_oidc_client_secret[0].result : ""
-  dashboard_oidc_client_secret = local.portal_gate_enabled ? random_password.dashboard_oidc_client_secret[0].result : ""
-  kubero_oidc_client_secret    = local.portal_gate_enabled ? random_password.kubero_oidc_client_secret[0].result : ""
+  vault_oidc_client_secret     = local.casdoor_oidc_enabled ? random_password.vault_oidc_client_secret[0].result : ""
+  dashboard_oidc_client_secret = local.casdoor_oidc_enabled ? random_password.dashboard_oidc_client_secret[0].result : ""
+  kubero_oidc_client_secret    = local.casdoor_oidc_enabled ? random_password.kubero_oidc_client_secret[0].result : ""
 }
 
 resource "random_password" "portal_gate_client_secret" {
@@ -30,19 +30,19 @@ resource "random_password" "portal_gate_client_secret" {
 }
 
 resource "random_password" "vault_oidc_client_secret" {
-  count   = local.portal_gate_enabled ? 1 : 0
+  count   = local.casdoor_oidc_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 resource "random_password" "dashboard_oidc_client_secret" {
-  count   = local.portal_gate_enabled ? 1 : 0
+  count   = local.casdoor_oidc_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 resource "random_password" "kubero_oidc_client_secret" {
-  count   = local.portal_gate_enabled ? 1 : 0
+  count   = local.casdoor_oidc_enabled ? 1 : 0
   length  = 32
   special = false
 }

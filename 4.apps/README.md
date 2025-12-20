@@ -48,6 +48,17 @@ vault.hashicorp.com/role: "kubero"
 vault.hashicorp.com/agent-inject-secret-env: "secret/data/kubero"
 ```
 
+### OIDC (Casdoor)
+
+Kubero uses **native Casdoor OIDC** (no Portal Gate / ForwardAuth) to avoid double authentication.
+When `enable_casdoor_oidc=true` (or legacy `enable_portal_sso_gate=true`), Kubero enables Casdoor OIDC login using the `kubero-oidc` client.
+Vault must contain the following keys in `secret/data/kubero` (written by L2):
+
+- `KUBERO_OIDC_CLIENT_ID`
+- `KUBERO_OIDC_CLIENT_SECRET`
+
+Callback: `https://kcloud.<internal_domain>/auth/callback`
+
 ### Multi-Environment Deployment
 
 **Old Design (deprecated)**:
