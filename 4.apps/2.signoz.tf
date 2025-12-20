@@ -5,23 +5,11 @@
 # Architecture:
 # - L4 singleton control plane
 # - Uses L3 ClickHouse (data-staging namespace)
-# - Reads ClickHouse password from Vault
+# - Dedicated signoz user with limited DB permissions
 # ============================================================
 
-# ============================================================
-# Vault Data Source - Read ClickHouse credentials
-# ============================================================
-data "vault_kv_secret_v2" "clickhouse" {
-  mount = var.vault_kv_mount
-  name  = "clickhouse"
-
-  lifecycle {
-    postcondition {
-      condition     = can(self.data["password"]) && length(self.data["password"]) >= 16
-      error_message = "ClickHouse password not found in Vault or too short. Ensure L2/L3 applied."
-    }
-  }
-}
+# NOTE: SigNoz credentials are currently hardcoded (signoz user created manually in ClickHouse)
+# TODO: Move signoz password to Vault and use data source in follow-up PR
 
 # ============================================================
 # Observability Namespace
@@ -56,13 +44,14 @@ resource "helm_release" "signoz" {
     }
 
     # Connect to L3 ClickHouse (data-staging namespace)
+    # Using dedicated signoz user with limited permissions
+    # TODO: Move signoz password to Vault (L2) in follow-up PR
     externalClickhouse = {
       host     = "clickhouse.data-staging.svc.cluster.local"
       httpPort = 8123
       tcpPort  = 9000
-      user     = "default"
-      password = data.vault_kv_secret_v2.clickhouse.data["password"]
-      # SigNoz will create its own database within ClickHouse
+      user     = "signoz"
+      password = "signoz_secure_password_2024"
       database = "signoz_traces"
     }
 
