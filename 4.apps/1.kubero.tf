@@ -17,19 +17,9 @@ locals {
   # Read and split the operator.yaml into individual documents
   operator_yaml_raw_content = file("${path.module}/manifests/kubero/operator.yaml")
 
-  # Replace namespace AND cluster-scoped resource names for multi-tenant deployment
-  # ClusterRole/ClusterRoleBinding are cluster-scoped, need unique names per environment
-  operator_yaml_raw = replace(
-    replace(
-      replace(
-        local.operator_yaml_raw_content,
-        "kubero-operator-system", "kubero-operator-system-${var.environment}"
-      ),
-      "kuberorole", "kuberorole-${var.environment}"
-    ),
-    "kuberorolebinding", "kuberorolebinding-${var.environment}"
-  )
-
+  # NOTE: L4 control plane is SINGLETON (no env suffix)
+  # ClusterRole/ClusterRoleBinding names from upstream manifest are used as-is
+  operator_yaml_raw = local.operator_yaml_raw_content
 
   # Split by document separator and filter empty docs
   operator_docs = [
@@ -53,9 +43,16 @@ locals {
 # ============================================================
 # Phase 1: Create operator namespace first
 # ============================================================
+
+# Import existing namespace created by previous apps-prod apply
+import {
+  to = kubernetes_namespace.kubero_operator_system
+  id = "kubero-operator-system"
+}
+
 resource "kubernetes_namespace" "kubero_operator_system" {
   metadata {
-    name = "kubero-operator-system-${var.environment}"
+    name = "kubero-operator-system" # L4 control plane: singleton
     labels = {
       "control-plane" = "controller-manager"
       "layer"         = "L4"
@@ -85,9 +82,16 @@ resource "kubectl_manifest" "kubero_operator" {
 # ============================================================
 # Kubero Namespace (for UI and applications)
 # ============================================================
+
+# Import existing namespace created by previous apps-prod apply
+import {
+  to = kubernetes_namespace.kubero
+  id = "kubero"
+}
+
 resource "kubernetes_namespace" "kubero" {
   metadata {
-    name = "kubero-${var.environment}"
+    name = "kubero" # L4 control plane: singleton
     labels = {
       "layer" = "L4"
     }
@@ -117,6 +121,13 @@ data "vault_kv_secret_v2" "kubero" {
 # Kubero Secrets (required by deployment, not created by Helm chart)
 # Sync'd from Vault to satisfy operator dependencies while maintaining SSOT
 # ============================================================
+
+# Import existing secret created by previous apps-prod apply
+import {
+  to = kubernetes_secret.kubero_secrets
+  id = "kubero/kubero-secrets"
+}
+
 resource "kubernetes_secret" "kubero_secrets" {
   metadata {
     name      = "kubero-secrets"
@@ -136,7 +147,7 @@ resource "kubernetes_secret" "kubero_secrets" {
 # ============================================================
 import {
   to = kubernetes_service_account.kubero
-  id = "kubero-${var.environment}/kubero"
+  id = "kubero/kubero" # L4 control plane: singleton
 }
 
 resource "kubernetes_service_account" "kubero" {
@@ -151,6 +162,14 @@ resource "kubernetes_service_account" "kubero" {
 # ============================================================
 # Kubero Custom Resource (deploys UI via operator)
 # ============================================================
+
+# Import existing CR created by previous apps-prod apply
+# Format: apiVersion//kind//name//namespace
+import {
+  to = kubectl_manifest.kubero_instance
+  id = "application.kubero.dev/v1alpha1//Kubero//kubero//kubero"
+}
+
 resource "kubectl_manifest" "kubero_instance" {
   yaml_body = yamlencode({
     apiVersion = "application.kubero.dev/v1alpha1"
@@ -229,7 +248,7 @@ resource "kubectl_manifest" "kubero_instance" {
         }]
       }
       kubero = {
-        namespace  = "kubero-${var.environment}"
+        namespace  = "kubero" # L4 control plane: singleton
         context    = "inClusterContext"
         sessionKey = data.vault_kv_secret_v2.kubero.data["KUBERO_SESSION_KEY"]
         auth = {

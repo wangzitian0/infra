@@ -40,19 +40,12 @@ projects:
     autoplan:
       enabled: true
 
-  # L4: Apps (per-env)
-  - name: apps-staging
+  # L4: Apps (Singleton - control plane only)
+  # Multi-env workloads are managed by Kubero Pipeline/Phase, not Terraform workspace
+  - name: apps
     dir: 4.apps
     terraform_version: 1.6.6
-    workspace: staging
-    workflow: apps
-    autoplan:
-      enabled: true
-
-  - name: apps-prod
-    dir: 4.apps
-    terraform_version: 1.6.6
-    workspace: prod
+    workspace: default
     workflow: apps
     autoplan:
       enabled: true
@@ -116,16 +109,15 @@ workflows:
         - run: echo "infra-flash-commit:$(git rev-parse --short ${HEAD_COMMIT:-HEAD}) "
         - apply
 
-  # L4: Apps
+  # L4: Apps (Singleton like L2)
   apps:
     plan:
       steps:
         - run: echo "infra-flash-commit:$(git rev-parse --short ${HEAD_COMMIT:-HEAD}) "
         - run: |
             printf 'bucket    = "%s"\n' "${R2_BUCKET}" > backend.tfvars.new
-            printf 'key       = "k3s/apps-%s.tfstate"\n' "${WORKSPACE}" >> backend.tfvars.new
+            printf 'key       = "k3s/apps.tfstate"\n' >> backend.tfvars.new
             printf 'endpoints = { s3 = "https://%s.r2.cloudflarestorage.com" }\n' "${R2_ACCOUNT_ID}" >> backend.tfvars.new
-            printf 'environment = "%s"\n' "${WORKSPACE}" > env.auto.tfvars
             if [ ! -f backend.tfvars ] || ! cmp -s backend.tfvars backend.tfvars.new; then
               echo "Backend config changed or missing. Reinitializing..."
               rm -rf .terraform

@@ -1,27 +1,29 @@
 # 4.apps (L4 Applications Layer)
 
-**Scope**: Application deployments for prod/staging environments.
-
-- **Environments**: `prod`, `staging` only
-- **Namespace**: `apps-prod`, `apps-staging`
+**Scope**: Application control plane + workload deployments.
 
 ## Architecture
 
-This layer deploys business applications. All non-production environments go to `staging`.
+### Singleton Control Plane
 
-### Deployment Strategy
+L4 deploys a **single** control plane (Kubero + SigNoz) that manages multi-environment workloads via Pipeline/Phase:
 
-| Environment | Namespace | Purpose |
-|-------------|-----------|---------|
-| `staging` | `apps-staging` | All test/dev/preview environments |
-| `prod` | `apps-prod` | Production only |
+| Component | Namespace | Mode | Purpose |
+|-----------|-----------|------|---------|
+| Kubero Operator | `kubero-operator-system` | Singleton | GitOps PaaS Controller |
+| Kubero UI | `kubero` | Singleton | GitOps PaaS UI (`kcloud.zitian.party`) |
+| Workloads | `apps-staging` / `apps-prod` | Per-env | Managed by Kubero Pipeline/Phase |
 
-### Components
+### Multi-Environment via Kubero Pipeline
 
-| Component | Status | Purpose |
-|-----------|--------|---------|
-| Kubero Operator | ✅ Deployed | GitOps PaaS Controller (in `kubero-operator-system-{env}`) |
-| Kubero UI | ✅ Deployed | GitOps PaaS UI (in `kubero-{env}`, accessible at `kcloud.zitian.party`) |
+```
+Kubero (1 套控制面)
+├── Pipeline: app-a
+│   ├── phase: staging → namespace: apps-staging
+│   └── phase: prod    → namespace: apps-prod
+└── Pipeline: app-b
+    └── ...
+```
 
 ## Kubero Configuration
 
@@ -48,9 +50,12 @@ vault.hashicorp.com/agent-inject-secret-env: "secret/data/kubero"
 
 ### Multi-Environment Deployment
 
-**Issue**: Kubero Helm chart originally created a hardcoded `kuberorole` ClusterRole, causing conflicts between environments.
+**Old Design (deprecated)**:
+- ~~Two TF workspaces (staging/prod) each creating their own kubero namespace~~
 
-**Resolution**: The `1.kubero.tf` file now programmatically replaces naming in the manifests with environment suffixes (e.g., `kuberorole-prod`, `kuberorole-staging`). No manual intervention is required.
+**New Design (current)**:
+- Single TF workspace (default) deploys singleton control plane
+- Kubero Pipeline/Phase manages app deployments to `apps-staging` / `apps-prod`
 
 ## SSOT Links
 
@@ -67,13 +72,9 @@ If Atlantis fails to delete PR locks, it might be due to a workspace lock. Use `
 ### Usage
 
 ```bash
-# Staging
-atlantis plan -p apps-staging
-atlantis apply -p apps-staging
-
-# Production
-atlantis plan -p apps-prod
-atlantis apply -p apps-prod
+# Plan and Apply (singleton)
+atlantis plan -p apps
+atlantis apply -p apps
 ```
 
 ---
@@ -125,5 +126,4 @@ If Kubero pods fail with `CreateContainerConfigError: secret "kubero-secrets" no
 - Verify `kubernetes_secret.kubero_secrets` exists in Namespace.
 - The secret is now synced from **Vault** via Terraform for operator compatibility.
 
-*Last updated: 2025-12-19*
-
+*Last updated: 2025-12-20*
