@@ -30,9 +30,8 @@ resource "vault_kv_secret_v2" "signoz_clickhouse" {
 
 # 3. Create SigNoz User
 resource "clickhousedbops_user" "signoz" {
-  name                            = "signoz"
-  password_sha256_hash_wo         = sha256(random_password.signoz_clickhouse.result)
-  password_sha256_hash_wo_version = 1
+  name                 = "signoz"
+  password_sha256_hash = sha256(random_password.signoz_clickhouse.result)
 }
 
 # Create SigNoz Databases
