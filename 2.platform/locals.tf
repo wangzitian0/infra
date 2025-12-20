@@ -19,6 +19,7 @@ locals {
     redis      = "redis"
     clickhouse = "clickhouse"
     arangodb   = "arangodb"
+    signoz     = "signoz"
   }
 
   vault_secret_paths = {
