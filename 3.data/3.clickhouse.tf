@@ -18,9 +18,17 @@
 # Requires: TF_VAR_vault_root_token set in Atlantis Pod env
 # =============================================================================
 
+# Vault Config: Read from L2 outputs via terraform_remote_state (Issue #301)
 data "vault_kv_secret_v2" "clickhouse" {
-  mount = "secret"
-  name  = "clickhouse"
+  mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
+
+  lifecycle {
+    precondition {
+      condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"])
+      error_message = "L2 platform state missing vault_db_secrets['clickhouse']. Run L2 apply first."
+    }
+  }
 }
 
 # =============================================================================
@@ -123,6 +131,6 @@ output "clickhouse_native_port" {
 }
 
 output "clickhouse_vault_path" {
-  value       = "secret/data/clickhouse"
+  value       = data.terraform_remote_state.l2_platform.outputs.vault_secret_paths["clickhouse"]
   description = "Vault KV path for ClickHouse credentials"
 }

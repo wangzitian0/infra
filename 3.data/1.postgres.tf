@@ -42,9 +42,17 @@ resource "kubernetes_namespace" "data" {
 # Requires: TF_VAR_vault_root_token set in Atlantis Pod env
 # =============================================================================
 
+# Vault Config: Read from L2 outputs via terraform_remote_state (Issue #301)
 data "vault_kv_secret_v2" "postgres" {
-  mount = "secret"
-  name  = "postgres"
+  mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
+
+  lifecycle {
+    precondition {
+      condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"])
+      error_message = "L2 platform state missing vault_db_secrets['postgres']. Run L2 apply first."
+    }
+  }
 }
 
 # =============================================================================
@@ -127,7 +135,7 @@ output "postgres_host" {
 }
 
 output "postgres_vault_path" {
-  value       = "secret/data/postgres"
+  value       = data.terraform_remote_state.l2_platform.outputs.vault_secret_paths["postgres"]
   description = "Vault KV path for PostgreSQL credentials"
 }
 

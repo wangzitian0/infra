@@ -24,3 +24,16 @@ variable "vault_root_token" {
   }
 }
 
+# =============================================================================
+# R2 Backend Variables (for terraform_remote_state to read L2 outputs)
+# Passed by Atlantis via TF_VAR_* from L1
+# =============================================================================
+variable "r2_bucket" {
+  description = "R2 bucket name for Terraform state"
+  type        = string
+}
+
+variable "r2_account_id" {
+  description = "Cloudflare R2 account ID"
+  type        = string
+}

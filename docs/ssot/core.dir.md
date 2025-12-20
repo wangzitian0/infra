@@ -57,6 +57,7 @@ root/
 │
 ├── 0.tools/
 │   ├── README.md                # 脚本索引
+│   ├── check-readme-coverage.sh # README 覆盖检查
 │   ├── preflight-check.sh       # Helm URL 验证
 │   └── migrate-state.sh         # State 迁移
 │

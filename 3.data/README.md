@@ -147,4 +147,4 @@ Scale-out / multi-replica migration notes are tracked in:
 - [db.overview.md](../docs/ssot/db.overview.md) (database capability SSOT)
 
 ---
-*Last updated: 2025-12-19 (Fixed Vault KV secret paths - removed data/ prefix from vault_kv_secret_v2 names)*
+*Last updated: 2025-12-20 (Added SSOT references to vault data sources per Issue #301)*

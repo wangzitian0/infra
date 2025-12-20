@@ -12,6 +12,13 @@
 - atlantis的存在，当你要检查一个 PR 的状态时，需要检查 atlantis / infra-flash 的评论。
 - 请你使用渐进式提交的方式，每一步都有 日志可以校验你的设想和实现是对的的。不损坏线上的前提下，阶段性成果可以提前交代码库。
 
+# 问题解决框架
+当你拿到一个问题，请使用 STAR framework 来分析问题。
+- Situation：问题背景，问题现象，问题影响。
+- Task：问题的高优先级目标。
+- Action：解决高优先级目标的步骤拆解。
+- Result：问题的解决结果，回到 situation，告诉我你有多少%的信心了。
+
 # SSOT Architecture
 
 For a detailed map of where everything lives, refer to:
