@@ -22,7 +22,7 @@
 # SSOT Architecture
 
 For a detailed map of where everything lives, refer to:
-👉 **[Directory Map (docs/dir.md)](docs/dir.md)**
+👉 **[Directory Map (docs/ssot/core.dir.md)](docs/ssot/core.dir.md)**
 
 Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 
