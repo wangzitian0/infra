@@ -6,6 +6,7 @@
 
 | 属性 | 值 |
 |------|------|
+| **SSOT Key** | `db.redis` |
 | **层级** | L3 Data |
 | **命名空间** | `data-<env>` (staging/prod) |
 | **密码来源** | Vault (`secret/data/redis`) |
@@ -63,3 +64,7 @@ redis-cli -h redis-master.data-<env>.svc.cluster.local -a ${REDIS_PASSWORD}
 - [db.overview.md](./db.overview.md)
 
 ---
+
+## Used by
+
+- [docs/ssot/db.overview.md](./db.overview.md)

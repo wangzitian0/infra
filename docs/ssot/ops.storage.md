@@ -15,7 +15,7 @@
 | 层级 | 数据 | 存储位置 | 备份 |
 |------|------|----------|------|
 | **L1 Bootstrap** | k3s/平台 PG/Vault 等持久卷 | VPS `/data` → PVC | `pg_dump` 到 `/data/backups` |
-| **L3 Data** | 业务 PG/Redis/Neo4j/ClickHouse | PVC (`local-path-retain`) | 按库定时 dump |
+| **L3 Data** | 业务 PG/Redis/ArangoDB/ClickHouse | PVC (`local-path-retain`) | 按库定时 dump |
 | **L4 Apps** | 应用容器 | 默认无状态 | 通过 L3 或 R2 持久化 |
 
 > 目录与持久化职责见 `docs/ssot/core.dir.md`。
@@ -29,7 +29,7 @@
 
 ### 2. 数据库备份
 
-1. 定时 `pg_dump` / `neo4j-admin dump` / `redis-cli --rdb` 到 VPS `/data/backups/{service}/`。
+1. 定时 `pg_dump` / `arangodump` / `redis-cli --rdb` 到 VPS `/data/backups/{service}/`。
 2. **同步到 R2**（计划）：用 `restic` 或 `rclone` 推送到 `r2://backups/{env}/`。
 
 ### 3. SSOT 文档快照
@@ -60,3 +60,7 @@
 - R2 backend：`1.bootstrap/backend.tf`
 
 ---
+
+## Used by
+
+- [docs/ssot/README.md](./README.md)

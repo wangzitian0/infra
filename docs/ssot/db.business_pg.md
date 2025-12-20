@@ -6,9 +6,10 @@
 
 | 属性 | 值 |
 |------|------|
+| **SSOT Key** | `db.business_pg` |
 | **层级** | L3 Data |
 | **命名空间** | `data-<env>` (staging/prod) |
-| **密码来源** | Vault (`secret/data/postgresql`) |
+| **密码来源** | Vault (`secret/data/postgres`) |
 | **StorageClass** | `local-path-retain` |
 | **消费者** | L4 Apps |
 
@@ -49,9 +50,9 @@ graph LR
 annotations:
   vault.hashicorp.com/agent-inject: "true"
   vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-pg: "secret/data/postgresql"
+  vault.hashicorp.com/agent-inject-secret-pg: "secret/data/postgres"
   vault.hashicorp.com/agent-inject-template-pg: |
-    {{- with secret "secret/data/postgresql" -}}
+    {{- with secret "secret/data/postgres" -}}
     export PGPASSWORD="{{ .Data.data.password }}"
     {{- end }}
 ```
@@ -62,7 +63,7 @@ annotations:
 
 | 路径 | 字段 | 用途 |
 |------|------|------|
-| `secret/data/postgresql` | `password` | 静态密码 |
+| `secret/data/postgres` | `password` | 静态密码 |
 | `database/creds/app-readonly` | `username`, `password` | 动态凭证 |
 
 ---
@@ -74,3 +75,7 @@ annotations:
 - [platform.secrets.md](./platform.secrets.md)
 
 ---
+
+## Used by
+
+- [docs/ssot/db.overview.md](./db.overview.md)

@@ -34,3 +34,4 @@ This directory contains the configuration for the MkDocs static site generator.
 Notes:
 - MkDocs ignores dot-directories by default; `.github/...` content is mapped to `github/...` in the generated site.
 - If you want `apps/` docs, run `git submodule update --init --recursive` before building.
+- Mermaid diagrams render via `mermaid.min.js` + `js/mermaid.js` (see `website/mkdocs.yml`).

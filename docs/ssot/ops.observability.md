@@ -4,15 +4,16 @@
 
 ## 架构概览
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  L4 Apps / observability ns                                 │
-├─────────────────────────────────────────────────────────────┤
-│  Apps (OTel SDK)                                            │
-│     └─ traces/metrics/logs → OTel Collector                 │
-│                          → SigNoz                           │
-│                          → ClickHouse (PV, retain)          │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    Apps["L4 Apps / observability ns<br/>Apps (OTel SDK)"]
+    Collector["OTel Collector"]
+    SigNoz["SigNoz"]
+    ClickHouse["ClickHouse (PV, retain)"]
+
+    Apps -->|traces/metrics/logs| Collector
+    Collector --> SigNoz
+    SigNoz --> ClickHouse
 ```
 
 ## 组件矩阵
@@ -34,8 +35,8 @@
 |------|------|------|
 | SigNoz UI | `https://signoz.<internal_domain>` | 通过 Cloudflare proxy + cert-manager |
 
-> 域名 SSOT 见 `docs/ssot/network.md`。
-> 告警 SSOT 见 `docs/ssot/alerting.md`。
+> 域名 SSOT 见 [platform.network.md](./platform.network.md)。
+> 告警 SSOT 见 [ops.alerting.md](./ops.alerting.md)。
 
 ## 接入规范（Apps → OTel）
 
@@ -69,3 +70,6 @@
 
 ---
 
+## Used by
+
+- [docs/ssot/ops.pipeline.md](./ops.pipeline.md)

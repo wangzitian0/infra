@@ -432,6 +432,16 @@ document.addEventListener("DOMContentLoaded", function() {{
 """
 _write_text(OUTPUT_PREFIX / "js/titles.js", js_content)
 
+# 6.1 Generate Mermaid init JS
+mermaid_js = """
+document.addEventListener("DOMContentLoaded", function() {
+    if (window.mermaid) {
+        window.mermaid.initialize({ startOnLoad: true });
+    }
+});
+"""
+_write_text(OUTPUT_PREFIX / "js/mermaid.js", mermaid_js)
+
 # 7. Copy extra static files
 for rel in EXTRA_STATIC_FILES:
     src = REPO_ROOT / rel

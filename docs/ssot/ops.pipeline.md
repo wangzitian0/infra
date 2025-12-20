@@ -210,58 +210,60 @@ sequenceDiagram
 
 ### 回滚决策树
 
-```
-Apply 失败了?
-├── 部分资源创建成功?
-│   ├── 是 → terraform import 补齐 state → 重新 apply
-│   └── 否 → 修复代码 → 重新 push
-├── 服务已部署但异常?
-│   ├── 配置问题 → git revert → atlantis apply
-│   └── 资源问题 → kubectl describe → 手动修复
-└── State 不一致?
-    └── terraform state rm → terraform import → apply
+```mermaid
+flowchart TD
+    A{Apply 失败了?}
+    A --> B{部分资源创建成功?}
+    B -->|是| B1["terraform import 补齐 state<br/>重新 apply"]
+    B -->|否| B2["修复代码<br/>重新 push"]
+    A --> C{服务已部署但异常?}
+    C -->|配置问题| C1["git revert<br/>atlantis apply"]
+    C -->|资源问题| C2["kubectl describe<br/>手动修复"]
+    A --> D{State 不一致?}
+    D --> D1["terraform state rm<br/>terraform import<br/>apply"]
 ```
 
 ---
 
 ## 9. Troubleshooting 决策树
 
-```
-Dashboard 显示异常?
-│
-├── CI 一直 ⏳?
-│   ├── 检查 Actions tab → workflow 是否触发?
-│   │   ├── 没触发 → 检查 paths 过滤器
-│   │   └── 触发了 → 查看 job 日志
-│   └── runner 排队 → 等待或检查 runner 状态
-│
-├── Plan 一直 ⏳?
-│   ├── 检查 Atlantis Pod → kubectl logs -n platform atlantis-0
-│   │   ├── Vault 401 → Token 过期 → 重启 Atlantis Pod
-│   │   ├── Backend 403 → R2 权限 → 检查 Secrets
-│   │   └── 无日志 → Webhook 未收到 → 检查 GitHub App 配置
-│   └── 没有 TF 文件变化 → 正常，应显示 ⏭️
-│
-├── Apply 失败?
-│   ├── 资源已存在 → terraform import
-│   ├── 权限不足 → 检查 ServiceAccount
-│   ├── 资源配额 → 清理或扩容
-│   └── 依赖缺失 → 检查 depends_on
-│
-├── @claude 无响应?
-│   ├── 检查 claude.yml 是否在 main 分支
-│   ├── 检查 CLAUDE_CODE_OAUTH_TOKEN secret
-│   └── 查看 Actions 日志
-│
-├── infra dig 无响应?
-│   ├── 检查 infra-commands.yml 语法
-│   ├── 检查评论是否包含 "infra"
-│   └── 查看 Actions 日志
-│
-└── 评论没更新?
-    ├── 检查 workflow 是否成功执行
-    ├── 检查 app_token 权限 (issues:write, pull-requests:write)
-    └── 检查 marker 是否匹配 (commit SHA)
+```mermaid
+flowchart TD
+    A{Dashboard 显示异常?}
+
+    A --> B{CI 一直 ⏳?}
+    B --> B1["检查 Actions tab → workflow 是否触发?"]
+    B1 -->|没触发| B1a["检查 paths 过滤器"]
+    B1 -->|触发了| B1b["查看 job 日志"]
+    B --> B2["runner 排队 → 等待或检查 runner 状态"]
+
+    A --> C{Plan 一直 ⏳?}
+    C --> C1["检查 Atlantis Pod → kubectl logs -n platform atlantis-0"]
+    C1 -->|Vault 401| C1a["Token 过期 → 重启 Atlantis Pod"]
+    C1 -->|Backend 403| C1b["R2 权限 → 检查 Secrets"]
+    C1 -->|无日志| C1c["Webhook 未收到 → 检查 GitHub App 配置"]
+    C --> C2["没有 TF 文件变化 → 正常，应显示 ⏭️"]
+
+    A --> D{Apply 失败?}
+    D --> D1["资源已存在 → terraform import"]
+    D --> D2["权限不足 → 检查 ServiceAccount"]
+    D --> D3["资源配额 → 清理或扩容"]
+    D --> D4["依赖缺失 → 检查 depends_on"]
+
+    A --> E{@claude 无响应?}
+    E --> E1["检查 claude.yml 是否在 main 分支"]
+    E --> E2["检查 CLAUDE_CODE_OAUTH_TOKEN secret"]
+    E --> E3["查看 Actions 日志"]
+
+    A --> F{infra dig 无响应?}
+    F --> F1["检查 infra-commands.yml 语法"]
+    F --> F2["检查评论是否包含 infra"]
+    F --> F3["查看 Actions 日志"]
+
+    A --> G{评论没更新?}
+    G --> G1["检查 workflow 是否成功执行"]
+    G --> G2["检查 app_token 权限 (issues:write, pull-requests:write)"]
+    G --> G3["检查 marker 是否匹配 (commit SHA)"]
 ```
 
 ---
@@ -360,4 +362,9 @@ Dashboard 显示异常?
 
 - [ ] **文档-代码同步检查**: CI 检查 workflow 变更是否同步更新了本 SSOT
 
-*Last Updated: 2025-12-19*
+*Last Updated: 2025-12-20*
+
+## Used by
+
+- [docs/ssot/ops.recovery.md](./ops.recovery.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)

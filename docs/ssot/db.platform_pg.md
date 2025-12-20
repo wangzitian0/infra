@@ -6,6 +6,7 @@
 
 | 属性 | 值 |
 |------|------|
+| **SSOT Key** | `db.platform_pg` |
 | **层级** | L1 Bootstrap |
 | **命名空间** | `platform` |
 | **密码来源** | GitHub Secret (`VAULT_POSTGRES_PASSWORD`) |
@@ -71,3 +72,6 @@ pg_dump -h postgresql.platform.svc.cluster.local \
 
 ---
 
+## Used by
+
+- [docs/ssot/db.overview.md](./db.overview.md)

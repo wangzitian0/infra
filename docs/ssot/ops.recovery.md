@@ -6,56 +6,46 @@
 
 ## 组件依赖拓扑图
 
-```
-                    ┌─────────────────────────────────────────────────────────┐
-                    │                  L0: 人工密钥层                          │
-                    │  1Password: SSH Key, R2 Key, CF Token, Vault Unseal     │
-                    │  GitHub Secrets: 所有 TF_VAR_* 注入                      │
-                    └──────────────────────────┬──────────────────────────────┘
-                                               │
-                    ┌──────────────────────────▼──────────────────────────────┐
-                    │                  L1: Bootstrap 层                        │
-                    │  Trust Anchor - 不依赖任何 L2+ 组件                       │
-                    ├─────────────────────────────────────────────────────────┤
-                    │                                                         │
-                    │  ┌─────────┐    ┌─────────────┐    ┌──────────────┐     │
-                    │  │  K3s    │───▶│ Platform PG │    │  Atlantis    │     │
-                    │  └─────────┘    └──────┬──────┘    └──────┬───────┘     │
-                    │                        │                  │             │
-                    │                        │            Basic Auth          │
-                    │                        │          (独立，不走SSO)        │
-                    └────────────────────────┼────────────────────────────────┘
-                                             │
-          ┌──────────────────────────────────┼─────────────────────────────────┐
-          │                                  │                                 │
-          ▼                                  ▼                                 │
-┌──────────────────┐              ┌──────────────────┐                         │
-│     Vault        │◀─────────────│    Casdoor       │                         │
-│  (L2 Platform)   │   DB共享      │  (L2 Platform)   │                         │
-├──────────────────┤              ├──────────────────┤                         │
-│ 依赖:            │              │ 依赖:            │                         │
-│ • Platform PG    │              │ • Platform PG    │                         │
-│                  │              │                  │                         │
-│ 认证方式:        │   OIDC       │ 认证方式:        │                         │
-│ • 原生OIDC ◀─────┼──────────────│ • 自身登录       │                         │
-│ • Root Token     │              │ • GitHub OAuth   │                         │
-│   (紧急绕过)     │              │                  │                         │
-└─────────┬────────┘              └────────┬─────────┘                         │
-          │                                │                                   │
-          │ 密钥注入                       │ OIDC Provider                     │
-          ▼                                ▼                                   │
-┌──────────────────────────────────────────────────────────────────────────────┤
-│                           L2/L4 服务矩阵                                     │
-├─────────────────┬─────────────────┬─────────────────┬────────────────────────┤
-│                 │                 │                 │                        │
-│ Portal Gate     │  Dashboard      │   Kubero        │  Django CMS            │
-│ (OAuth2-Proxy)  │  (L2)           │   (L4)          │  (L4)                  │
-├─────────────────┼─────────────────┼─────────────────┼────────────────────────┤
-│ 依赖:           │ 依赖:           │ 依赖:           │ 依赖:                  │
-│ • Casdoor       │ • Portal Gate   │ • Casdoor OIDC  │ • Portal Gate          │
-│                 │   (ForwardAuth) │   (原生)        │   (ForwardAuth)        │
-│                 │                 │                 │ • Vault (密钥)         │
-└─────────────────┴─────────────────┴─────────────────┴────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph L0["L0: 人工密钥层"]
+        L0P["1Password: SSH Key, R2 Key, CF Token, Vault Unseal"]
+        L0G["GitHub Secrets: 所有 TF_VAR_* 注入"]
+    end
+
+    subgraph L1["L1: Bootstrap 层<br/>Trust Anchor - 不依赖任何 L2+ 组件"]
+        K3s["K3s"]
+        PlatformPG["Platform PG"]
+        Atlantis["Atlantis<br/>Basic Auth (独立，不走 SSO)"]
+        K3s --> PlatformPG
+        K3s --> Atlantis
+    end
+
+    L0P --> K3s
+    L0G --> Atlantis
+
+    subgraph L2["L2: Platform"]
+        Vault["Vault"]
+        Casdoor["Casdoor"]
+    end
+
+    PlatformPG --> Vault
+    PlatformPG --> Casdoor
+    Vault ---|DB 共享| Casdoor
+    Casdoor -->|OIDC Provider| Vault
+
+    subgraph Services["L2/L4 服务矩阵"]
+        PortalGate["Portal Gate (OAuth2-Proxy)"]
+        Dashboard["Dashboard (L2)"]
+        Kubero["Kubero (L4)"]
+        Django["Django CMS (L4)"]
+    end
+
+    Casdoor --> PortalGate
+    PortalGate --> Dashboard
+    Casdoor --> Kubero
+    PortalGate --> Django
+    Vault --> Django
 ```
 
 ---
@@ -406,3 +396,10 @@ kubectl get ingress -n platform
 | 每组件有绕过路径 | CLI/kubectl/本地 apply | 无 |
 
 **唯一风险点**: Platform PG 数据丢失 → 建议定期 `pg_dump` 备份到 VPS `/data`
+
+---
+
+## Used by
+
+- [docs/ssot/ops.pipeline.md](./ops.pipeline.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)

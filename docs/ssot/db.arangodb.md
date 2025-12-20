@@ -6,6 +6,7 @@
 
 | 属性 | 值 |
 |------|------|
+| **SSOT Key** | `db.arangodb` |
 | **层级** | L3 Data |
 | **命名空间** | `data-<env>` (staging/prod) |
 | **密码来源** | Vault (`secret/data/arangodb`) |
@@ -68,3 +69,7 @@ arangosh --server.endpoint tcp://arangodb.data-<env>.svc.cluster.local:8529 \
 - [db.overview.md](./db.overview.md)
 
 ---
+
+## Used by
+
+- [docs/ssot/db.overview.md](./db.overview.md)
