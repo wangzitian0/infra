@@ -113,4 +113,83 @@ op item get "Infra-GHA-Secrets" --vault="my_cloud" --format json |
 
 ---
 
+## 层间依赖：terraform_remote_state (Issue #301)
+
+> **适用范围**：仅 L3 和 L4。L1/L2 不读取其他层的 state。
+
+### 架构
+
+```mermaid
+graph TD
+    L2[L2 Platform<br/>locals.tf] -->|outputs.tf| STATE[(R2: platform.tfstate)]
+    STATE -->|terraform_remote_state| L3[L3 Data<br/>locals.tf]
+    STATE -->|terraform_remote_state| L4[L4 Apps<br/>locals.tf]
+```
+
+### L3 如何读取 L2 Outputs
+
+```hcl
+# 3.data/locals.tf
+data "terraform_remote_state" "l2_platform" {
+  backend = "s3"
+  config = {
+    bucket   = var.r2_bucket
+    key      = "k3s/platform.tfstate"
+    region   = "auto"
+    endpoints = { s3 = "https://${var.r2_account_id}.r2.cloudflarestorage.com" }
+    ...
+  }
+}
+
+# 使用 L2 outputs
+data "vault_kv_secret_v2" "postgres" {
+  mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
+}
+```
+
+### 安全边界
+
+| 信息类型 | 存储位置 | 敏感级别 |
+|----------|----------|----------|
+| Secret 路径/名字 | R2 state file | 🟡 中 (地址，非密码) |
+| 真正密码 | Vault | 🔴 高 (需 token) |
+| vault_root_token | GitHub Secrets → Env | 🔴 高 |
+| r2_bucket, r2_account_id | GitHub Secrets → Env | 🟢 低 |
+
+### Preconditions (防御性约定)
+
+L3/L4 应添加 precondition 确保 L2 outputs 存在：
+
+```hcl
+# 在 data sources 中添加
+lifecycle {
+  precondition {
+    condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets)
+    error_message = "L2 platform state missing vault_db_secrets output. Run L2 apply first."
+  }
+}
+```
+
+### 新增变量
+
+L3/L4 需要声明这些变量以读取 R2 state：
+
+```hcl
+# 3.data/variables.tf
+variable "r2_bucket" {
+  description = "R2 bucket name for Terraform state"
+  type        = string
+}
+
+variable "r2_account_id" {
+  description = "Cloudflare R2 account ID"
+  type        = string
+}
+```
+
+这些变量通过 Atlantis Pod 环境变量传递（`TF_VAR_r2_bucket`）。
+
+---
+
 > 变更记录见 [change_log/](../change_log/README.md)

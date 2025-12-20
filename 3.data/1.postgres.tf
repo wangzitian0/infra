@@ -46,6 +46,13 @@ resource "kubernetes_namespace" "data" {
 data "vault_kv_secret_v2" "postgres" {
   mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
   name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
+
+  lifecycle {
+    precondition {
+      condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"])
+      error_message = "L2 platform state missing vault_db_secrets['postgres']. Run L2 apply first."
+    }
+  }
 }
 
 # =============================================================================

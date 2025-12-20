@@ -23,6 +23,13 @@
 data "vault_kv_secret_v2" "arangodb" {
   mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
   name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]
+
+  lifecycle {
+    precondition {
+      condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"])
+      error_message = "L2 platform state missing vault_db_secrets['arangodb']. Run L2 apply first."
+    }
+  }
 }
 
 # =============================================================================

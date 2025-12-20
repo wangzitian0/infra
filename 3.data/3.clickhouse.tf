@@ -22,6 +22,13 @@
 data "vault_kv_secret_v2" "clickhouse" {
   mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
   name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
+
+  lifecycle {
+    precondition {
+      condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"])
+      error_message = "L2 platform state missing vault_db_secrets['clickhouse']. Run L2 apply first."
+    }
+  }
 }
 
 # =============================================================================
