@@ -76,6 +76,7 @@ resource "helm_release" "signoz" {
           paths = [{
             path     = "/"
             pathType = "Prefix"
+            port     = 3301 # SigNoz frontend port
           }]
         }]
         tls = [{
