@@ -8,28 +8,34 @@
 
 ```
 L0 Tools     ─  0.tools/, docs/          ─  脚本、文档
-L1 Bootstrap ─  1.bootstrap/             ─  K3s, Atlantis, DNS/Cert, Platform PG
-L2 Platform  ─  2.platform/              ─  Vault, Casdoor, Dashboard + 预置 L3/L4 契约
-L3 Data      ─  3.data/                  ─  业务数据库 (per-env)
-L4 Apps      ─  4.apps/                  ─  Kubero, SigNoz, 业务应用 (per-env)
+L1 Bootstrap ─  1.bootstrap/             ─  K3s, Atlantis, DNS/Cert, Platform PG (无依赖)
+L2 Platform  ─  2.platform/              ─  Vault, Casdoor, Dashboard (全局 1 份)
+L3 Data      ─  3.data/                  ─  业务数据库 (per-env, N 份)
+L4 Apps      ─  4.apps/                  ─  Kubero, SigNoz (控制面 1 份，通过 Pipeline 管理多 env)
 ```
 
 ### 层级职责详解
 
-| 层级 | 核心职责 | 关键组件 |
-|------|----------|----------|
-| **L1 Bootstrap** | Trust Anchor，最小可用集群 | K3s, Atlantis, Platform PG, DNS/Cert |
-| **L2 Platform** | 能力提供层 (密钥/SSO/DNS) | Vault, Casdoor, Dashboard |
-| **L3 Data** | 数据层 (staging/prod) | PostgreSQL, Redis, ClickHouse, ArangoDB |
-| **L4 Apps** | 应用层 (消费 L2+L3) | Kubero (PaaS), SigNoz, 业务应用 |
+| 层级 | 核心职责 | 部署份数 | 多环境策略 |
+|------|----------|---------|-----------|
+| **L1 Bootstrap** | Trust Anchor + 工具箱 | **1 套** | 无依赖，CI 直接部署 |
+| **L2 Platform** | 基建控制面 (密钥/SSO) | **1 套** | Atlantis `default` workspace |
+| **L3 Data** | 数据面 (业务 DB) | **N 套** | Per-env workspace (staging/prod) |
+| **L4 Apps** | 应用控制面 (PaaS/Observability) | **1 套** | Kubero Pipeline/Phase 管理多 env |
 
-### L2 预置契约
+### L4 多环境管理
 
-L2 在部署时为 L3/L4 提前准备：
-- **Vault 密钥路径** (`secret/data/signoz`, `secret/data/postgresql`)
-- **Casdoor OIDC 客户端** (`signoz-oidc`, `kubero-oidc`)
-- **Cloudflare DNS 记录** (`signoz.<domain>`, `kcloud.<domain>`)
-- **Traefik 中间件** (SSO ForwardAuth)
+L4 的 Kubero 是单控制面，通过 Pipeline/Phase 管理多 app × 多 env：
+
+```
+Kubero (单控制面)
+├── Pipeline: app-a
+│   ├── phase: staging → namespace: apps-staging
+│   └── phase: prod    → namespace: apps-prod
+└── Pipeline: app-b
+    ├── phase: staging → namespace: apps-staging
+    └── phase: prod    → namespace: apps-prod
+```
 
 ### 依赖 vs 数据流
 
@@ -136,20 +142,20 @@ root/
 
 ## Namespace 规则
 
-| 层级 | Namespace | 组件 |
-|------|-----------|------|
-| L1 | `kube-system` | K3s 系统组件 |
-| L1 | `bootstrap` | Atlantis |
-| L2 | `platform` | Vault, Dashboard, Casdoor |
-| L3 | `data-staging` | Staging 数据库 |
-| L3 | `data-prod` | Prod 数据库 |
-| L4 | `kubero` | Kubero UI |
-| L4 | `kubero-operator-system` | Kubero Operator |
-| L4 | `observability` | SigNoz, OTel Collector |
-| L4 | `apps-staging` | Staging 应用 |
-| L4 | `apps-prod` | Prod 应用 |
+| 层级 | Namespace | 组件 | 部署模式 |
+|------|-----------|------|---------|
+| L1 | `kube-system` | K3s 系统组件 | 单例 |
+| L1 | `bootstrap` | Atlantis | 单例 |
+| L2 | `platform` | Vault, Dashboard, Casdoor | 单例 |
+| L3 | `data-staging` | Staging 数据库 | per-env |
+| L3 | `data-prod` | Prod 数据库 | per-env |
+| L4 控制面 | `kubero` | Kubero UI | 单例 |
+| L4 控制面 | `kubero-operator-system` | Kubero Operator | 单例 |
+| L4 控制面 | `observability` | SigNoz, OTel Collector | 单例 |
+| L4 工作负载 | `apps-staging` | Staging 应用 (Kubero Pipeline 部署) | per-env |
+| L4 工作负载 | `apps-prod` | Prod 应用 (Kubero Pipeline 部署) | per-env |
 
-> **持久化**: L1/L3 有状态组件用 PVC (`local-path-retain`)，L2/L4 无状态或依赖下层
+> **持久化**: L1/L3 有状态组件用 PVC (`local-path-retain`)，L2/L4 控制面无状态
 
 > **健康检查**: 见 [ops.pipeline.md](./ops.pipeline.md#8-健康检查分层)
 

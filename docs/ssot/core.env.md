@@ -22,21 +22,38 @@
 
 ## 2. Layer × 环境：单例与多环境
 
-### 2.1 单例（Shared / Singleton）
-- **L1 Bootstrap**：单例（一个集群、一套基础设施），由 GitHub Actions `deploy-k3s.yml` 管理。
-- **L2 Platform**：单例（Vault/Dashboard/Casdoor），由 Atlantis project `platform`（`2.platform`, `workspace=default`）管理。
+### 2.1 单例（Singleton）
 
-> 结论：**L1/L2 不做 workspace 级多环境**。它们是“平台底座”，staging/prod 共享同一套 L1/L2（单 VPS MVP）。
+| 层 | 部署份数 | 管理方式 |
+|----|---------|---------|
+| **L1 Bootstrap** | 1 套 | GitHub Actions `deploy-k3s.yml` |
+| **L2 Platform** | 1 套 | Atlantis `platform`（`workspace=default`） |
+| **L4 Apps 控制面** | 1 套 | Atlantis `apps-staging`/`apps-prod`（Kubero 只部署一次） |
 
-### 2.2 多环境（Isolated / Per-env）
-- **L3 Data**：按 workspace 分 `staging` / `prod`
-- **L4 Apps**：按 workspace 分 `staging` / `prod`
+> L1/L2/L4控制面 是"平台底座"，staging/prod 共享同一套。
 
-对应 `atlantis.yaml`：
-- `data-staging` → `dir: 3.data`, `workspace: staging`, state key `k3s/data-staging.tfstate`
-- `data-prod` → `dir: 3.data`, `workspace: prod`, state key `k3s/data-prod.tfstate`
-- `apps-staging` → `dir: 4.apps`, `workspace: staging`, state key `k3s/apps-staging.tfstate`
-- `apps-prod` → `dir: 4.apps`, `workspace: prod`, state key `k3s/apps-prod.tfstate`
+### 2.2 多环境（Per-env）
+
+| 层 | workspace | state key |
+|----|-----------|-----------|
+| **L3 Data** | `staging` / `prod` | `k3s/data-staging.tfstate` / `k3s/data-prod.tfstate` |
+
+### 2.3 L4 多环境策略
+
+L4 的 Kubero 是单控制面，通过 **Pipeline/Phase** 管理多 app × 多 env：
+
+```
+Kubero (1 套控制面)
+├── Pipeline: app-a
+│   ├── phase: staging → namespace: apps-staging, db: db_a_staging
+│   └── phase: prod    → namespace: apps-prod,    db: db_a_prod
+└── Pipeline: app-b
+    └── ...
+```
+
+**App Vars 管理**：
+- Key 定义：App repo 的 `.env.example`（进 git）
+- Value 存储：**Kubero**（通过 UI/CLI 设置，不进 git）
 
 ---
 
