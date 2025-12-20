@@ -3,7 +3,7 @@
 # Retry: 2025-12-17 trigger apply
 
 resource "vault_jwt_auth_backend" "oidc" {
-  count = local.portal_sso_gate_enabled ? 1 : 0
+  count = local.casdoor_oidc_enabled ? 1 : 0
 
   description        = "OIDC backend for Casdoor"
   path               = "oidc"
@@ -31,7 +31,7 @@ resource "vault_jwt_auth_backend" "oidc" {
 }
 
 resource "vault_jwt_auth_backend_role" "reader" {
-  count = local.portal_sso_gate_enabled ? 1 : 0
+  count = local.casdoor_oidc_enabled ? 1 : 0
 
   backend    = vault_jwt_auth_backend.oidc[0].path
   role_name  = "reader"
@@ -57,7 +57,7 @@ resource "vault_jwt_auth_backend_role" "reader" {
 
 # Reader policy with UI access paths
 resource "vault_policy" "reader" {
-  count = local.portal_sso_gate_enabled ? 1 : 0
+  count = local.casdoor_oidc_enabled ? 1 : 0
 
   name   = "reader"
   policy = <<-EOT
