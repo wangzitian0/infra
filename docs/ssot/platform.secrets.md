@@ -54,6 +54,7 @@ op item get "Infra-GHA-Secrets" --vault="my_cloud" --format json |
 | `PostgreSQL (Platform)` | `VAULT_POSTGRES_PASSWORD` | `VAULT_POSTGRES_PASSWORD` | `vault_postgres_password` |
 | `Infra-OAuth` | `GH_OAUTH_CLIENT_ID` | `GH_OAUTH_CLIENT_ID` | `github_oauth_client_id` |
 | | `GH_OAUTH_CLIENT_SECRET` | `GH_OAUTH_CLIENT_SECRET` | `github_oauth_client_secret` |
+| | `ENABLE_CASDOOR_OIDC` | `ENABLE_CASDOOR_OIDC` | `enable_casdoor_oidc` |
 | | `ENABLE_PORTAL_SSO_GATE` | `ENABLE_PORTAL_SSO_GATE` | `enable_portal_sso_gate` |
 | `Infra-Atlantis` | `ATLANTIS_WEBHOOK_SECRET` | `ATLANTIS_WEBHOOK_SECRET` | `atlantis_webhook_secret` |
 | | `ATLANTIS_WEB_PASSWORD` | `ATLANTIS_WEB_PASSWORD` | `atlantis_web_password` |

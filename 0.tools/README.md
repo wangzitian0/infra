@@ -22,7 +22,7 @@ The central engine for CI variable injection. It parses the GitHub `secrets` con
 - **Clean Values**: Automatically strips surrounding quotes and whitespace from 1Password exports.
 - **PEM Handling**: Correctly handles multiline RSA private keys for SSH and GitHub Apps.
 - **Derived Logic**: Automatically推导 derived variables（如 `TF_VAR_vault_address`）。
-- **Feature Flags**: Loads boolean toggles (e.g., `ENABLE_PORTAL_SSO_GATE`) into `TF_VAR_*` for CI applies.
+- **Feature Flags**: Loads boolean toggles (e.g., `ENABLE_CASDOOR_OIDC`, `ENABLE_PORTAL_SSO_GATE`) into `TF_VAR_*` for CI applies.
 
 ---
 

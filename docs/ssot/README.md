@@ -22,7 +22,7 @@
 |------|----------|----------|
 | [platform.auth.md](./platform.auth.md) | 统一认证 | Casdoor SSO 门户覆盖、宏观进度看板、验证命令 |
 | [platform.network.md](./platform.network.md) | 域名规则 | Internal vs Env 模式（环境模型见 `core.env.md`） |
-| [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单、Portal SSO flag |
+| [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单、SSO flags |
 | [platform.ai.md](./platform.ai.md) | AI 接入 | OpenRouter、变量/密钥、注入方式 |
 
 > 注：`platform.auth.md` 已包含登录白屏排障、TokenFormat 与 Token 过期问题跟踪。
@@ -91,4 +91,4 @@
 
 - [AGENTS.md](../../AGENTS.md) - AI 行为准则
 - [docs/project/](../project/) - 设计文档 (BRN-*)
-- *Last updated: 2025-12-19*
+- *Last updated: 2025-12-20*
