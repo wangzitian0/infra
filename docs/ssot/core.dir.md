@@ -155,7 +155,10 @@ root/
 | L4 工作负载 | `apps-staging` | Staging 应用 (Kubero Pipeline 部署) | per-env |
 | L4 工作负载 | `apps-prod` | Prod 应用 (Kubero Pipeline 部署) | per-env |
 
-> **持久化**: L1/L3 有状态组件用 PVC (`local-path-retain`)，L2/L4 控制面无状态
+> **持久化**: 
+> - L1/L3 有状态组件用 PVC (`local-path-retain`)
+> - L2 控制面无状态（依赖 L1 Platform PG）
+> - L4 控制面存储需求由 **L3 提供**（如 Kubero 的 MongoDB/PG 部署在 L3 data namespace）
 
 > **健康检查**: 见 [ops.pipeline.md](./ops.pipeline.md#8-健康检查分层)
 
