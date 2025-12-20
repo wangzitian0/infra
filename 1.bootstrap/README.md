@@ -82,4 +82,4 @@ L1 Atlantis passes the following variables to L2/L3:
 - **Image Pin**: Use the chart default image tag (pinned via chart version). Do **NOT** override to `latest` (breaks reproducibility).
 
 ---
-*Last updated: 2025-12-16*
+*Last updated: 2025-12-20*

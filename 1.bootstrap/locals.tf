@@ -42,15 +42,10 @@ locals {
     backend  = "${var.env_prefix}-api.${var.base_domain}"
   }
 
-  namespaces = {
-    nodep         = "nodep"
-    security      = "security"
-    apps          = "apps"
-    data          = "data"
-    ingestion     = "ingestion"
-    kubero        = "kubero"
-    observability = "observability"
-  }
+  # NOTE: Namespace definitions were removed here (Issue #305)
+  # L1 creates namespaces directly: bootstrap, platform, cert-manager
+  # L3 creates data-{env}, L4 creates kubero-{env}
+  # Dead code cleanup per core.dir.md consolidation
 
   base_cert_domains = distinct(compact([
     var.base_domain,
