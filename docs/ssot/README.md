@@ -41,6 +41,8 @@
 | [db.clickhouse.md](./db.clickhouse.md) | ClickHouse (L3) | OLAP、SigNoz |
 | [db.arangodb.md](./db.arangodb.md) | ArangoDB (L3) | 图数据库 |
 
+> DB SSOT Key 约定：`db.platform_pg` / `db.business_pg` / `db.redis` / `db.clickhouse` / `db.arangodb`（跨文档引用时统一使用）。
+
 ---
 
 ## Ops - 运维
@@ -67,22 +69,19 @@
 
 ## 层级架构
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  L1 Bootstrap (Trust Anchor - 打破 SSOT)                    │
-├─────────────────────────────────────────────────────────────┤
-│  • K3s Cluster, Platform PostgreSQL, Atlantis CI           │
-│  • 密钥来源：GitHub Secrets                                  │
-└─────────────────────────────────────────────────────────────┘
-         ▲ 不依赖任何其他层
-         │
-═════════╪═════════════════════════════════════════════════════
-         ▼
-┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-│  L2 Platform     │  │  L3 Data         │  │  L4 Apps         │
-│  (Vault, SSO)    │  │  (业务数据库)     │  │  (Kubero, SigNoz)│
-│  依赖: L1 PG     │  │  依赖: L2 Vault   │  │  依赖: L2 + L3   │
-└──────────────────┘  └──────────────────┘  └──────────────────┘
+```mermaid
+flowchart TB
+    L1["L1 Bootstrap<br/>Trust Anchor - 打破 SSOT<br/>• K3s Cluster<br/>• Platform PostgreSQL<br/>• Atlantis CI<br/>密钥来源：GitHub Secrets"]
+    L2["L2 Platform<br/>(Vault, SSO)<br/>依赖: L1 PG"]
+    L3["L3 Data<br/>(业务数据库)<br/>依赖: L2 Vault"]
+    L4["L4 Apps<br/>(Kubero, SigNoz)<br/>依赖: L2 + L3"]
+
+    L1 --> L2
+    L1 --> L3
+    L1 --> L4
+    L2 --> L3
+    L2 --> L4
+    L3 --> L4
 ```
 
 ---
@@ -92,3 +91,7 @@
 - [AGENTS.md](../../AGENTS.md) - AI 行为准则
 - [docs/project/](../project/) - 设计文档 (BRN-*)
 - *Last updated: 2025-12-20*
+
+## Used by
+
+- [docs/README.md](../README.md)

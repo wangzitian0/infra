@@ -23,14 +23,13 @@
 |--------|------|------|----------|
 | `OPENROUTER_API_KEY` | ✅ | 调用 OpenRouter | Vault（KV） |
 
-> 密钥分层策略见 `docs/ssot/secrets.md` 与 DD-001。
+> 密钥分层策略见 [platform.secrets.md](./platform.secrets.md) 与 DD-001。
 
 ## 注入方式
 
-```
-Vault（KV SSOT）
-   ↓ Vault Agent Injector
-App Pod（/vault/secrets/*）
+```mermaid
+flowchart TB
+    Vault["Vault (KV SSOT)"] -->|Vault Agent Injector| AppPod["App Pod (/vault/secrets/*)"]
 ```
 
 ## 使用规范
@@ -47,3 +46,6 @@ App Pod（/vault/secrets/*）
 
 ---
 
+## Used by
+
+- [docs/ssot/README.md](./README.md)

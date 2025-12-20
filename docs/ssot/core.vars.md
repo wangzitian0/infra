@@ -72,13 +72,30 @@ kubero app get my-app --output yaml > my-app-backup.yaml
 
 ### 可复现性
 
-```
-App Repo (.env.example)     Kubero (真值)
-├── DATABASE_URL=           ├── DATABASE_URL=postgres://...
-├── REDIS_URL=              ├── REDIS_URL=redis://...
-└── API_KEY=                └── API_KEY=sk-xxx...
-    ↑                           ↑
-  Key 定义 (进 git)          Value 存储 (不进 git)
+```mermaid
+flowchart LR
+    subgraph Repo["App Repo (.env.example)<br/>Key 定义 (进 git)"]
+        RepoDB["DATABASE_URL="]
+        RepoRedis["REDIS_URL="]
+        RepoApi["API_KEY="]
+    end
+
+    subgraph Kubero["Kubero (真值)<br/>Value 存储 (不进 git)"]
+        KuberoDB["DATABASE_URL=postgres://..."]
+        KuberoRedis["REDIS_URL=redis://..."]
+        KuberoApi["API_KEY=sk-xxx..."]
+    end
+
+    RepoDB --> KuberoDB
+    RepoRedis --> KuberoRedis
+    RepoApi --> KuberoApi
 ```
 
 > **恢复策略**: Kubero 数据丢失时，从 `kubero app get --output yaml` 备份恢复。
+
+---
+
+## Used by
+
+- [docs/ssot/core.env.md](./core.env.md)
+- [docs/project/BRN-008.md](../project/BRN-008.md)

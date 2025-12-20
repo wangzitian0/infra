@@ -42,13 +42,14 @@
 
 L4 的 Kubero 是单控制面，通过 **Pipeline/Phase** 管理多 app × 多 env：
 
-```
-Kubero (1 套控制面)
-├── Pipeline: app-a
-│   ├── phase: staging → namespace: apps-staging, db: db_a_staging
-│   └── phase: prod    → namespace: apps-prod,    db: db_a_prod
-└── Pipeline: app-b
-    └── ...
+```mermaid
+flowchart TB
+    Kubero["Kubero (1 套控制面)"]
+    Kubero --> AppA["Pipeline: app-a"]
+    Kubero --> AppB["Pipeline: app-b"]
+    AppA --> AppAStaging["phase: staging<br/>namespace: apps-staging<br/>db: db_a_staging"]
+    AppA --> AppAProd["phase: prod<br/>namespace: apps-prod<br/>db: db_a_prod"]
+    AppB --> AppBMore["..."]
 ```
 
 **App Vars 管理**：
@@ -158,3 +159,7 @@ Kubero (1 套控制面)
 
 ---
 
+## Used by
+
+- [docs/ssot/core.vars.md](./core.vars.md)
+- [docs/ssot/platform.network.md](./platform.network.md)

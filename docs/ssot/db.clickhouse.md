@@ -6,6 +6,7 @@
 
 | 属性 | 值 |
 |------|------|
+| **SSOT Key** | `db.clickhouse` |
 | **层级** | L3 Data |
 | **命名空间** | `data-<env>` (staging/prod) |
 | **密码来源** | Vault (`secret/data/clickhouse`) |
@@ -78,3 +79,8 @@ curl "http://clickhouse.data-<env>.svc.cluster.local:8123/?query=SELECT%201"
 - [ops.observability.md](./ops.observability.md) (SigNoz 使用 ClickHouse)
 
 ---
+
+## Used by
+
+- [docs/ssot/db.overview.md](./db.overview.md)
+- [docs/ssot/ops.observability.md](./ops.observability.md)
