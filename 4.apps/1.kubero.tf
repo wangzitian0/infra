@@ -250,7 +250,7 @@ resource "kubectl_manifest" "kubero_instance" {
             secret      = data.vault_kv_secret_v2.kubero.data["KUBERO_OIDC_CLIENT_SECRET"]
             callbackUrl = "https://kcloud.${local.internal_domain}/auth/callback"
             scopes      = "openid profile email"
-          } : {
+            } : {
             enabled = false
           }
         }
