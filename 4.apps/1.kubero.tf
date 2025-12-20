@@ -43,6 +43,13 @@ locals {
 # ============================================================
 # Phase 1: Create operator namespace first
 # ============================================================
+
+# Import existing namespace created by previous apps-prod apply
+import {
+  to = kubernetes_namespace.kubero_operator_system
+  id = "kubero-operator-system"
+}
+
 resource "kubernetes_namespace" "kubero_operator_system" {
   metadata {
     name = "kubero-operator-system" # L4 control plane: singleton
@@ -75,6 +82,13 @@ resource "kubectl_manifest" "kubero_operator" {
 # ============================================================
 # Kubero Namespace (for UI and applications)
 # ============================================================
+
+# Import existing namespace created by previous apps-prod apply
+import {
+  to = kubernetes_namespace.kubero
+  id = "kubero"
+}
+
 resource "kubernetes_namespace" "kubero" {
   metadata {
     name = "kubero" # L4 control plane: singleton
@@ -107,6 +121,13 @@ data "vault_kv_secret_v2" "kubero" {
 # Kubero Secrets (required by deployment, not created by Helm chart)
 # Sync'd from Vault to satisfy operator dependencies while maintaining SSOT
 # ============================================================
+
+# Import existing secret created by previous apps-prod apply
+import {
+  to = kubernetes_secret.kubero_secrets
+  id = "kubero/kubero-secrets"
+}
+
 resource "kubernetes_secret" "kubero_secrets" {
   metadata {
     name      = "kubero-secrets"
@@ -141,6 +162,13 @@ resource "kubernetes_service_account" "kubero" {
 # ============================================================
 # Kubero Custom Resource (deploys UI via operator)
 # ============================================================
+
+# Import existing CR created by previous apps-prod apply
+import {
+  to = kubectl_manifest.kubero_instance
+  id = "/apis/application.kubero.dev/v1alpha1/namespaces/kubero/kuberos/kubero"
+}
+
 resource "kubectl_manifest" "kubero_instance" {
   yaml_body = yamlencode({
     apiVersion = "application.kubero.dev/v1alpha1"
