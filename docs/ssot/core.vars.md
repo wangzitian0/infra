@@ -46,3 +46,39 @@
 
 ---
 
+## L4 App Vars（Kubero 管理）
+
+> L4 应用层变量不走 TF_VAR，由 Kubero 直接管理。
+
+### 变量模型
+
+| 层 | Key 定义 | Value 存储 | 修改方式 |
+|----|---------|-----------|---------|
+| **L1-L3 (Infra)** | `variables.tf` | 1Password → GitHub Secrets | CI/Atlantis 注入 |
+| **L4 (App)** | App repo `.env.example` | **Kubero** | UI / CLI |
+
+### 操作流程
+
+```bash
+# 查看当前 env vars
+kubero app env get my-app
+
+# 设置 env var（值存在 Kubero，不进 git）
+kubero app env set my-app DATABASE_URL=postgres://...
+
+# 导出配置（备份）
+kubero app get my-app --output yaml > my-app-backup.yaml
+```
+
+### 可复现性
+
+```
+App Repo (.env.example)     Kubero (真值)
+├── DATABASE_URL=           ├── DATABASE_URL=postgres://...
+├── REDIS_URL=              ├── REDIS_URL=redis://...
+└── API_KEY=                └── API_KEY=sk-xxx...
+    ↑                           ↑
+  Key 定义 (进 git)          Value 存储 (不进 git)
+```
+
+> **恢复策略**: Kubero 数据丢失时，从 `kubero app get --output yaml` 备份恢复。
