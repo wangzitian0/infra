@@ -75,7 +75,7 @@ resource "helm_release" "signoz" {
       user        = data.vault_kv_secret_v2.signoz_clickhouse.data["username"]
       password    = data.vault_kv_secret_v2.signoz_clickhouse.data["password"]
       database    = "signoz_traces"
-      cluster     = ""
+      cluster     = "default"  # Required by SigNoz chart
       secure      = false
     }
 
