@@ -4,7 +4,7 @@
 
 ## Start Here
 
-- AI 入口：[`AGENTS.md`](./AGENTS.md)
+- AI 入口 / SOP：[`AGENTS.md`](./AGENTS.md)（含受管资源评估优先级）
 - 当前上下文：[`0.check_now.md`](./0.check_now.md)
 - 文档站点（MkDocs）：[`mkdocs.yml`](./website/mkdocs.yml)（仅使用 git 管控的 `*.md`；CI: [`.github/workflows/docs-site.yml`](./.github/workflows/docs-site.yml)）
 - 目录结构 SSOT：[`docs/ssot/core.dir.md`](./docs/ssot/core.dir.md)
