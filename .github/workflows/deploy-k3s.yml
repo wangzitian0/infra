@@ -140,20 +140,50 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
-          # Start port-forward for ClickHouse provider (needed for connectivity from runner)
-          echo "Starting ClickHouse port-forward..."
-          kubectl -n data-prod port-forward svc/clickhouse 8123:8123 > /dev/null 2>&1 &
-          PID=$!
+          # Start port-forward for ClickHouse provider with retry and logging
+          echo "Starting ClickHouse port-forward loop..."
+          (
+            while true; do
+              kubectl -n data-prod port-forward svc/clickhouse 8123:8123 || true
+              echo "Port-forward exited. Retrying in 1s..."
+              sleep 1
+            done
+          ) > pf.log 2>&1 &
+          PF_PID=$!
           
           # Wait for port-forward to be ready
-          sleep 5
+          echo "Waiting for port 8123 to be ready..."
+          READY=0
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:8123/ping >/dev/null; then
+              echo "✅ Port-forward established (HTTP 200/OK)"
+              READY=1
+              break
+            fi
+            # Also accept "Connection reset" or 401 as sign of life (vs Connection Refused)
+            if curl -v http://127.0.0.1:8123 2>&1 | grep -q "Connected"; then
+               echo "✅ Port-forward connected"
+               READY=1
+               break
+            fi
+            sleep 1
+          done
+          
+          if [ $READY -eq 0 ]; then
+            echo "::warning::Port-forward failed to establish in 30s. Dumping log:"
+            cat pf.log
+            # Don't exit yet, Terraform might manage without it if no refresh needed
+          fi
           
           terraform workspace select prod || terraform workspace new prod
           
-          # Trap to ensure cleanup even on failure
-          trap "kill $PID" EXIT
+          trap "kill $PF_PID" EXIT
           
-          terraform apply -auto-approve -var="clickhouse_host=127.0.0.1"
+          if ! terraform apply -auto-approve -var="clickhouse_host=127.0.0.1"; then
+            echo "::error::Terraform Apply failed. Dumping port-forward log:"
+            cat pf.log
+            exit 1
+          fi
 
       - name: Verify Data Services Health (L3)
         if: github.event_name == 'push'
