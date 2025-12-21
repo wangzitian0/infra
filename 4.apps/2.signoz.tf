@@ -47,20 +47,41 @@ resource "helm_release" "signoz" {
   timeout = 600 # 10 minutes
 
   values = [yamlencode({
-    # Disable bundled ClickHouse - use L3 external ClickHouse
-    # Connect to L3 ClickHouse (data-staging namespace)
-    # Using dedicated signoz user with limited permissions
+    # ============================================================
+    # External ClickHouse Configuration
+    # Disable ALL bundled ClickHouse components - use L3 external
+    # ============================================================
     clickhouse = {
-      install     = false
+      enabled = false  # Disable bundled ClickHouse entirely
+    }
+
+    # Disable zookeeper (only needed for bundled ClickHouse)
+    zookeeper = {
+      enabled = false
+    }
+
+    # Disable ClickHouse operator (only needed for bundled ClickHouse)
+    clickhouse-operator = {
+      enabled = false
+    }
+
+    # ============================================================
+    # External ClickHouse Connection for all services
+    # ============================================================
+    externalClickhouse = {
       host        = "clickhouse.data-staging.svc.cluster.local"
-      port        = 9000
+      httpPort    = 8123
+      tcpPort     = 9000
       user        = data.vault_kv_secret_v2.signoz_clickhouse.data["username"]
       password    = data.vault_kv_secret_v2.signoz_clickhouse.data["password"]
       database    = "signoz_traces"
-      clusterName = ""
+      cluster     = ""
+      secure      = false
     }
 
+    # ============================================================
     # Frontend configuration
+    # ============================================================
     frontend = {
       service = {
         port = 3301
