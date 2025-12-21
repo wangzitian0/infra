@@ -137,9 +137,23 @@ jobs:
       - name: Apply Infrastructure (L3 - Data)
         if: github.event_name == 'push'
         working-directory: 3.data
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          # Start port-forward for ClickHouse provider (needed for connectivity from runner)
+          echo "Starting ClickHouse port-forward..."
+          kubectl -n data-prod port-forward svc/clickhouse 8123:8123 > /dev/null 2>&1 &
+          PID=$!
+          
+          # Wait for port-forward to be ready
+          sleep 5
+          
           terraform workspace select prod || terraform workspace new prod
-          terraform apply -auto-approve
+          
+          # Trap to ensure cleanup even on failure
+          trap "kill $PID" EXIT
+          
+          terraform apply -auto-approve -var="clickhouse_host=127.0.0.1"
 
       - name: Verify Data Services Health (L3)
         if: github.event_name == 'push'
