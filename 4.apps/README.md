@@ -15,6 +15,7 @@ L4 deploys a **single** control plane (Kubero + SigNoz) that manages multi-envir
 |-----------|-----------|------|---------|
 | Kubero Operator | `kubero-operator-system` | Singleton | GitOps PaaS Controller |
 | Kubero UI | `kubero` | Singleton | GitOps PaaS UI (`kcloud.zitian.party`) |
+| **SigNoz** | `observability` | Singleton | Metrics/Traces/Logs (`signoz.zitian.party`) |
 | Workloads | `apps-staging` / `apps-prod` | Per-env | Managed by Kubero Pipeline/Phase |
 
 ### Multi-Environment via Kubero Pipeline
