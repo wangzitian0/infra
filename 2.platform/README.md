@@ -2,6 +2,9 @@
 
 <!-- Smoke: validate infra-flash per-commit comment stream (post-merge) -->
 
+> **定位**：模块维护文档（面向基础设施运维者）
+> **开发者？** → 请先看 [开发者接入指南](../docs/onboarding/README.md)
+
 **Scope**:
 - **Secrets**: Vault (PostgreSQL storage backend, Agent Injector)
 - **Platform DB**: PostgreSQL (for Vault)
@@ -126,3 +129,6 @@ To deploy Portal SSO Gate for non-OIDC portals (e.g., Dashboard):
 
 ---
 *Last updated: 2025-12-20 (Vault SSOT per Issue #301; Portal Gate/OIDC switches decoupled for native OIDC flows)*
+
+---
+

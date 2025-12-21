@@ -1,5 +1,8 @@
 # 4.apps (L4 Applications Layer)
 
+> **定位**：模块维护文档（面向基础设施运维者）
+> **开发者？** → 请先看 [开发者接入指南](../docs/onboarding/README.md)
+
 **Scope**: Application control plane + workload deployments.
 
 ## Architecture
@@ -68,12 +71,18 @@ Callback: `https://kcloud.<internal_domain>/auth/callback`
 - Single TF workspace (default) deploys singleton control plane
 - Kubero Pipeline/Phase manages app deployments to `apps-staging` / `apps-prod`
 
-## SSOT Links
+## 相关文档
 
-- [core.env.md](../docs/ssot/core.env.md) - Environment ↔ workspace/namespace/domain model
-- [platform.network.md](../docs/ssot/platform.network.md) - Domain rules and routing
-- [ops.pipeline.md](../docs/ssot/ops.pipeline.md) - PR → Plan/Apply workflow (Atlantis + infra-flash)
-- [platform.auth.md](../docs/ssot/platform.auth.md) - Authentication strategy (Casdoor + Vault)
+**开发者指南**（场景驱动）：
+- [部署第一个应用](../docs/onboarding/02.first-app.md) - Kubero 使用教程
+- [使用数据库](../docs/onboarding/03.database.md) - 数据库接入
+- [监控和分析](../docs/onboarding/06.observability.md) - SigNoz + PostHog
+
+**SSOT 参考**（技术细节）：
+- [core.env.md](../docs/ssot/core.env.md) - 环境模型
+- [platform.network.md](../docs/ssot/platform.network.md) - 域名规则
+- [ops.pipeline.md](../docs/ssot/ops.pipeline.md) - CI/CD 流程
+- [platform.auth.md](../docs/ssot/platform.auth.md) - 认证策略
 
 ## Troubleshooting
 
@@ -138,3 +147,6 @@ If Kubero pods fail with `CreateContainerConfigError: secret "kubero-secrets" no
 - The secret is now synced from **Vault** via Terraform for operator compatibility.
 
 *Last updated: 2025-12-20*
+
+---
+

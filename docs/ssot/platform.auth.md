@@ -283,3 +283,6 @@ curl -s "https://sso.zitian.party/api/get-application?id=admin/portal-gate" \
 - [4.apps/README.md](../../4.apps/README.md)
 - [docs/ssot/db.vault-integration.md](./db.vault-integration.md)
 - [docs/project/BRN-008.md](../project/BRN-008.md)
+
+---
+

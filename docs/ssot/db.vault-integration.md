@@ -190,3 +190,4 @@ vault kv get secret/data/postgres
 - [platform.auth.md](./platform.auth.md) — 整体认证架构
 
 ---
+
