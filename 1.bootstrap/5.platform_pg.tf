@@ -10,6 +10,53 @@
 # - Vault (L2): storage backend
 # - Casdoor (L2): user/session data
 
+locals {
+  platform_pg_host        = "postgresql.platform.svc.cluster.local"
+  platform_pg_init_script = <<-SCRIPT
+    #!/bin/sh
+    set -eu
+
+    for i in $(seq 1 30); do
+      if pg_isready -h "$${PGHOST}" -U "$${PGUSER}" >/dev/null 2>&1; then
+        break
+      fi
+      sleep 2
+    done
+
+    if ! pg_isready -h "$${PGHOST}" -U "$${PGUSER}" >/dev/null 2>&1; then
+      echo "PostgreSQL not ready after waiting." >&2
+      exit 1
+    fi
+
+    # Idempotent: create Casdoor database if missing
+    psql -h "$${PGHOST}" -U "$${PGUSER}" -tc "SELECT 1 FROM pg_database WHERE datname = 'casdoor'" | grep -q 1 || \
+      psql -h "$${PGHOST}" -U "$${PGUSER}" -c "CREATE DATABASE casdoor"
+
+    # Idempotent: create Vault tables if missing
+    psql -h "$${PGHOST}" -U "$${PGUSER}" -d vault <<'SQL'
+      CREATE TABLE IF NOT EXISTS vault_kv_store (
+        parent_path TEXT COLLATE "C" NOT NULL,
+        path        TEXT COLLATE "C",
+        key         TEXT COLLATE "C",
+        value       BYTEA,
+        CONSTRAINT pkey PRIMARY KEY (path, key)
+      );
+      CREATE INDEX IF NOT EXISTS parent_path_idx ON vault_kv_store (parent_path);
+
+      CREATE TABLE IF NOT EXISTS vault_ha_locks (
+        ha_key      TEXT COLLATE "C" NOT NULL,
+        ha_identity TEXT COLLATE "C" NOT NULL,
+        ha_value    TEXT COLLATE "C",
+        valid_until TIMESTAMP WITH TIME ZONE NOT NULL,
+        CONSTRAINT ha_key PRIMARY KEY (ha_key)
+      );
+
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
+SQL
+  SCRIPT
+  platform_pg_init_hash   = substr(sha1(local.platform_pg_init_script), 0, 8)
+}
+
 # Create/manage platform namespace in L1 (before L2 Vault deployment)
 resource "kubernetes_namespace" "platform" {
   metadata {
@@ -77,81 +124,62 @@ resource "helm_release" "platform_pg" {
   }
 }
 
-# Vault PostgreSQL Schema
-# Uses CREATE TABLE IF NOT EXISTS for idempotency
-resource "null_resource" "vault_pg_schema" {
-  depends_on = [helm_release.platform_pg]
-
-  provisioner "local-exec" {
-    environment = {
-      KUBECONFIG = local.kubeconfig_path
+# Vault tables + Casdoor database initialization (idempotent)
+resource "kubectl_manifest" "platform_pg_init" {
+  yaml_body = yamlencode({
+    apiVersion = "batch/v1"
+    kind       = "Job"
+    metadata = {
+      name      = "platform-pg-init-${local.platform_pg_init_hash}"
+      namespace = kubernetes_namespace.platform.metadata[0].name
     }
-    command = <<-EOT
-      # Wait for PostgreSQL to be ready
-      sleep 10
-
-      # Create Vault tables if they don't exist (idempotent)
-      kubectl exec -n platform postgresql-0 -- bash -c "
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -d vault <<SQL
-          -- Vault KV store table
-          CREATE TABLE IF NOT EXISTS vault_kv_store (
-            parent_path TEXT COLLATE \"C\" NOT NULL,
-            path        TEXT COLLATE \"C\",
-            key         TEXT COLLATE \"C\",
-            value       BYTEA,
-            CONSTRAINT pkey PRIMARY KEY (path, key)
-          );
-          CREATE INDEX IF NOT EXISTS parent_path_idx ON vault_kv_store (parent_path);
-
-          -- Vault HA locks table
-          CREATE TABLE IF NOT EXISTS vault_ha_locks (
-            ha_key      TEXT COLLATE \"C\" NOT NULL,
-            ha_identity TEXT COLLATE \"C\" NOT NULL,
-            ha_value    TEXT COLLATE \"C\",
-            valid_until TIMESTAMP WITH TIME ZONE NOT NULL,
-            CONSTRAINT ha_key PRIMARY KEY (ha_key)
-          );
-
-          -- Verify tables exist
-          SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
-SQL
-      " || true
-    EOT
-  }
-
-  triggers = {
-    pg_release_revision = helm_release.platform_pg.metadata[0].revision
-  }
-}
-
-# Casdoor database - idempotent check-then-create pattern
-resource "null_resource" "casdoor_database" {
-  depends_on = [helm_release.platform_pg]
-
-  provisioner "local-exec" {
-    environment = {
-      KUBECONFIG = local.kubeconfig_path
+    spec = {
+      backoffLimit = 3
+      template = {
+        metadata = {
+          labels = {
+            app = "platform-pg-init"
+          }
+        }
+        spec = {
+          restartPolicy = "OnFailure"
+          containers = [
+            {
+              name    = "psql"
+              image   = "postgres:16"
+              command = ["/bin/sh", "-c"]
+              args    = [local.platform_pg_init_script]
+              env = [
+                {
+                  name  = "PGPASSWORD"
+                  value = var.vault_postgres_password
+                },
+                {
+                  name  = "PGHOST"
+                  value = local.platform_pg_host
+                },
+                {
+                  name  = "PGUSER"
+                  value = "postgres"
+                },
+                {
+                  name  = "PGPORT"
+                  value = "5432"
+                },
+              ]
+            }
+          ]
+        }
+      }
     }
-    command = <<-EOT
-      # Wait for PostgreSQL to be ready
-      sleep 10
+  })
 
-      # Idempotent: check if database exists, create if not
-      kubectl exec -n platform postgresql-0 -- bash -c "
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -tc \"SELECT 1 FROM pg_database WHERE datname = 'casdoor'\" | grep -q 1 || \
-        PGPASSWORD=\$POSTGRES_PASSWORD psql -U postgres -c \"CREATE DATABASE casdoor\"
-      " || true
-    EOT
-  }
-
-  triggers = {
-    pg_release_revision = helm_release.platform_pg.metadata[0].revision
-  }
+  depends_on = [helm_release.platform_pg]
 }
 
 # Output for L2 to consume
 output "platform_pg_host" {
-  value       = "postgresql.platform.svc.cluster.local"
+  value       = local.platform_pg_host
   description = "Platform PostgreSQL service hostname"
 }
 

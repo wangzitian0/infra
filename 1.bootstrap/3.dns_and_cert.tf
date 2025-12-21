@@ -56,96 +56,88 @@ resource "helm_release" "cert_manager" {
 }
 
 # 4. ClusterIssuer (Let's Encrypt Production)
-# Note: Using null_resource + kubectl instead of kubernetes_manifest 
-# because kubernetes_manifest requires CRDs to exist during plan,
-# which fails in CI when CRDs haven't been installed yet.
-resource "null_resource" "cluster_issuer_letsencrypt_prod" {
-  triggers = {
-    # Re-run if these change
-    email       = "admin@${var.base_domain}"
-    secret_name = kubernetes_secret.cloudflare_api_token.metadata[0].name
-  }
+# Use kubectl_manifest to avoid plan-time CRD validation failures.
+resource "kubectl_manifest" "cluster_issuer_letsencrypt_prod" {
+  yaml_body = yamlencode({
+    apiVersion = "cert-manager.io/v1"
+    kind       = "ClusterIssuer"
+    metadata = {
+      name = "letsencrypt-prod"
+    }
+    spec = {
+      acme = {
+        email  = "admin@${var.base_domain}"
+        server = "https://acme-v02.api.letsencrypt.org/directory"
+        privateKeySecretRef = {
+          name = "letsencrypt-prod"
+        }
+        solvers = [
+          {
+            dns01 = {
+              cloudflare = {
+                apiTokenSecretRef = {
+                  name = kubernetes_secret.cloudflare_api_token.metadata[0].name
+                  key  = "api-token"
+                }
+              }
+            }
+          }
+        ]
+      }
+    }
+  })
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      kubectl --kubeconfig=${local.kubeconfig_path} apply -f - <<EOF
-      apiVersion: cert-manager.io/v1
-      kind: ClusterIssuer
-      metadata:
-        name: letsencrypt-prod
-      spec:
-        acme:
-          email: admin@${var.base_domain}
-          server: https://acme-v02.api.letsencrypt.org/directory
-          privateKeySecretRef:
-            name: letsencrypt-prod
-          solvers:
-          - dns01:
-              cloudflare:
-                apiTokenSecretRef:
-                  name: cloudflare-api-token-secret
-                  key: api-token
-      EOF
-    EOT
-  }
+  server_side_apply = true
 
   depends_on = [helm_release.cert_manager, kubernetes_secret.cloudflare_api_token]
 }
 
 # 5. Wildcard Certificate (covers *.domain and domain)
 # Using DNS-01 challenge via Cloudflare for wildcard cert
-resource "null_resource" "wildcard_certificate_public" {
-  triggers = {
-    domains = join(",", local.base_cert_domains)
-  }
+resource "kubectl_manifest" "wildcard_certificate_public" {
+  yaml_body = yamlencode({
+    apiVersion = "cert-manager.io/v1"
+    kind       = "Certificate"
+    metadata = {
+      name      = "wildcard-tls-public"
+      namespace = kubernetes_namespace.cert_manager.metadata[0].name
+    }
+    spec = {
+      secretName = "wildcard-tls-public"
+      issuerRef = {
+        name = "letsencrypt-prod"
+        kind = "ClusterIssuer"
+      }
+      dnsNames = local.base_cert_domains
+    }
+  })
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      kubectl --kubeconfig=${local.kubeconfig_path} apply -f - <<EOF
-      apiVersion: cert-manager.io/v1
-      kind: Certificate
-      metadata:
-        name: wildcard-tls-public
-        namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
-      spec:
-        secretName: wildcard-tls-public
-        issuerRef:
-          name: letsencrypt-prod
-          kind: ClusterIssuer
-        dnsNames:
-${indent(10, local.base_cert_domains_yaml)}
-      EOF
-    EOT
-  }
+  server_side_apply = true
 
-  depends_on = [null_resource.cluster_issuer_letsencrypt_prod]
+  depends_on = [kubectl_manifest.cluster_issuer_letsencrypt_prod]
 }
 
-resource "null_resource" "wildcard_certificate_internal" {
-  triggers = {
-    domains = join(",", local.internal_cert_domains)
-  }
+resource "kubectl_manifest" "wildcard_certificate_internal" {
+  yaml_body = yamlencode({
+    apiVersion = "cert-manager.io/v1"
+    kind       = "Certificate"
+    metadata = {
+      name      = "wildcard-tls-internal"
+      namespace = kubernetes_namespace.cert_manager.metadata[0].name
+    }
+    spec = {
+      secretName = "wildcard-tls-internal"
+      issuerRef = {
+        name = "letsencrypt-prod"
+        kind = "ClusterIssuer"
+      }
+      dnsNames = local.internal_cert_domains
+    }
+  })
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      kubectl --kubeconfig=${local.kubeconfig_path} apply -f - <<EOF
-      apiVersion: cert-manager.io/v1
-      kind: Certificate
-      metadata:
-        name: wildcard-tls-internal
-        namespace: ${kubernetes_namespace.cert_manager.metadata[0].name}
-      spec:
-        secretName: wildcard-tls-internal
-        issuerRef:
-          name: letsencrypt-prod
-          kind: ClusterIssuer
-        dnsNames:
-${indent(10, local.internal_cert_domains_yaml)}
-      EOF
-    EOT
-  }
+  server_side_apply = true
 
-  depends_on = [null_resource.cluster_issuer_letsencrypt_prod]
+  depends_on = [kubectl_manifest.cluster_issuer_letsencrypt_prod]
 }
 
 # 6. Cloudflare DNS Records
@@ -226,70 +218,55 @@ resource "cloudflare_record" "x_staging" {
 # =============================================================================
 
 # Validate DNS resolution for Atlantis host
-resource "null_resource" "validate_dns" {
+resource "time_sleep" "wait_for_atlantis_dns" {
+  create_duration = "60s"
   triggers = {
     host   = local.domains.atlantis
     vps_ip = var.vps_host
   }
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "Validating DNS resolution for ${local.domains.atlantis}..."
-      RESOLVED_IP=$(dig +short ${local.domains.atlantis} | head -1)
-      if [ -z "$RESOLVED_IP" ]; then
-        echo "ERROR: DNS resolution failed for ${local.domains.atlantis}"
-        exit 1
-      fi
-      echo "OK: ${local.domains.atlantis} resolves to $RESOLVED_IP"
-    EOT
-  }
-
   depends_on = [cloudflare_record.infra_records]
 }
 
-# Validate HTTPS certificate is valid for Atlantis host
-resource "null_resource" "validate_cert" {
-  triggers = {
-    domain = local.domains.atlantis
-  }
+data "dns_a_record_set" "atlantis" {
+  host       = local.domains.atlantis
+  depends_on = [time_sleep.wait_for_atlantis_dns]
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "Validating HTTPS certificate for ${local.domains.atlantis}..."
-      # Wait for cert to be issued (max 2 minutes)
-      for i in $(seq 1 24); do
-        if curl -sf --connect-timeout 5 https://${local.domains.atlantis}/healthz >/dev/null 2>&1; then
-          echo "OK: HTTPS certificate is valid"
-          exit 0
-        fi
-        echo "Waiting for certificate... ($i/24)"
-        sleep 5
-      done
-      echo "WARNING: Certificate validation timeout (may still be issuing)"
-    EOT
+  lifecycle {
+    postcondition {
+      condition     = length(self.addrs) > 0
+      error_message = "DNS resolution failed for ${local.domains.atlantis}."
+    }
   }
-
-  depends_on = [null_resource.wildcard_certificate_internal, null_resource.validate_dns]
 }
 
-# Validate Atlantis health (nodep module check)
-resource "null_resource" "validate_atlantis" {
+# Validate HTTPS certificate + Atlantis health
+resource "time_sleep" "wait_for_atlantis_https" {
+  create_duration = "120s"
   triggers = {
     # Use chart version instead of revision (revision changes during apply, causing TF error)
     atlantis_version = helm_release.atlantis.version
+    domain           = local.domains.atlantis
+  }
+  depends_on = [
+    kubectl_manifest.wildcard_certificate_internal,
+    helm_release.atlantis
+  ]
+}
+
+data "http" "atlantis_healthz" {
+  url        = "https://${local.domains.atlantis}/healthz"
+  depends_on = [time_sleep.wait_for_atlantis_https, data.dns_a_record_set.atlantis]
+
+  retry {
+    attempts     = 5
+    min_delay_ms = 1000
+    max_delay_ms = 5000
   }
 
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo "Validating Atlantis health..."
-      HEALTH=$(curl -sf --connect-timeout 10 https://${local.domains.atlantis}/healthz || echo "FAIL")
-      if [ "$HEALTH" = "FAIL" ]; then
-        echo "WARNING: Atlantis healthz not reachable (may be starting up)"
-      else
-        echo "OK: Atlantis is healthy"
-      fi
-    EOT
+  lifecycle {
+    postcondition {
+      condition     = self.status_code == 200
+      error_message = "Atlantis healthz not reachable at https://${local.domains.atlantis}/healthz after waiting."
+    }
   }
-
-  depends_on = [helm_release.atlantis, null_resource.validate_cert]
 }
