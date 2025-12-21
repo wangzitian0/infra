@@ -4,10 +4,9 @@
 # Architecture:
 # - Generate random password in L3
 # - Store in Vault at secret/data/signoz
-# - Create user in ClickHouse via HTTP API (curl)
+# - Create user in ClickHouse via clickhousedbops provider
 # 
-# Note: Using null_resource + curl because clickhousedbops provider requires
-# WriteOnly attributes (TF 1.11+) which is incompatible with Atlantis TF 1.6.6
+# Note: Requires TF 1.11+ for password_sha256_hash_wo (WriteOnly attribute)
 # =============================================================================
 
 # 1. Generate Password
@@ -31,56 +30,46 @@ resource "vault_kv_secret_v2" "signoz_clickhouse" {
   })
 }
 
-# 3. Create SigNoz User and Databases via ClickHouse HTTP API
-# Uses curl to execute SQL statements directly
-resource "null_resource" "signoz_clickhouse_setup" {
-  triggers = {
-    # Re-run if password changes
-    password_hash = sha256(random_password.signoz_clickhouse.result)
-  }
+# 3. Create SigNoz User
+# Uses password_sha256_hash_wo (WriteOnly - not stored in state)
+resource "clickhousedbops_user" "signoz" {
+  name                            = "signoz"
+  password_sha256_hash_wo         = sha256(random_password.signoz_clickhouse.result)
+  password_sha256_hash_wo_version = 1
+}
 
-  provisioner "local-exec" {
-    interpreter = ["/bin/sh", "-c"]
-    
-    # Environment variables to avoid exposing secrets in command line
-    environment = {
-      CH_HOST     = "clickhouse.${local.namespace_name}.svc.cluster.local"
-      CH_PORT     = "8123"
-      CH_USER     = "default"
-      CH_PASSWORD = data.vault_kv_secret_v2.clickhouse.data["password"]
-      SIGNOZ_USER = "signoz"
-      SIGNOZ_PASS = random_password.signoz_clickhouse.result
-    }
+# Create SigNoz Databases
+resource "clickhousedbops_database" "signoz_traces" {
+  name = "signoz_traces"
+}
 
-    command = <<-EOT
-      set -e
-      
-      # Helper function to execute ClickHouse query
-      ch_query() {
-        curl -sS --fail -X POST \
-          "http://$CH_HOST:$CH_PORT/?user=$CH_USER&password=$CH_PASSWORD" \
-          -d "$1"
-      }
-      
-      echo "Creating SigNoz user..."
-      ch_query "CREATE USER IF NOT EXISTS $SIGNOZ_USER IDENTIFIED BY '$SIGNOZ_PASS';"
-      
-      echo "Creating SigNoz databases..."
-      ch_query "CREATE DATABASE IF NOT EXISTS signoz_traces;"
-      ch_query "CREATE DATABASE IF NOT EXISTS signoz_metrics;"
-      ch_query "CREATE DATABASE IF NOT EXISTS signoz_logs;"
-      
-      echo "Granting privileges..."
-      ch_query "GRANT ALL ON signoz_traces.* TO $SIGNOZ_USER;"
-      ch_query "GRANT ALL ON signoz_metrics.* TO $SIGNOZ_USER;"
-      ch_query "GRANT ALL ON signoz_logs.* TO $SIGNOZ_USER;"
-      
-      echo "SigNoz ClickHouse setup complete!"
-    EOT
-  }
+resource "clickhousedbops_database" "signoz_metrics" {
+  name = "signoz_metrics"
+}
 
-  depends_on = [
-    random_password.signoz_clickhouse,
-    vault_kv_secret_v2.signoz_clickhouse
-  ]
+resource "clickhousedbops_database" "signoz_logs" {
+  name = "signoz_logs"
+}
+
+# Grant Privileges
+# signoz user needs ALL on signoz_* databases
+resource "clickhousedbops_grant_privilege" "signoz_traces" {
+  grantee_user_name = clickhousedbops_user.signoz.name
+  privilege_name    = "ALL"
+  database_name     = clickhousedbops_database.signoz_traces.name
+  table_name        = null # All tables
+}
+
+resource "clickhousedbops_grant_privilege" "signoz_metrics" {
+  grantee_user_name = clickhousedbops_user.signoz.name
+  privilege_name    = "ALL"
+  database_name     = clickhousedbops_database.signoz_metrics.name
+  table_name        = null # All tables
+}
+
+resource "clickhousedbops_grant_privilege" "signoz_logs" {
+  grantee_user_name = clickhousedbops_user.signoz.name
+  privilege_name    = "ALL"
+  database_name     = clickhousedbops_database.signoz_logs.name
+  table_name        = null # All tables
 }
