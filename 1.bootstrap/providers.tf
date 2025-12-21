@@ -14,6 +14,22 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.0"
     }
+    kubectl = {
+      source  = "alekc/kubectl"
+      version = "~> 2.0"
+    }
+    dns = {
+      source  = "hashicorp/dns"
+      version = "~> 3.4"
+    }
+    http = {
+      source  = "hashicorp/http"
+      version = "~> 3.5"
+    }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.13"
+    }
 
     local = {
       source  = "hashicorp/local"
@@ -51,4 +67,7 @@ provider "kubernetes" {
   config_path = fileexists(local.kubeconfig_path) ? local.kubeconfig_path : null
 }
 
-
+provider "kubectl" {
+  config_path      = fileexists(local.kubeconfig_path) ? local.kubeconfig_path : null
+  load_config_file = fileexists(local.kubeconfig_path)
+}

@@ -39,6 +39,13 @@ locals {
     set -eu
     rm -rf "$${VOL_DIR}"
   SCRIPT
+
+  local_path_config_hash = sha1(join("", [
+    local.local_path_config_json,
+    local.local_path_helper_pod,
+    local.local_path_setup,
+    local.local_path_teardown,
+  ]))
 }
 
 # Patch default local-path-provisioner config to write volumes under /data/local-path-provisioner
@@ -73,24 +80,23 @@ resource "kubernetes_storage_class" "local_path_retain" {
 }
 
 # Restart local-path-provisioner when any config field changes
-resource "null_resource" "restart_local_path_provisioner" {
-  triggers = {
-    config_hash = sha1(join("", [
-      local.local_path_config_json,
-      local.local_path_helper_pod,
-      local.local_path_setup,
-      local.local_path_teardown,
-    ]))
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command     = <<-EOT
-      set -euo pipefail
-      export KUBECONFIG="${local.kubeconfig_path}"
-      kubectl rollout restart deployment/local-path-provisioner -n kube-system
-      kubectl rollout status deployment/local-path-provisioner -n kube-system --timeout=2m
-    EOT
+resource "kubernetes_manifest" "local_path_provisioner_restart" {
+  manifest = {
+    apiVersion = "apps/v1"
+    kind       = "Deployment"
+    metadata = {
+      name      = "local-path-provisioner"
+      namespace = "kube-system"
+    }
+    spec = {
+      template = {
+        metadata = {
+          annotations = {
+            "infra.zitian.party/config-hash" = local.local_path_config_hash
+          }
+        }
+      }
+    }
   }
 
   depends_on = [kubernetes_config_map_v1.local_path_config]
