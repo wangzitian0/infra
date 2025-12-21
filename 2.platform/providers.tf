@@ -39,3 +39,15 @@ data "cloudflare_zone" "internal" {
 }
 
 # NOTE: RestAPI provider is configured in 90.provider_restapi.tf
+
+provider "clickhousedbops" {
+  host     = "clickhouse.data-staging.svc.cluster.local" # Default to staging for L2 admin tasks
+  port     = 8123
+  protocol = "http"
+
+  auth_config = {
+    strategy = "basicauth"
+    username = "default"
+    password = random_password.l3_clickhouse.result
+  }
+}

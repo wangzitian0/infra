@@ -1,36 +1,31 @@
 # =============================================================================
 # ClickHouse User & Database Management for SigNoz
 # Purpose: Create dedicated user and databases for SigNoz observability stack
-# Architecture:
-# - Generate random password in L3
-# - Store in Vault at secret/data/signoz
-# - Create user in ClickHouse via clickhousedbops provider
-# 
-# Note: Requires TF 1.11+ for password_sha256_hash_wo (WriteOnly attribute)
+# Layer: L2 Platform (Control Plane / Entitlements)
 # =============================================================================
 
-# 1. Generate Password
+# 1. Generate Password for SigNoz internal user
 resource "random_password" "signoz_clickhouse" {
   length  = 24
   special = false
 }
 
-# 2. Store in Vault (L3 writes to L2's Vault KV mount)
+# 2. Store in Vault for L4 to consume
 resource "vault_kv_secret_v2" "signoz_clickhouse" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  mount               = vault_mount.kv.path
   name                = "signoz"
   delete_all_versions = true
 
   data_json = jsonencode({
     username = "signoz"
     password = random_password.signoz_clickhouse.result
-    host     = "clickhouse.${local.namespace_name}.svc.cluster.local"
+    host     = "clickhouse.data-staging.svc.cluster.local"
     port     = "9000"
     database = "signoz_traces"
   })
 }
 
-# 3. Create SigNoz User
+# 3. Create SigNoz User in ClickHouse
 # Uses password_sha256_hash_wo (WriteOnly - not stored in state)
 resource "clickhousedbops_user" "signoz" {
   name                            = "signoz"
@@ -38,7 +33,7 @@ resource "clickhousedbops_user" "signoz" {
   password_sha256_hash_wo_version = 1
 }
 
-# Create SigNoz Databases
+# 4. Create SigNoz Databases
 resource "clickhousedbops_database" "signoz_traces" {
   name = "signoz_traces"
 }
@@ -51,8 +46,7 @@ resource "clickhousedbops_database" "signoz_logs" {
   name = "signoz_logs"
 }
 
-# Grant Privileges
-# signoz user needs ALL on signoz_* databases
+# 5. Grant Privileges
 resource "clickhousedbops_grant_privilege" "signoz_traces" {
   grantee_user_name = clickhousedbops_user.signoz.name
   privilege_name    = "ALL"
