@@ -59,6 +59,9 @@ resource "helm_release" "signoz" {
 
     # Frontend configuration
     frontend = {
+      service = {
+        port = 3301
+      }
       ingress = {
         enabled   = true
         className = "traefik"
@@ -67,7 +70,7 @@ resource "helm_release" "signoz" {
           paths = [{
             path     = "/"
             pathType = "Prefix"
-            port     = 3301 # SigNoz frontend port
+            port     = 3301
           }]
         }]
         tls = [{
