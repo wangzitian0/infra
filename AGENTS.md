@@ -84,6 +84,14 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
     2. Synchronize state via `terraform import` or manual cleanup of ghost resources.
     3. Scale down cached services (like Casdoor) if necessary to clear memory drift.
 
+## 5. Managed Resource Evaluation SOP (Provider Priority)
+- **优先级**：原生/官方 Provider > 合作/活跃社区 Provider > REST API Provider > `null_resource` > `local-exec`。
+- **评估清单**：
+    1. 是否支持 Read/Import/Plan diff；若缺失，必须补 `data` + `precondition`/`terraform_data` 白盒化。
+    2. 版本是否锁定（`.terraform.lock.hcl`）且参数来自 Registry。
+- **降级条件**：仅在上层 Provider 缺功能或阻断 bug 时允许，原因写入 `docs/project/README.md`（未完成）或 `docs/change_log/`（已完成）。
+- **落地要求**：`null_resource`/`local-exec` 必须幂等、带明确 `triggers`、输出可验证，并标注替换计划。
+
 # Documentation Responsibilities (Where to write?)
 
 | Type | Location | Description |
