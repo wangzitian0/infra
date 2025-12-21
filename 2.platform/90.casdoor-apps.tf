@@ -204,3 +204,65 @@ data "http" "casdoor_oidc_discovery" {
     }
   }
 }
+
+# =============================================================================
+# 3. SAML Applications (PostHog)
+# =============================================================================
+
+# PostHog SAML Application
+# NOTE: SAML configuration is experimental. If it fails, PostHog can still
+# be deployed with local auth. SAML can be configured manually in PostHog UI.
+resource "restapi_object" "app_posthog_saml" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  path          = "/add-application"
+  create_path   = "/add-application"
+  update_path   = "/update-application?id=admin/{id}"
+  update_method = "POST"
+  read_path     = "/get-application?id=admin/{id}"
+  destroy_path  = "/delete-application?id=admin/{id}"
+  id_attribute  = "name"
+
+  data = jsonencode({
+    owner        = "admin"
+    organization = "built-in"
+    name         = "posthog-saml"
+    displayName  = "PostHog SAML"
+
+    # SAML-specific configuration (fields to be validated via Casdoor API)
+    # If these fields are incorrect, Terraform plan/apply will fail
+    # gracefully without affecting other applications.
+    enableSamlCompress = true
+    samlReplyUrl       = "https://posthog.${local.internal_domain}/complete/saml/"
+
+    # SAML attribute mapping (PostHog expects these attributes)
+    samlAttributes = [
+      { name = "email", value = "email" },
+      { name = "firstName", value = "firstName" },
+      { name = "lastName", value = "lastName" }
+    ]
+
+    # Common fields
+    enablePassword = true
+    signupItems    = []
+
+    # GitHub provider for unified login experience
+    providers = [
+      {
+        owner     = "admin"
+        name      = "GitHub"
+        canSignUp = true
+        canSignIn = true
+        canUnlink = true
+        rule      = "None"
+      }
+    ]
+  })
+
+  depends_on = [restapi_object.provider_github]
+
+  # NOTE: If this resource fails, it will not block other Casdoor apps
+  # (Vault/Kubero) due to independent resource graphs. PostHog deployment
+  # in L4 will check for SAML app existence and gracefully degrade to
+  # local auth if SAML is unavailable.
+}

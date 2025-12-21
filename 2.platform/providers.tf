@@ -51,3 +51,14 @@ provider "clickhousedbops" {
     password = random_password.l3_clickhouse.result
   }
 }
+
+# PostgreSQL provider for creating database users/databases (e.g., PostHog)
+# Connects to L3 PostgreSQL using admin credentials
+provider "postgresql" {
+  host            = "postgresql.data-staging.svc.cluster.local"
+  port            = 5432
+  username        = "postgres"
+  password        = random_password.l3_postgres.result
+  sslmode         = "disable"
+  connect_timeout = 15
+}

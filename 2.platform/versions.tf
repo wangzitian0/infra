@@ -42,5 +42,9 @@ terraform {
       source  = "ClickHouse/clickhousedbops"
       version = "1.1.0"
     }
+    postgresql = {
+      source  = "cyrilgdn/postgresql"
+      version = "~> 1.25"
+    }
   }
 }
