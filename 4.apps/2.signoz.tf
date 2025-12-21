@@ -48,7 +48,7 @@ resource "helm_release" "signoz" {
       install     = false
       host        = "clickhouse.data-staging.svc.cluster.local"
       port        = 9000
-      user        = data.vault_kv_secret_v2.signoz_clickhouse.data["user"]
+      user        = data.vault_kv_secret_v2.signoz_clickhouse.data["username"]
       password    = data.vault_kv_secret_v2.signoz_clickhouse.data["password"]
       database    = "signoz_traces"
       clusterName = ""
