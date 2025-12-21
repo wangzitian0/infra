@@ -179,6 +179,31 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
 
 > **核心原则**：Vault 权限基于 Casdoor Roles 自动分配，采用 **Identity Groups** 架构，无需用户手动选择角色，真正实现 "Login and Forget"。
 
+### SSOT 职责模型
+
+我们采用了 **分治（Separation of Concerns）** 的设计模式。虽然 Terraform 是最终的配置源头（Configuration SSOT），但在运行时，职责划分如下：
+
+1.  **Casdoor (IdP) → 身份 SSOT**
+    *   **职责**：管理“你是谁”和“你的标签”。
+    *   **行为**：Casdoor 只负责在 JWT Token 中打上 `roles` 标签（如 `vault-admin`），不关心该标签的具体权限。
+    *   **代码位置**：`2.platform/91.casdoor-roles.tf`
+
+2.  **Vault (SP) → 授权 SSOT**
+    *   **职责**：管理“你能做什么”。
+    *   **行为**：Vault 只认标签，根据 Identity Groups 规则，将标签映射为具体的 Policies。
+    *   **代码位置**：`2.platform/91.vault-auth.tf`
+
+3.  **Terraform → 控制面 SSOT**
+    *   所有配置变更必须通过 Terraform 进行，严禁手动在 UI 修改。
+
+**场景演示：**
+
+| 你的需求 | 你改哪里的代码 (Terraform) | 影响的系统 |
+| :--- | :--- | :--- |
+| **我要把 `bob` 提拔为管理员** | `91.casdoor-roles.tf` <br> (把 bob 加入 `role_vault_admin`) | **Casdoor** <br> (下次 bob 登录时 Token 会带上 admin 标签) |
+| **我要让管理员能删除数据库** | `91.vault-auth.tf` <br> (修改 `vault_policy.admin`) | **Vault** <br> (Vault 更新策略规则，立刻生效) |
+| **我要新增一个“审计员”角色** | 1. `91.casdoor-roles.tf` (定义角色)<br>2. `91.vault-auth.tf` (定义权限映射) | **双侧** <br> (Casdoor 发标签，Vault 认标签) |
+
 ### 概览
 
 Vault 的权限管理采用 **"Identity-Based Automation"** 模式：
