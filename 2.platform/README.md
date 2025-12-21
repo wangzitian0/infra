@@ -27,6 +27,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
 | `90.provider_restapi.tf` | RestAPI Provider | Casdoor REST API provider (M2M credentials via casdoor-builtin-app) |
 | `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via `restapi_object` resources |
+| `91.casdoor-roles.tf` | Casdoor Roles | Defines `vault-admin`, `vault-developer`, `vault-viewer` roles in Casdoor |
 | `91.vault-auth.tf` | Vault OIDC Auth | Vault OIDC backend connected to Casdoor |
 | `91.vault-auth-kubernetes.tf` | Vault K8s Auth | Kubernetes authentication backend for pod identity |
 | `92.vault-kubero.tf` | Kubero Vault | Vault KV secrets (session/webhook/OIDC), policies, and roles for Kubero |
@@ -66,12 +67,25 @@ L2 services use **app-level authentication** (no unified ingress gate):
 
 | Service | Auth Method | Notes |
 |---------|-------------|-------|
-| **Vault** | Token / OIDC | Manual init/unseal required; OIDC login requires manually entering role: `reader` (controlled by `enable_casdoor_oidc`) |
+| **Vault** | Token / OIDC | Manual init/unseal required; OIDC login uses **Identity Groups** (no manual role input). Auto-maps Casdoor roles to Admin/Developer policies. |
 | **Dashboard** | Token | Get token: `kubectl get secret dashboard-admin-token -n platform -o jsonpath='{.data.token}' \| base64 -d` |
 | **Casdoor** | Admin password | SSO provider itself; admin password from `terraform output -raw casdoor_admin_password` |
 | **Portal SSO Gate** | Casdoor OIDC via OAuth2-Proxy | Optional：`enable_portal_sso_gate=true` 后为 **无 OIDC 门户**（如 Dashboard）打开入口 |
 
 Casdoor OIDC apps are configured to show a unified login page with **Password + GitHub** (see `2.platform/90.casdoor-apps.tf`).
+
+### Vault RBAC (Identity Groups)
+
+Vault permissions are managed via **Identity Groups**, offering a "Login and Forget" experience:
+
+- **Mechanism**: Vault automatically reads the `roles` claim from the OIDC JWT token and maps it to internal Identity Groups.
+- **Mapping**:
+    - Casdoor `vault-admin` -> Vault Identity Group `admin` -> Policy `admin` (Full Access)
+    - Casdoor `vault-developer` -> Vault Identity Group `developer` -> Policy `developer` (App Secrets RW)
+    - Default (No role) -> Vault Identity Group `viewer` -> Policy `viewer` (Read Only)
+- **Benefit**: Users don't need to manually select a role during login. Permissions are automatically stacked based on Casdoor roles.
+
+For detailed architecture and usage, see [platform.auth.md](../docs/ssot/platform.auth.md).
 
 See- [platform.network.md](../docs/ssot/platform.network.md) - Domain rules and routing
 - [ops.pipeline.md](../docs/ssot/ops.pipeline.md) - PR -> Plan/Apply workflow (Atlantis + infra-flash)

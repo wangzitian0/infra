@@ -51,7 +51,7 @@ resource "vault_jwt_auth_backend_role" "default" {
   groups_claim = "roles"
 
   bound_audiences = ["vault-oidc"]
-  
+
   # No bound_claims: Allow all valid Casdoor users to login.
   # Authorization is handled by Identity Groups below.
 
@@ -74,19 +74,19 @@ resource "vault_jwt_auth_backend_role" "reader" {
   count = local.casdoor_oidc_enabled ? 1 : 0
 
   backend   = vault_jwt_auth_backend.oidc[0].path
-  role_name = "reader" 
+  role_name = "reader"
   # Reuse configuration from default
-  user_claim = "sub"
-  role_type  = "oidc"
-  groups_claim = "roles"
+  user_claim      = "sub"
+  role_type       = "oidc"
+  groups_claim    = "roles"
   bound_audiences = ["vault-oidc"]
-  oidc_scopes = ["openid", "profile", "email"]
+  oidc_scopes     = ["openid", "profile", "email"]
   allowed_redirect_uris = [
     "https://secrets.${local.internal_domain}/ui/vault/auth/oidc/oidc/callback",
     "http://localhost:8250/oidc/callback"
   ]
   token_policies = ["viewer"]
-  token_ttl = 3600
+  token_ttl      = 3600
 }
 
 # =============================================================================

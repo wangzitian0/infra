@@ -20,7 +20,7 @@ resource "helm_release" "atlantis" {
   namespace  = kubernetes_namespace.bootstrap.metadata[0].name
   repository = "https://runatlantis.github.io/helm-charts"
   chart      = "atlantis"
-  version    = "5.23.0"  # Upgraded from 4.25.0 for hc-install (TF 1.8.2+ support)
+  version    = "5.23.0" # Upgraded from 4.25.0 for hc-install (TF 1.8.2+ support)
   timeout    = 300
   wait       = true
 
