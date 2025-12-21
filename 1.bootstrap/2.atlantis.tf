@@ -31,6 +31,8 @@ resource "helm_release" "atlantis" {
         orgAllowlist = "github.com/${var.github_org}/*"
         atlantisUrl  = "https://${local.domains.atlantis}"
 
+        # Terraform version - 1.11+ required for WriteOnly attributes (e.g. clickhousedbops)
+        defaultTFVersion = "1.11.0"
         # Environment for R2 Backend (AWS_* used by S3 backend)
         # AND TF_VAR_* for Terraform variables
         environment = {
