@@ -37,7 +37,7 @@ provider "vault" {
 # Used for managing users, databases, and privileges in ClickHouse
 # Connects to ClickHouse HTTP interface using admin credentials from Vault
 provider "clickhousedbops" {
-  host     = "clickhouse.${local.namespace_name}.svc.cluster.local"
+  host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.${local.namespace_name}.svc.cluster.local"
   port     = 8123
   protocol = "http"
 

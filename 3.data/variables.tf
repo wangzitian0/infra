@@ -24,6 +24,12 @@ variable "vault_root_token" {
   }
 }
 
+variable "clickhouse_host" {
+  description = "ClickHouse host address. Defaults to in-cluster DNS; override to localhost for port-forward."
+  type        = string
+  default     = ""
+}
+
 # =============================================================================
 # R2 Backend Variables (for terraform_remote_state to read L2 outputs)
 # Passed by Atlantis via TF_VAR_* from L1
