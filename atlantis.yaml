@@ -1,8 +1,8 @@
 # Atlantis Repo Configuration
 # Layer Structure: 1.bootstrap (L1), 2.platform (L2), 3.data (L3), 4.apps (L4)
 #
-# TF VERSION: Atlantis uses required_version constraint from each layer's versions.tf
-# This ensures consistency with .terraform-version (SSOT) used by CI and local dev.
+# TF VERSION: 1.11.0 (must match .terraform-version)
+# When updating, change terraform_version in all projects below.
 
 version: 3
 
@@ -20,6 +20,7 @@ projects:
   # L2: Platform (Singleton)
   - name: platform
     dir: 2.platform
+    terraform_version: "1.11.0"
     workspace: default
     workflow: platform
     autoplan:
@@ -28,6 +29,7 @@ projects:
   # L3: Data (per-env)
   - name: data-staging
     dir: 3.data
+    terraform_version: "1.11.0"
     workspace: staging
     workflow: data
     autoplan:
@@ -35,6 +37,7 @@ projects:
 
   - name: data-prod
     dir: 3.data
+    terraform_version: "1.11.0"
     workspace: prod
     workflow: data
     autoplan:
@@ -44,6 +47,7 @@ projects:
   # Multi-env workloads are managed by Kubero Pipeline/Phase, not Terraform workspace
   - name: apps
     dir: 4.apps
+    terraform_version: "1.11.0"
     workspace: default
     workflow: apps
     autoplan:

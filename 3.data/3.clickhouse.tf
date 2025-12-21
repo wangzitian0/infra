@@ -81,14 +81,7 @@ resource "helm_release" "clickhouse" {
         enabled = false # Disable external ZooKeeper
       }
       keeper = {
-        enabled = true
-        image = {
-          # Bitnami moved clickhouse-keeper to bitnamilegacy repo (bitnami/ is empty)
-          registry   = "docker.io"
-          repository = "bitnamilegacy/clickhouse-keeper"
-          tag        = "25.7.5-debian-12-r0" # Matches Chart 9.4.4 default
-          pullPolicy = "IfNotPresent"
-        }
+        enabled = false # Disabled: Single node MVP doesn't need Keeper (saves 4500m CPU)
       }
       persistence = {
         enabled      = true
