@@ -139,3 +139,44 @@ flowchart TB
 
 - [docs/ssot/db.business_pg.md](./db.business_pg.md)
 - [docs/project/BRN-008.md](../project/BRN-008.md)
+
+---
+
+## TODO: 开发者体验改进
+
+### 1. Quick Start 需要场景化组织
+**问题**: 当前 Quick Start 按数据库类型组织（PostgreSQL/Redis/ClickHouse/ArangoDB），但开发者更关心"我的应用需要什么"而不是"每个数据库怎么用"。
+
+**建议**:
+- [ ] 重新组织 Quick Start 章节，按应用场景分类：
+  - **场景 A: Web 应用 + 关系数据库** (PostgreSQL only)
+  - **场景 B: Web 应用 + 缓存** (PostgreSQL + Redis)
+  - **场景 C: 数据分析应用** (PostgreSQL + ClickHouse)
+  - **场景 D: 图数据应用** (ArangoDB)
+- [ ] 每个场景提供：
+  - 典型用例说明
+  - 需要配置的 Vault annotations (完整 YAML)
+  - 应用代码示例（如何连接和使用）
+  - 完整的部署命令序列
+
+**受影响角色**: 应用开发者（选择技术栈）
+
+### 2. 缺少"从零开始"的完整示例
+**问题**: 当前文档假设开发者已经有应用，只需要接入数据库。但很多开发者可能是从零开始，需要端到端的指导。
+
+**建议**:
+- [ ] 新增 "## 端到端示例：部署第一个数据库应用" 章节
+- [ ] 提供一个完整的 Todo List 应用示例：
+  - 前端：静态 HTML + JavaScript
+  - 后端：Node.js/Python/Go（选一个最简单的）
+  - 数据库：PostgreSQL via Vault
+- [ ] 步骤包括：
+  1. 克隆示例代码仓库
+  2. 在 L2 创建 Vault Role 和 Policy (Terraform)
+  3. 在 Kubero 创建 Pipeline
+  4. 配置环境变量和 Vault annotations
+  5. 推送代码触发部署
+  6. 验证应用运行并能访问数据库
+- [ ] 提供故障排查清单
+
+**受影响角色**: 应用开发者（零基础接入）

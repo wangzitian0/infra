@@ -190,3 +190,42 @@ vault kv get secret/data/postgres
 - [platform.auth.md](./platform.auth.md) — 整体认证架构
 
 ---
+
+## TODO: 开发者体验改进
+
+### 1. 缺少端到端示例应用
+**问题**: 文档提供了详细的技术配置步骤，但缺少一个完整的、可运行的示例应用，开发者难以验证理解是否正确。
+
+**建议**:
+- [ ] 新增 "## 完整示例：Node.js + PostgreSQL" 章节
+- [ ] 提供一个 GitHub 仓库链接，包含：
+  - 完整的应用代码（Node.js Express + pg 库）
+  - Dockerfile
+  - Kubernetes Deployment YAML（包含所有必需的 Vault annotations）
+  - Terraform 配置（Role + Policy）
+  - README 说明如何一步步部署
+- [ ] 示例应用应展示：
+  - 如何从 `/vault/secrets/pg` 读取环境变量
+  - 如何建立数据库连接
+  - 如何在启动脚本中 source Vault 注入的文件
+
+**受影响角色**: 应用开发者（首次接入 Vault）
+
+### 2. 故障排查章节需要更多实战案例
+**问题**: 当前故障排查章节提供了基本的命令，但缺少常见错误的完整解决路径。
+
+**建议**:
+- [ ] 为每个常见错误增加"完整解决流程"小节
+- [ ] 包含：
+  - 错误的完整日志示例
+  - 逐步诊断命令及其预期输出
+  - 常见的根本原因及解决方案
+  - 验证修复是否成功的方法
+- [ ] 增加新的常见错误场景：
+  - Vault Agent 注入成功但应用读取失败（路径问题）
+  - Token 过期导致的间歇性失败
+  - Namespace 配置错误
+
+**受影响角色**: 应用开发者（故障诊断）
+
+---

@@ -163,3 +163,49 @@ flowchart TB
 
 - [docs/ssot/core.vars.md](./core.vars.md)
 - [docs/ssot/platform.network.md](./platform.network.md)
+
+---
+
+## TODO: 开发者体验改进
+
+### 1. 环境概念对开发者过于复杂
+**问题**: 文档详细解释了 workspace、namespace、state key、域名的关系，但对于应用开发者来说，他们只想知道"我的应用应该部署在哪个环境"。
+
+**建议**:
+- [ ] 在文档开头增加"开发者速查"章节
+- [ ] 简化说明：
+  - **Staging 环境**: 用于测试和预发布，域名为 `x-staging.<base_domain>`，namespace 为 `apps-staging`
+  - **Prod 环境**: 用于生产流量，域名为 `<base_domain>`，namespace 为 `apps-prod`
+  - **如何选择**: 开发和测试用 staging，上线后用 prod
+- [ ] 提供决策流程图
+
+**受影响角色**: 应用开发者（环境选择）
+
+### 2. 缺少环境间数据隔离的说明
+**问题**: 开发者不清楚 staging 和 prod 环境之间是否共享数据库、Redis 等资源。
+
+**建议**:
+- [ ] 新增 "## 环境资源隔离" 章节
+- [ ] 明确说明：
+  - **数据库**: staging (`data-staging` namespace) 和 prod (`data-prod` namespace) 完全独立
+  - **密钥**: 通过 Vault 分别管理，不同环境有不同的 Vault Role
+  - **网络**: 同一个 K8s 集群，但通过 namespace 隔离
+  - **域名**: 通过 Ingress 规则和 `env_prefix` 区分
+  - **平台服务**: L1/L2 平台服务（Vault、Dashboard、Atlantis）是共享的
+- [ ] 警告：staging 环境的数据不会自动同步到 prod
+
+**受影响角色**: 应用开发者（理解隔离策略）
+
+### 3. L4 多环境策略需要开发者操作指南
+**问题**: 文档解释了 Kubero Pipeline/Phase 架构，但没有告诉开发者如何实际操作。
+
+**建议**:
+- [ ] 在 "2.3 L4 多环境策略" 章节后增加"开发者操作指南"
+- [ ] 提供步骤：
+  1. 在 Kubero UI 创建 Pipeline
+  2. 为 Pipeline 添加 staging 和 prod 两个 Phase
+  3. 每个 Phase 如何配置数据库连接（使用不同的 Vault secret path）
+  4. 如何在两个环境间推进代码（staging 验证通过后部署到 prod）
+- [ ] 链接到 4.apps/README.md 的详细 Kubero 使用指南（待创建）
+
+**受影响角色**: 应用开发者（多环境部署）
