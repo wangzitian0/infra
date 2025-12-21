@@ -147,4 +147,4 @@ Scale-out / multi-replica migration notes are tracked in:
 - [db.overview.md](../docs/ssot/db.overview.md) (database capability SSOT)
 
 ---
-*Last updated: 2025-12-20 (Added SSOT references to vault data sources per Issue #301)*
+*Last updated: 2025-12-22 (Restored clickhousedbops provider for state cleanup)*
