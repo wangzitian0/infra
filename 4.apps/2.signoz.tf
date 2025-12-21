@@ -67,19 +67,18 @@ resource "helm_release" "signoz" {
         enabled = true
         size    = "10Gi"
       }
-    }
-
-    # Minimal zookeeper for ClickHouse cluster support
-    zookeeper = {
-      enabled = true
-      image = {
-        registry   = "docker.io"
-        repository = "bitnami/zookeeper"
-        tag        = "3.9.3"  # Use available tag
-      }
-      resources = {
-        requests = { cpu = "50m", memory = "128Mi" }
-        limits   = { cpu = "200m", memory = "256Mi" }
+      # Zookeeper for ClickHouse cluster support
+      zookeeper = {
+        enabled = true
+        image = {
+          registry   = "docker.io"
+          repository = "bitnami/zookeeper"
+          tag        = "3.9.3"  # Use available tag (3.7.1 is deprecated)
+        }
+        resources = {
+          requests = { cpu = "50m", memory = "128Mi" }
+          limits   = { cpu = "200m", memory = "256Mi" }
+        }
       }
     }
 
