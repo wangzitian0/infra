@@ -2,10 +2,14 @@
 # SigNoz Observability Stack
 # Deploys metrics, traces, and logs platform to L4
 #
-# Architecture:
+# Architecture (MVP):
 # - L4 singleton control plane
-# - Uses L3 ClickHouse (data-staging namespace)
-# - Dedicated signoz user with limited DB permissions
+# - Uses bundled ClickHouse + Zookeeper (self-contained)
+# - TODO: Migrate to L3 ClickHouse with cluster support
+#
+# Note: External ClickHouse requires cluster configuration.
+# L3 ClickHouse is single-node without cluster support.
+# For MVP, using SigNoz bundled ClickHouse for simplicity.
 # ============================================================
 
 # Import existing namespace for idempotency
@@ -48,35 +52,35 @@ resource "helm_release" "signoz" {
 
   values = [yamlencode({
     # ============================================================
-    # External ClickHouse Configuration
-    # Disable ALL bundled ClickHouse components - use L3 external
+    # Bundled ClickHouse (MVP)
+    # Note: For production, integrate with L3 external ClickHouse
+    # TODO: Configure L3 ClickHouse with cluster support for SigNoz
     # ============================================================
     clickhouse = {
-      enabled = false  # Disable bundled ClickHouse entirely
+      enabled = true
+      # Minimal resources for MVP
+      resources = {
+        requests = { cpu = "100m", memory = "256Mi" }
+        limits   = { cpu = "500m", memory = "1Gi" }
+      }
+      persistence = {
+        enabled = true
+        size    = "10Gi"
+      }
     }
 
-    # Disable zookeeper (only needed for bundled ClickHouse)
+    # Minimal zookeeper for ClickHouse cluster support
     zookeeper = {
-      enabled = false
-    }
-
-    # Disable ClickHouse operator (only needed for bundled ClickHouse)
-    clickhouse-operator = {
-      enabled = false
-    }
-
-    # ============================================================
-    # External ClickHouse Connection for all services
-    # ============================================================
-    externalClickhouse = {
-      host        = "clickhouse.data-staging.svc.cluster.local"
-      httpPort    = 8123
-      tcpPort     = 9000
-      user        = data.vault_kv_secret_v2.signoz_clickhouse.data["username"]
-      password    = data.vault_kv_secret_v2.signoz_clickhouse.data["password"]
-      database    = "signoz_traces"
-      cluster     = "default"  # Required by SigNoz chart
-      secure      = false
+      enabled = true
+      image = {
+        registry   = "docker.io"
+        repository = "bitnami/zookeeper"
+        tag        = "3.9.3"  # Use available tag
+      }
+      resources = {
+        requests = { cpu = "50m", memory = "128Mi" }
+        limits   = { cpu = "200m", memory = "256Mi" }
+      }
     }
 
     # ============================================================
