@@ -20,6 +20,7 @@ projects:
   # L2: Platform (Singleton)
   - name: platform
     dir: 2.platform
+    terraform_version: "1.11.0"  # Must match .terraform-version
     workspace: default
     workflow: platform
     autoplan:
@@ -28,6 +29,7 @@ projects:
   # L3: Data (per-env)
   - name: data-staging
     dir: 3.data
+    terraform_version: "1.11.0"  # Must match .terraform-version
     workspace: staging
     workflow: data
     autoplan:
@@ -35,6 +37,7 @@ projects:
 
   - name: data-prod
     dir: 3.data
+    terraform_version: "1.11.0"  # Must match .terraform-version
     workspace: prod
     workflow: data
     autoplan:
@@ -44,6 +47,7 @@ projects:
   # Multi-env workloads are managed by Kubero Pipeline/Phase, not Terraform workspace
   - name: apps
     dir: 4.apps
+    terraform_version: "1.11.0"  # Must match .terraform-version
     workspace: default
     workflow: apps
     autoplan:

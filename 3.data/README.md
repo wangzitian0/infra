@@ -36,7 +36,7 @@ graph LR
 |------|-----------|---------|
 | `1.postgres.tf` | PostgreSQL | Business database, creds from Vault KV |
 | `2.redis.tf` | Redis | Cache and session storage |
-| `3.clickhouse.tf` | ClickHouse | OLAP analytics database |
+| `3.clickhouse.tf` | ClickHouse | OLAP analytics database (Keeper disabled for single-node) |
 | `4.arangodb.tf` | ArangoDB | Multi-model database (document/graph/KV) |
 
 ### Deployment Order
