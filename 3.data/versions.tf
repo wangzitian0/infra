@@ -26,5 +26,9 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.9"
     }
+    clickhousedbops = {
+      source  = "ClickHouse/clickhousedbops"
+      version = "~> 0.1"
+    }
   }
 }

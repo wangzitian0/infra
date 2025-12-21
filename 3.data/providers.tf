@@ -32,3 +32,18 @@ provider "vault" {
   # Skip TLS verification for internal communication
   skip_tls_verify = true
 }
+
+# ClickHouse database operations provider
+# Used for managing users, databases, and privileges in ClickHouse
+# Connects to ClickHouse HTTP interface using admin credentials from Vault
+provider "clickhousedbops" {
+  host     = "clickhouse.${local.namespace_name}.svc.cluster.local"
+  port     = 8123
+  protocol = "http"
+
+  auth_config = {
+    strategy = "password"
+    username = "default"
+    password = data.vault_kv_secret_v2.clickhouse.data["password"]
+  }
+}
