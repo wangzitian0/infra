@@ -113,9 +113,29 @@ jobs:
 
       - name: Apply Infrastructure (L2 - Platform)
         working-directory: 2.platform
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          # Start port-forward for ClickHouse provider (L2 uses data-staging)
+          echo "Starting ClickHouse port-forward for L2..."
+          kubectl -n data-staging port-forward svc/clickhouse 8123:8123 > /dev/null 2>&1 &
+          PID=$!
+
+          # Wait for port-forward to be ready
+          echo "Waiting for port 8123..."
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:8123/ping >/dev/null 2>&1; then
+              echo "✅ Port-forward ready"
+              break
+            fi
+            sleep 1
+          done
+
           terraform workspace select default || terraform workspace new default
-          terraform apply -auto-approve
+
+          trap "kill $PID 2>/dev/null || true" EXIT
+
+          terraform apply -auto-approve -var="clickhouse_host=127.0.0.1"
 
       - name: Verify L2 (Vault Status)
         env:
@@ -140,19 +160,25 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
-          # Start port-forward for ClickHouse provider (needed for connectivity from runner)
-          echo "Starting ClickHouse port-forward..."
+          # Start port-forward for ClickHouse provider (L3 uses data-prod)
+          echo "Starting ClickHouse port-forward for L3..."
           kubectl -n data-prod port-forward svc/clickhouse 8123:8123 > /dev/null 2>&1 &
           PID=$!
-          
+
           # Wait for port-forward to be ready
-          sleep 5
-          
+          echo "Waiting for port 8123..."
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:8123/ping >/dev/null 2>&1; then
+              echo "✅ Port-forward ready"
+              break
+            fi
+            sleep 1
+          done
+
           terraform workspace select prod || terraform workspace new prod
-          
-          # Trap to ensure cleanup even on failure
-          trap "kill $PID" EXIT
-          
+
+          trap "kill $PID 2>/dev/null || true" EXIT
+
           terraform apply -auto-approve -var="clickhouse_host=127.0.0.1"
 
       - name: Verify Data Services Health (L3)
