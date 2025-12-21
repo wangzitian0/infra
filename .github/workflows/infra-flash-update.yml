@@ -124,9 +124,16 @@ jobs:
                 '</details>'
               ].join('\n');
 
+              // Find trigger comment for initial autoplan
+              const triggerInfo = triggerComment
+                ? `[@${triggerComment.user.login.replace('[bot]', '')}](${triggerComment.html_url})`
+                : '[autoplan on push]';
+
               const skeleton = [
                 MARKER,
                 `## ⚡ Commit \`${targetSha}\` Dashboard`,
+                "",
+                `**Triggered by:** ${triggerInfo}`,
                 "",
                 "| Component | Status | Info/Link | Time |",
                 "|:---|:---:|:---|:---|",
