@@ -74,6 +74,7 @@ workflows:
             fi
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
+        - run: terraform workspace select ${WORKSPACE} || terraform workspace new ${WORKSPACE}
         # Remove stale resources from L2 state (idempotent)
         - run: |
             terraform state rm kubernetes_namespace.platform 2>/dev/null || true
@@ -102,6 +103,7 @@ workflows:
             fi
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
+        - run: terraform workspace select ${WORKSPACE} || terraform workspace new ${WORKSPACE}
         - plan
     apply:
       steps:
@@ -128,11 +130,9 @@ workflows:
             fi
         - init:
             extra_args: ["-backend-config=backend.tfvars"]
+        - run: terraform workspace select ${WORKSPACE} || terraform workspace new ${WORKSPACE}
         - plan
     apply:
       steps:
         - run: echo "infra-flash-commit:$(git rev-parse --short ${HEAD_COMMIT:-HEAD}) "
         - apply
-
-
-

@@ -26,4 +26,4 @@
 | `deploy-k3s.yml` | 全量灾备 Flash | 灾备与初始引导 (Bootstrap) |
 
 ---
-*Last updated: 2025-12-20*
+*Last updated: 2025-12-22*
