@@ -47,3 +47,18 @@ The authoritative tool for syncing 1Password secrets to GitHub. It uses a predef
 **File**: `preflight-check.sh`
 
 Run before `terraform apply` to catch common issues early (e.g., Helm URL validation).
+
+---
+
+## README Coverage Check
+
+**File**: `check-readme-coverage.sh`
+
+CI guard that ensures READMEs are updated when code in a directory changes. Outputs:
+- ✅ READMEs updated (directories that have README changes)
+- ❌ READMEs need update (directories missing README changes)
+
+Threshold: 60% of changed directories must have corresponding README updates.
+
+---
+*Last updated: 2025-12-22*

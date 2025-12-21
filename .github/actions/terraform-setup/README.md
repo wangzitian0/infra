@@ -15,7 +15,7 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 | Input | Required | Description |
 |-------|----------|-------------|
 | `secrets_json` | ✓ | All GitHub Secrets in JSON format (pass `${{ toJSON(secrets) }}`) |
-| `terraform_version` | ✗ | Terraform version (default: 1.6.6) |
+| `terraform_version` | ✗ | Terraform version (default: reads from `.terraform-version` file) |
 | `tf_state_key` | ✗ | State file key in bucket (default: terraform.tfstate) |
 | `working_directory` | ✗ | Directory for Terraform operations (default: 1.bootstrap) |
 
@@ -38,4 +38,4 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 See [action.yml](./action.yml) for full implementation.
 
 ---
-*Last updated: 2025-12-19*
+*Last updated: 2025-12-22*

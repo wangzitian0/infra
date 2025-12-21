@@ -165,10 +165,14 @@ jobs:
       # ============================================================
       # STEP 2: Run CI Checks
       # ============================================================
+      - name: Determine TF Version
+        id: tf_version
+        run: echo "version=$(cat .terraform-version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.11.0
+          terraform_version: ${{ steps.tf_version.outputs.version }}
           terraform_wrapper: false
 
       - name: Format Check

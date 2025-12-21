@@ -41,4 +41,10 @@ graph TD
 | `deploy-k3s.yml` | `push` to main | 灾备平面：全量 L1-L4 Flash | N/A |
 
 ---
-*Last updated: 2025-12-19 (Pipeline V2 Upgrade)*
+
+## Terraform 版本
+
+所有 workflows 从 `.terraform-version` 文件读取 TF 版本，确保与 Atlantis 和本地开发一致。详见 [ops.pipeline.md](../../docs/ssot/ops.pipeline.md#13-版本要求与-ssot)。
+
+---
+*Last updated: 2025-12-22*

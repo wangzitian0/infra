@@ -308,13 +308,31 @@ flowchart TD
 
 ---
 
-## 13. 版本要求
+
+## 13. 版本要求与 SSOT
+
+### Terraform 版本 SSOT
+
+Terraform 版本通过 **`.terraform-version`** 文件统一管理，确保四个执行场景使用相同版本：
+
+| 场景 | 版本来源 | 说明 |
+|:---|:---|:---|
+| PR CI (`terraform validate`) | `.terraform-version` | `terraform-plan.yml` 读取文件 |
+| Atlantis (`plan/apply`) | `required_version` 约束 | 各层 `versions.tf` 设置 `>= X.Y.Z` |
+| Post-merge (`deploy-k3s`) | `.terraform-version` | `terraform-setup` action 读取 |
+| Local dev | `.terraform-version` | tfenv/asdf 自动读取 |
+
+**版本更新流程**：只需修改 `.terraform-version` 和各层 `required_version` 约束。
+
+### 组件版本要求
 
 | 组件 | 最低版本 | 原因 |
 |:---|:---|:---|
+| **Terraform** | 1.11.0 | WriteOnly 属性支持 (clickhousedbops) |
 | Atlantis | 0.28+ | 支持 GitHub App 身份 |
 | actions/github-script | v7 | 支持 paginate API |
 | anthropics/claude-code-action | v1 | Claude GitHub App |
+
 
 ---
 
@@ -362,7 +380,7 @@ flowchart TD
 
 - [ ] **文档-代码同步检查**: CI 检查 workflow 变更是否同步更新了本 SSOT
 
-*Last Updated: 2025-12-20*
+*Last Updated: 2025-12-22*
 
 ## Used by
 

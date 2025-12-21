@@ -2,9 +2,9 @@ name: "Terraform Setup"
 description: "Sets up Terraform with high-reliability guardrails"
 inputs:
   terraform_version:
-    description: "Terraform version to use"
-    required: true
-    default: "1.6.6"
+    description: "Terraform version to use (reads from .terraform-version if not set)"
+    required: false
+    default: ""
   secrets_json:
     description: "All GitHub Secrets in JSON format"
     required: true
@@ -20,10 +20,24 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Determine Terraform Version
+      id: tf_version
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.terraform_version }}" ]; then
+          echo "version=${{ inputs.terraform_version }}" >> $GITHUB_OUTPUT
+        elif [ -f ".terraform-version" ]; then
+          echo "version=$(cat .terraform-version | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+        else
+          echo "::error::No terraform version specified and .terraform-version not found"
+          exit 1
+        fi
+        echo "Using Terraform version: $(cat $GITHUB_OUTPUT | grep version | cut -d= -f2)"
+
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v3
       with:
-        terraform_version: ${{ inputs.terraform_version }}
+        terraform_version: ${{ steps.tf_version.outputs.version }}
         terraform_wrapper: false
 
     - name: Load Secrets (Python Loader)
