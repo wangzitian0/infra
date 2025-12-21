@@ -42,7 +42,7 @@ provider "clickhousedbops" {
   protocol = "http"
 
   auth_config = {
-    strategy = "password"
+    strategy = "basicauth"
     username = "default"
     password = data.vault_kv_secret_v2.clickhouse.data["password"]
   }
