@@ -12,6 +12,17 @@
 # Vault Secrets Engines (IaC - replaces manual vault secrets enable)
 # =============================================================================
 
+# Import existing Vault mounts if they exist (Handle drift from state rm)
+import {
+  to = vault_mount.kv
+  id = "secret"
+}
+
+import {
+  to = vault_mount.database
+  id = "database"
+}
+
 # KV v2 secrets engine for static secrets (L3 PostgreSQL root password)
 resource "vault_mount" "kv" {
   path        = "secret"

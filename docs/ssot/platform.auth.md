@@ -175,6 +175,164 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
 
 ---
 
+## Vault 权限管理（RBAC）
+
+> **核心原则**：Vault 权限基于 Casdoor Roles 自动分配，采用 **Identity Groups** 架构，无需用户手动选择角色，真正实现 "Login and Forget"。
+
+### 概览
+
+Vault 的权限管理采用 **"Identity-Based Automation"** 模式：
+
+- **认证**：统一通过 `default` OIDC 角色认证
+- **映射**：Vault 自动识别 JWT 中的 `roles` 并映射到内部 **Identity Groups**
+- **授权**：Identity Groups 关联 Policies，实现权限自动叠加
+
+### RBAC 架构 (Identity Groups)
+
+```mermaid
+graph LR
+    User[用户] -->|OIDC登录| Casdoor
+    Casdoor -->|JWT Token (roles)| Vault
+    Vault -->|Identity Alias| Group{Identity Group}
+    Group -->|匹配 vault-admin| AdminGrp[Admin Group]
+    Group -->|匹配 vault-developer| DevGrp[Developer Group]
+    Group -->|默认| ViewerGrp[Viewer Group]
+    AdminGrp -->|叠加| AdminPol[Admin Policy]
+    DevGrp -->|叠加| DevPol[Developer Policy]
+    ViewerGrp -->|叠加| ViewerPol[Viewer Policy]
+```
+
+### 角色与权限映射
+
+我们利用 **Identity Group Aliases** 处理 Casdoor 角色名称的多样性（如 `vault-admin` 或 `admin/vault-admin`）。
+
+| Casdoor Role (Source) | Vault Identity Group | Vault Policy | 权限说明 |
+|-----------------------|----------------------|--------------|---------|
+| `vault-admin` | `admin` | `admin` | 完全管理权限（读写配置） |
+| `vault-developer` | `developer` | `developer` | 应用密钥读写（无系统配置） |
+| `vault-viewer` | `viewer` | `viewer` | 只读权限 |
+| *(无特殊role)* | *(默认)* | `viewer` | 默认只读 |
+
+### Policy 权限详情
+
+#### Admin Policy
+
+**用途**：Vault 管理员，负责系统配置和全局管理
+
+**权限包括**：
+- `secret/*`: 完全访问
+- `sys/mounts/*`: 管理 secrets engines
+- `sys/auth/*`: 管理认证方法
+- `sys/policies/*`: 管理 policies
+- `auth/token/*`: Token 管理
+- `auth/oidc/*`: OIDC 配置
+
+#### Developer Policy
+
+**用途**：应用开发者，读写应用密钥但不能修改系统配置
+
+**权限包括**：
+- `secret/data/*`: 创建/读取/更新/删除应用密钥
+- `secret/metadata/*`: 读取密钥元数据
+- `sys/mounts`: 列出 secrets engines（只读）
+- `auth/token/renew-self`: 续期自己的 token
+
+**限制**：
+- ❌ 不能修改 Vault 系统配置
+- ❌ 不能管理认证方法和 policies
+- ❌ 不能管理其他用户的 tokens
+
+#### Viewer Policy
+
+**用途**：只读用户，查看密钥但不能修改
+
+**权限包括**：
+- `secret/*`: 读取和列出
+- `sys/mounts`: 列出 secrets engines（只读）
+
+**限制**：
+- ❌ 不能创建、修改或删除密钥
+- ❌ 不能访问系统配置
+
+### 使用流程
+
+#### 1. 为用户分配 Casdoor Role
+
+**方式 A：通过 Terraform 管理（推荐）**
+
+编辑 `2.platform/91.casdoor-roles.tf`，在对应 role 的 `users` 数组中添加用户：
+
+```hcl
+resource "restapi_object" "role_vault_admin" {
+  # ...
+  data = jsonencode({
+    # ...
+    users = [
+      "built-in/alice",   # 管理员
+      "built-in/bob"
+    ]
+  })
+}
+```
+
+**方式 B：通过 Casdoor Web UI（临时操作）**
+
+1. 登录 `https://sso.zitian.party`
+2. 进入 `Roles` 管理页面
+3. 选择对应的 Role（如 `vault-admin`）
+4. 在 `Users` 字段中添加用户
+
+⚠️ **重要**：Web UI 修改会在下次 Terraform apply 时被覆盖，建议仅用于临时测试。
+
+#### 2. 用户登录 Vault
+
+1. 访问 `https://secrets.zitian.party/ui/`
+2. 选择认证方法：`OIDC`
+3. **Role 留空**：直接点击登录（Sign in with OIDC）
+4. 跳转 Casdoor 认证
+
+#### 3. 自动权限分配
+
+登录成功后，Vault 会根据你的 Casdoor Roles 自动把你加入对应的 Identity Group。
+- 无需选择 Role
+- 权限自动生效
+
+### RBAC 常见问题 (FAQ)
+
+#### Q1: 如何查看我被分配了哪些 Identity Groups？
+
+在 Vault UI 中：
+1. 点击右上角用户头像 → `Copy token`
+2. 使用 CLI 查看：
+   ```bash
+   vault token lookup <token>
+   ```
+   查看 `identity_policies` 字段。
+
+#### Q2: 如果我同时是 Admin 和 Developer 怎么办？
+
+Vault Identity Groups 支持权限叠加。你将同时获得 `admin` 和 `developer` policy 的所有权限。
+
+#### Q3: 为什么我的权限没有更新？
+
+A: Identity Group 的成员资格是动态计算的，但有时需要重新登录才能刷新 Token 的 Policy 列表。
+1. 登出 Vault
+2. 重新登录
+3. 检查 Casdoor 端是否已正确分配角色
+
+#### Q4: 旧的 `reader` role 还能用吗？
+
+A: 为了兼容性，旧的 `reader` OIDC role 仍然保留，但不再推荐使用。现在的默认登录流程（不指定 role）已经涵盖了 reader 的功能。
+
+### RBAC 实现文件
+
+- `2.platform/91.casdoor-roles.tf` - Casdoor Roles 定义
+- `2.platform/91.vault-auth.tf` - Vault OIDC & Identity Groups 配置
+- `2.platform/90.casdoor-apps.tf` - OIDC 应用配置
+
+---
+
+
 ## 验证与健康检查
 
 为了确保 SSO 链路的稳定性，我们在部署流程中引入了 **“白盒化健康检查”**：
