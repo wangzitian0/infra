@@ -77,9 +77,6 @@ workflows:
         # Remove stale resources from L2 state (idempotent)
         - run: |
             terraform state rm kubernetes_namespace.platform 2>/dev/null || true
-            terraform state rm vault_mount.database 2>/dev/null || true
-            terraform state rm vault_mount.kv 2>/dev/null || true
-            terraform state rm random_password.l3_postgres 2>/dev/null || true
         - plan
     apply:
       steps:
