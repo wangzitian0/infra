@@ -175,6 +175,242 @@ GitHub Provider 和 OIDC 应用现在通过 Terraform REST API 自动配置。
 
 ---
 
+## Vault 权限管理（RBAC）
+
+> **核心原则**：Vault 权限基于 Casdoor Roles 自动分配，所有配置通过 Terraform 管理，无需手动输入 role。
+
+### 概览
+
+Vault 的权限管理采用**"认证集中 + 授权自动化"**模式：
+
+- **认证**：通过 Casdoor OIDC 统一认证
+- **授权**：根据 Casdoor 中的用户 Roles 自动分配 Vault policies
+- **配置**：完全由 Terraform 管理（IaC）
+
+### RBAC 架构
+
+```mermaid
+graph LR
+    User[用户] -->|OIDC登录| Casdoor
+    Casdoor -->|JWT Token| Vault
+    Vault -->|读取roles claim| JWT[JWT Token]
+    JWT -->|匹配Casdoor Role| VaultRole[Vault OIDC Role]
+    VaultRole -->|分配Policy| Policy[Vault Policy]
+    Policy -->|授权| Secrets[Secrets Access]
+```
+
+### 角色与权限映射
+
+| Casdoor Role | Vault OIDC Role | Vault Policy | 权限说明 |
+|-------------|-----------------|--------------|---------|
+| `vault-admin` | `vault-admin` | `admin` | 完全管理权限（读写配置） |
+| `vault-developer` | `vault-developer` | `developer` | 应用密钥读写（无系统配置） |
+| `vault-viewer` | `vault-viewer` | `viewer` | 只读权限 |
+| *(无role)* | `vault-viewer` (默认) | `viewer` | 默认只读 |
+| *(向后兼容)* | `reader` | `reader` (=viewer) | 兼容旧配置 |
+
+### Policy 权限详情
+
+#### Admin Policy
+
+**用途**：Vault 管理员，负责系统配置和全局管理
+
+**权限包括**：
+- `secret/*`: 完全访问
+- `sys/mounts/*`: 管理 secrets engines
+- `sys/auth/*`: 管理认证方法
+- `sys/policies/*`: 管理 policies
+- `auth/token/*`: Token 管理
+- `auth/oidc/*`: OIDC 配置
+
+#### Developer Policy
+
+**用途**：应用开发者，读写应用密钥但不能修改系统配置
+
+**权限包括**：
+- `secret/data/*`: 创建/读取/更新/删除应用密钥
+- `secret/metadata/*`: 读取密钥元数据
+- `sys/mounts`: 列出 secrets engines（只读）
+- `auth/token/renew-self`: 续期自己的 token
+
+**限制**：
+- ❌ 不能修改 Vault 系统配置
+- ❌ 不能管理认证方法和 policies
+- ❌ 不能管理其他用户的 tokens
+
+#### Viewer Policy
+
+**用途**：只读用户，查看密钥但不能修改
+
+**权限包括**：
+- `secret/*`: 读取和列出
+- `sys/mounts`: 列出 secrets engines（只读）
+
+**限制**：
+- ❌ 不能创建、修改或删除密钥
+- ❌ 不能访问系统配置
+
+### 使用流程
+
+#### 1. 为用户分配 Casdoor Role
+
+**方式 A：通过 Terraform 管理（推荐）**
+
+编辑 `2.platform/91.casdoor-roles.tf`，在对应 role 的 `users` 数组中添加用户：
+
+```hcl
+resource "restapi_object" "role_vault_admin" {
+  # ...
+  data = jsonencode({
+    # ...
+    users = [
+      "built-in/alice",   # 管理员
+      "built-in/bob"
+    ]
+  })
+}
+```
+
+**方式 B：通过 Casdoor Web UI（临时操作）**
+
+1. 登录 `https://sso.zitian.party`
+2. 进入 `Roles` 管理页面
+3. 选择对应的 Role（如 `vault-admin`）
+4. 在 `Users` 字段中添加用户
+
+⚠️ **重要**：Web UI 修改会在下次 Terraform apply 时被覆盖，建议仅用于临时测试。
+
+#### 2. 用户登录 Vault
+
+1. 访问 `https://secrets.zitian.party/ui/`
+2. 选择认证方法：`OIDC`
+3. **无需手动输入 role**（自动使用 `vault-viewer` 作为默认）
+4. 点击登录，跳转到 Casdoor
+5. 使用 GitHub 或密码登录
+
+#### 3. 自动权限分配
+
+登录成功后，Vault 会：
+
+1. 从 JWT token 中读取用户的 `roles` claim
+2. 根据 `bound_claims` 匹配对应的 Vault OIDC role
+3. 自动分配对应的 Vault policy
+
+**匹配逻辑**：
+
+- 用户有 `vault-admin` role → 获得 `admin` policy
+- 用户有 `vault-developer` role → 获得 `developer` policy
+- 用户有 `vault-viewer` role → 获得 `viewer` policy
+- 用户无特定 role → 获得默认 `viewer` policy
+
+**多 Role 场景**：
+
+如果用户同时拥有多个 Vault roles（如同时是 `vault-admin` 和 `vault-developer`），Vault 会为每个匹配的 role 创建一个有效的登录路径。用户可以选择使用哪个 role 登录（UI 会显示选项），或使用 default_role 自动选择。
+
+### "Resultant ACL check failed" 警告
+
+**现象**：登录成功后，Vault UI 顶部显示黄色警告
+
+```
+Resultant ACL check failed
+Links might be shown that you don't have access to. Contact your administrator to update your policy.
+```
+
+**原因**：这是正常提示，不是错误。
+
+- ✅ 你已成功登录并获得对应权限
+- ⚠️ Vault UI 尝试访问某些路径（如管理功能），但你的 policy 不允许
+- 💡 UI 提醒你："有些按钮/链接你看得到但点不了"
+
+**解决方案**：
+
+- **非管理员用户**：忽略此警告，继续使用有权限的功能
+- **需要更高权限**：联系管理员，在 Casdoor 中将你添加到对应的 role
+
+### RBAC 常见问题
+
+#### Q1: 为什么不需要手动输入 role 了？
+
+A: 新配置启用了 `default_role = "vault-viewer"`，所有用户登录时自动使用此默认 role。Vault 会根据 JWT token 中的 `roles` claim 和 `bound_claims` 自动匹配正确的权限。
+
+#### Q2: 如何给自己提升权限？
+
+A: 有两种方式：
+
+1. **Terraform（推荐）**：编辑 `2.platform/91.casdoor-roles.tf`，在对应 role 的 `users` 数组中添加你的用户名，然后提交 PR 并 apply
+2. **临时测试**：使用 Casdoor admin 账号登录 Web UI，手动添加（会在下次 apply 时被覆盖）
+
+#### Q3: 为什么我的权限没有更新？
+
+A: 可能的原因：
+
+1. **Casdoor role 未生效**：Terraform apply 后需要等待几秒钟
+2. **Token 未刷新**：你的 Vault token 还是旧的，需要重新登录
+3. **JWT token 未包含 roles**：检查 Casdoor OIDC 应用配置中的 `tokenFormat` 是否为 `JWT`
+
+**解决方法**：
+
+```bash
+# 1. 确认 Casdoor role 已创建
+curl -s "https://sso.zitian.party/api/get-roles?owner=admin" | jq '.[] | {name, users}'
+
+# 2. 登出 Vault 并重新登录
+# 访问 https://secrets.zitian.party/ui/ → 右上角 → Sign Out
+
+# 3. 重新登录（使用 OIDC）
+```
+
+#### Q4: 如何查看我当前的权限？
+
+在 Vault UI 中：
+
+1. 点击右上角用户头像 → `Copy token`
+2. 在浏览器 console 执行：
+
+```javascript
+// 解码 JWT token 查看 roles claim
+let token = "你的token";
+let payload = JSON.parse(atob(token.split('.')[1]));
+console.log("Roles:", payload.roles);
+console.log("Policies:", payload.policies);
+```
+
+或者使用 Vault CLI：
+
+```bash
+vault token lookup
+# 查看 policies 字段
+```
+
+#### Q5: 旧的 `reader` role 还能用吗？
+
+A: 可以！为了向后兼容，我们保留了 `reader` role 和 policy：
+
+- `reader` role 没有 `bound_claims` 限制，任何人都可以使用
+- `reader` policy 等同于 `viewer` policy（只读）
+- 建议迁移到新的 role 命名（`vault-viewer`），但旧配置仍然有效
+
+#### Q6: 如何实现更细粒度的权限控制（如按项目）？
+
+当前配置是全局 Vault 权限管理。如果需要按项目或团队划分权限，可以：
+
+1. **使用 Vault namespaces**（Vault Enterprise 功能）
+2. **在 secret path 中使用前缀**：
+   - `secret/data/team-a/*` → team-a-developer policy
+   - `secret/data/team-b/*` → team-b-developer policy
+3. **创建更多 Casdoor roles**：
+   - `vault-team-a-admin`
+   - `vault-team-b-developer`
+   - 对应创建更多 Vault policies
+
+### RBAC 实现文件
+
+- `2.platform/91.casdoor-roles.tf` - Casdoor Roles 定义（vault-admin/vault-developer/vault-viewer）
+- `2.platform/91.vault-auth.tf` - Vault OIDC 配置、Policies 和 OIDC Roles 映射
+- `2.platform/90.casdoor-apps.tf` - OIDC 应用配置（JWT token format）
+
+---
+
 ## 验证与健康检查
 
 为了确保 SSO 链路的稳定性，我们在部署流程中引入了 **“白盒化健康检查”**：
