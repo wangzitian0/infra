@@ -42,19 +42,16 @@ resource "helm_release" "signoz" {
 
   values = [yamlencode({
     # Disable bundled ClickHouse - use L3 external ClickHouse
-    clickhouse = {
-      enabled = false
-    }
-
     # Connect to L3 ClickHouse (data-staging namespace)
     # Using dedicated signoz user with limited permissions
-    externalClickhouse = {
-      host     = "clickhouse.data-staging.svc.cluster.local"
-      httpPort = 8123
-      tcpPort  = 9000
-      user     = "signoz"
-      password = data.vault_kv_secret_v2.signoz_clickhouse.data["password"]
-      database = "signoz_traces"
+    clickhouse = {
+      install     = false
+      host        = "clickhouse.data-staging.svc.cluster.local"
+      port        = 9000
+      user        = data.vault_kv_secret_v2.signoz_clickhouse.data["user"]
+      password    = data.vault_kv_secret_v2.signoz_clickhouse.data["password"]
+      database    = "signoz_traces"
+      clusterName = ""
     }
 
     # Frontend configuration
