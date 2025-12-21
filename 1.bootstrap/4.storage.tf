@@ -80,8 +80,9 @@ resource "kubernetes_storage_class" "local_path_retain" {
 }
 
 # Restart local-path-provisioner when any config field changes
-resource "kubernetes_manifest" "local_path_provisioner_restart" {
-  manifest = {
+# Use kubectl_manifest with server_side_apply to patch existing Deployment
+resource "kubectl_manifest" "local_path_provisioner_restart" {
+  yaml_body = yamlencode({
     apiVersion = "apps/v1"
     kind       = "Deployment"
     metadata = {
@@ -97,7 +98,9 @@ resource "kubernetes_manifest" "local_path_provisioner_restart" {
         }
       }
     }
-  }
+  })
+
+  server_side_apply = true
 
   depends_on = [kubernetes_config_map_v1.local_path_config]
 }
