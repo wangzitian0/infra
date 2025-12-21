@@ -275,7 +275,8 @@ resource "null_resource" "validate_cert" {
 # Validate Atlantis health (nodep module check)
 resource "null_resource" "validate_atlantis" {
   triggers = {
-    atlantis_release = helm_release.atlantis.metadata[0].revision
+    # Use chart version instead of revision (revision changes during apply, causing TF error)
+    atlantis_version = helm_release.atlantis.version
   }
 
   provisioner "local-exec" {
