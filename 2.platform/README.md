@@ -142,7 +142,7 @@ To deploy Portal SSO Gate for non-OIDC portals (e.g., Dashboard):
    - https://kdashboard.zitian.party (Dashboard)
 
 ---
-*Last updated: 2025-12-20 (Vault SSOT per Issue #301; Portal Gate/OIDC switches decoupled for native OIDC flows)*
+*Last updated: 2025-12-22 (Added clickhouse_host variable for CI port-forward)*
 
 ---
 

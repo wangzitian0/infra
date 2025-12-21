@@ -4,6 +4,27 @@
 # Layer: L2 Platform (Control Plane / Entitlements)
 # =============================================================================
 
+# Import existing resources (idempotency for pre-existing ClickHouse entities)
+import {
+  to = clickhousedbops_user.signoz
+  id = "signoz"
+}
+
+import {
+  to = clickhousedbops_database.signoz_traces
+  id = "signoz_traces"
+}
+
+import {
+  to = clickhousedbops_database.signoz_metrics
+  id = "signoz_metrics"
+}
+
+import {
+  to = clickhousedbops_database.signoz_logs
+  id = "signoz_logs"
+}
+
 # 1. Generate Password for SigNoz internal user
 resource "random_password" "signoz_clickhouse" {
   length  = 24
@@ -47,23 +68,10 @@ resource "clickhousedbops_database" "signoz_logs" {
 }
 
 # 5. Grant Privileges
-resource "clickhousedbops_grant_privilege" "signoz_traces" {
-  grantee_user_name = clickhousedbops_user.signoz.name
-  privilege_name    = "ALL"
-  database_name     = clickhousedbops_database.signoz_traces.name
-  table_name        = null # All tables
-}
-
-resource "clickhousedbops_grant_privilege" "signoz_metrics" {
-  grantee_user_name = clickhousedbops_user.signoz.name
-  privilege_name    = "ALL"
-  database_name     = clickhousedbops_database.signoz_metrics.name
-  table_name        = null # All tables
-}
-
-resource "clickhousedbops_grant_privilege" "signoz_logs" {
-  grantee_user_name = clickhousedbops_user.signoz.name
-  privilege_name    = "ALL"
-  database_name     = clickhousedbops_database.signoz_logs.name
-  table_name        = null # All tables
-}
+# NOTE: Privileges are managed by L3 data layer via SigNoz helm chart init.
+# The clickhousedbops_grant_privilege resource has a verification bug where
+# it fails if privileges already exist (expanded from ALL to individual grants).
+# See: https://github.com/ClickHouse/terraform-provider-clickhousedbops/issues/XX
+#
+# Removed to avoid idempotency issues. Signoz user already has ALL privileges
+# on signoz_traces, signoz_metrics, and signoz_logs databases.

@@ -215,3 +215,13 @@ variable "kubernetes_ca_cert" {
     error_message = "kubernetes_ca_cert must be a valid base64-encoded certificate string."
   }
 }
+
+# ============================================================
+# ClickHouse Provider (for CI port-forward)
+# ============================================================
+
+variable "clickhouse_host" {
+  description = "ClickHouse host address. Defaults to in-cluster DNS; override to localhost for port-forward in CI."
+  type        = string
+  default     = ""
+}

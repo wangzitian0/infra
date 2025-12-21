@@ -47,4 +47,14 @@ graph TD
 所有 workflows 从 `.terraform-version` 文件读取 TF 版本，确保与 Atlantis 和本地开发一致。详见 [ops.pipeline.md](../../docs/ssot/ops.pipeline.md#13-版本要求与-ssot)。
 
 ---
+
+## ClickHouse Port-Forward in CI
+
+`deploy-k3s.yml` uses `kubectl port-forward` to connect to ClickHouse for L2/L3 terraform apply:
+- **L2 (Platform)**: Port-forwards to `data-staging` namespace
+- **L3 (Data)**: Port-forwards to `data-prod` namespace
+
+Both steps use `-var="clickhouse_host=127.0.0.1"` to override the in-cluster DNS.
+
+---
 *Last updated: 2025-12-22*
