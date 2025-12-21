@@ -2,6 +2,9 @@
 
 <!-- Smoke: validate infra-flash per-commit comment stream (post-merge) -->
 
+> **定位**：模块维护文档（面向基础设施运维者）
+> **开发者？** → 请先看 [开发者接入指南](../docs/onboarding/README.md)
+
 **Scope**:
 - **Secrets**: Vault (PostgreSQL storage backend, Agent Injector)
 - **Platform DB**: PostgreSQL (for Vault)
