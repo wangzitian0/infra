@@ -4,6 +4,28 @@
 # Layer: L2 Platform (Control Plane / Entitlements)
 # =============================================================================
 
+# Declarative imports to adopt existing resources (idempotency)
+import {
+  to = clickhousedbops_user.signoz
+  id = "signoz"
+}
+
+import {
+  to = clickhousedbops_database.signoz_traces
+  id = "signoz_traces"
+}
+
+import {
+  to = clickhousedbops_database.signoz_metrics
+  id = "signoz_metrics"
+}
+
+import {
+  to = clickhousedbops_database.signoz_logs
+  id = "signoz_logs"
+}
+
+
 # 1. Generate Password for SigNoz internal user
 resource "random_password" "signoz_clickhouse" {
   length  = 24
