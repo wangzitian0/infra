@@ -50,9 +50,15 @@ if [[ $total -eq 1 ]]; then
 fi
 
 covered=0
+missing_dirs=()
+covered_dirs=()
+
 for dir in "${dirs_to_check[@]}"; do
   if [[ -n "$readme_dirs" ]] && grep -Fxq "$dir" <<<"$readme_dirs"; then
     covered=$((covered + 1))
+    covered_dirs+=("$dir")
+  else
+    missing_dirs+=("$dir")
   fi
 done
 
@@ -61,4 +67,25 @@ MIN_RATIO=0.6
 ratio=$(awk "BEGIN {printf \"%.2f\", $covered/$total}")
 echo "README coverage: $ratio ($covered/$total directories updated, threshold: $MIN_RATIO)"
 
-awk "BEGIN { if ($ratio < $MIN_RATIO) exit 1 }"
+# Print details
+if [[ ${#covered_dirs[@]} -gt 0 ]]; then
+  echo ""
+  echo "✅ READMEs updated:"
+  for dir in "${covered_dirs[@]}"; do
+    echo "   - $dir"
+  done
+fi
+
+if [[ ${#missing_dirs[@]} -gt 0 ]]; then
+  echo ""
+  echo "❌ READMEs need update:"
+  for dir in "${missing_dirs[@]}"; do
+    echo "   - $dir/README.md"
+  done
+fi
+
+if awk "BEGIN { if ($ratio < $MIN_RATIO) exit 0; else exit 1 }"; then
+  echo ""
+  echo "💡 Tip: Update the README.md files listed above, or reduce scope of changes."
+  exit 1
+fi
