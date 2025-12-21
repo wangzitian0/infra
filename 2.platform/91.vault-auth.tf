@@ -1,6 +1,6 @@
 # Vault OIDC Authentication Configuration
 # Connects Vault to Casdoor for SSO login
-# Retry: 2025-12-17 trigger apply
+# Refactored to use Identity Groups for automatic permission mapping
 
 resource "vault_jwt_auth_backend" "oidc" {
   count = local.casdoor_oidc_enabled ? 1 : 0
@@ -12,10 +12,10 @@ resource "vault_jwt_auth_backend" "oidc" {
   oidc_client_id     = "vault-oidc"
   oidc_client_secret = local.vault_oidc_client_secret
 
-  # Auto-select role based on user's Casdoor roles
-  # Priority: vault-admin > vault-developer > vault-viewer
-  # If no role matches, falls back to viewer
-  default_role = "vault-viewer"
+  # default_role is used when no role is specified during login.
+  # We use a single 'default' role for everyone, and rely on Identity Groups
+  # to assign specific permissions based on JWT claims.
+  default_role = "default"
 
   tune {
     default_lease_ttl = "1h"
@@ -23,7 +23,6 @@ resource "vault_jwt_auth_backend" "oidc" {
     token_type        = "default-service"
   }
 
-  # Shift-left: Ensure Casdoor apps are configured first
   depends_on = [data.http.casdoor_oidc_discovery]
 
   lifecycle {
@@ -35,57 +34,26 @@ resource "vault_jwt_auth_backend" "oidc" {
 }
 
 # =============================================================================
-# Vault OIDC Roles (Casdoor Role-Based Mapping)
+# Vault OIDC Roles (Single Entry Point)
 # =============================================================================
 
-# Admin Role: Full access for vault-admin Casdoor role
-resource "vault_jwt_auth_backend_role" "vault_admin" {
+# Default Role: The single entry point for all OIDC users.
+# It grants base access (viewer) and maps Identity Groups for higher privileges.
+resource "vault_jwt_auth_backend_role" "default" {
   count = local.casdoor_oidc_enabled ? 1 : 0
 
   backend    = vault_jwt_auth_backend.oidc[0].path
-  role_name  = "vault-admin"
+  role_name  = "default"
   user_claim = "sub"
   role_type  = "oidc"
 
-  # Required: must match the client_id used in Casdoor
-  bound_audiences = ["vault-oidc"]
-
-  # Only allow users with vault-admin role in Casdoor
-  # Casdoor returns roles as array in JWT token's "roles" claim
-  bound_claims = {
-    roles = "vault-admin"
-  }
-
-  # OIDC scopes to request
-  oidc_scopes = ["openid", "profile", "email"]
-
-  allowed_redirect_uris = [
-    "https://secrets.${local.internal_domain}/ui/vault/auth/oidc/oidc/callback",
-    "http://localhost:8250/oidc/callback"
-  ]
-
-  token_policies = ["admin"]
-  token_ttl      = 3600
-
-  # Enable verbose logging for debugging OIDC issues
-  verbose_oidc_logging = true
-}
-
-# Developer Role: Read/write access for vault-developer Casdoor role
-resource "vault_jwt_auth_backend_role" "vault_developer" {
-  count = local.casdoor_oidc_enabled ? 1 : 0
-
-  backend    = vault_jwt_auth_backend.oidc[0].path
-  role_name  = "vault-developer"
-  user_claim = "sub"
-  role_type  = "oidc"
+  # Map the 'roles' claim from JWT to Vault Identity Groups
+  groups_claim = "roles"
 
   bound_audiences = ["vault-oidc"]
-
-  # Only allow users with vault-developer role in Casdoor
-  bound_claims = {
-    roles = "vault-developer"
-  }
+  
+  # No bound_claims: Allow all valid Casdoor users to login.
+  # Authorization is handled by Identity Groups below.
 
   oidc_scopes = ["openid", "profile", "email"]
 
@@ -94,67 +62,144 @@ resource "vault_jwt_auth_backend_role" "vault_developer" {
     "http://localhost:8250/oidc/callback"
   ]
 
-  token_policies = ["developer"]
-  token_ttl      = 3600
-
-  verbose_oidc_logging = true
-}
-
-# Viewer Role: Read-only access for vault-viewer Casdoor role
-resource "vault_jwt_auth_backend_role" "vault_viewer" {
-  count = local.casdoor_oidc_enabled ? 1 : 0
-
-  backend    = vault_jwt_auth_backend.oidc[0].path
-  role_name  = "vault-viewer"
-  user_claim = "sub"
-  role_type  = "oidc"
-
-  bound_audiences = ["vault-oidc"]
-
-  # Only allow users with vault-viewer role in Casdoor
-  bound_claims = {
-    roles = "vault-viewer"
-  }
-
-  oidc_scopes = ["openid", "profile", "email"]
-
-  allowed_redirect_uris = [
-    "https://secrets.${local.internal_domain}/ui/vault/auth/oidc/oidc/callback",
-    "http://localhost:8250/oidc/callback"
-  ]
-
+  # Base policy for everyone (least privilege)
   token_policies = ["viewer"]
   token_ttl      = 3600
 
   verbose_oidc_logging = true
 }
 
-# Legacy 'reader' role for backward compatibility
-# Maps to vault-viewer
+# Legacy 'reader' role alias for backward compatibility scripts
 resource "vault_jwt_auth_backend_role" "reader" {
   count = local.casdoor_oidc_enabled ? 1 : 0
 
-  backend    = vault_jwt_auth_backend.oidc[0].path
-  role_name  = "reader"
+  backend   = vault_jwt_auth_backend.oidc[0].path
+  role_name = "reader" 
+  # Reuse configuration from default
   user_claim = "sub"
   role_type  = "oidc"
-
+  groups_claim = "roles"
   bound_audiences = ["vault-oidc"]
-
-  # No bound_claims - accessible to anyone
-  # Fallback role for users without specific Casdoor roles
-
   oidc_scopes = ["openid", "profile", "email"]
-
   allowed_redirect_uris = [
     "https://secrets.${local.internal_domain}/ui/vault/auth/oidc/oidc/callback",
     "http://localhost:8250/oidc/callback"
   ]
+  token_policies = ["viewer"]
+  token_ttl = 3600
+}
 
-  token_policies = ["reader"]
-  token_ttl      = 3600
+# =============================================================================
+# Vault Identity Groups (RBAC Core)
+# =============================================================================
 
-  verbose_oidc_logging = true
+# Admin Group
+resource "vault_identity_group" "admin" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name     = "admin"
+  type     = "external"
+  policies = ["admin"]
+
+  metadata = {
+    source = "casdoor-oidc"
+  }
+}
+
+# Developer Group
+resource "vault_identity_group" "developer" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name     = "developer"
+  type     = "external"
+  policies = ["developer"]
+}
+
+# Viewer Group (Explicit)
+# Note: 'default' role already grants viewer policy, but this group
+# allows for future viewer-specific logic if needed.
+resource "vault_identity_group" "viewer" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name     = "viewer"
+  type     = "external"
+  policies = ["viewer"]
+}
+
+# =============================================================================
+# Vault Identity Group Aliases (Mapping Casdoor Roles to Vault Groups)
+# =============================================================================
+# We create multiple aliases to handle potential variations in Casdoor's 
+# role naming format (e.g. "vault-admin" vs "admin/vault-admin")
+
+# --- Admin Aliases ---
+
+resource "vault_identity_group_alias" "admin_simple" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name           = "vault-admin"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
+  canonical_id   = vault_identity_group.admin[0].id
+}
+
+resource "vault_identity_group_alias" "admin_namespaced" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name           = "admin/vault-admin"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
+  canonical_id   = vault_identity_group.admin[0].id
+}
+
+resource "vault_identity_group_alias" "admin_builtin" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name           = "built-in/vault-admin"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
+  canonical_id   = vault_identity_group.admin[0].id
+}
+
+# --- Developer Aliases ---
+
+resource "vault_identity_group_alias" "developer_simple" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name           = "vault-developer"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
+  canonical_id   = vault_identity_group.developer[0].id
+}
+
+resource "vault_identity_group_alias" "developer_namespaced" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name           = "admin/vault-developer"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
+  canonical_id   = vault_identity_group.developer[0].id
+}
+
+resource "vault_identity_group_alias" "developer_builtin" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name           = "built-in/vault-developer"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
+  canonical_id   = vault_identity_group.developer[0].id
+}
+
+# --- Viewer Aliases ---
+
+resource "vault_identity_group_alias" "viewer_simple" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name           = "vault-viewer"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
+  canonical_id   = vault_identity_group.viewer[0].id
+}
+
+resource "vault_identity_group_alias" "viewer_namespaced" {
+  count = local.casdoor_oidc_enabled ? 1 : 0
+
+  name           = "admin/vault-viewer"
+  mount_accessor = vault_jwt_auth_backend.oidc[0].accessor
+  canonical_id   = vault_identity_group.viewer[0].id
 }
 
 # =============================================================================
