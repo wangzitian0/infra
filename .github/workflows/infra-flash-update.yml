@@ -70,7 +70,7 @@ jobs:
             const isSuccess = (isApply && applyComplete) || (isPlan && planComplete) || (!hasExplicitError && (applyComplete || planComplete));
 
             const stage = isPlan ? 'Plan' : 'Apply';
-            const statusIcon = isSuccess ? '✅' : '❌';
+            const statusIcon = isSuccess ? '✅ YES' : '❌ NO';
 
             // Output for downstream jobs
             core.setOutput('is_apply_success', isApply && isSuccess ? 'true' : 'false');
