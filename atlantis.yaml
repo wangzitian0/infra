@@ -83,11 +83,11 @@ workflows:
             terraform state rm kubernetes_namespace.platform 2>/dev/null || true
 
         # Clean up old Terragrunt-generated files to prevent duplicate required_providers error
-        # This ensures a clean slate when switching from old to new file naming conventions
+        # Only clean .tf files, NOT .terraform (needed for dependency output resolution)
         - run: |
-            echo "Cleaning old generated files..."
-            rm -f versions_providers_*.tf providers_common.tf providers_layer.tf backend.tf versions.tf 2>/dev/null || true
-            rm -rf .terragrunt-cache .terraform 2>/dev/null || true
+            echo "Cleaning old generated .tf files..."
+            rm -f versions_providers_*.tf versions_providers_common.tf providers_common.tf providers_layer.tf 2>/dev/null || true
+            rm -rf .terragrunt-cache 2>/dev/null || true
             echo "✅ Cleanup complete"
 
         # Terragrunt auto-generates backend.tf and providers.tf before init
