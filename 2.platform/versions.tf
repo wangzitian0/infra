@@ -38,16 +38,6 @@ terraform {
       source  = "hashicorp/time"
       version = "~> 0.11"
     }
-    # Temporarily added back for resource cleanup (PR #336)
-    # TODO: Remove after old L2 database resources are destroyed
-    clickhousedbops = {
-      source  = "mrFunkyWisdom/clickhousedbops"
-      version = "~> 1.0"
-    }
-    postgresql = {
-      source  = "cyrilgdn/postgresql"
-      version = "~> 1.25"
-    }
   }
 }
 

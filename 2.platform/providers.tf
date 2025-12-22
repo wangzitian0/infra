@@ -42,32 +42,3 @@ data "cloudflare_zone" "internal" {
 }
 
 # NOTE: RestAPI provider is configured in 90.provider_restapi.tf
-
-# =============================================================================
-# Temporary Providers for Resource Cleanup (PR #336)
-# These providers are only needed to destroy old resources moved to L3
-# TODO: Remove after old database resources are destroyed from L2 state
-# =============================================================================
-
-# ClickHouse provider (temporary - for destroying old clickhousedbops resources)
-provider "clickhousedbops" {
-  host        = "clickhouse.data-staging.svc.cluster.local"
-  port        = 9000
-  username    = "default"
-  password    = "dummy" # Not used during destroy, but required by provider schema
-  protocol    = "native"
-  auth_config = {
-    username = "default"
-    password = "dummy"
-  }
-}
-
-# PostgreSQL provider (temporary - for destroying old postgresql resources)
-provider "postgresql" {
-  host            = "postgresql.data-staging.svc.cluster.local"
-  port            = 5432
-  username        = "postgres"
-  password        = "dummy" # Not used during destroy, but required by provider schema
-  sslmode         = "disable"
-  connect_timeout = 15
-}
