@@ -6,7 +6,7 @@ on:
     paths:
       - "1.bootstrap/**"
       - "2.platform/**"
-      - "3.data/**"
+      - "envs/**"
       - "4.apps/**"
       - ".github/workflows/deploy-k3s.yml"
       - ".github/actions/**"
