@@ -63,14 +63,24 @@ Vault must contain the following keys in `secret/data/kubero` (written by L2):
 
 Callback: `https://kcloud.<internal_domain>/auth/callback`
 
-### Multi-Environment Deployment
+### Deployment & Configuration
 
-**Old Design (deprecated)**:
-- ~~Two TF workspaces (staging/prod) each creating their own kubero namespace~~
-
-**New Design (current)**:
-- Single TF workspace (default) deploys singleton control plane
+**Architecture**: Singleton control plane (managed via Terragrunt)
+- Single deployment controls all environments
 - Kubero Pipeline/Phase manages app deployments to `apps-staging` / `apps-prod`
+- No Terraform workspace needed
+
+**Terragrunt Integration**:
+- **Backend/Providers**: Auto-generated (gitignored)
+- **State key**: `k3s/apps.tfstate` (singleton)
+
+```bash
+# Standalone usage
+cd 4.apps
+export R2_BUCKET=<bucket> R2_ACCOUNT_ID=<account-id>
+terragrunt init
+terragrunt apply
+```
 
 ## 相关文档
 
