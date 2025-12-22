@@ -92,57 +92,46 @@ jobs:
               '</details>'
             ].join('\n');
 
-            // Full skeleton with Status Table
+            // Full skeleton with Status Table (matches ops.pipeline.md Dashboard Schema)
             const skeleton = [
               MARKER,
               "## ⚡ Commit `" + sha + "` Dashboard",
               "",
-              "| Component | Status | Info/Link | Time |",
+              "| Stage | Status | Link | Time |",
               "|:---|:---:|:---|:---|",
-              `| **Static CI** | ⏳ | [Running Checks...](${runUrl}) | ${timestamp} |`,
-              "| **AI Review** | ⏳ | Pending | - |",
-              "| **Infra Plan** | ⏳ | Pending | - |",
-              "| **Infra Apply** | ⏭️ | - | - |",
-              "| **Health Check** | ⏭️ | - | - |",
+              `| Static CI | ⏳ | [Running...](${runUrl}) | ${timestamp} |`,
+              "| Infra Plan | ⏳ | Pending | - |",
+              "| Infra Apply | ⏭️ | - | - |",
+              "| AI Review | ⏭️ | - | - |",
               "",
-              "<!-- next-step-placeholder -->",
-              "⏳ **Waiting for CI...**",
-              "<!-- /next-step-placeholder -->",
+              "<details><summary>📜 Action History</summary>",
               "",
-              "---",
+              "| Action | Trigger | Output | Time |",
+              "|:---|:---|:---|:---|",
+              "<!-- history-rows -->",
               "",
-              "<!-- claude-review-placeholder -->",
+              "</details>",
               "",
-              "---",
-              "",
-              "### 🚀 Atlantis Actions",
-              "",
-              "<!-- atlantis-actions -->",
-              "| Action | Commit | Trigger | Status | Output | Time |",
-              "|:-------|:-------|:--------|:------:|:-------|:-----|",
-              "<!-- /atlantis-actions -->",
-              "",
-              "<!-- health-check-placeholder -->",
-              "",
-              "---",
               commandHelp,
               "",
-              "---",
-              "*(Dashboard auto-updates on every action)*"
+              "<!-- next-step -->",
+              "⏳ Waiting for CI...",
+              "<!-- /next-step -->"
             ].join('\n');
             
             let commentId;
             if (existing) {
-              // Preserve existing Atlantis action rows
+              // Preserve existing history rows
               let body = skeleton;
-              const actionsMatch = existing.body.match(/<!-- atlantis-actions -->([\s\S]*?)<!-- \/atlantis-actions -->/);
-              if (actionsMatch && actionsMatch[1].trim()) {
-                body = skeleton.replace(
-                  /<!-- atlantis-actions -->\n| Action[\s\S]*?<!-- \/atlantis-actions -->/,
-                  "<!-- atlantis-actions -->\n| Action | Commit | Trigger | Status | Output | Time |\n|:-------|:-------|:--------|:------:|:-------|:-----|" + actionsMatch[1] + "<!-- /atlantis-actions -->"
-                );
+              const historyMatch = existing.body.match(/<!-- history-rows -->([\s\S]*?)<\/details>/);
+              if (historyMatch && historyMatch[1].trim()) {
+                // Keep existing history rows (they're added before the marker)
+                const rows = historyMatch[1].split('\n').filter(r => r.startsWith('|')).join('\n');
+                if (rows) {
+                  body = body.replace('<!-- history-rows -->', rows + '\n<!-- history-rows -->');
+                }
               }
-              
+
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -296,43 +285,41 @@ jobs:
               /^[1-4]\.(bootstrap|platform|data|apps)\/.*\.tf$/.test(f.filename)
             );
             
+            // Next step message (concise, matches ops.pipeline.md style)
             let nextStep;
             if (!allPass) {
-              nextStep = '👉 **Recommended Next Step:** ❌ **CI failed.** Fix errors and push again.';
+              nextStep = '❌ CI failed. Fix errors and push again.';
             } else if (hasTfChanges) {
-              nextStep = '👉 **Recommended Next Step:** ⏳ **Waiting for Atlantis autoplan...** (Then comment `atlantis apply`)';
+              nextStep = '⏳ Waiting for Atlantis autoplan...';
             } else {
-              nextStep = '👉 **Recommended Next Step:** ✅ **No Terraform changes.** Ready to merge!';
+              nextStep = '✅ No TF changes. Ready to merge!';
             }
-            
+
             let body = existingComment.data.body;
 
-            // 1. Update Status Table Row for CI
+            // 1. Update Status Table Row for CI (matches ops.pipeline.md schema - no bold)
             body = body.replace(
-              /\| \*\*Static CI\*\* \| .* \| .* \| .* \|/,
-              `| **Static CI** | ${statusIcon} | [View Run](${runUrl}) | ${timestamp} |`
+              /\| Static CI \| .* \| .* \| .* \|/,
+              `| Static CI | ${statusIcon} | [View](${runUrl}) | ${timestamp} |`
             );
 
             // 1.5 If no TF changes, mark Infra Plan/Apply as skipped
             if (!hasTfChanges) {
               body = body.replace(
-                /\| \*\*Infra Plan\*\* \| .* \| .* \| .* \|/,
-                `| **Infra Plan** | ⏭️ | No TF changes | - |`
+                /\| Infra Plan \| .* \| .* \| .* \|/,
+                `| Infra Plan | ⏭️ | No TF changes | - |`
               );
               body = body.replace(
-                /\| \*\*Infra Apply\*\* \| .* \| .* \| .* \|/,
-                `| **Infra Apply** | ⏭️ | - | - |`
+                /\| Infra Apply \| .* \| .* \| .* \|/,
+                `| Infra Apply | ⏭️ | - | - |`
               );
             }
 
-            // 2. Update Next Step using placeholder
-            const nextStepSection = `<!-- next-step-placeholder -->\n${nextStep}\n<!-- /next-step-placeholder -->`;
-            if (body.includes('<!-- next-step-placeholder -->')) {
-              body = body.replace(/<!-- next-step-placeholder -->[\s\S]*?<!-- \/next-step-placeholder -->/, nextStepSection);
-            } else {
-              // Fallback for older comments
-              body = body.replace(/👉 \*\*Recommended Next Step:\*\*.*|⏳ \*\*Waiting for CI\.\.\.\*\*/, nextStepSection);
-            }
+            // 2. Update Next Step (matches ops.pipeline.md marker)
+            body = body.replace(
+              /<!-- next-step -->[\s\S]*?<!-- \/next-step -->/,
+              `<!-- next-step -->\n${nextStep}\n<!-- /next-step -->`
+            );
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,

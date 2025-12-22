@@ -87,9 +87,10 @@ jobs:
               ? (context.payload.comment ? context.payload.comment.html_url : context.payload.review.html_url)
               : runUrl;
 
+            // Update AI Review row (matches ops.pipeline.md schema - no bold)
             let body = dashboard.body.replace(
-              /\| \*\*AI Review\*\* \| .* \| .* \| .* \|/,
-              `| **AI Review** | ${status} | ${linkText}(${linkUrl}) | ${timestamp} |`
+              /\| AI Review \| .* \| .* \| .* \|/,
+              `| AI Review | ${status} | [${linkText}](${linkUrl}) | ${timestamp} |`
             );
 
             await github.rest.issues.updateComment({
