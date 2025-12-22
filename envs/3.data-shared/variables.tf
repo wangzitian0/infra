@@ -39,7 +39,20 @@ variable "r2_bucket" {
   type        = string
 }
 
+locals {
+  # Use environment from Terragrunt if available, otherwise fallback to workspace
+  # This ensures data-staging, data-prod instead of conflicting data-default
+  env_name       = var.environment != "" ? var.environment : terraform.workspace
+  namespace_name = "data-${local.env_name}"
+}
+
 variable "r2_account_id" {
   description = "Cloudflare R2 account ID"
   type        = string
+}
+
+variable "environment" {
+  description = "Execution environment (staging, prod). Passed by Terragrunt."
+  type        = string
+  default     = ""
 }
