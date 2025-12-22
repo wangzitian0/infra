@@ -72,8 +72,8 @@ resource "helm_release" "signoz" {
         enabled = true
         image = {
           registry   = "docker.io"
-          repository = "bitnami/zookeeper"
-          tag        = "3.9.3"  # Use available tag (3.7.1 is deprecated)
+          repository = "bitnamilegacy/zookeeper"  # bitnami moved to bitnamilegacy
+          tag        = "3.9.3-debian-12-r22"
         }
         resources = {
           requests = { cpu = "50m", memory = "128Mi" }
