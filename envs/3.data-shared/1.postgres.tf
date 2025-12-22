@@ -15,16 +15,12 @@
 # Namespace (per-environment: data-staging, data-prod)
 # =============================================================================
 
-locals {
-  namespace_name = "data-${terraform.workspace}"
-}
-
 resource "kubernetes_namespace" "data" {
   metadata {
     name = local.namespace_name
     labels = {
       layer = "L3"
-      env   = terraform.workspace
+      env   = local.env_name
     }
   }
 }
