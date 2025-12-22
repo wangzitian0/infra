@@ -16,3 +16,13 @@ data "terraform_remote_state" "l2_platform" {
     use_path_style              = true
   }
 }
+
+# Fallback for vault_database_mount until L2 is applied with new output
+# Once L2 is applied, try() will use the real output value
+locals {
+  vault_database_mount = try(
+    data.terraform_remote_state.l2_platform.outputs.vault_database_mount,
+    "database" # Fallback to hardcoded value if L2 hasn't been applied yet
+  )
+}
+

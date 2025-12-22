@@ -129,7 +129,7 @@ resource "vault_kv_secret_v2" "postgres" {
 # =============================================================================
 
 resource "vault_database_secret_backend_connection" "postgres" {
-  backend       = data.terraform_remote_state.l2_platform.outputs.vault_database_mount
+  backend       = local.vault_database_mount
   name          = "postgres"
   allowed_roles = ["postgres-readonly", "postgres-readwrite"]
 
@@ -146,7 +146,7 @@ resource "vault_database_secret_backend_connection" "postgres" {
 
 # Readonly role for app queries
 resource "vault_database_secret_backend_role" "postgres_readonly" {
-  backend     = data.terraform_remote_state.l2_platform.outputs.vault_database_mount
+  backend     = local.vault_database_mount
   name        = "postgres-readonly"
   db_name     = vault_database_secret_backend_connection.postgres.name
   default_ttl = 3600  # 1 hour
@@ -166,7 +166,7 @@ resource "vault_database_secret_backend_role" "postgres_readonly" {
 
 # Readwrite role for app CRUD operations
 resource "vault_database_secret_backend_role" "postgres_readwrite" {
-  backend     = data.terraform_remote_state.l2_platform.outputs.vault_database_mount
+  backend     = local.vault_database_mount
   name        = "postgres-readwrite"
   db_name     = vault_database_secret_backend_connection.postgres.name
   default_ttl = 3600  # 1 hour
