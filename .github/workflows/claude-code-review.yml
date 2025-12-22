@@ -5,7 +5,6 @@ on:
   workflow_run:
     workflows: ["Update infra-flash Comment"]
     types: [completed]
-    branches: [main]
 
 jobs:
   claude-review:
