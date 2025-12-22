@@ -46,17 +46,19 @@ generate "providers" {
       skip_tls_verify = true
     }
 
-    provider "clickhousedbops" {
-      host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.data-staging.svc.cluster.local"
-      port     = 8123
-      protocol = "http"
-
-      auth_config = {
-        strategy = "basicauth"
-        username = "default"
-        password = random_password.l3_clickhouse.result
-      }
-    }
+    # DISABLED: ClickHouse management moved to L3/L4 to avoid chicken-and-egg dependency
+    # L2 is singleton but hard-coded data-staging host, causing plan failures when ClickHouse unavailable
+    # provider "clickhousedbops" {
+    #   host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.data-staging.svc.cluster.local"
+    #   port     = 8123
+    #   protocol = "http"
+    #
+    #   auth_config = {
+    #     strategy = "basicauth"
+    #     username = "default"
+    #     password = random_password.l3_clickhouse.result
+    #   }
+    # }
 
     # Cloudflare zone data source for internal domain (used by Casdoor DNS)
     data "cloudflare_zone" "internal" {
@@ -111,10 +113,11 @@ generate "required_providers" {
           source  = "hashicorp/time"
           version = "~> 0.11"
         }
-        clickhousedbops = {
-          source  = "ClickHouse/clickhousedbops"
-          version = "1.1.0"
-        }
+        # DISABLED: ClickHouse management moved to L3/L4
+        # clickhousedbops = {
+        #   source  = "ClickHouse/clickhousedbops"
+        #   version = "1.1.0"
+        # }
       }
     }
   EOF
