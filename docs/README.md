@@ -29,7 +29,7 @@
 3. **[使用数据库](./onboarding/03.database.md)** - PostgreSQL/Redis/ClickHouse
 4. **[管理密钥](./onboarding/04.secrets.md)** - Vault 接入
 5. **[接入 SSO](./onboarding/05.sso.md)** - Casdoor OIDC
-6. **[监控和分析](./onboarding/06.observability.md)** - SigNoz + PostHog
+6. **[监控和分析](./onboarding/06.observability.md)** - SigNoz + OpenPanel
 
 **推荐路径**：按顺序阅读 1 → 2 → 根据需求选择 3-6
 
@@ -60,7 +60,7 @@
 **Ops（运维）**：
 - [流程汇总](./ssot/ops.pipeline.md) - CI/CD 工作流
 - [故障恢复](./ssot/ops.recovery.md) - 紧急恢复手册
-- [可观测性](./ssot/ops.observability.md) - SigNoz/PostHog 架构
+- [可观测性](./ssot/ops.observability.md) - SigNoz/OpenPanel 架构
 
 ---
 

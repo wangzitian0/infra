@@ -131,13 +131,13 @@ kubectl get pods -A # 查看所有 pods
 - Phase 0.x：k3s + Infisical（后续所有密码都存 Infisical）
 - Phase 1.x：Kubernetes Dashboard、Kubero、Kubero UI、应用 PostgreSQL
 - Phase 2.x：数据服务（Neo4j、Redis、ClickHouse）
-- Phase 3.x：可观测/产品分析（SigNoz、PostHog）
+- Phase 3.x：可观测/产品分析（SigNoz、OpenPanel）
 
 **BRN-007：多环境自动化（后期）**
 
 - [ ] 五环境配置（dev/ci/test/staging/prod）
 - [ ] 评论驱动 CI/CD（`/plan`, `/apply` 命令）
-- [ ] 可观测性（SigNoz + PostHog）
+- [ ] 可观测性（SigNoz + OpenPanel）
 - [ ] 开发者门户（Backstage）
 
 ## 相关文档

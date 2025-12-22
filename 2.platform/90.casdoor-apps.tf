@@ -206,13 +206,15 @@ data "http" "casdoor_oidc_discovery" {
 }
 
 # =============================================================================
-# 3. SAML Applications (PostHog)
+# 3. SAML Applications (OpenPanel)
 # =============================================================================
 
-# PostHog SAML Application
-# NOTE: SAML configuration is experimental. If it fails, PostHog can still
-# be deployed with local auth. SAML can be configured manually in PostHog UI.
-resource "restapi_object" "app_posthog_saml" {
+# OpenPanel SAML Application
+# NOTE: OpenPanel SAML support is not yet verified in documentation.
+# If SAML is not supported, OpenPanel can be deployed with:
+# 1. Local auth (email/password) - enabled by default
+# 2. OAuth2 Proxy as authentication gateway
+resource "restapi_object" "app_openpanel_saml" {
   count = local.casdoor_oidc_enabled ? 1 : 0
 
   path          = "/add-application"
@@ -226,16 +228,17 @@ resource "restapi_object" "app_posthog_saml" {
   data = jsonencode({
     owner        = "admin"
     organization = "built-in"
-    name         = "posthog-saml"
-    displayName  = "PostHog SAML"
+    name         = "openpanel-saml"
+    displayName  = "OpenPanel SAML"
 
-    # SAML-specific configuration (fields to be validated via Casdoor API)
-    # If these fields are incorrect, Terraform plan/apply will fail
-    # gracefully without affecting other applications.
+    # SAML-specific configuration
+    # WARNING: OpenPanel SAML callback URL not verified in official docs.
+    # Common patterns: /auth/saml/callback, /api/auth/saml/acs, /complete/saml/
+    # May need manual verification after deployment.
     enableSamlCompress = true
-    samlReplyUrl       = "https://posthog.${local.internal_domain}/complete/saml/"
+    samlReplyUrl       = "https://openpanel.${local.internal_domain}/auth/saml/callback"
 
-    # SAML attribute mapping (PostHog expects these attributes)
+    # SAML attribute mapping (standard attributes)
     samlAttributes = [
       { name = "email", value = "email" },
       { name = "firstName", value = "firstName" },
@@ -262,7 +265,6 @@ resource "restapi_object" "app_posthog_saml" {
   depends_on = [restapi_object.provider_github]
 
   # NOTE: If this resource fails, it will not block other Casdoor apps
-  # (Vault/Kubero) due to independent resource graphs. PostHog deployment
-  # in L4 will check for SAML app existence and gracefully degrade to
-  # local auth if SAML is unavailable.
+  # (Vault/Kubero) due to independent resource graphs. OpenPanel deployment
+  # in L4 can proceed with local auth if SAML is unavailable.
 }

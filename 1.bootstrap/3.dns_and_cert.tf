@@ -8,7 +8,7 @@ locals {
     kcloud     = true  # HTTPS via proxy
     kapi       = true  # HTTPS via proxy
     signoz     = true  # HTTPS via proxy
-    posthog    = true  # HTTPS via proxy
+    openpanel  = true  # HTTPS via proxy
     sso        = false # SSO (Casdoor) - DNS only (avoid Cloudflare caching/WAF issues)
     k3s        = false # API on 6443, must stay DNS-only
   }
