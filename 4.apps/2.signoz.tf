@@ -47,8 +47,9 @@ resource "helm_release" "signoz" {
   chart      = "signoz"
   version    = "0.52.0" # Pin version for reproducibility
 
-  wait    = true
-  timeout = 600 # 10 minutes
+  wait          = false  # Don't wait - SigNoz has complex startup dependencies
+  wait_for_jobs = false
+  timeout       = 600 # 10 minutes
 
   values = [yamlencode({
     # ============================================================
