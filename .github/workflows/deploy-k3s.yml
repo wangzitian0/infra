@@ -15,6 +15,7 @@ on:
 env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
+  TG_NON_INTERACTIVE: "true"
 
 jobs:
   apply:
@@ -117,7 +118,7 @@ jobs:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
           # Terragrunt auto-generates backend.tf and providers
-          terragrunt apply --terragrunt-non-interactive -auto-approve
+          terragrunt apply -auto-approve
 
       - name: Verify L2 (Vault Status)
         env:
@@ -160,7 +161,7 @@ jobs:
           trap "kill $PID 2>/dev/null || true" EXIT
 
           # Terragrunt auto-generates backend.tf and detects environment from path
-          terragrunt apply --terragrunt-non-interactive -auto-approve -var="clickhouse_host=127.0.0.1"
+          terragrunt apply -auto-approve -var="clickhouse_host=127.0.0.1"
 
       - name: Verify Data Services Health (L3)
         if: github.event_name == 'push'
@@ -218,7 +219,7 @@ jobs:
         run: |
           if ls *.tf 1> /dev/null 2>&1; then
             # Terragrunt auto-generates backend.tf and providers
-            terragrunt apply --terragrunt-non-interactive -auto-approve || {
+            terragrunt apply -auto-approve || {
                echo "::error::L4 Apps Apply failed."
                exit 1
             }

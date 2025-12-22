@@ -101,7 +101,7 @@ runs:
         if [ -f "terragrunt.hcl" ] || [ -L "terragrunt.hcl" ]; then
           echo "🌿 Detected Terragrunt project, using terragrunt init"
           # Terragrunt auto-generates backend.tf from root config
-          terragrunt init --terragrunt-non-interactive
+          TG_NON_INTERACTIVE=true terragrunt init
         else
           echo "🔧 Detected native Terraform project, using terraform init"
           # L1 bootstrap uses native Terraform with manual backend config

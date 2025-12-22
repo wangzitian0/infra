@@ -93,7 +93,7 @@ jobs:
               : 'autoplan';
 
             // Build compact status header
-            const statusIcon = isSuccess ? '✅' : '❌';
+            const statusIcon = isSuccess ? '✅ YES' : '❌ NO';
             const statusText = isSuccess ? 'Succeeded' : 'Failed';
 
             // Build next step guidance - only show apply command if all plans succeed
