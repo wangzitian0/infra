@@ -116,41 +116,8 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
-          # Start port-forward for ClickHouse provider (L2 uses data-staging)
-          echo "Starting ClickHouse port-forward for L2..."
-          kubectl -n data-staging port-forward svc/clickhouse 8123:8123 > /dev/null 2>&1 &
-          CH_PID=$!
-
-          # Wait for port-forward to be ready
-          echo "Waiting for port 8123..."
-          for i in {1..30}; do
-            if curl -s http://127.0.0.1:8123/ping >/dev/null 2>&1; then
-              echo "✅ ClickHouse port-forward ready"
-              break
-            fi
-            sleep 1
-          done
-
-          # Start port-forward for PostgreSQL provider (L2 uses data-staging)
-          echo "Starting PostgreSQL port-forward for L2..."
-          kubectl -n data-staging port-forward svc/postgresql 5432:5432 > /dev/null 2>&1 &
-          PG_PID=$!
-
-          # Wait for port-forward to be ready
-          echo "Waiting for port 5432..."
-          for i in {1..30}; do
-            if nc -z 127.0.0.1 5432 2>/dev/null; then
-              echo "✅ PostgreSQL port-forward ready"
-              break
-            fi
-            sleep 1
-          done
-
           terraform workspace select default || terraform workspace new default
-
-          trap "kill $CH_PID $PG_PID 2>/dev/null || true" EXIT
-
-          terraform apply -auto-approve -var="clickhouse_host=127.0.0.1" -var="postgres_host=127.0.0.1"
+          terraform apply -auto-approve
 
       - name: Verify L2 (Vault Status)
         env:
