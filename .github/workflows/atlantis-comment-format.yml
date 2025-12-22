@@ -62,9 +62,13 @@ jobs:
             const dir = dirMatch ? dirMatch[1] : 'unknown';
             const workspace = workspaceMatch ? workspaceMatch[1] : 'default';
 
-            // Check for errors
-            const hasError = /\*\*(Plan|Apply) Error\*\*|exit status [1-9]|panic:|terraform:.*failed/i.test(body);
-            const isSuccess = !hasError;
+            // Check for success/error - prioritize success indicators over error patterns
+            // IMPORTANT: terragrunt WARN messages should not cause false failures
+            const applyComplete = /Apply complete!/i.test(body);
+            const planComplete = /Plan:.*to (add|import|change|destroy)/i.test(body);
+            const hasExplicitError = /\*\*(Plan|Apply) Error\*\*|panic:|Error:|terraform:.*failed/i.test(body) && 
+                                     !applyComplete && !planComplete;
+            const isSuccess = (isApply && applyComplete) || (isPlan && !hasExplicitError) || (!hasExplicitError && (applyComplete || planComplete));
 
             // Extract plan summary
             const summaryMatch = body.match(/Plan: (\d+) to (add|import), (\d+) to change, (\d+) to destroy/);
@@ -88,42 +92,27 @@ jobs:
               ? `[@${triggerComment.user.login.replace('[bot]', '')}](${triggerComment.html_url})`
               : 'autoplan';
 
-            // Build status header - most important info first
+            // Build compact status header
             const statusIcon = isSuccess ? '✅' : '❌';
             const statusText = isSuccess ? 'Succeeded' : 'Failed';
-            const header = `## ${statusIcon} ${stage} ${statusText}`;
 
-            // Build next step guidance
+            // Build next step guidance - only show apply command if all plans succeed
             let nextStep;
             if (isPlan && isSuccess) {
-              nextStep = `\`\`\`\natlantis apply -p ${project}\n\`\`\``;
+              nextStep = `Run \`atlantis apply -p ${project}\``;
             } else if (isPlan && !isSuccess) {
-              nextStep = 'Fix errors below, then run `atlantis plan`';
+              nextStep = 'Fix errors, then `atlantis plan`';
             } else if (isApply && isSuccess) {
-              nextStep = 'Ready to merge!';
+              nextStep = '✨ Ready to merge';
             } else {
-              nextStep = 'Fix errors below, then re-run `atlantis plan`';
+              nextStep = 'Fix errors, then `atlantis plan`';
             }
 
-            // Rebuild comment with UX-focused structure:
-            // 1. Status (most visible)
-            // 2. Location info (structured)
-            // 3. Next step (actionable, visible)
-            // 4. Details (folded)
+            // Compact format: Status | Project | Summary | Next step
             const formattedBody = [
-              header,
-              '',
-              '| | |',
-              '|:---|:---|',
-              `| **Project** | \`${project}\` |`,
-              `| **Dir** | \`${dir}\` |`,
-              `| **Workspace** | \`${workspace}\` |`,
-              `| **Triggered by** | ${triggerRef} |`,
-              '',
+              `## ${statusIcon} ${stage} ${statusText} | \`${project}\``,
               planSummary ? `**${planSummary}**` : '',
-              '',
-              '### 💡 Next Step',
-              nextStep,
+              `📍 \`${dir}\` | 🎯 ${triggerRef} | 💡 ${nextStep}`,
               '',
               '<details><summary>📜 Output</summary>',
               '',
