@@ -1,6 +1,12 @@
 # L2 Platform Variables (Vault)
 # Populated via TF_VAR_* from 1.bootstrap/2.atlantis.tf
 
+variable "environment" {
+  description = "Environment name (passed from terragrunt inputs, not used in L2 but declared for consistency)"
+  type        = string
+  default     = "default"
+}
+
 variable "kubeconfig_path" {
   description = "Path to kubeconfig file (set via TF_VAR_kubeconfig_path in Atlantis)"
   type        = string
