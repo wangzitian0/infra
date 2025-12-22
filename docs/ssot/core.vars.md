@@ -36,7 +36,7 @@
 | Flag | 层级 | 默认值 | 作用 |
 |------|------|--------|------|
 | `enable_infra` | L1 | `true` | 是否部署共享基础设施 |
-| `enable_observability` | L1 | `false` | 是否部署 SigNoz/PostHog |
+| `enable_observability` | L1 | `false` | 是否部署 SigNoz/OpenPanel |
 | `enable_ssl` | L1 | `true` | 是否启用 TLS |
 
 ## 完整变量位置

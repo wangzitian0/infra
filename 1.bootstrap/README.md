@@ -81,5 +81,12 @@ L1 Atlantis passes the following variables to L2/L3:
 - **Reason**: Bitnami deprecated HTTP chart repository in favor of OCI registry
 - **Image Pin**: Use the chart default image tag (pinned via chart version). Do **NOT** override to `latest` (breaks reproducibility).
 
+## Recent Changes
+
+### 2025-12-22: OpenPanel Analytics Integration
+- **DNS**: Added `openpanel.internal.domain` subdomain for OpenPanel analytics platform
+- **Purpose**: Replaced PostHog with OpenPanel for product analytics and event tracking
+- **Location**: Uses internal domain (non-proxied) for L4 application layer
+
 ---
-*Last updated: 2025-12-20*
+*Last updated: 2025-12-22*
