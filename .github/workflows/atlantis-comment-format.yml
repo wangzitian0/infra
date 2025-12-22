@@ -96,7 +96,7 @@ jobs:
             // Build next step guidance
             let nextStep;
             if (isPlan && isSuccess) {
-              nextStep = `\`\`\`\natl apply -p ${project}\n\`\`\``;
+              nextStep = `\`\`\`\natlantis apply -p ${project}\n\`\`\``;
             } else if (isPlan && !isSuccess) {
               nextStep = 'Fix errors below, then run `atlantis plan`';
             } else if (isApply && isSuccess) {
