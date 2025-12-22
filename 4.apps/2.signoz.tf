@@ -47,7 +47,7 @@ resource "helm_release" "signoz" {
   chart      = "signoz"
   version    = "0.52.0" # Pin version for reproducibility
 
-  wait          = false  # Don't wait - SigNoz has complex startup dependencies
+  wait          = false # Don't wait - SigNoz has complex startup dependencies
   wait_for_jobs = false
   timeout       = 600 # 10 minutes
 
@@ -73,7 +73,7 @@ resource "helm_release" "signoz" {
         enabled = true
         image = {
           registry   = "docker.io"
-          repository = "bitnamilegacy/zookeeper"  # bitnami moved to bitnamilegacy
+          repository = "bitnamilegacy/zookeeper" # bitnami moved to bitnamilegacy
           tag        = "3.9.3-debian-12-r22"
         }
         resources = {
