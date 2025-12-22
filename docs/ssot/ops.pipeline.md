@@ -115,56 +115,57 @@ sequenceDiagram
 
 ## 5. Dashboard Schema
 
-每个 `infra-flash` 评论遵循以下结构：
+每个 `infra-flash` 评论遵循紧凑结构（~12行可见）：
 
 ```markdown
 <!-- infra-flash-commit:{7位SHA} -->
 ## ⚡ Commit `{SHA}` Dashboard
 
-| Component | Status | Info/Link | Time |
+| Stage | Status | Link | Time |
 |:---|:---:|:---|:---|
-| **Static CI** | {⏳/✅/❌} | [View Run]({url}) | {HH:MM UTC} |
-| **AI Review** | {⏳/✅/⏭️} | {Pending/link} | {time} |
-| **Infra Plan** | {⏳/✅/❌/⏭️} | {status/link} | {time} |
-| **Infra Apply** | {⏳/✅/❌/⏭️} | {status/link} | {time} |
-| **Health Check** | {⏳/✅/⏭️} | {status/link} | {time} |
+| Static CI | {⏳/✅/❌} | [View]({url}) | {HH:MM UTC} |
+| Infra Plan | {⏳/✅/❌/⏭️} | [View]({url}) | {time} |
+| Infra Apply | {⏳/✅/❌/⏭️} | [View]({url}) | {time} |
+| AI Review | {⏳/✅/⏭️} | [View]({url}) | {time} |
 
----
-<!-- claude-review-placeholder -->
+<details><summary>📜 Action History</summary>
 
----
-### 🚀 Atlantis Actions
-<!-- atlantis-actions -->
-| Action | Commit | Trigger | Status | Output | Time |
-|:-------|:-------|:--------|:------:|:-------|:-----|
-{追加的action记录}
-<!-- /atlantis-actions -->
+| Action | Trigger | Output | Time |
+|:---|:---|:---|:---|
+| Plan | [@user]({trigger_url}) 👀 | [result]({output_url}) | {time} |
+| Apply | [@user]({trigger_url}) 👀 | [result]({output_url}) | {time} |
+<!-- history-rows -->
 
-<!-- health-check-placeholder -->
+</details>
 
----
-<details><summary>📖 Available Infra Commands</summary>
+<details><summary>📖 Commands</summary>
 
 | Command | Description |
 |:---|:---|
-| `infra dig` | Run connectivity tests |
-| `infra help` | Show this help |
-| `atlantis plan` | Force a new terraform plan |
-| `atlantis apply` | Apply the current plan |
+| `atlantis plan` | Re-run plan |
+| `atlantis apply` | Deploy changes |
+
 </details>
 
----
-👉 **Recommended Next Step:** {下一步建议}
+<!-- next-step -->
+{下一步建议}
+<!-- /next-step -->
 ```
+
+### 设计原则
+
+1. **紧凑主体**: 主表 4 行状态，其余折叠
+2. **正确顺序**: Static CI → Plan → Apply → AI Review（执行顺序）
+3. **👀 反馈链**: 人类 `atlantis plan/apply` 评论收到 👀，表示已开始处理
+4. **触发溯源**: History 表中 Trigger 列链接到触发评论
 
 ### Marker 规范
 
 | Marker | 用途 | 更新者 |
 |:---|:---|:---|
 | `<!-- infra-flash-commit:{sha} -->` | Dashboard 锁定标识 | terraform-plan.yml |
-| `<!-- claude-review-placeholder -->` | AI Review 插入点 | claude.yml |
-| `<!-- atlantis-actions -->` | Atlantis 记录表格区域 | infra-flash-update.yml |
-| `<!-- health-check-placeholder -->` | Health Check 插入点 | infra-commands.yml |
+| `<!-- history-rows -->` | Action History 插入点 | infra-flash-update.yml |
+| `<!-- next-step -->` | 下一步建议区域 | infra-flash-update.yml |
 
 ---
 
@@ -351,8 +352,8 @@ Terraform 版本通过 **`.terraform-version`** 文件统一管理，确保四�
 | Atlantis Apply 回写 | 更新 Infra Apply 行 | ✅ | 已通过 `infra-flash-update.yml` 实现 |
 | @claude 手动触发 | 响应评论执行任务 | ✅ | 已实现，但未回写 Dashboard |
 | infra dig | 更新 Health Check | ✅ | 已实现，但需在 main 生效 |
-| Claude 自动 review | apply 后自动触发 | ✅ | 已通过 `claude-code-review.yml` 实现，但未回写 Dashboard |
-| AI Review 回写 Dashboard | 更新 AI Review 行 | ❌ | **Drift**: 尚未实现状态回写 |
+| Claude 自动 review | apply 后自动触发 | ✅ | 已通过 `claude-code-review.yml` 实现 |
+| AI Review 回写 Dashboard | 更新 AI Review 行 | ✅ | 已在 `claude-code-review.yml` 中实现 |
 
 ### TODO Backlog
 
@@ -365,10 +366,9 @@ Terraform 版本通过 **`.terraform-version`** 文件统一管理，确保四�
 
 #### P1 - 功能完善
 
-- [ ] **AI Review 回写 Dashboard**: 
-    - [ ] 在 `claude.yml` 中添加回写 Dashboard 的步骤
-    - [ ] 在 `claude-code-review.yml` 中添加回写 Dashboard 的步骤
+- [x] **AI Review 回写 Dashboard**: 已在 `claude-code-review.yml` 中实现
 - [ ] **验证 Atlantis Plan/Apply 回写**: 在实际 PR 中验证 `infra-flash-update.yml` 的 marker 匹配准确性
+- [ ] **@claude 手动触发回写 Dashboard**: 在 `claude.yml` 中添加回写 Dashboard 的步骤
 
 #### P2 - 健壮性增强
 

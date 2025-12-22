@@ -10,13 +10,17 @@ jobs:
     if: |
       github.event.issue.pull_request &&
       github.event.comment.user.login == 'infra-flash[bot]' &&
-      (contains(github.event.comment.body, 'Ran Plan') || 
+      (contains(github.event.comment.body, 'Ran Plan') ||
        contains(github.event.comment.body, 'Ran Apply'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       issues: write
       pull-requests: write
+    outputs:
+      is_apply_success: ${{ steps.update_dashboard.outputs.is_apply_success }}
+      pr_number: ${{ steps.update_dashboard.outputs.pr_number }}
+      head_sha: ${{ steps.pr_sha.outputs.result }}
 
     steps:
       - name: Generate App Token
@@ -40,19 +44,8 @@ jobs:
             });
             return pr.data.head.sha.substring(0, 7);
 
-      - name: Add eyes reaction to atlantis comment
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ steps.app_token.outputs.token }}
-          script: |
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: 'eyes'
-            });
-
-      - name: Update infra-flash comment
+      - name: Update Dashboard
+        id: update_dashboard
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.app_token.outputs.token }}
@@ -62,107 +55,93 @@ jobs:
             const atlantisCommentUrl = context.payload.comment.html_url;
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const currentSha = '${{ steps.pr_sha.outputs.result }}';
-            
-            // Parse commit SHA from Atlantis output (infra-flash-commit:xxxxxxx in the plan/apply output)
+
+            // Parse commit SHA from Atlantis output
             const shaMatch = atlantisBody.match(/infra-flash-commit:([0-9a-f]{7,40})/i);
             const targetSha = (shaMatch ? shaMatch[1] : currentSha).substring(0, 7);
-            
-            // 判断是 plan 还是 apply
+
             const isPlan = atlantisBody.includes('Ran Plan');
             const isApply = atlantisBody.includes('Ran Apply');
-            
-            // Atlantis 特定的失败标记（不是简单匹配 "error"）
-            // 成功: "Plan: X to add", "Apply complete!"
-            // 失败: "**Plan Error**", "**Apply Error**", "exit status 1"
-            const hasAtlantisError = /\*\*(Plan|Apply) Error\*\*|exit status [1-9]|panic:|terraform:.*failed/i.test(atlantisBody);
-            const isSuccess = !hasAtlantisError;
-            
+            const hasError = /\*\*(Plan|Apply) Error\*\*|exit status [1-9]|panic:|terraform:.*failed/i.test(atlantisBody);
+            const isSuccess = !hasError;
+
             const stage = isPlan ? 'Plan' : 'Apply';
-            const icon = isSuccess ? '✅' : '❌';
-            
-            // 获取所有评论
+            const statusIcon = isSuccess ? '✅' : '❌';
+
+            // Output for downstream jobs
+            core.setOutput('is_apply_success', isApply && isSuccess ? 'true' : 'false');
+            core.setOutput('pr_number', prNumber.toString());
+
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
               per_page: 100
             });
-            
-            // 找到触发此操作的评论（人类或 bot）
+
+            // Find trigger comment and add 👀 reaction
             const atlantisCommentTime = new Date(context.payload.comment.created_at);
             const triggerComment = comments
               .filter(c => new Date(c.created_at) < atlantisCommentTime)
               .filter(c => (c.body || '').toLowerCase().includes(`atlantis ${stage.toLowerCase()}`))
               .pop();
-            
+
+            if (triggerComment) {
+              try {
+                await github.rest.reactions.createForIssueComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: triggerComment.id,
+                  content: 'eyes'
+                });
+                console.log(`Added 👀 to trigger comment #${triggerComment.id}`);
+              } catch (e) {
+                console.log(`Could not add reaction: ${e.message}`);
+              }
+            }
+
             const prUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`;
-            
-            // Find infra-flash comment for the commit that Atlantis actually processed
-            // Use targetSha (from Atlantis output) not currentSha (PR HEAD may have moved)
             const MARKER = `<!-- infra-flash-commit:${targetSha} -->`;
-            const flashComment = comments.find(c =>
+
+            let flashComment = comments.find(c =>
               c.user.login === 'infra-flash[bot]' &&
               c.body.includes(MARKER)
             );
-            
-            if (!flashComment) {
-              console.log(`No infra-flash comment found for commit ${targetSha}. Creating skeleton now.`);
-              
-              // Define skeleton matching terraform-plan.yml
-              const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions`;
-              const commandHelp = [
-                '<details><summary>📖 Available Infra Commands</summary>',
-                '',
-                '| Command | Description | Feedback |',
-                '|:---|:---|:---|',
-                '| `atlantis plan` | Re-run infrastructure plan | Append to this table |',
-                '| `atlantis apply` | Deploy changes | Append to this table |',
-                '| `@claude review this` | AI Code Review | New comment reply |',
-                '| `infra dig` | Service Health Check | Append to dashboard |',
-                '| `infra help` | Show detailed help | New reply |',
-                '',
-                '</details>'
-              ].join('\n');
 
-              // Find trigger comment for initial autoplan
-              const triggerInfo = triggerComment
-                ? `[@${triggerComment.user.login.replace('[bot]', '')}](${triggerComment.html_url})`
-                : '[autoplan on push]';
+            if (!flashComment) {
+              console.log(`Creating dashboard for commit ${targetSha}`);
 
               const skeleton = [
                 MARKER,
                 `## ⚡ Commit \`${targetSha}\` Dashboard`,
                 "",
-                `**Triggered by:** ${triggerInfo}`,
-                "",
-                "| Component | Status | Info/Link | Time |",
+                "| Stage | Status | Link | Time |",
                 "|:---|:---:|:---|:---|",
-                "| **Static CI** | ⏳ | Pending | - |",
-                "| **AI Review** | ⏳ | Pending | - |",
-                `| **Infra Plan** | ⏳ | [Running Output](${atlantisCommentUrl}) | ${timestamp} |`,
-                "| **Infra Apply** | ⏭️ | - | - |",
-                "| **Health Check** | ⏭️ | - | - |",
+                "| Static CI | ⏳ | Pending | - |",
+                `| Infra Plan | ⏳ | [View](${atlantisCommentUrl}) | ${timestamp} |`,
+                "| Infra Apply | ⏭️ | - | - |",
+                "| AI Review | ⏭️ | - | - |",
                 "",
-                "---",
+                "<details><summary>📜 Action History</summary>",
                 "",
-                "<!-- claude-review-placeholder -->",
+                "| Action | Trigger | Output | Time |",
+                "|:---|:---|:---|:---|",
+                "<!-- history-rows -->",
                 "",
-                "---",
+                "</details>",
                 "",
-                "### 🚀 Atlantis Actions",
+                "<details><summary>📖 Commands</summary>",
                 "",
-                "<!-- atlantis-actions -->",
-                "| Action | Commit | Trigger | Status | Output | Time |",
-                "|:-------|:-------|:--------|:------:|:-------|:-----|",
-                "<!-- /atlantis-actions -->",
+                "| Command | Description |",
+                "|:---|:---|",
+                "| `atlantis plan` | Re-run plan |",
+                "| `atlantis apply` | Deploy changes |",
                 "",
-                "<!-- health-check-placeholder -->",
+                "</details>",
                 "",
-                "---",
-                commandHelp,
-                "",
-                "---",
-                "⏳ **Waiting for results...**"
+                "<!-- next-step -->",
+                "⏳ Waiting for results...",
+                "<!-- /next-step -->"
               ].join('\n');
 
               const created = await github.rest.issues.createComment({
@@ -171,75 +150,56 @@ jobs:
                 issue_number: prNumber,
                 body: skeleton
               });
-              
-              // Reload flashComment to continue update logic
               flashComment = { id: created.data.id, body: skeleton };
             }
-            
-            // 确定下一步操作
-            let nextStep = '';
-            if (isPlan && isSuccess) {
-              nextStep = '👉 **Recommended Next Step:** Review plan, then comment `atlantis apply`';
-            } else if (isApply && isSuccess) {
-              nextStep = '👉 **Recommended Next Step:** ✅ **Ready to merge!**';
-            } else if (!isSuccess) {
-              nextStep = isPlan
-                ? '👉 **Recommended Next Step:** ❌ **Plan failed.** Fix errors, then comment `atlantis plan` (or push again)'
-                : '👉 **Recommended Next Step:** ❌ **Apply failed.** Fix errors, then comment `atlantis apply`';
-            }
-            
-            let updatedBody = flashComment.body;
-            
-            // Update Global Status Table for Atlantis
-            const statusIcon = isSuccess ? '✅' : '❌';
+
+            let body = flashComment.body;
+
+            // Update status table
             if (isPlan) {
-              updatedBody = updatedBody.replace(
-                /\| \*\*Infra Plan\*\* \| .* \| .* \| .* \|/,
-                `| **Infra Plan** | ${statusIcon} | [View Output](${atlantisCommentUrl}) | ${timestamp} |`
+              body = body.replace(
+                /\| Infra Plan \| .* \| .* \| .* \|/,
+                `| Infra Plan | ${statusIcon} | [View](${atlantisCommentUrl}) | ${timestamp} |`
               );
             } else if (isApply) {
-              updatedBody = updatedBody.replace(
-                /\| \*\*Infra Apply\*\* \| .* \| .* \| .* \|/,
-                `| **Infra Apply** | ${statusIcon} | [View Output](${atlantisCommentUrl}) | ${timestamp} |`
+              body = body.replace(
+                /\| Infra Apply \| .* \| .* \| .* \|/,
+                `| Infra Apply | ${statusIcon} | [View](${atlantisCommentUrl}) | ${timestamp} |`
               );
+              // Reset AI Review to pending when apply succeeds
+              if (isSuccess) {
+                body = body.replace(
+                  /\| AI Review \| .* \| .* \| .* \|/,
+                  `| AI Review | ⏳ | Running... | ${timestamp} |`
+                );
+              }
             }
 
-            // Update Next Step using placeholder
-            const nextStepSection = `<!-- next-step-placeholder -->\n${nextStep}\n<!-- /next-step-placeholder -->`;
-            if (updatedBody.includes('<!-- next-step-placeholder -->')) {
-              updatedBody = updatedBody.replace(/<!-- next-step-placeholder -->[\s\S]*?<!-- \/next-step-placeholder -->/, nextStepSection);
-            } else {
-              // Cleanup old styles and append new section
-              updatedBody = updatedBody
-                .replace(/\n*👉 \*\*Recommended Next Step:\*\*.*/g, '')
-                .replace(/\n*⏳ \*\*Waiting for results\.\.\.\*\*/g, '')
-                .trim() + '\n\n' + nextStepSection;
-            }
+            // Build trigger link with 👀
+            const triggerLink = triggerComment
+              ? `[@${triggerComment.user.login.replace('[bot]', '')}](${triggerComment.html_url}) 👀`
+              : 'autoplan';
 
-            // 构建触发链接
-            let triggerLink;
-            if (triggerComment) {
-              const username = triggerComment.user.login.replace('[bot]', '');
-              triggerLink = `[@${username} #${triggerComment.id}](${triggerComment.html_url})`;
-            } else {
-              triggerLink = `[@autoplan #${context.payload.comment.id}](${atlantisCommentUrl})`;
+            // Add history row
+            const historyRow = `| ${stage} | ${triggerLink} | [result](${atlantisCommentUrl}) | ${timestamp} |`;
+            body = body.replace('<!-- history-rows -->', `${historyRow}\n<!-- history-rows -->`);
+
+            // Update next step
+            let nextStep = '⏳ Waiting for results...';
+            if (isPlan && isSuccess) {
+              nextStep = '👉 Review plan, then `atlantis apply`';
+            } else if (isApply && isSuccess) {
+              nextStep = '✅ **Ready to merge!** (AI Review pending)';
+            } else if (!isSuccess) {
+              nextStep = `❌ ${stage} failed. Fix and retry.`;
             }
-            const outputLink = `[output](${atlantisCommentUrl})`;
-            
-            // 构建新操作记录行
-            const commitLink = `[\`${targetSha}\`](${prUrl}/commits/${targetSha})`;
-            const actionRow = `| ${stage} | ${commitLink} | ${triggerLink} | ${statusIcon} | ${outputLink} | ${timestamp} |`;
-            
-            // 找到 Atlantis Actions 表格并追加
-            if (updatedBody.includes('<!-- atlantis-actions -->')) {
-              updatedBody = updatedBody.replace('<!-- /atlantis-actions -->', `${actionRow}\n<!-- /atlantis-actions -->`);
-            }
-            
+            body = body.replace(/<!-- next-step -->[\s\S]*?<!-- \/next-step -->/, `<!-- next-step -->\n${nextStep}\n<!-- /next-step -->`);
+
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               comment_id: flashComment.id,
-              body: updatedBody
+              body: body
             });
-            
-            console.log(`Updated infra-flash comment for ${targetSha} with ${stage} ${icon}`);
+
+            console.log(`Updated dashboard: ${stage} ${statusIcon}`);

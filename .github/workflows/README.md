@@ -23,11 +23,29 @@ graph TD
 
 ## 核心设计原则
 
-1.  **看板即真相 (Dashboard as SSOT)**: 所有流水线状态（CI、Plan、Apply、AI Review、Health Check）必须回写到对应 Commit 的唯一看板中。
-2.  **去重占位符**: 使用 `<!-- next-step-placeholder -->` 等 Marker 机制，确保看板动态更新且无冗余。
-3.  **身份隔离**:
-    - `infra-flash[bot]`: 负责所有看板管理和 Atlantis 搬运。
-    - `claude[bot]`: 负责 AI 审计与反馈。
+1.  **看板即真相 (Dashboard as SSOT)**: 所有流水线状态回写到对应 Commit 的唯一看板中。
+2.  **紧凑看板 (10-15行)**: 主表只显示核心状态，详细历史折叠在 `<details>` 中。
+3.  **👀 反馈链**: 人类 `atlantis plan/apply` 评论收到 👀 反应，表示已开始处理。
+4.  **触发溯源**: Atlantis 输出和历史表均链接回触发它的评论。
+5.  **AI Review 时机**: 仅在 Apply 成功后自动触发，更新 Dashboard 状态。
+
+### Dashboard 格式
+```markdown
+## ⚡ Commit `abc1234` Dashboard
+
+| Stage | Status | Link | Time |
+|:---|:---:|:---|:---|
+| Static CI | ✅ | [View](link) | 11:30 |
+| Infra Plan | ✅ | [View](link) | 11:32 |
+| Infra Apply | ✅ | [View](link) | 11:40 |
+| AI Review | ✅ | [View](link) | 11:45 |
+
+<details><summary>📜 Action History</summary>
+| Action | Trigger | Output | Time |
+| Plan | [@user](link) 👀 | [result](link) | 11:32 |
+| Apply | [@user](link) 👀 | [result](link) | 11:40 |
+</details>
+```
 
 ## Workflows 列表
 

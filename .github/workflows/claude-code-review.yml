@@ -1,14 +1,14 @@
 name: Claude Code Review
 
 on:
-  # Trigger when Atlantis apply completes successfully
+  # Trigger when infra-flash update completes (after Atlantis apply)
   workflow_run:
     workflows: ["Update infra-flash Comment"]
     types: [completed]
 
 jobs:
   claude-review:
-    # Only run if the apply workflow succeeded
+    # Only run if apply succeeded (check artifact or use workflow_run data)
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     permissions:
@@ -18,90 +18,137 @@ jobs:
       id-token: write
 
     steps:
-      - name: Get PR number
-        id: pr
+      - name: Download workflow info
         uses: actions/github-script@v7
+        id: check_apply
         with:
           script: |
-            const sha = context.payload.workflow_run.head_sha;
-            const pulls = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+            // Get the workflow run that triggered us
+            const run = context.payload.workflow_run;
+
+            // We need to check if this was an apply success
+            // The infra-flash-update workflow sets outputs, but we can't access them directly
+            // Instead, check the PR comments for the apply success marker
+
+            // Get PR number from the head branch
+            const headBranch = run.head_branch;
+            const headSha = run.head_sha.substring(0, 7);
+
+            // Find associated PR
+            const pulls = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              commit_sha: sha
+              head: `${context.repo.owner}:${headBranch}`,
+              state: 'open'
             });
-            const pr = pulls.data[0];
-            if (!pr) {
-              core.setFailed(`No pull request found for SHA ${sha}`);
+
+            if (pulls.data.length === 0) {
+              console.log('No open PR found for branch ' + headBranch);
+              core.setOutput('should_review', 'false');
               return;
             }
-            core.setOutput('number', pr.number);
-            core.setOutput('head_sha', pr.head.sha);
+
+            const pr = pulls.data[0];
+            core.setOutput('pr_number', pr.number.toString());
+            core.setOutput('head_sha', headSha);
+
+            // Check if latest Atlantis comment shows successful apply
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              per_page: 100
+            });
+
+            // Find most recent Atlantis apply comment
+            const applyComment = comments
+              .filter(c => c.user.login === 'infra-flash[bot]')
+              .filter(c => c.body.includes('Ran Apply'))
+              .pop();
+
+            if (!applyComment) {
+              console.log('No apply comment found');
+              core.setOutput('should_review', 'false');
+              return;
+            }
+
+            // Check if apply was successful (no error markers)
+            const hasError = /\*\*Apply Error\*\*|exit status [1-9]|panic:/i.test(applyComment.body);
+            if (hasError) {
+              console.log('Apply failed, skipping review');
+              core.setOutput('should_review', 'false');
+              return;
+            }
+
+            console.log('Apply succeeded, proceeding with review');
+            core.setOutput('should_review', 'true');
 
       - name: Checkout repository
+        if: steps.check_apply.outputs.should_review == 'true'
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.pr.outputs.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
 
       - name: Run Claude Code Review
+        if: steps.check_apply.outputs.should_review == 'true'
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ steps.pr.outputs.number }}
+            PR NUMBER: ${{ steps.check_apply.outputs.pr_number }}
 
-            Atlantis apply just completed successfully.
-
-            Please review this pull request and provide feedback on:
+            Atlantis apply completed successfully. Review this PR for:
             - Code quality and best practices
             - Potential bugs or issues
-            - Performance considerations
             - Security concerns
-            - Test coverage
 
-            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+            Use CLAUDE.md for guidance. Be concise.
+            Use `gh pr comment` to post your review.
 
-            Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
-
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
-          # Using Haiku 4.5 - fastest model with Sonnet-level coding performance
-          # Pricing: $1/MTok input, $5/MTok output (~3x cheaper than Sonnet 4)
-          claude_args: '--model claude-haiku-4-5 --allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+          claude_args: '--model claude-haiku-4-5 --allowed-tools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"'
 
       - name: Update Dashboard
-        if: always()
+        if: always() && steps.check_apply.outputs.should_review == 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const prNumber = parseInt('${{ steps.pr.outputs.number }}');
-            const sha = '${{ steps.pr.outputs.head_sha }}'.substring(0, 7);
+            const prNumber = parseInt('${{ steps.check_apply.outputs.pr_number }}');
+            const sha = '${{ steps.check_apply.outputs.head_sha }}';
             const marker = `<!-- infra-flash-commit:${sha} -->`;
-            
+
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
               per_page: 100
             });
-            
+
             const dashboard = comments.find(c => c.body.includes(marker));
-            if (!dashboard) return;
+            if (!dashboard) {
+              console.log('Dashboard not found for ' + sha);
+              return;
+            }
 
             const status = '${{ steps.claude-review.outcome }}' === 'success' ? '✅' : '❌';
             const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
-            const linkText = status === '✅' ? 'Automated Review' : '[View Run Log]';
-            const linkUrl = status === '✅' ? runUrl : runUrl; // 自动审计目前统一跳到 Run Log
 
             let body = dashboard.body.replace(
-              /\| \*\*AI Review\*\* \| .* \| .* \| .* \|/,
-              `| **AI Review** | ${status} | [${linkText}](${linkUrl}) | ${timestamp} |`
+              /\| AI Review \| .* \| .* \| .* \|/,
+              `| AI Review | ${status} | [View](${runUrl}) | ${timestamp} |`
             );
+
+            // Update next step if AI review completed successfully
+            if (status === '✅') {
+              body = body.replace(
+                /<!-- next-step -->[\s\S]*?<!-- \/next-step -->/,
+                `<!-- next-step -->\n✅ **Ready to merge!**\n<!-- /next-step -->`
+              );
+            }
 
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
@@ -110,3 +157,4 @@ jobs:
               body: body
             });
 
+            console.log(`Updated AI Review status: ${status}`);
