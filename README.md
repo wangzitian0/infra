@@ -9,9 +9,17 @@
 - 文档站点（MkDocs）：[`mkdocs.yml`](./website/mkdocs.yml)（仅使用 git 管控的 `*.md`；CI: [`.github/workflows/docs-site.yml`](./.github/workflows/docs-site.yml)）
 - 目录结构 SSOT：[`docs/ssot/core.dir.md`](./docs/ssot/core.dir.md)
 - 话题 SSOT 索引：[`docs/ssot/README.md`](./docs/ssot/README.md)
-- Layer 文档：[`0.tools/README.md`](./0.tools/README.md) · [`1.bootstrap/README.md`](./1.bootstrap/README.md) · [`2.platform/README.md`](./2.platform/README.md) · [`3.data/README.md`](./3.data/README.md) · [`4.apps/README.md`](./4.apps/README.md)
+- Layer 文档：[`0.tools/README.md`](./0.tools/README.md) · [`1.bootstrap/README.md`](./1.bootstrap/README.md) · [`2.platform/README.md`](./2.platform/README.md) · [`envs/staging/3.data/README.md`](./envs/staging/3.data/README.md) · [`envs/prod/3.data/README.md`](./envs/prod/3.data/README.md) · [`4.apps/README.md`](./4.apps/README.md)
 - GitHub 自动化入口：[`.github/README.md`](./.github/README.md) · [`.github/workflows/README.md`](./.github/workflows/README.md)
 - README 保护检查：新增 `scripts/check-readme-coverage.sh` 与 [`readme-coverage.yml`](.github/workflows/readme-coverage.yml)，每次变更要求 ≥80% 的目录同步更新对应 `README.md`。
+
+## Infrastructure as Code (Terragrunt)
+
+本仓库已迁移至 **Terragrunt** 管理配置，消除 77% 重复代码：
+- **Backend/Providers**: 由 `terragrunt.hcl` 自动生成（已 gitignore）
+- **L3 环境隔离**: `envs/staging/` 和 `envs/prod/` 独立目录
+- **L2/L4 Singleton**: 共享基础设施和控制平面
+- 详见各层 README 中的 Terragrunt 使用说明
 
 ## GitHub Automation（CI/CD）
 

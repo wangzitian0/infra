@@ -61,6 +61,20 @@ runs:
         if [ $FAILED -eq 1 ]; then exit 1; fi
         echo "✅ 环境检查通过：所有核心变量已就绪。"
 
+    - name: Install Terragrunt
+      shell: bash
+      run: |
+        TERRAGRUNT_VERSION="0.96.1"
+        if command -v terragrunt &> /dev/null; then
+          echo "Terragrunt already installed: $(terragrunt --version)"
+        else
+          echo "Installing Terragrunt v${TERRAGRUNT_VERSION}..."
+          wget -q -O /usr/local/bin/terragrunt \
+            "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_amd64"
+          chmod +x /usr/local/bin/terragrunt
+          echo "✅ Terragrunt installed: $(terragrunt --version)"
+        fi
+
     - name: Setup SSH
       shell: bash
       run: |
@@ -75,17 +89,27 @@ runs:
           ssh-keyscan -p "$PORT" "$HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
         fi
 
-    - name: Terraform init
+    - name: Terraform/Terragrunt init
       working-directory: ${{ inputs.working_directory }}
       shell: bash
       env:
         STATE_KEY: ${{ inputs.tf_state_key }}
       run: |
         set -euo pipefail
-        terraform init -input=false \
-          -backend-config="bucket=${R2_BUCKET}" \
-          -backend-config="key=${STATE_KEY}" \
-          -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
+        
+        # Check if this layer uses Terragrunt (presence of terragrunt.hcl or symlink to one)
+        if [ -f "terragrunt.hcl" ] || [ -L "terragrunt.hcl" ]; then
+          echo "🌿 Detected Terragrunt project, using terragrunt init"
+          # Terragrunt auto-generates backend.tf from root config
+          terragrunt init --terragrunt-non-interactive
+        else
+          echo "🔧 Detected native Terraform project, using terraform init"
+          # L1 bootstrap uses native Terraform with manual backend config
+          terraform init -input=false \
+            -backend-config="bucket=${R2_BUCKET}" \
+            -backend-config="key=${STATE_KEY}" \
+            -backend-config="endpoints={s3=\"https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com\"}"
+        fi
 
     - name: Fetch kubeconfig
       shell: bash

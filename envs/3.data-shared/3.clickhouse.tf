@@ -16,6 +16,24 @@
 # Future: Enable sharding/replication (requires ZooKeeper)
 
 # =============================================================================
+# ClickHouse Provider Configuration
+# =============================================================================
+# NOTE: This provider is configured here (not in terragrunt-generated files)
+# because it needs access to the random_password.clickhouse resource.
+
+provider "clickhousedbops" {
+  host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.${local.namespace_name}.svc.cluster.local"
+  port     = 8123
+  protocol = "http"
+
+  auth_config = {
+    strategy = "basicauth"
+    username = "default"
+    password = random_password.clickhouse.result
+  }
+}
+
+# =============================================================================
 # Password Generation (generated in L3, stored in Vault)
 # =============================================================================
 
