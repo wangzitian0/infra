@@ -76,16 +76,66 @@ remote_state {
 }
 
 # =============================================================================
-# Terraform Version Constraint
+# Common Providers (Shared by All Layers)
 # =============================================================================
-# Generate versions.tf with unified Terraform version requirement
+# Generate common provider configuration to eliminate duplication across layers.
+# Layer-specific providers should be defined in layer terragrunt.hcl files.
 
-generate "versions" {
-  path      = "versions.tf"
+generate "common_providers" {
+  path      = "providers_common.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<-EOF
+    # Common Provider Configuration
+    # These providers are used by multiple layers and configured once here.
+
+    provider "kubernetes" {
+      config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+    }
+
+    provider "helm" {
+      kubernetes {
+        config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+      }
+    }
+
+    provider "vault" {
+      address         = var.vault_address
+      token           = var.vault_root_token
+      skip_tls_verify = true
+    }
+  EOF
+}
+
+# =============================================================================
+# Common Required Providers
+# =============================================================================
+# Define version constraints for common providers
+
+generate "common_required_providers" {
+  path      = "versions_providers_common.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<-EOF
     terraform {
       required_version = ">= 1.11.0"
+
+      required_providers {
+        kubernetes = {
+          source  = "hashicorp/kubernetes"
+          version = "~> 2.0"
+        }
+        helm = {
+          source  = "hashicorp/helm"
+          version = "~> 2.0"
+        }
+        vault = {
+          source  = "hashicorp/vault"
+          version = "~> 4.0"
+        }
+        random = {
+          source  = "hashicorp/random"
+          version = "~> 3.6"
+        }
+      }
     }
   EOF
 }
