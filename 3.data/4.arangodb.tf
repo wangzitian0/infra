@@ -1,35 +1,32 @@
 # L3 ArangoDB
 #
 # Purpose: Multi-model database (document, graph, key-value) for L4 applications
-# Password: Read from Vault KV at secret/data/arangodb (generated in L2)
+#
+# Architecture (after refactor - Issue #336):
+# - L3 generates password locally
+# - L3 stores password in Vault KV
+# - L4 reads credentials from Vault KV
+#
 # Pattern: ArangoDB official Operator + Custom Resource
 # Namespace: per-env (data-staging, data-prod)
 #
-# Architecture:
-# L2 generates password → stores in Vault KV
-# L3 reads password from Vault KV → deploys ArangoDB Operator → creates ArangoDeployment CR
-#
 # Scalability:
 # Current: Single mode (single.count=1)
-# Future: Cluster mode (3 Agents + 2 Coordinators + 2 DBServers, see implementation_plan.md)
+# Future: Cluster mode (3 Agents + 2 Coordinators + 2 DBServers)
 # Note: Migrating from Single to Cluster requires data migration (cannot hot-upgrade)
 
 # =============================================================================
-# Read Password from Vault (generated and stored by L2)
-# Requires: TF_VAR_vault_root_token set in Atlantis Pod env
+# Password Generation (generated in L3, stored in Vault)
 # =============================================================================
 
-# Vault Config: Read from L2 outputs via terraform_remote_state (Issue #301)
-data "vault_kv_secret_v2" "arangodb" {
-  mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]
+resource "random_password" "arangodb" {
+  length  = 32
+  special = false
+}
 
-  lifecycle {
-    precondition {
-      condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"])
-      error_message = "L2 platform state missing vault_db_secrets['arangodb']. Run L2 apply first."
-    }
-  }
+# Generate JWT secret for ArangoDB (32 bytes minimum)
+resource "random_bytes" "arangodb_jwt" {
+  length = 32
 }
 
 # =============================================================================
@@ -50,11 +47,6 @@ resource "helm_release" "arangodb_operator" {
 
   lifecycle {
     prevent_destroy = true # Prevent accidental deletion
-
-    precondition {
-      condition     = can(data.vault_kv_secret_v2.arangodb.data["password"]) && length(data.vault_kv_secret_v2.arangodb.data["password"]) >= 16
-      error_message = "ArangoDB password must be available in Vault KV and at least 16 characters."
-    }
 
     postcondition {
       condition     = self.status == "deployed"
@@ -95,18 +87,6 @@ resource "time_sleep" "wait_for_arangodb_crd" {
 # JWT Secret for ArangoDB Authentication
 # ArangoDB requires a minimum 32-byte secret for JWT signing
 # =============================================================================
-
-# Generate secure JWT secret (not derived from password)
-resource "random_bytes" "arangodb_jwt" {
-  length = 32 # ArangoDB JWT requirement
-
-  lifecycle {
-    precondition {
-      condition     = can(data.vault_kv_secret_v2.arangodb.data["password"])
-      error_message = "ArangoDB password must be available in Vault before generating JWT secret."
-    }
-  }
-}
 
 resource "kubernetes_secret" "arangodb_jwt" {
   metadata {
@@ -175,6 +155,26 @@ resource "kubectl_manifest" "arangodb_deployment" {
 }
 
 # =============================================================================
+# Vault KV Storage
+# =============================================================================
+
+resource "vault_kv_secret_v2" "arangodb" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    username   = "root"
+    password   = random_password.arangodb.result
+    jwt_secret = random_bytes.arangodb_jwt.base64
+    host       = "arangodb.${local.namespace_name}.svc.cluster.local"
+    port       = "8529"
+  })
+
+  depends_on = [kubectl_manifest.arangodb_deployment]
+}
+
+# =============================================================================
 # Outputs
 # =============================================================================
 
@@ -189,7 +189,7 @@ output "arangodb_port" {
 }
 
 output "arangodb_vault_path" {
-  value       = data.terraform_remote_state.l2_platform.outputs.vault_secret_paths["arangodb"]
+  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]}"
   description = "Vault KV path for ArangoDB credentials"
 }
 

@@ -124,20 +124,20 @@ psql -c "SELECT 1"
 | **静态** | `secret/data/<db>` | 永久（直到 L2 重新 apply） | 大多数应用 |
 | **动态** | `database/creds/app-readonly` | 1h（可续期） | 高安全要求场景 |
 
-### 动态凭据（PostgreSQL Only）
+### 动态凭据（PostgreSQL, Redis, ClickHouse）
 
 ```yaml
 annotations:
-  vault.hashicorp.com/agent-inject-secret-pg-dynamic: "database/creds/app-readonly"
+  vault.hashicorp.com/agent-inject-secret-pg-dynamic: "database/creds/postgres-readonly"
   vault.hashicorp.com/agent-inject-template-pg-dynamic: |
-    {{- with secret "database/creds/app-readonly" -}}
+    {{- with secret "database/creds/postgres-readonly" -}}
     export PGUSER="{{ .Data.username }}"
     export PGPASSWORD="{{ .Data.password }}"
     {{- end }}
 ```
 
 > [!NOTE]
-> 动态凭据需要 `enable_postgres_backend=true`（L2 变量），当前默认关闭。
+> 动态凭据已启用：PostgreSQL、Redis、ClickHouse。ArangoDB 暂时仅支持静态凭据。
 
 ---
 

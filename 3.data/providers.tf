@@ -1,8 +1,12 @@
 # L3 Data Layer Provider Configuration
 #
-# Providers: kubernetes, kubectl, helm, vault
-# Vault access: Uses root token from GitHub Secret (for initial setup)
-# Future: Migrate to Kubernetes auth method
+# Providers: kubernetes, kubectl, helm, vault, clickhousedbops
+# 
+# Architecture (after refactor - Issue #336):
+# - L3 generates passwords locally
+# - L3 stores passwords in Vault KV
+# - L3 configures Vault Database Engine (PostgreSQL)
+# - L3 manages ClickHouse users via clickhousedbops provider
 
 # When running in Atlantis (in-cluster), kubeconfig_path can be empty.
 # Providers will auto-detect in-cluster ServiceAccount credentials.
@@ -23,7 +27,7 @@ provider "helm" {
   }
 }
 
-# Vault provider for reading secrets
+# Vault provider for storing secrets and configuring database engine
 # Address: configurable to support both in-cluster (Atlantis) and port-forward (GitHub runner)
 provider "vault" {
   address = var.vault_address
@@ -35,15 +39,15 @@ provider "vault" {
 
 # ClickHouse database operations provider
 # Used for managing users, databases, and privileges in ClickHouse
-# Connects to ClickHouse HTTP interface using admin credentials from Vault
+# Connects to ClickHouse HTTP interface using admin credentials (generated locally)
 provider "clickhousedbops" {
-  host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.${local.namespace_name}.svc.cluster.local"
+  host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.data-${terraform.workspace}.svc.cluster.local"
   port     = 8123
   protocol = "http"
 
   auth_config = {
     strategy = "basicauth"
     username = "default"
-    password = data.vault_kv_secret_v2.clickhouse.data["password"]
+    password = random_password.clickhouse.result
   }
 }

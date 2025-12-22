@@ -1,34 +1,25 @@
 # L3 Redis
 #
 # Purpose: Cache and session storage for L4 applications
-# Password: Read from Vault KV at secret/data/redis (generated in L2)
-# Pattern: Bitnami Helm chart (matches L1/L3 PostgreSQL pattern)
+#
+# Architecture (after refactor - Issue #336):
+# - L3 generates password locally
+# - L3 stores password in Vault KV
+# - L4 reads password from Vault KV
+#
+# Pattern: Bitnami Helm chart
 # Namespace: per-env (data-staging, data-prod)
 #
-# Architecture:
-# L2 generates password → stores in Vault KV
-# L3 reads password from Vault KV → deploys Redis
-#
-# Scalability:
-# Current: Master-only (replica.replicaCount = 0)
-# Future: Enable replicas for read scaling (see implementation_plan.md)
+# Note: Redis doesn't have a Vault Database Engine equivalent
+# so we just store the password in Vault KV for L4 to consume
 
 # =============================================================================
-# Read Password from Vault (generated and stored by L2)
-# Requires: TF_VAR_vault_root_token set in Atlantis Pod env
+# Password Generation (generated in L3, stored in Vault)
 # =============================================================================
 
-# Vault Config: Read from L2 outputs via terraform_remote_state (Issue #301)
-data "vault_kv_secret_v2" "redis" {
-  mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]
-
-  lifecycle {
-    precondition {
-      condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"])
-      error_message = "L2 platform state missing vault_db_secrets['redis']. Run L2 apply first."
-    }
-  }
+resource "random_password" "redis" {
+  length  = 32
+  special = false
 }
 
 # =============================================================================
@@ -49,11 +40,6 @@ resource "helm_release" "redis" {
   lifecycle {
     prevent_destroy = true # Prevent accidental data loss
 
-    precondition {
-      condition     = can(data.vault_kv_secret_v2.redis.data["password"]) && length(data.vault_kv_secret_v2.redis.data["password"]) >= 16
-      error_message = "Redis password must be available in Vault KV and at least 16 characters."
-    }
-
     postcondition {
       condition     = self.status == "deployed"
       error_message = "Redis Helm release failed to deploy. Check pod logs and events."
@@ -68,7 +54,7 @@ resource "helm_release" "redis" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        password = data.vault_kv_secret_v2.redis.data["password"]
+        password = random_password.redis.result
       }
       master = {
         persistence = {
@@ -100,6 +86,26 @@ resource "helm_release" "redis" {
       }
     })
   ]
+
+  depends_on = [kubernetes_namespace.data]
+}
+
+# =============================================================================
+# Vault KV Storage
+# =============================================================================
+
+resource "vault_kv_secret_v2" "redis" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    password = random_password.redis.result
+    host     = "${helm_release.redis.name}-master.${local.namespace_name}.svc.cluster.local"
+    port     = "6379"
+  })
+
+  depends_on = [helm_release.redis]
 }
 
 # =============================================================================
@@ -117,7 +123,6 @@ output "redis_port" {
 }
 
 output "redis_vault_path" {
-  value       = data.terraform_remote_state.l2_platform.outputs.vault_secret_paths["redis"]
+  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]}"
   description = "Vault KV path for Redis credentials"
 }
-

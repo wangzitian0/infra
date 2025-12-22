@@ -28,7 +28,7 @@ terraform {
     }
     clickhousedbops = {
       source  = "ClickHouse/clickhousedbops"
-      version = "~> 0.1"
+      version = "1.1.0"
     }
   }
 }

@@ -20,13 +20,11 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 ### Components
 
 | File | Component | Purpose |
-|------|-----------|---------|
+|------|-----------|---------
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `5.casdoor.tf` | Casdoor SSO | Helm release + bootstrap init_data (org, admin, builtin-app only) |
-| `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
-| `51.clickhouse-signoz.tf` | SigNoz ClickHouse | ClickHouse user/databases for SigNoz observability (signoz_traces/metrics/logs) |
-| `52.postgres-openpanel.tf` | OpenPanel DB | PostgreSQL + ClickHouse user/databases for OpenPanel analytics (openpanel, openpanel_events) |
+| `6.vault-database.tf` | Vault Mounts | Vault KV and Database secrets engine mounts (credentials managed by L3) |
 | `90.provider_restapi.tf` | RestAPI Provider | Casdoor REST API provider (M2M credentials via casdoor-builtin-app) |
 | `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via `restapi_object` resources |
 | `91.casdoor-roles.tf` | Casdoor Roles | Defines `vault-admin`, `vault-developer`, `vault-viewer` roles in Casdoor |

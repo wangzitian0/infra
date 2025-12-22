@@ -1,34 +1,27 @@
 # L3 ClickHouse
 #
 # Purpose: OLAP analytics database for L4 applications
-# Password: Read from Vault KV at secret/data/clickhouse (generated in L2)
+#
+# Architecture (after refactor - Issue #336):
+# - L3 generates password locally
+# - L3 stores password in Vault KV
+# - L3 manages ClickHouse users via clickhousedbops provider
+# - L4 reads credentials from Vault KV
+#
 # Pattern: Bitnami Helm chart
 # Namespace: per-env (data-staging, data-prod)
 #
-# Architecture:
-# L2 generates password → stores in Vault KV
-# L3 reads password from Vault KV → deploys ClickHouse
-#
 # Scalability:
 # Current: Single node (shards=1, replicaCount=1, zookeeper=disabled)
-# Future: Enable sharding/replication (requires ZooKeeper, see implementation_plan.md)
+# Future: Enable sharding/replication (requires ZooKeeper)
 
 # =============================================================================
-# Read Password from Vault (generated and stored by L2)
-# Requires: TF_VAR_vault_root_token set in Atlantis Pod env
+# Password Generation (generated in L3, stored in Vault)
 # =============================================================================
 
-# Vault Config: Read from L2 outputs via terraform_remote_state (Issue #301)
-data "vault_kv_secret_v2" "clickhouse" {
-  mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
-
-  lifecycle {
-    precondition {
-      condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"])
-      error_message = "L2 platform state missing vault_db_secrets['clickhouse']. Run L2 apply first."
-    }
-  }
+resource "random_password" "clickhouse" {
+  length  = 32
+  special = false
 }
 
 # =============================================================================
@@ -51,11 +44,6 @@ resource "helm_release" "clickhouse" {
     # TODO: Re-enable after initial deployment succeeds
     prevent_destroy = false
 
-    precondition {
-      condition     = can(data.vault_kv_secret_v2.clickhouse.data["password"]) && length(data.vault_kv_secret_v2.clickhouse.data["password"]) >= 16
-      error_message = "ClickHouse password must be available in Vault KV and at least 16 characters."
-    }
-
     postcondition {
       condition     = self.status == "deployed"
       error_message = "ClickHouse Helm release failed to deploy. Check pod logs and events."
@@ -73,7 +61,7 @@ resource "helm_release" "clickhouse" {
       }
       auth = {
         username = "default"
-        password = data.vault_kv_secret_v2.clickhouse.data["password"]
+        password = random_password.clickhouse.result
       }
       shards       = 1 # Single VPS MVP: single shard (can scale later)
       replicaCount = 1 # Single VPS MVP: no replication (can scale later)
@@ -102,6 +90,86 @@ resource "helm_release" "clickhouse" {
       # TODO: Add custom configs via usersFiles if needed per Bitnami docs
     })
   ]
+
+  depends_on = [kubernetes_namespace.data]
+}
+
+# =============================================================================
+# Vault KV Storage
+# =============================================================================
+
+resource "vault_kv_secret_v2" "clickhouse" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    username = "default"
+    password = random_password.clickhouse.result
+    host     = "${helm_release.clickhouse.name}.${local.namespace_name}.svc.cluster.local"
+    port     = "9000"
+    database = "default"
+  })
+
+  depends_on = [helm_release.clickhouse]
+}
+
+# =============================================================================
+# SigNoz ClickHouse User & Databases (moved from L2)
+# =============================================================================
+
+# Wait for ClickHouse to be ready before creating users
+resource "time_sleep" "wait_for_clickhouse" {
+  create_duration = "30s"
+  depends_on      = [helm_release.clickhouse]
+}
+
+# SigNoz password
+resource "random_password" "signoz_clickhouse" {
+  length  = 24
+  special = false
+}
+
+# Store SigNoz credentials in Vault for L4 to consume
+resource "vault_kv_secret_v2" "signoz" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = "signoz"
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    username = "signoz"
+    password = random_password.signoz_clickhouse.result
+    host     = "${helm_release.clickhouse.name}.${local.namespace_name}.svc.cluster.local"
+    port     = "9000"
+    database = "signoz_traces"
+  })
+
+  depends_on = [time_sleep.wait_for_clickhouse]
+}
+
+# Create SigNoz User in ClickHouse
+resource "clickhousedbops_user" "signoz" {
+  name                            = "signoz"
+  password_sha256_hash_wo         = sha256(random_password.signoz_clickhouse.result)
+  password_sha256_hash_wo_version = 1
+
+  depends_on = [time_sleep.wait_for_clickhouse]
+}
+
+# Create SigNoz Databases
+resource "clickhousedbops_database" "signoz_traces" {
+  name       = "signoz_traces"
+  depends_on = [time_sleep.wait_for_clickhouse]
+}
+
+resource "clickhousedbops_database" "signoz_metrics" {
+  name       = "signoz_metrics"
+  depends_on = [time_sleep.wait_for_clickhouse]
+}
+
+resource "clickhousedbops_database" "signoz_logs" {
+  name       = "signoz_logs"
+  depends_on = [time_sleep.wait_for_clickhouse]
 }
 
 # =============================================================================
@@ -124,6 +192,13 @@ output "clickhouse_native_port" {
 }
 
 output "clickhouse_vault_path" {
-  value       = data.terraform_remote_state.l2_platform.outputs.vault_secret_paths["clickhouse"]
+  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]}"
   description = "Vault KV path for ClickHouse credentials"
 }
+
+output "signoz_vault_path" {
+  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/signoz"
+  description = "Vault KV path for SigNoz ClickHouse credentials"
+}
+
+
