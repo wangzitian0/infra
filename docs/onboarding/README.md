@@ -17,7 +17,7 @@
 - **[使用数据库](./03.database.md)** - PostgreSQL、Redis、ClickHouse、ArangoDB
 - **[管理密钥](./04.secrets.md)** - Vault 接入和凭据管理
 - **[接入 SSO 登录](./05.sso.md)** - Casdoor OIDC 集成
-- **[监控和分析](./06.observability.md)** - SigNoz 追踪 + PostHog 分析
+- **[监控和分析](./06.observability.md)** - SigNoz 追踪 + OpenPanel 分析
 
 ---
 
@@ -107,4 +107,4 @@
 
 ---
 
-*Last updated: 2025-12-21*
+*Last updated: 2025-12-22*

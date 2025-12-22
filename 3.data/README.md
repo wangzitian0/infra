@@ -13,22 +13,27 @@ This layer provides stateful services for **Business Applications** (L4).
 
 *Note: Platform DB (for Vault/Casdoor) is in L1 (`1.bootstrap/5.platform_pg.tf`).*
 
-### Password Flow (Fully Reproducible)
+### Password Flow (L3 Generates Passwords)
 
 ```mermaid
 graph LR
     subgraph "L2 Platform"
-        RND[random_password] --> KV[Vault KV<br/>secret/data/postgres]
-        KV --> DB_CFG[database_secret_backend]
+        VM[vault_mount.kv]
+        VD[vault_mount.database]
     end
     subgraph "L3 Data"
-        DATA[data.vault_kv_secret_v2] --> HELM[PostgreSQL Helm]
+        RND[random_password] --> KV[Vault KV]
+        RND --> HELM[DB Helm Charts]
+        RND --> DB_CFG[database_secret_backend]
     end
-    KV --> DATA
+    VM --> KV
+    VD --> DB_CFG
     DB_CFG --> |dynamic creds| L4[L4 Apps]
+    KV --> |static creds| L4
 ```
 
-**No manual steps required** - all Vault configuration is IaC managed in L2.
+**L3 owns password generation** - L2 only creates Vault mounts.
+
 
 ### Components
 
@@ -48,13 +53,14 @@ graph LR
 
 ### Credentials
 
-| Service | Vault Path | Type |
-|---------|------------|------|
-| PostgreSQL root | `secret/data/postgres` | Static (L2 generated) |
-| PostgreSQL app users | `database/creds/app-*` | Dynamic (short-lived) |
-| Redis | `secret/data/redis` | Static (L2 generated) |
-| ClickHouse | `secret/data/clickhouse` | Static (L2 generated) |
-| ArangoDB | `secret/data/arangodb` | Static (L2 generated) |
+| Service | Vault Path | Type | Dynamic |
+|---------|------------|------|---------|
+| PostgreSQL root | `secret/data/postgres` | Static (L3 generated) | ✅ |
+| PostgreSQL app users | `database/creds/postgres-*` | Dynamic | ✅ |
+| Redis | `secret/data/redis` | Static (L3 generated) | ✅ |
+| Redis app users | `database/creds/redis-*` | Dynamic | ✅ |
+| ClickHouse | `secret/data/clickhouse` | Static (L3 generated) | ⏳ |
+| ArangoDB | `secret/data/arangodb` | Static (L3 generated) | ⏳ |
 
 ## Design Decisions
 

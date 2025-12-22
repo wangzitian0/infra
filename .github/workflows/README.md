@@ -97,13 +97,19 @@ Fix errors below, then run `atlantis plan`  (失败时)
 
 ---
 
-## ClickHouse Port-Forward in CI
+## Database Port-Forwards in CI
 
-`deploy-k3s.yml` uses `kubectl port-forward` to connect to ClickHouse for L2/L3 terraform apply:
+`deploy-k3s.yml` uses `kubectl port-forward` to connect to databases for L2/L3 terraform providers:
+
+### ClickHouse Provider
 - **L2 (Platform)**: Port-forwards to `data-staging` namespace
 - **L3 (Data)**: Port-forwards to `data-prod` namespace
+- Override variable: `-var="clickhouse_host=127.0.0.1"`
 
-Both steps use `-var="clickhouse_host=127.0.0.1"` to override the in-cluster DNS.
+### PostgreSQL Provider
+- **L2 (Platform)**: Port-forwards to `data-staging` namespace
+- Override variable: `-var="postgres_host=127.0.0.1"`
+- Used for creating application-specific database users (e.g., OpenPanel)
 
 ---
 *Last updated: 2025-12-22*

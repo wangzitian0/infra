@@ -204,3 +204,13 @@ data "http" "casdoor_oidc_discovery" {
     }
   }
 }
+
+# =============================================================================
+# 3. SAML Applications
+# =============================================================================
+
+# NOTE: OpenPanel does not support native OIDC or SAML.
+# OpenPanel will use Portal Gate (OAuth2-Proxy) for authentication.
+# See: docs/ssot/platform.auth.md for authentication strategy.
+#
+# If a future analytics platform supports SAML, add configuration here.

@@ -17,6 +17,12 @@
 
 - [ISSUE-2025-12-20: Kubero SSO rollout + emergency access](./ISSUE-2025-12-20.kubero-sso.md) - **Open**
 
+- [PR-336: OpenPanel Analytics L2/L3 Infrastructure](https://github.com/wangzitian0/infra/pull/336) - **In Progress**
+  - **Goal**: Deploy OpenPanel analytics platform following L2 (permissions) + L3 (data) + L4 (apps) architecture pattern
+  - **Status**: L2 refactor complete (moved password generation to L3), L3 data-staging in progress
+  - **Blockers**: Database password synchronization between Terraform and K8s Secrets
+  - **Plan**: See [openpanel-deployment-plan.md](./openpanel-deployment-plan.md)
+
 ## Archived Projects
 
 (None)
@@ -26,4 +32,4 @@
 - [apps/docs/index.md](../../apps/docs/index.md) - Apps documentation index (submodule)
 
 ---
-*Last updated: 2025-12-20*
+*Last updated: 2025-12-22*

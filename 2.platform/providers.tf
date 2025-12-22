@@ -3,6 +3,9 @@
 # When running in Atlantis (in-cluster), kubeconfig_path can be empty.
 # Providers will auto-detect in-cluster ServiceAccount credentials.
 # When running locally, set TF_VAR_kubeconfig_path to point to your kubeconfig file.
+#
+# Note: PostgreSQL and ClickHouse providers removed (Issue #336)
+# L2 no longer directly connects to databases. Use Vault dynamic credentials in L4.
 
 provider "kubernetes" {
   config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
@@ -25,7 +28,7 @@ provider "cloudflare" {
   api_token = var.cloudflare_api_token
 }
 
-# Vault provider for database secrets engine configuration
+# Vault provider for secrets engine configuration
 # Uses root token for now; can migrate to Kubernetes auth later
 provider "vault" {
   address         = var.vault_address
@@ -40,14 +43,31 @@ data "cloudflare_zone" "internal" {
 
 # NOTE: RestAPI provider is configured in 90.provider_restapi.tf
 
-provider "clickhousedbops" {
-  host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.data-staging.svc.cluster.local"
-  port     = 8123
-  protocol = "http"
+# =============================================================================
+# Temporary Providers for Resource Cleanup (PR #336)
+# These providers are only needed to destroy old resources moved to L3
+# TODO: Remove after old database resources are destroyed from L2 state
+# =============================================================================
 
+# ClickHouse provider (temporary - for destroying old clickhousedbops resources)
+provider "clickhousedbops" {
+  host        = "clickhouse.data-staging.svc.cluster.local"
+  port        = 9000
+  username    = "default"
+  password    = "dummy" # Not used during destroy, but required by provider schema
+  protocol    = "native"
   auth_config = {
-    strategy = "basicauth"
     username = "default"
-    password = random_password.l3_clickhouse.result
+    password = "dummy"
   }
+}
+
+# PostgreSQL provider (temporary - for destroying old postgresql resources)
+provider "postgresql" {
+  host            = "postgresql.data-staging.svc.cluster.local"
+  port            = 5432
+  username        = "postgres"
+  password        = "dummy" # Not used during destroy, but required by provider schema
+  sslmode         = "disable"
+  connect_timeout = 15
 }

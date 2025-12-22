@@ -20,11 +20,11 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 ### Components
 
 | File | Component | Purpose |
-|------|-----------|---------|
+|------|-----------|---------
 | `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `5.casdoor.tf` | Casdoor SSO | Helm release + bootstrap init_data (org, admin, builtin-app only) |
-| `6.vault-database.tf` | Vault Database | Dynamic PostgreSQL credentials for L3 (roles: app-readonly, app-readwrite) |
+| `6.vault-database.tf` | Vault Mounts | Vault KV and Database secrets engine mounts (credentials managed by L3) |
 | `90.provider_restapi.tf` | RestAPI Provider | Casdoor REST API provider (M2M credentials via casdoor-builtin-app) |
 | `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via `restapi_object` resources |
 | `91.casdoor-roles.tf` | Casdoor Roles | Defines `vault-admin`, `vault-developer`, `vault-viewer` roles in Casdoor |
@@ -46,6 +46,10 @@ This layer supports both **Atlantis (CI)** and **Standalone/Local** execution.
 - **Backend state**: Stored in Cloudflare R2 (`backend.tf`)
 - **Pipeline Feedback**: All Plan/Apply actions are synchronized to the **`infra-flash` Dashboard** in the PR.
 - **Providers**: Auto-configured for both local kubeconfig and in-cluster ServiceAccount (`providers.tf`)
+- **Database Providers**: Both `clickhousedbops` and `postgresql` providers connect to L3 databases
+  - **CI Mode**: Requires port-forward (handled by `deploy-k3s.yml` workflow)
+  - **Atlantis Mode**: Uses in-cluster DNS (e.g., `postgresql.data-staging.svc.cluster.local`)
+  - Override via: `-var="clickhouse_host=127.0.0.1" -var="postgres_host=127.0.0.1"` in CI
 - **Variables**: Defaults provided in `variables.tf`; Atlantis injects environment-specific values via `TF_VAR_*` env vars.
 
 ```bash

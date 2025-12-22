@@ -171,31 +171,6 @@ variable "vault_address" {
 }
 
 # ============================================================
-# One-Auth (SSO Gate Switch)
-# ============================================================
-
-variable "enable_one_auth" {
-  description = "Enable SSO gate (Traefik middleware) for L2 ingresses; turn on only after verifying base L2 endpoints are reachable."
-  type        = bool
-  default     = false
-  # NOTE: Cross-variable validation (OAuth2-Proxy prerequisites) is in 99.one-auth.tf precondition
-}
-
-# ============================================================
-# Vault Database Backend (L3 PostgreSQL)
-# ============================================================
-
-variable "enable_postgres_backend" {
-  description = "Enable Vault database backend for L3 PostgreSQL. Set to true ONLY after L3 PostgreSQL is deployed and running."
-  type        = bool
-  default     = false
-  # Two-phase deploy:
-  # 1. Apply L2 with enable_postgres_backend=false (creates vault_mount, stores password)
-  # 2. Apply L3 (PostgreSQL deployed)
-  # 3. Apply L2 with enable_postgres_backend=true (creates database connection)
-}
-
-# ============================================================
 # Kubernetes Configuration (for Vault Auth)
 # ============================================================
 
@@ -216,12 +191,3 @@ variable "kubernetes_ca_cert" {
   }
 }
 
-# ============================================================
-# ClickHouse Provider (for CI port-forward)
-# ============================================================
-
-variable "clickhouse_host" {
-  description = "ClickHouse host address. Defaults to in-cluster DNS; override to localhost for port-forward in CI."
-  type        = string
-  default     = ""
-}

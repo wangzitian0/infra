@@ -8,7 +8,7 @@
 
 | Record | Cloudflare Mode | Purpose |
 |--------|-----------------|---------|
-| Infra A records | Orange cloud (proxied) for HTTPS services; grey/DNS-only for `k3s` | Infra/admin endpoints (`atlantis`, `kdashboard`, `secrets`, `k3s` on :6443 direct), `kcloud`, `kapi`, `signoz`, `posthog` |
+| Infra A records | Orange cloud (proxied) for HTTPS services; grey/DNS-only for `k3s` | Infra/admin endpoints (`atlantis`, `kdashboard`, `secrets`, `k3s` on :6443 direct), `kcloud`, `kapi`, `signoz`, `openpanel` |
 | `*` (wildcard on BASE_DOMAIN) | Orange cloud (proxied) | Public/env wildcard on `BASE_DOMAIN` (`x-*`, app subdomains) |
 | `@` (root on BASE_DOMAIN) | Orange cloud (proxied) | Public landing page |
 | `x-*` (on BASE_DOMAIN) | Orange cloud (proxied) | Staging/test entrypoints (e.g., `x-staging`, CI-managed `x-test*`) |
@@ -37,7 +37,7 @@ Infra (INTERNAL_DOMAIN, per-record proxy; k3s is grey)
 ├── kcloud              # Kubero UI (disabled)
 ├── kapi                # Kubero API (disabled)
 ├── signoz              # SigNoz (Observability)
-├── posthog             # PostHog (Product analytics)
+├── openpanel           # OpenPanel (Product analytics)
 
 x-* on BASE_DOMAIN (External/Test, proxied)
 ├── x-staging-*             # Staging environment
@@ -87,7 +87,7 @@ Production on BASE_DOMAIN (No prefix, proxied)
 | Service | Domain | Curl | Status |
 |---------|--------|------|--------|
 | SigNoz | `signoz.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
-| PostHog | `posthog.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
+| OpenPanel | `openpanel.${INTERNAL_DOMAIN}` | 404 (no backend) | ⏸️ Not deployed |
 
 ### External Services (User-facing)
 
@@ -118,7 +118,7 @@ Defined in `3.dns_and_cert.tf`:
 ```hcl
 # Infra (i-*, DNS-only / grey cloud)
 cloudflare_record.infra_records: [
-  atlantis, k3s, secrets, kdashboard, kcloud, kapi, signoz, posthog
+  atlantis, k3s, secrets, kdashboard, kcloud, kapi, signoz, openpanel
 ] -> VPS_IP (proxied = per-service; k3s is DNS-only)
 
 # Optional wildcard when INTERNAL_DOMAIN uses a separate zone

@@ -35,7 +35,7 @@ locals {
     kubero_ui      = "kcloud.${local.internal_domain}"
     kubero_backend = "kapi.${local.internal_domain}"
     signoz         = "signoz.${local.internal_domain}"
-    posthog        = "posthog.${local.internal_domain}"
+    openpanel      = "openpanel.${local.internal_domain}"
 
     # Env/External (proxied / orange cloud)
     frontend = "${var.env_prefix}.${var.base_domain}"

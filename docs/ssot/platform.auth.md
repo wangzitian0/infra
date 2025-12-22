@@ -64,8 +64,8 @@ graph TD
 | **L2** | Casdoor | 根密钥 (admin 密码) | SSO 入口本身 |
 | **L3** | PostgreSQL | Vault 动态凭据 | 业务 DB |
 | **L3** | Redis | Vault 动态凭据 | 业务缓存 |
-| **L4** | Apps (原生 OIDC) | Casdoor OIDC 直连 | Kubero / SigNoz / PostHog |
-| **L4** | Apps (无 OIDC) | Portal Gate | Django CMS 等 |
+| **L4** | Apps (原生 OIDC) | Casdoor OIDC 直连 | Kubero / SigNoz |
+| **L4** | Apps (无 OIDC) | Portal Gate | OpenPanel / Django CMS 等 |
 
 ## 紧急绕过与恢复（Break-glass）
 
@@ -88,8 +88,9 @@ Portal Gate 与原生 OIDC 同时启用会导致双重认证：OAuth2-Proxy 只�
 |------|------|------|----------|------|
 | 原生 OIDC | Vault UI | `https://secrets.<internal_domain>` | Casdoor OIDC 直连 | 禁用 forwardAuth |
 | 原生 OIDC | Kubero UI | `https://kcloud.<internal_domain>` | Casdoor OIDC 直连 | Kubero 侧配置中 |
-| 原生 OIDC | SigNoz / PostHog | *(未部署)* | Casdoor OIDC 直连 | 规划 |
+| 原生 OIDC | SigNoz | *(未部署)* | Casdoor OIDC 直连 | 规划 |
 | Portal Gate | K8s Dashboard | `https://kdashboard.<internal_domain>` | ForwardAuth -> Casdoor | 登录后仍需 token |
+| Portal Gate | OpenPanel | *(未部署)* | ForwardAuth -> Casdoor | 无 OIDC/SAML |
 | Portal Gate | Django CMS | *(未部署)* | ForwardAuth -> Casdoor | 无 OIDC |
 | 独立认证 | Atlantis | `https://atlantis.<internal_domain>` | Basic Auth | break-glass |
 | 独立认证 | Vault CLI | *(无 UI)* | Root Token | break-glass |
@@ -130,8 +131,8 @@ Portal Gate 与原生 OIDC 同时启用会导致双重认证：OAuth2-Proxy 只�
 ### 实施路径（分治）
 
 1. **前置准备**：确认 Casdoor 应用与登录页参数已就绪（`enablePassword=true`、`signupItems=[]`、`tokenFormat=JWT`、TTL 168h）。保持 `enable_casdoor_oidc=false` / `enable_portal_sso_gate=false` 先落 Casdoor，避免锁死。
-2. **原生 OIDC 应用**：设置 `enable_casdoor_oidc=true` 并 apply，逐个接入 OIDC（Vault/Kubero/未来 SigNoz、PostHog），**移除 forwardAuth**，验证直连回跳。
-3. **无 OIDC 应用**：开启 `enable_portal_sso_gate=true`，只在对应 Ingress 挂 forwardAuth（Dashboard、Django CMS 等），验证 token 登录路径。
+2. **原生 OIDC 应用**：设置 `enable_casdoor_oidc=true` 并 apply，逐个接入 OIDC（Vault/Kubero/未来 SigNoz），**移除 forwardAuth**，验证直连回跳。
+3. **无 OIDC 应用**：开启 `enable_portal_sso_gate=true`，只在对应 Ingress 挂 forwardAuth（Dashboard、OpenPanel、Django CMS 等），验证登录路径。
 4. **应急通道**：保留 L1/L2 根密钥入口（Atlantis Basic Auth、Vault Root Token），恢复流程见 `docs/ssot/ops.recovery.md`。
 
 更多细节参考 Issue 302 的分治策略与 BRN-008 的认证设计约束。
