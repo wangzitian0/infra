@@ -99,17 +99,13 @@ Fix errors below, then run `atlantis plan`  (失败时)
 
 ## Database Port-Forwards in CI
 
-`deploy-k3s.yml` uses `kubectl port-forward` to connect to databases for L2/L3 terraform providers:
+`deploy-k3s.yml` uses `kubectl port-forward` to connect to databases for L3 terraform providers:
 
-### ClickHouse Provider
-- **L2 (Platform)**: Port-forwards to `data-staging` namespace
+### ClickHouse Provider (L3 only)
 - **L3 (Data)**: Port-forwards to `data-prod` namespace
 - Override variable: `-var="clickhouse_host=127.0.0.1"`
 
-### PostgreSQL Provider
-- **L2 (Platform)**: Port-forwards to `data-staging` namespace
-- Override variable: `-var="postgres_host=127.0.0.1"`
-- Used for creating application-specific database users (e.g., OpenPanel)
+> **Note**: L2 (Platform) no longer requires database port-forwards after PR #340 removed temporary DB providers.
 
 ---
 *Last updated: 2025-12-22*
