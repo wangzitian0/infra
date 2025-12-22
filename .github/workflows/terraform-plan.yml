@@ -7,7 +7,7 @@ on:
       - "0.tools/**"
       - "1.bootstrap/**"
       - "2.platform/**"
-      - "envs/**/3.data/**"
+      - "envs/**"
       - "4.apps/**"
       - ".github/workflows/**"
 
