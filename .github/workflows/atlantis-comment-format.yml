@@ -81,6 +81,22 @@ jobs:
               triggerRef = '**Triggered by:** autoplan on push';
             }
 
+            // Check for errors (same pattern as infra-flash-update.yml)
+            const hasError = /\*\*(Plan|Apply) Error\*\*|exit status [1-9]|panic:|terraform:.*failed/i.test(body);
+
+            // Determine action section content
+            let actionContent;
+            if (isPlan) {
+              const project = (body.match(/project: `([^`]+)`/) || ['', 'apps'])[1];
+              actionContent = hasError
+                ? '❌ Plan failed. Fix errors and re-run `atlantis plan`'
+                : '```\natl apply -p ' + project + '\n```';
+            } else {
+              actionContent = hasError
+                ? '❌ Apply failed. Check errors above.'
+                : '✅ Apply complete';
+            }
+
             // Rebuild comment - compact format
             const formattedBody = [
               header,
@@ -93,9 +109,7 @@ jobs:
               '',
               '<details><summary>📋 Actions</summary>',
               '',
-              isPlan
-                ? '```\natl apply -p ' + (body.match(/project: `([^`]+)`/) || ['', 'apps'])[1] + '\n```'
-                : '✅ Apply complete',
+              actionContent,
               '',
               '</details>'
             ].filter(Boolean).join('\n');
