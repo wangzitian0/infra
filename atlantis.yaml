@@ -82,6 +82,21 @@ workflows:
         - run: |
             terraform state rm kubernetes_namespace.platform 2>/dev/null || true
 
+        # L3-specific: Import existing namespace if it exists but not in state
+        # This handles cases where namespace was created manually or state was lost
+        - run: |
+            if [[ "$REPO_REL_DIR" == envs/*/3.data ]]; then
+              # Determine namespace name based on environment path
+              ENV=$(echo "$REPO_REL_DIR" | grep -oP 'envs/\K[^/]+')
+              NS="data-${WORKSPACE:-default}"
+              echo "Checking L3 namespace: $NS"
+              # Try to import if namespace exists but not in state
+              if kubectl get ns "$NS" 2>/dev/null && ! TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt state show kubernetes_namespace.data 2>/dev/null; then
+                echo "Importing existing namespace $NS..."
+                TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt import kubernetes_namespace.data "$NS" || true
+              fi
+            fi
+
         # Clean up old Terragrunt-generated files to prevent duplicate required_providers error
         # Only clean .tf files, NOT .terraform (needed for dependency output resolution)
         - run: |
