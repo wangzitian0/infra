@@ -3,6 +3,13 @@ provider "kubernetes" {
   # When config_path is null, provider uses in-cluster config automatically
 }
 
+# Helm provider for SigNoz and other Helm charts
+provider "helm" {
+  kubernetes {
+    config_path = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+  }
+}
+
 # Vault provider for reading secrets
 provider "vault" {
   address         = var.vault_address
