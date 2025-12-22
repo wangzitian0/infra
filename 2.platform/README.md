@@ -48,6 +48,10 @@ This layer supports both **Atlantis (CI)** and **Standalone/Local** execution.
 - **Backend state**: Stored in Cloudflare R2 (`backend.tf`)
 - **Pipeline Feedback**: All Plan/Apply actions are synchronized to the **`infra-flash` Dashboard** in the PR.
 - **Providers**: Auto-configured for both local kubeconfig and in-cluster ServiceAccount (`providers.tf`)
+- **Database Providers**: Both `clickhousedbops` and `postgresql` providers connect to L3 databases
+  - **CI Mode**: Requires port-forward (handled by `deploy-k3s.yml` workflow)
+  - **Atlantis Mode**: Uses in-cluster DNS (e.g., `postgresql.data-staging.svc.cluster.local`)
+  - Override via: `-var="clickhouse_host=127.0.0.1" -var="postgres_host=127.0.0.1"` in CI
 - **Variables**: Defaults provided in `variables.tf`; Atlantis injects environment-specific values via `TF_VAR_*` env vars.
 
 ```bash

@@ -225,3 +225,13 @@ variable "clickhouse_host" {
   type        = string
   default     = ""
 }
+
+# ============================================================
+# PostgreSQL Provider (for CI port-forward)
+# ============================================================
+
+variable "postgres_host" {
+  description = "PostgreSQL host address. Defaults to in-cluster DNS; override to localhost for port-forward in CI."
+  type        = string
+  default     = ""
+}

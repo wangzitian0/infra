@@ -52,10 +52,11 @@ provider "clickhousedbops" {
   }
 }
 
-# PostgreSQL provider for creating database users/databases (e.g., PostHog)
+# PostgreSQL provider for creating database users/databases (e.g., OpenPanel)
 # Connects to L3 PostgreSQL using admin credentials
+# Defaults to in-cluster DNS; override via TF_VAR_postgres_host for CI port-forward
 provider "postgresql" {
-  host            = "postgresql.data-staging.svc.cluster.local"
+  host            = var.postgres_host != "" ? var.postgres_host : "postgresql.data-staging.svc.cluster.local"
   port            = 5432
   username        = "postgres"
   password        = random_password.l3_postgres.result
