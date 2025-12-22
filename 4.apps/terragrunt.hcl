@@ -17,6 +17,11 @@ include "root" {
 dependency "platform" {
   config_path = "../2.platform"
 
+  # skip_outputs = true is required for Atlantis compatibility
+  # Atlantis runs each project in isolation, so L2 outputs are not accessible
+  # Real values come from terraform_remote_state data source in *.tf files
+  skip_outputs = true
+
   mock_outputs = {
     vault_address = "http://vault.platform.svc.cluster.local:8200"
   }
