@@ -212,3 +212,98 @@ output "postgres_vault_roles" {
     readwrite = "vault read database/creds/postgres-readwrite"
   }
 }
+
+# =============================================================================
+# OpenPanel PostgreSQL User & Database (Static Credentials)
+# Purpose: Dedicated database for OpenPanel analytics
+# Note: OpenPanel requires a dedicated database, not shared with "app"
+# =============================================================================
+
+# Generate password for OpenPanel PostgreSQL user
+resource "random_password" "openpanel_postgres" {
+  length  = 24
+  special = false
+}
+
+# Store OpenPanel credentials in Vault KV for L4 to consume
+resource "vault_kv_secret_v2" "openpanel" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["openpanel"]
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    # PostgreSQL (primary database)
+    postgres_host     = "postgresql.${local.namespace_name}.svc.cluster.local"
+    postgres_port     = "5432"
+    postgres_user     = "openpanel"
+    postgres_password = random_password.openpanel_postgres.result
+    postgres_database = "openpanel"
+
+    # Redis (cache/queue) - shared L3 instance
+    redis_host     = "redis-master.${local.namespace_name}.svc.cluster.local"
+    redis_port     = "6379"
+    redis_password = random_password.redis.result
+
+    # ClickHouse (event storage) - credentials defined in 3.clickhouse.tf
+    clickhouse_host     = "clickhouse.${local.namespace_name}.svc.cluster.local"
+    clickhouse_port     = "9000"
+    clickhouse_user     = "openpanel"
+    clickhouse_password = random_password.openpanel_clickhouse.result # Defined in 3.clickhouse.tf
+    clickhouse_database = "openpanel_events"
+  })
+
+  depends_on = [helm_release.postgresql, helm_release.redis, random_password.openpanel_clickhouse]
+}
+
+# Create OpenPanel user and database via init Job
+# This runs once after PostgreSQL is ready
+resource "kubectl_manifest" "openpanel_postgres_init" {
+  yaml_body = yamlencode({
+    apiVersion = "batch/v1"
+    kind       = "Job"
+    metadata = {
+      name      = "openpanel-postgres-init"
+      namespace = local.namespace_name
+      labels = {
+        app     = "openpanel"
+        purpose = "db-init"
+      }
+    }
+    spec = {
+      backoffLimit            = 3
+      ttlSecondsAfterFinished = 86400 # 24 hours
+      template = {
+        spec = {
+          restartPolicy = "OnFailure"
+          containers = [{
+            name  = "psql-init"
+            image = "postgres:16-alpine"
+            env = [{
+              name  = "PGPASSWORD"
+              value = random_password.postgres.result
+            }]
+            command = ["/bin/sh"]
+            args = ["-c", <<-EOT
+              set -e
+              echo "Waiting for PostgreSQL..."
+              until pg_isready -h postgresql -U postgres -t 5; do sleep 2; done
+              
+              echo "Creating OpenPanel user..."
+              psql -h postgresql -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='openpanel'" | grep -q 1 || \
+                psql -h postgresql -U postgres -c "CREATE USER openpanel WITH PASSWORD '${random_password.openpanel_postgres.result}';"
+              
+              echo "Creating OpenPanel database..."
+              psql -h postgresql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='openpanel'" | grep -q 1 || \
+                psql -h postgresql -U postgres -c "CREATE DATABASE openpanel OWNER openpanel;"
+              
+              echo "✅ OpenPanel PostgreSQL setup complete"
+            EOT
+            ]
+          }]
+        }
+      }
+    }
+  })
+
+  depends_on = [helm_release.postgresql]
+}

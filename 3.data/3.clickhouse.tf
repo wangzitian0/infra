@@ -202,3 +202,40 @@ output "signoz_vault_path" {
 }
 
 
+
+# =============================================================================
+# OpenPanel ClickHouse User & Database (Event Storage)
+# Purpose: High-volume event analytics for OpenPanel
+# Pattern: Similar to SigNoz (static credentials)
+# =============================================================================
+
+# Generate password for OpenPanel ClickHouse user
+resource "random_password" "openpanel_clickhouse" {
+  length  = 24
+  special = false
+}
+
+# Create OpenPanel User in ClickHouse
+resource "clickhousedbops_user" "openpanel" {
+  name                            = "openpanel"
+  password_sha256_hash_wo         = sha256(random_password.openpanel_clickhouse.result)
+  password_sha256_hash_wo_version = 1
+
+  depends_on = [time_sleep.wait_for_clickhouse]
+}
+
+# Create OpenPanel Events Database
+resource "clickhousedbops_database" "openpanel_events" {
+  name       = "openpanel_events"
+  depends_on = [time_sleep.wait_for_clickhouse]
+}
+
+# Note: Privileges are automatically granted to user on database creation
+# No need for explicit grant_privilege resource (same pattern as SigNoz)
+# Verify with: kubectl exec -n data-staging clickhouse-0 -- clickhouse-client --query "SHOW GRANTS FOR openpanel"
+
+# Output for L4 consumption (credentials already in Vault via 1.postgres.tf)
+output "openpanel_clickhouse_database" {
+  value       = clickhousedbops_database.openpanel_events.name
+  description = "OpenPanel ClickHouse events database name"
+}
