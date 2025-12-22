@@ -53,63 +53,81 @@ jobs:
               .filter(c => (c.body || '').toLowerCase().includes(`atlantis ${stage.toLowerCase()}`))
               .pop();
 
-            // Extract components
-            const lines = body.split('\n');
-            const header = lines[0]; // "Ran Plan for project: ..."
+            // Extract location info from header: "Ran Plan for project: `xxx` dir: `xxx` workspace: `xxx`"
+            const projectMatch = body.match(/project: `([^`]+)`/);
+            const dirMatch = body.match(/dir: `([^`]+)`/);
+            const workspaceMatch = body.match(/workspace: `([^`]+)`/);
+
+            const project = projectMatch ? projectMatch[1] : 'unknown';
+            const dir = dirMatch ? dirMatch[1] : 'unknown';
+            const workspace = workspaceMatch ? workspaceMatch[1] : 'default';
+
+            // Check for errors
+            const hasError = /\*\*(Plan|Apply) Error\*\*|exit status [1-9]|panic:|terraform:.*failed/i.test(body);
+            const isSuccess = !hasError;
 
             // Extract plan summary
             const summaryMatch = body.match(/Plan: (\d+) to (add|import), (\d+) to change, (\d+) to destroy/);
             const planSummary = summaryMatch ? summaryMatch[0] : '';
 
-            // Find diff section
+            // Find output section
+            const lines = body.split('\n');
             const diffStartIdx = lines.findIndex(l => l.includes('<details><summary>Show Output</summary>'));
             const diffEndIdx = lines.findIndex((l, i) => i > diffStartIdx && l.includes('</details>'));
 
             if (diffStartIdx === -1) {
-              console.log('Cannot find diff section, skipping format');
+              console.log('Cannot find output section, skipping format');
               return;
             }
 
-            const diffSection = lines.slice(diffStartIdx, diffEndIdx + 1).join('\n');
+            // Extract raw output content (without the details wrapper)
+            const outputContent = lines.slice(diffStartIdx + 1, diffEndIdx).join('\n');
 
             // Build trigger reference
-            let triggerRef = '';
-            if (triggerComment) {
-              const username = triggerComment.user.login.replace('[bot]', '');
-              triggerRef = `**Triggered by:** [@${username}](${triggerComment.html_url})`;
+            const triggerRef = triggerComment
+              ? `[@${triggerComment.user.login.replace('[bot]', '')}](${triggerComment.html_url})`
+              : 'autoplan';
+
+            // Build status header - most important info first
+            const statusIcon = isSuccess ? '✅' : '❌';
+            const statusText = isSuccess ? 'Succeeded' : 'Failed';
+            const header = `## ${statusIcon} ${stage} ${statusText}`;
+
+            // Build next step guidance
+            let nextStep;
+            if (isPlan && isSuccess) {
+              nextStep = `\`\`\`\natl apply -p ${project}\n\`\`\``;
+            } else if (isPlan && !isSuccess) {
+              nextStep = 'Fix errors below, then run `atlantis plan`';
+            } else if (isApply && isSuccess) {
+              nextStep = 'Ready to merge!';
             } else {
-              triggerRef = '**Triggered by:** autoplan on push';
+              nextStep = 'Fix errors below, then re-run `atlantis plan`';
             }
 
-            // Check for errors (same pattern as infra-flash-update.yml)
-            const hasError = /\*\*(Plan|Apply) Error\*\*|exit status [1-9]|panic:|terraform:.*failed/i.test(body);
-
-            // Determine action section content
-            let actionContent;
-            if (isPlan) {
-              const project = (body.match(/project: `([^`]+)`/) || ['', 'apps'])[1];
-              actionContent = hasError
-                ? '❌ Plan failed. Fix errors and re-run `atlantis plan`'
-                : '```\natl apply -p ' + project + '\n```';
-            } else {
-              actionContent = hasError
-                ? '❌ Apply failed. Check errors above.'
-                : '✅ Apply complete';
-            }
-
-            // Rebuild comment - compact format
+            // Rebuild comment with UX-focused structure:
+            // 1. Status (most visible)
+            // 2. Location info (structured)
+            // 3. Next step (actionable, visible)
+            // 4. Details (folded)
             const formattedBody = [
               header,
               '',
-              triggerRef,
+              '| | |',
+              '|:---|:---|',
+              `| **Project** | \`${project}\` |`,
+              `| **Dir** | \`${dir}\` |`,
+              `| **Workspace** | \`${workspace}\` |`,
+              `| **Triggered by** | ${triggerRef} |`,
               '',
               planSummary ? `**${planSummary}**` : '',
               '',
-              diffSection,
+              '### 💡 Next Step',
+              nextStep,
               '',
-              '<details><summary>📋 Actions</summary>',
+              '<details><summary>📜 Output</summary>',
               '',
-              actionContent,
+              outputContent,
               '',
               '</details>'
             ].filter(Boolean).join('\n');

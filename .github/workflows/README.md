@@ -47,6 +47,37 @@ graph TD
 </details>
 ```
 
+### Atlantis 评论格式 (Plan/Apply 结果)
+
+`atlantis-comment-format.yml` 将原始 Atlantis 输出格式化为用户友好的结构：
+
+```markdown
+## ✅ Plan Succeeded | ❌ Apply Failed
+
+| | |
+|:---|:---|
+| **Project** | `platform` |
+| **Dir** | `2.platform` |
+| **Workspace** | `default` |
+| **Triggered by** | [@user](link) |
+
+**Plan: 3 to add, 1 to change, 0 to destroy**
+
+### 💡 Next Step
+`atl apply -p platform`  (成功时)
+Fix errors below, then run `atlantis plan`  (失败时)
+
+<details><summary>📜 Output</summary>
+... terraform output ...
+</details>
+```
+
+**设计原则**:
+1. **状态优先**: 第一行即显示成功/失败
+2. **位置结构化**: 表格展示 project/dir/workspace
+3. **下一步可见**: 不折叠，直接展示操作建议
+4. **详情折叠**: 冗长的 terraform 输出放在最后
+
 ## Workflows 列表
 
 | Workflow | 触发器 | 职责 | 看板反馈 |

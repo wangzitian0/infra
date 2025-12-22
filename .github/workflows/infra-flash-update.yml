@@ -184,14 +184,14 @@ jobs:
             const historyRow = `| ${stage} | ${triggerLink} | [result](${atlantisCommentUrl}) | ${timestamp} |`;
             body = body.replace('<!-- history-rows -->', `${historyRow}\n<!-- history-rows -->`);
 
-            // Update next step
+            // Update next step with actionable guidance
             let nextStep = '⏳ Waiting for results...';
             if (isPlan && isSuccess) {
-              nextStep = '👉 Review plan, then `atlantis apply`';
+              nextStep = `Review [plan output](${atlantisCommentUrl}), then comment \`atlantis apply\``;
             } else if (isApply && isSuccess) {
-              nextStep = '✅ **Ready to merge!** (AI Review pending)';
+              nextStep = '✅ Ready to merge';
             } else if (!isSuccess) {
-              nextStep = `❌ ${stage} failed. Fix and retry.`;
+              nextStep = `See [${stage.toLowerCase()} output](${atlantisCommentUrl}) for errors`;
             }
             body = body.replace(/<!-- next-step -->[\s\S]*?<!-- \/next-step -->/, `<!-- next-step -->\n${nextStep}\n<!-- /next-step -->`);
 
