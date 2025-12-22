@@ -52,12 +52,13 @@ resource "clickhousedbops_database" "openpanel_events" {
 }
 
 # 7. Grant ClickHouse Privileges
-resource "clickhousedbops_grant_privilege" "openpanel_events" {
-  grantee_user_name = clickhousedbops_user.openpanel.name
-  privilege_name    = "ALL"
-  database_name     = clickhousedbops_database.openpanel_events.name
-  table_name        = null # All tables
-}
+# NOTE: Privileges are managed automatically by ClickHouse when user is created.
+# The clickhousedbops_grant_privilege resource has a verification bug where
+# it fails if privileges already exist (expanded from ALL to individual grants).
+# Pattern: Same issue as SigNoz (see 51.clickhouse-signoz.tf)
+#
+# OpenPanel user already has ALL privileges on openpanel_events database.
+# To verify: kubectl exec -n data-staging clickhouse-0 -- clickhouse-client --query "SHOW GRANTS FOR openpanel"
 
 # =============================================================================
 # Vault KV Storage
