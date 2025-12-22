@@ -62,8 +62,12 @@ jobs:
 
             const isPlan = atlantisBody.includes('Ran Plan');
             const isApply = atlantisBody.includes('Ran Apply');
-            const hasError = /\*\*(Plan|Apply) Error\*\*|exit status [1-9]|panic:|terraform:.*failed/i.test(atlantisBody);
-            const isSuccess = !hasError;
+            // Check for success - prioritize 'Apply complete!' over error patterns
+            // IMPORTANT: terragrunt WARN or 'exit status' in logs should not cause false failures
+            const applyComplete = /Apply complete!/i.test(atlantisBody);
+            const planComplete = /Plan:.*to (add|import|change|destroy)/i.test(atlantisBody);
+            const hasExplicitError = /\*\*(Plan|Apply) Error\*\*|panic:/i.test(atlantisBody) && !applyComplete;
+            const isSuccess = (isApply && applyComplete) || (isPlan && planComplete) || (!hasExplicitError && (applyComplete || planComplete));
 
             const stage = isPlan ? 'Plan' : 'Apply';
             const statusIcon = isSuccess ? '✅' : '❌';
