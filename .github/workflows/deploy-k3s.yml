@@ -143,6 +143,15 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
+          # Import L3 namespace if it exists but not in state (e.g. after restructure)
+          # This matches the logic in atlantis.yaml
+          NS="data-prod"
+          echo "Checking L3 namespace: $NS"
+          if kubectl get ns "$NS" 2>/dev/null && ! terragrunt state show kubernetes_namespace.data 2>/dev/null; then
+            echo "Importing existing namespace $NS..."
+            terragrunt import kubernetes_namespace.data "$NS" || true
+          fi
+
           # Start port-forward for ClickHouse provider (L3 uses data-prod)
           echo "Starting ClickHouse port-forward for L3..."
           kubectl -n data-prod port-forward svc/clickhouse 8123:8123 > /dev/null 2>&1 &
