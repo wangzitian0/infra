@@ -52,14 +52,24 @@ provider "clickhousedbops" {
   }
 }
 
+# Read L3 PostgreSQL password from Vault (source of truth)
+# This ensures provider uses the same password as L3 deployment
+data "vault_kv_secret_v2" "l3_postgres_provider" {
+  mount = vault_mount.kv.path
+  name  = local.vault_db_secrets["postgres"]
+
+  # Only read if PostgreSQL resources exist in this config
+  depends_on = [vault_kv_secret_v2.l3_postgres]
+}
+
 # PostgreSQL provider for creating database users/databases (e.g., OpenPanel)
-# Connects to L3 PostgreSQL using admin credentials
+# Connects to L3 PostgreSQL using admin credentials from Vault
 # Defaults to in-cluster DNS; override via TF_VAR_postgres_host for CI port-forward
 provider "postgresql" {
   host            = var.postgres_host != "" ? var.postgres_host : "postgresql.data-staging.svc.cluster.local"
   port            = 5432
   username        = "postgres"
-  password        = random_password.l3_postgres.result
+  password        = data.vault_kv_secret_v2.l3_postgres_provider.data["password"]
   sslmode         = "disable"
   connect_timeout = 15
 }
