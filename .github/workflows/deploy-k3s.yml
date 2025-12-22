@@ -232,6 +232,8 @@ jobs:
       - name: Apply Infrastructure (L4 - Apps)
         if: github.event_name == 'push'
         working-directory: 4.apps
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
           if ls *.tf 1> /dev/null 2>&1; then
             terraform workspace select default || terraform workspace new default
