@@ -33,52 +33,73 @@ jobs:
           script: |
             const commentId = context.payload.comment.id;
             const body = context.payload.comment.body;
+            const prNumber = context.payload.issue.number;
 
-            // Only format "Ran Plan" comments (not "Ran Apply")
-            if (!body.includes('Ran Plan')) {
-              console.log('Not a plan comment, skipping format');
-              return;
-            }
+            const isPlan = body.includes('Ran Plan');
+            const isApply = body.includes('Ran Apply');
+            const stage = isPlan ? 'Plan' : 'Apply';
+
+            // Find trigger comment
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100
+            });
+
+            const atlantisTime = new Date(context.payload.comment.created_at);
+            const triggerComment = comments
+              .filter(c => new Date(c.created_at) < atlantisTime)
+              .filter(c => (c.body || '').toLowerCase().includes(`atlantis ${stage.toLowerCase()}`))
+              .pop();
 
             // Extract components
             const lines = body.split('\n');
             const header = lines[0]; // "Ran Plan for project: ..."
 
-            // Find the terraform diff section
-            const diffStartIdx = lines.findIndex(l => l.includes('<details><summary>Show Output</summary>'));
-            const diffEndIdx = lines.findIndex(l => l.includes('</details>'));
+            // Extract plan summary
+            const summaryMatch = body.match(/Plan: (\d+) to (add|import), (\d+) to change, (\d+) to destroy/);
+            const planSummary = summaryMatch ? summaryMatch[0] : '';
 
-            if (diffStartIdx === -1 || diffEndIdx === -1) {
+            // Find diff section
+            const diffStartIdx = lines.findIndex(l => l.includes('<details><summary>Show Output</summary>'));
+            const diffEndIdx = lines.findIndex((l, i) => i > diffStartIdx && l.includes('</details>'));
+
+            if (diffStartIdx === -1) {
               console.log('Cannot find diff section, skipping format');
               return;
             }
 
-            // Extract diff content (everything between ```diff and ```)
             const diffSection = lines.slice(diffStartIdx, diffEndIdx + 1).join('\n');
 
-            // Extract plan summary (e.g., "Plan: 8 to add, 0 to change, 0 to destroy")
-            const planSummaryMatch = body.match(/Plan: (\d+) to add, (\d+) to change, (\d+) to destroy/);
-            const planSummary = planSummaryMatch ? planSummaryMatch[0] : '';
+            // Build trigger reference
+            let triggerRef = '';
+            if (triggerComment) {
+              const username = triggerComment.user.login.replace('[bot]', '');
+              triggerRef = `**Triggered by:** [@${username}](${triggerComment.html_url})`;
+            } else {
+              triggerRef = '**Triggered by:** autoplan on push';
+            }
 
-            // Extract action commands section (everything after </details>)
-            const actionsSection = lines.slice(diffEndIdx + 1).join('\n');
-
-            // Rebuild comment with better structure
+            // Rebuild comment - compact format
             const formattedBody = [
               header,
+              '',
+              triggerRef,
               '',
               planSummary ? `**${planSummary}**` : '',
               '',
               diffSection,
               '',
-              '<details><summary>📋 Available Actions</summary>',
+              '<details><summary>📋 Actions</summary>',
               '',
-              actionsSection.trim(),
+              isPlan
+                ? '```\natl apply -p ' + (body.match(/project: `([^`]+)`/) || ['', 'apps'])[1] + '\n```'
+                : '✅ Apply complete',
               '',
               '</details>'
             ].filter(Boolean).join('\n');
 
-            // Update comment
             await github.rest.issues.updateComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -86,4 +107,4 @@ jobs:
               body: formattedBody
             });
 
-            console.log('Comment formatted successfully');
+            console.log('Comment formatted');
