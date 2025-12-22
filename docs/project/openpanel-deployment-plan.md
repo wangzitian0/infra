@@ -8,7 +8,7 @@
 - **ClickHouse User**: `openpanel` user created in L3 ClickHouse
 - **ClickHouse Database**: `openpanel_events` for event storage
 - **Vault Credentials**: Stored at `secret/data/openpanel`
-- **Casdoor SAML App**: SAML application configured for OpenPanel SSO (to be verified)
+- **Authentication**: OpenPanel will use **Portal Gate (OAuth2-Proxy)** for SSO (no native OIDC/SAML support)
 
 ### 🔄 In Progress (L4 Deployment)
 OpenPanel **officially supports Kubernetes/Helm** deployment (unlike PostHog).
@@ -98,15 +98,21 @@ All database credentials are stored in Vault KV at `secret/data/openpanel`:
 4. Deploy via Atlantis: `atlantis apply -p apps`
 
 ### Phase 3: Configure Authentication
-**OpenPanel Side**:
-- **If SAML is supported**:
-  - Configure SAML IdP metadata: `https://sso.zitian.party/api/saml/metadata?application=built-in/openpanel-saml`
-  - Set ACS URL (to be determined - need to verify OpenPanel callback path)
-  - Test SAML login flow
-- **If SAML is not supported**:
-  - Deploy OAuth2 Proxy in front of OpenPanel
-  - Configure Traefik ForwardAuth middleware
-  - Use local auth (email/password) as fallback
+
+**Authentication Strategy: Portal Gate (OAuth2-Proxy)**
+
+OpenPanel does **not support native OIDC or SAML**. Authentication will be handled by:
+- **Portal Gate**: OAuth2-Proxy + Traefik ForwardAuth middleware
+- **SSO Provider**: Casdoor (GitHub OAuth + Password login)
+- **Pattern**: Same as Kubernetes Dashboard (see `docs/ssot/platform.auth.md`)
+
+**Configuration Steps**:
+1. Ensure `enable_portal_sso_gate=true` in L2 platform
+2. Add OpenPanel Ingress with ForwardAuth annotations
+3. Users authenticate via Casdoor before accessing OpenPanel
+4. OpenPanel itself uses local auth (accounts synced manually or via API)
+
+**Alternative**: If OpenPanel adds OIDC/SAML support in the future, migrate to native authentication.
 
 ---
 
@@ -127,30 +133,28 @@ OpenPanel uses ClickHouse for high-volume event data:
 -- Tables: Created by OpenPanel migrations
 ```
 
-### SAML Integration (To Be Verified)
-Casdoor SAML application is pre-configured:
-- **Application Name**: `openpanel-saml`
-- **ACS URL**: `https://openpanel.${internal_domain}/auth/saml/callback` (to be verified)
-- **Attributes**: email, firstName, lastName
+### Authentication Architecture
 
-**⚠️ WARNING**: OpenPanel SAML callback URL is not verified in official documentation. Common patterns include:
-- `/auth/saml/callback`
-- `/api/auth/saml/acs`
-- `/complete/saml/`
+**Pattern**: Portal Gate (OAuth2-Proxy)
+- **Layer**: Traefik ForwardAuth middleware
+- **SSO**: Casdoor (`https://sso.zitian.party`)
+- **Category**: Apps without native OIDC/SAML support
 
-This needs manual verification after reviewing OpenPanel Helm chart or source code.
+See `docs/ssot/platform.auth.md` for full authentication strategy.
 
 ---
 
 ## 🔍 Outstanding Questions
 
-### Question 1: OpenPanel SAML Support
-**Status**: Not verified in documentation.
+### Question 1: OpenPanel SSO Support
+**Status**: ✅ **Resolved** - OpenPanel does not support native OIDC or SAML.
+
+**Solution**: Use Portal Gate (OAuth2-Proxy) for authentication.
 
 **Next Action**:
-- Check Helm chart values for SSO configuration
-- Review OpenPanel GitHub issues/discussions
-- Test deployment with local auth first, then add SAML
+- Deploy OpenPanel with local auth
+- Configure Ingress with ForwardAuth to Portal Gate
+- Test Casdoor → OAuth2-Proxy → OpenPanel login flow
 
 ### Question 2: Helm Chart Configuration Complexity
 **Finding**: Helm chart requires substantial upfront configuration.

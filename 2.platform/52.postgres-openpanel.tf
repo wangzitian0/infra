@@ -89,12 +89,9 @@ resource "vault_kv_secret_v2" "openpanel" {
     clickhouse_password = random_password.openpanel_clickhouse.result
     clickhouse_database = "openpanel_events"
 
-    # SAML SSO Configuration (Casdoor as IdP)
-    # NOTE: OpenPanel SAML support to be verified. May need manual configuration.
-    # If SAML is not supported, use OAuth2 Proxy as authentication gateway.
-    # URL: https://sso.${internal_domain}/api/saml/metadata?application=built-in/openpanel-saml
-    saml_idp_entity_id  = "https://sso.${local.internal_domain}"
-    saml_idp_sso_url    = "https://sso.${local.internal_domain}/api/saml"
-    saml_idp_metadata   = "https://sso.${local.internal_domain}/api/saml/metadata?application=built-in/openpanel-saml"
+    # SSO Configuration
+    # OpenPanel does not support native OIDC or SAML.
+    # Authentication will be handled by Portal Gate (OAuth2-Proxy).
+    # See: docs/ssot/platform.auth.md for authentication architecture.
   })
 }

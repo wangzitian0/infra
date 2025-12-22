@@ -206,65 +206,11 @@ data "http" "casdoor_oidc_discovery" {
 }
 
 # =============================================================================
-# 3. SAML Applications (OpenPanel)
+# 3. SAML Applications
 # =============================================================================
 
-# OpenPanel SAML Application
-# NOTE: OpenPanel SAML support is not yet verified in documentation.
-# If SAML is not supported, OpenPanel can be deployed with:
-# 1. Local auth (email/password) - enabled by default
-# 2. OAuth2 Proxy as authentication gateway
-resource "restapi_object" "app_openpanel_saml" {
-  count = local.casdoor_oidc_enabled ? 1 : 0
-
-  path          = "/add-application"
-  create_path   = "/add-application"
-  update_path   = "/update-application?id=admin/{id}"
-  update_method = "POST"
-  read_path     = "/get-application?id=admin/{id}"
-  destroy_path  = "/delete-application?id=admin/{id}"
-  id_attribute  = "name"
-
-  data = jsonencode({
-    owner        = "admin"
-    organization = "built-in"
-    name         = "openpanel-saml"
-    displayName  = "OpenPanel SAML"
-
-    # SAML-specific configuration
-    # WARNING: OpenPanel SAML callback URL not verified in official docs.
-    # Common patterns: /auth/saml/callback, /api/auth/saml/acs, /complete/saml/
-    # May need manual verification after deployment.
-    enableSamlCompress = true
-    samlReplyUrl       = "https://openpanel.${local.internal_domain}/auth/saml/callback"
-
-    # SAML attribute mapping (standard attributes)
-    samlAttributes = [
-      { name = "email", value = "email" },
-      { name = "firstName", value = "firstName" },
-      { name = "lastName", value = "lastName" }
-    ]
-
-    # Common fields
-    enablePassword = true
-    signupItems    = []
-
-    # GitHub provider for unified login experience
-    providers = [
-      {
-        owner     = "admin"
-        name      = "GitHub"
-        canSignUp = true
-        canSignIn = true
-        canUnlink = true
-        rule      = "None"
-      }
-    ]
-  })
-
-  depends_on = [restapi_object.provider_github]
-
-  # NOTE: If this resource fails, it will not block other Casdoor apps
-  # (Vault/Kubero) due to independent resource graphs. OpenPanel deployment
-  # in L4 can proceed with local auth if SAML is unavailable.
-}
+# NOTE: OpenPanel does not support native OIDC or SAML.
+# OpenPanel will use Portal Gate (OAuth2-Proxy) for authentication.
+# See: docs/ssot/platform.auth.md for authentication strategy.
+#
+# If a future analytics platform supports SAML, add configuration here.
