@@ -116,8 +116,8 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
-          terraform workspace select default || terraform workspace new default
-          terraform apply -auto-approve
+          # Terragrunt auto-generates backend.tf and providers
+          terragrunt apply --terragrunt-non-interactive -auto-approve
 
       - name: Verify L2 (Vault Status)
         env:
@@ -132,13 +132,13 @@ jobs:
       - name: Setup Terraform Environment (L3)
         uses: ./.github/actions/terraform-setup
         with:
-          working_directory: "3.data"
+          working_directory: "envs/prod/3.data"
           tf_state_key: "k3s/data-prod.tfstate"
           secrets_json: ${{ toJSON(secrets) }}
 
       - name: Apply Infrastructure (L3 - Data)
         if: github.event_name == 'push'
-        working-directory: 3.data
+        working-directory: envs/prod/3.data
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
@@ -157,11 +157,10 @@ jobs:
             sleep 1
           done
 
-          terraform workspace select prod || terraform workspace new prod
-
           trap "kill $PID 2>/dev/null || true" EXIT
 
-          terraform apply -auto-approve -var="clickhouse_host=127.0.0.1"
+          # Terragrunt auto-generates backend.tf and detects environment from path
+          terragrunt apply --terragrunt-non-interactive -auto-approve -var="clickhouse_host=127.0.0.1"
 
       - name: Verify Data Services Health (L3)
         if: github.event_name == 'push'
@@ -218,8 +217,8 @@ jobs:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
           if ls *.tf 1> /dev/null 2>&1; then
-            terraform workspace select default || terraform workspace new default
-            terraform apply -auto-approve || {
+            # Terragrunt auto-generates backend.tf and providers
+            terragrunt apply --terragrunt-non-interactive -auto-approve || {
                echo "::error::L4 Apps Apply failed."
                exit 1
             }

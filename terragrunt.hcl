@@ -103,64 +103,46 @@ generate "common_providers" {
       token           = var.vault_root_token
       skip_tls_verify = true
     }
-  EOF
-}
 
-# =============================================================================
-# Common Required Providers
-# =============================================================================
-# Define version constraints for common providers
-
-generate "common_required_providers" {
-  path      = "versions_providers_common.tf"
-  if_exists = "overwrite_terragrunt"
-  contents  = <<-EOF
-    terraform {
-      required_version = ">= 1.11.0"
-
-      required_providers {
-        kubernetes = {
-          source  = "hashicorp/kubernetes"
-          version = "~> 2.0"
-        }
-        helm = {
-          source  = "hashicorp/helm"
-          version = "~> 2.0"
-        }
-        vault = {
-          source  = "hashicorp/vault"
-          version = "~> 4.0"
-        }
-        random = {
-          source  = "hashicorp/random"
-          version = "~> 3.6"
-        }
-      }
+    # kubectl provider - used by L2/L3/L4 for raw manifests
+    provider "kubectl" {
+      config_path      = var.kubeconfig_path != "" ? var.kubeconfig_path : null
+      load_config_file = var.kubeconfig_path != ""
     }
   EOF
 }
 
+# Note: We don't generate common_required_providers here because Terraform
+# only allows one required_providers block per module. Each layer generates
+# their own complete versions.tf with both common and layer-specific providers.
+
 # =============================================================================
 # Global Inputs (Available to All Layers)
 # =============================================================================
-# These inputs are automatically passed to all Terraform modules.
+# These inputs are automatically passed to all Terraform modules via TF_VAR_*.
 # Layer-specific inputs should be defined in layer terragrunt.hcl files.
+# SSOT: Variables are defined once here and consumed by all layers.
 
 inputs = {
-  # Kubernetes configuration
+  # === Kubernetes Configuration ===
   kubeconfig_path = get_env("KUBECONFIG_PATH", "")
 
-  # Vault configuration
+  # === Vault Configuration ===
   vault_address    = get_env("VAULT_ADDR", "http://vault.platform.svc.cluster.local:8200")
   vault_root_token = get_env("VAULT_TOKEN", "")
 
-  # Cloudflare configuration
+  # === Domain Configuration ===
+  base_domain     = get_env("BASE_DOMAIN", "truealpha.club")
+  internal_domain = get_env("INTERNAL_DOMAIN", "zitian.party")
+
+  # === Cloudflare Configuration ===
   cloudflare_api_token = get_env("CLOUDFLARE_API_TOKEN", "")
 
-  # R2 backend variables (for remote state data sources in L3)
+  # === R2 Backend (for L3 remote state access) ===
   r2_bucket     = get_env("R2_BUCKET", "")
   r2_account_id = get_env("R2_ACCOUNT_ID", "")
 
-  # Environment context (null for singleton layers like L2)
+  # === Environment Context ===
+  # Auto-detected from directory path (null for singleton layers like L2/L4)
   environment = local.env
 }
