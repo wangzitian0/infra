@@ -83,6 +83,11 @@ L1 Atlantis passes the following variables to L2/L3:
 
 ## Recent Changes
 
+### 2025-12-23: Portal SSO Gate DNS Fix
+- **DNS**: Added `auth.internal.domain` for OAuth2-Proxy callback endpoint
+- **Purpose**: Required for Portal SSO Gate to function (redirect URI)
+- **Location**: Proxied DNS record (HTTPS via Cloudflare)
+
 ### 2025-12-23: Homer Portal DNS Record
 - **DNS**: Added `home.internal.domain` subdomain for Homer Portal dashboard
 - **Purpose**: Unified landing page with quick links to all infrastructure services

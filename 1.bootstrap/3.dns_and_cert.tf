@@ -11,6 +11,7 @@ locals {
     openpanel  = true  # HTTPS via proxy
     home       = true  # Homer Portal - HTTPS via proxy
     sso        = false # SSO (Casdoor) - DNS only (avoid Cloudflare caching/WAF issues)
+    auth       = true  # OAuth2-Proxy callback for Portal SSO Gate
     k3s        = false # API on 6443, must stay DNS-only
   }
 
