@@ -16,7 +16,7 @@
 # =============================================================================
 # Password Management (Vault-first pattern - Issue #349)
 # - On first deployment: generate new password
-# - On state recovery: read existing password from K8s secret
+# - On state recovery: read existing password from Vault (SSOT)
 # =============================================================================
 
 resource "random_password" "redis" {
@@ -24,14 +24,13 @@ resource "random_password" "redis" {
   special = false
 }
 
-# Read existing password from K8s secret if it exists
+# Read existing password from Vault if it exists (Vault is SSOT)
 data "external" "redis_password" {
   program = ["bash", "-c", <<-EOT
-    NS="${local.namespace_name}"
-    # Try to read password from K8s secret (created by Helm chart)
-    PW=$(kubectl get secret redis -n "$NS" -o jsonpath='{.data.redis-password}' 2>/dev/null | base64 -d 2>/dev/null || true)
+    # Try to read password from Vault (SSOT)
+    PW=$(vault kv get -field=password secret/redis 2>/dev/null || true)
     if [ -n "$PW" ]; then
-      printf '{"password": "%s", "source": "k8s-secret"}' "$PW"
+      printf '{"password": "%s", "source": "vault"}' "$PW"
     else
       printf '{"password": "", "source": "none"}'
     fi

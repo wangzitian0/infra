@@ -40,7 +40,7 @@ graph LR
 **L3 owns password generation** - L2 only creates Vault mounts.
 
 **State Recovery Pattern**: When Terraform state is lost but resources exist:
-1. `data.external.*_password` reads existing password from K8s secret (created by Helm)
+1. `data.external.*_password` reads existing password from Vault (SSOT)
 2. `local.*_password` selects existing or generates new
 3. Helm chart uses same password → no restart needed
 4. Vault secret has `ignore_changes` → no credential overwrite
@@ -126,7 +126,7 @@ kubectl exec -n "$NS" postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 ### Recovery Steps
 
 1. **Terraform State Lost** (Issue #349 pattern):
-   - Re-run L3 apply → reads existing passwords from K8s secrets
+   - Re-run L3 apply → reads existing passwords from Vault (SSOT)
    - No database restart needed (same credentials)
    - Vault secrets protected by `ignore_changes`
 2. **Data Loss**: Restore from pg_dump backup

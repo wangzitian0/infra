@@ -18,8 +18,7 @@
 # =============================================================================
 # Password Management (Vault-first pattern - Issue #349)
 # - On first deployment: generate new password
-# - On state recovery: read existing password from K8s secret
-# Note: ArangoDB operator creates root password secret as <deployment>-root-password
+# - On state recovery: read existing password from Vault (SSOT)
 # =============================================================================
 
 resource "random_password" "arangodb" {
@@ -32,16 +31,13 @@ resource "random_bytes" "arangodb_jwt" {
   length = 32
 }
 
-# Read existing password from K8s secret if it exists
-# ArangoDB operator creates root password secret when configured
+# Read existing password from Vault if it exists (Vault is SSOT)
 data "external" "arangodb_password" {
   program = ["bash", "-c", <<-EOT
-    NS="${local.namespace_name}"
-    # Try to read password from K8s secret (created by ArangoDB operator)
-    # The operator creates a secret named <deployment>-root-password
-    PW=$(kubectl get secret arangodb-root-password -n "$NS" -o jsonpath='{.data.password}' 2>/dev/null | base64 -d 2>/dev/null || true)
+    # Try to read password from Vault (SSOT)
+    PW=$(vault kv get -field=password secret/arangodb 2>/dev/null || true)
     if [ -n "$PW" ]; then
-      printf '{"password": "%s", "source": "k8s-secret"}' "$PW"
+      printf '{"password": "%s", "source": "vault"}' "$PW"
     else
       printf '{"password": "", "source": "none"}'
     fi
@@ -49,14 +45,13 @@ data "external" "arangodb_password" {
   ]
 }
 
-# Read existing JWT from K8s secret if it exists
+# Read existing JWT from Vault if it exists
 data "external" "arangodb_jwt" {
   program = ["bash", "-c", <<-EOT
-    NS="${local.namespace_name}"
-    # Try to read JWT token from K8s secret
-    JWT=$(kubectl get secret arangodb-jwt -n "$NS" -o jsonpath='{.data.token}' 2>/dev/null || true)
+    # Try to read JWT from Vault (SSOT)
+    JWT=$(vault kv get -field=jwt_secret secret/arangodb 2>/dev/null || true)
     if [ -n "$JWT" ]; then
-      printf '{"token": "%s", "source": "k8s-secret"}' "$JWT"
+      printf '{"token": "%s", "source": "vault"}' "$JWT"
     else
       printf '{"token": "", "source": "none"}'
     fi

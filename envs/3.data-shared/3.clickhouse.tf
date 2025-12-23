@@ -24,21 +24,17 @@ resource "random_password" "clickhouse" {
 }
 
 # =============================================================================
-# Read existing password from K8s Secret (created by Helm chart)
-# This is the SSOT for password after initial deployment
+# Read existing password from Vault (SSOT)
 # Uses external data source to gracefully handle missing secret
 # =============================================================================
 
 data "external" "clickhouse_password" {
   program = ["bash", "-c", <<-EOT
-    NS="${local.namespace_name}"
-    # Try to read password from K8s secret (created by Helm chart)
-    PW=$(kubectl get secret clickhouse -n "$NS" -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || true)
+    # Try to read password from Vault (SSOT)
+    PW=$(vault kv get -field=password secret/clickhouse 2>/dev/null || true)
     if [ -n "$PW" ]; then
-      # Secret exists, return existing password
-      printf '{"password": "%s", "source": "k8s-secret"}' "$PW"
+      printf '{"password": "%s", "source": "vault"}' "$PW"
     else
-      # Secret doesn't exist (first deployment), return empty
       printf '{"password": "", "source": "none"}'
     fi
   EOT
@@ -46,8 +42,7 @@ data "external" "clickhouse_password" {
 }
 
 locals {
-  # Use existing password from K8s secret if available, otherwise use random_password
-  # K8s secret is created by Helm chart and survives state reset
+  # Use existing password from Vault if available, otherwise use random_password
   clickhouse_password = data.external.clickhouse_password.result.password != "" ? (
     data.external.clickhouse_password.result.password
     ) : (
