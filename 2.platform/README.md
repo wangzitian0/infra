@@ -4,6 +4,7 @@
 
 > **定位**：模块维护文档（面向基础设施运维者）
 > **开发者？** → 请先看 [开发者接入指南](../docs/onboarding/README.md)
+> **部署验证？** → 见 [E2E 回归测试](../docs/ssot/ops.e2e-regressions.md)
 
 **Scope**:
 - **Secrets**: Vault (PostgreSQL storage backend, Agent Injector)
