@@ -2,10 +2,11 @@
 #
 # Purpose: Multi-model database (document, graph, key-value) for L4 applications
 #
-# Architecture (after refactor - Issue #336):
-# - L3 generates password locally
-# - L3 stores password in Vault KV
-# - L4 reads credentials from Vault KV
+# Architecture (VSO Pattern - Issue #351):
+# - random_password generates password on first deploy
+# - vault_kv_secret_v2 stores password + JWT in Vault (SSOT)
+# - VaultStaticSecret syncs Vault → K8s Secret (via VSO)
+# - ArangoDB Operator reads JWT from K8s Secret
 #
 # Pattern: ArangoDB official Operator + Custom Resource
 # Namespace: per-env (data-staging, data-prod)
@@ -16,9 +17,7 @@
 # Note: Migrating from Single to Cluster requires data migration (cannot hot-upgrade)
 
 # =============================================================================
-# Password Management (Vault-first pattern - Issue #349)
-# - On first deployment: generate new password
-# - On state recovery: read existing password from Vault (SSOT)
+# Password Management (VSO Pattern - Issue #351)
 # =============================================================================
 
 resource "random_password" "arangodb" {
@@ -31,45 +30,64 @@ resource "random_bytes" "arangodb_jwt" {
   length = 32
 }
 
-# Read existing password from Vault if it exists (Vault is SSOT)
-data "external" "arangodb_password" {
-  program = ["bash", "-c", <<-EOT
-    # Try to read password from Vault (SSOT)
-    PW=$(vault kv get -field=password secret/arangodb 2>/dev/null || true)
-    if [ -n "$PW" ]; then
-      printf '{"password": "%s", "source": "vault"}' "$PW"
-    else
-      printf '{"password": "", "source": "none"}'
-    fi
-  EOT
-  ]
+# =============================================================================
+# Vault KV Storage (store password + JWT - SSOT)
+# =============================================================================
+
+resource "vault_kv_secret_v2" "arangodb" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    username   = "root"
+    password   = random_password.arangodb.result
+    jwt_secret = random_bytes.arangodb_jwt.base64
+    token      = random_bytes.arangodb_jwt.base64 # Alias for JWT secret (VSO key)
+    host       = "arangodb.${local.namespace_name}.svc.cluster.local"
+    port       = "8529"
+  })
+
+  depends_on = [kubernetes_namespace.data]
+
+  lifecycle {
+    # Don't overwrite existing credentials in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
-# Read existing JWT from Vault if it exists
-data "external" "arangodb_jwt" {
-  program = ["bash", "-c", <<-EOT
-    # Try to read JWT from Vault (SSOT)
-    JWT=$(vault kv get -field=jwt_secret secret/arangodb 2>/dev/null || true)
-    if [ -n "$JWT" ]; then
-      printf '{"token": "%s", "source": "vault"}' "$JWT"
-    else
-      printf '{"token": "", "source": "none"}'
-    fi
-  EOT
-  ]
+# =============================================================================
+# VaultStaticSecret - Syncs Vault KV → K8s Secret (via VSO)
+# =============================================================================
+
+resource "kubectl_manifest" "arangodb_vault_secret" {
+  yaml_body = yamlencode({
+    apiVersion = "secrets.hashicorp.com/v1beta1"
+    kind       = "VaultStaticSecret"
+    metadata = {
+      name      = "arangodb-credentials"
+      namespace = local.namespace_name
+    }
+    spec = {
+      type  = "kv-v2"
+      mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+      path  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]
+      destination = {
+        name   = "arangodb-credentials"
+        create = true
+      }
+      refreshAfter = "1h"
+      vaultAuthRef = "default"
+    }
+  })
+
+  depends_on = [vault_kv_secret_v2.arangodb, kubectl_manifest.vault_auth]
 }
 
-locals {
-  arangodb_password = data.external.arangodb_password.result.password != "" ? (
-    data.external.arangodb_password.result.password
-    ) : (
-    random_password.arangodb.result
-  )
-  arangodb_jwt = data.external.arangodb_jwt.result.token != "" ? (
-    data.external.arangodb_jwt.result.token
-    ) : (
-    random_bytes.arangodb_jwt.base64
-  )
+# Wait for VSO to sync the secret before deploying ArangoDB
+resource "time_sleep" "wait_for_arangodb_secret" {
+  create_duration = "15s"
+  depends_on      = [kubectl_manifest.arangodb_vault_secret]
 }
 
 # =============================================================================
@@ -127,32 +145,10 @@ resource "time_sleep" "wait_for_arangodb_crd" {
 }
 
 # =============================================================================
-# JWT Secret for ArangoDB Authentication
-# ArangoDB requires a minimum 32-byte secret for JWT signing
-# =============================================================================
-
-resource "kubernetes_secret" "arangodb_jwt" {
-  metadata {
-    name      = "arangodb-jwt"
-    namespace = local.namespace_name
-  }
-
-  data = {
-    token = local.arangodb_jwt
-  }
-
-  depends_on = [kubernetes_namespace.data]
-
-  lifecycle {
-    # Don't overwrite existing JWT during state recovery
-    ignore_changes = [data]
-  }
-}
-
-# =============================================================================
 # ArangoDB Deployment CR (Single Mode)
 # Creates a single-server ArangoDB instance
 # Using kubectl_manifest to avoid plan-time CRD validation
+# Note: Uses VSO-synced secret (arangodb-credentials) which contains 'token' key for JWT
 # =============================================================================
 
 resource "kubectl_manifest" "arangodb_deployment" {
@@ -167,7 +163,8 @@ resource "kubectl_manifest" "arangodb_deployment" {
       mode  = "Single"
       image = "arangodb/arangodb:3.11.8"
       auth = {
-        jwtSecretName = kubernetes_secret.arangodb_jwt.metadata[0].name
+        # Use VSO-synced secret which contains 'token' key for JWT
+        jwtSecretName = "arangodb-credentials"
       }
       single = {
         count = 1
@@ -198,33 +195,8 @@ resource "kubectl_manifest" "arangodb_deployment" {
 
   depends_on = [
     time_sleep.wait_for_arangodb_crd,
-    kubernetes_secret.arangodb_jwt
+    time_sleep.wait_for_arangodb_secret
   ]
-}
-
-# =============================================================================
-# Vault KV Storage
-# =============================================================================
-
-resource "vault_kv_secret_v2" "arangodb" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]
-  delete_all_versions = true
-
-  data_json = jsonencode({
-    username   = "root"
-    password   = local.arangodb_password
-    jwt_secret = local.arangodb_jwt
-    host       = "arangodb.${local.namespace_name}.svc.cluster.local"
-    port       = "8529"
-  })
-
-  depends_on = [kubectl_manifest.arangodb_deployment]
-
-  lifecycle {
-    # Don't overwrite existing credentials in Vault during state recovery
-    ignore_changes = [data_json]
-  }
 }
 
 # =============================================================================

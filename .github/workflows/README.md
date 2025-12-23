@@ -83,11 +83,12 @@ Fix errors below, then run `atlantis plan`  (失败时)
 | Workflow | 触发器 | 职责 | 看板反馈 |
 |:---|:---|:---|:---|
 | `terraform-plan.yml` | `pull_request` | 静态 CI + 骨架评论创建 | 更新 `Static CI` 行 |
+| `atlantis-acknowledge.yml` | `issue_comment` | 👀 立即响应 atlantis 命令 | N/A (仅加 👀) |
 | `infra-flash-update.yml` | `issue_comment` | 搬运 Atlantis Plan/Apply 输出 | 更新 `Plan/Apply` 行 & `Action` 表 |
-| `claude-code-review.yml`| `workflow_run` | **(NEW)** Apply 成功后自动执行 AI 审计 | 更新 `AI Review` 行 |
+| `deploy-L1-bootstrap.yml` | `issue_comment` / `workflow_dispatch` | L1 Bootstrap (`bootstrap plan/apply`) | 更新 `Bootstrap Plan/Apply` 行 |
+| `claude-code-review.yml`| `workflow_run` | Apply 成功后自动执行 AI 审计 | 更新 `AI Review` 行 |
 | `claude.yml` | `@claude` 评论 | 手动触发 AI 编码/审计任务 | 更新 `AI Review` 行 |
-| `infra-commands.yml` | `infra dig/help` | **(NEW)** 指令分发器（健康探测/帮助） | 更新 `Health Check` 行 |
-| `deploy-k3s.yml` | `push` to main | 灾备平面：全量 L1-L4 Flash | N/A |
+| `infra-commands.yml` | `infra dig/help` | 指令分发器（健康探测/帮助） | 更新 `Health Check` 行 |
 
 ---
 
@@ -97,33 +98,33 @@ Fix errors below, then run `atlantis plan`  (失败时)
 
 ---
 
-## L3 Resource Import in CI
+## L1 Bootstrap Workflow
 
-`deploy-k3s.yml` automatically imports existing L3 resources before applying to handle state synchronization after Terragrunt migration:
+`deploy-L1-bootstrap.yml` is a **manual-trigger** workflow for initial cluster setup and disaster recovery:
 
-### Imported Resources
-| Resource | Import ID | Condition |
-|:---|:---|:---|
-| `kubernetes_namespace.data` | `data-prod` | Namespace exists in K8s |
-| `helm_release.postgresql` | `data-prod/postgresql` | Helm release exists |
-| `helm_release.redis` | `data-prod/redis` | Helm release exists |
-| `helm_release.clickhouse` | `data-prod/clickhouse` | Helm release exists |
-| `helm_release.arangodb_operator` | `data-prod/arangodb-operator` | Helm release exists |
-| `kubernetes_secret.arangodb_jwt` | `data-prod/arangodb-jwt` | Secret exists |
+### Scope (L1 Only)
+- K3s cluster installation
+- cert-manager deployment
+- Platform PostgreSQL (for Vault/Casdoor)
+- Atlantis deployment
 
-> **Note**: Import only runs if the resource exists in cluster but not in Terraform state.
+### When to Use
+| Scenario | Action |
+|:---|:---|
+| Initial cluster setup | Run `deploy-L1-bootstrap.yml` |
+| L1 component recovery | Run `deploy-L1-bootstrap.yml` |
+| L2/L3/L4 changes | Use Atlantis (PR-based) |
 
----
+> **Note**: L2/L3/L4 are managed by Atlantis. See `atlantis.yaml` for project definitions.
 
-## Database Port-Forwards in CI
+### L3 Resource Import (Atlantis)
 
-`deploy-k3s.yml` uses `kubectl port-forward` to connect to databases for L3 terraform providers:
+L3 resource imports are handled by **Atlantis** (not GitHub Actions) via the shared import script:
 
-### ClickHouse Provider (L3 only)
-- **L3 (Data)**: Port-forwards to `data-prod` namespace
-- Override variable: `-var="clickhouse_host=127.0.0.1"`
-
-> **Note**: L2 (Platform) no longer requires database port-forwards after PR #340 removed temporary DB providers.
+```bash
+# atlantis.yaml workflow calls:
+./0.tools/l3-import.sh "$NS" "$TG"
+```
 
 ---
 *Last updated: 2025-12-23*

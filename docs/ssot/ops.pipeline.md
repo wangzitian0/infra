@@ -13,7 +13,7 @@
 | **AI 护栏** | `@claude review` / 自动 | Claude App (Haiku 4.5) | 文档一致性、IaC 规范、安全审计 |
 | **审计合规** | `infra-flash` 评论流 | GHA + Atlantis | 每一笔操作都有 Commit 级别的记录 |
 | **环境健康** | `infra dig` | GitHub Actions | 外部视角验证服务连通性 |
-| **全量恢复** | `deploy-k3s.yml` | GitHub Actions | 灾备与初始引导 (Bootstrap) |
+| **L1 引导** | `deploy-L1-bootstrap.yml` | GitHub Actions | 初始引导（手动触发）|
 
 ---
 
@@ -123,6 +123,8 @@ sequenceDiagram
 
 | Stage | Status | Link | Time |
 |:---|:---:|:---|:---|
+| Bootstrap Plan | {⏳/✅/❌/⏭️} | [View]({url}) | {time} |
+| Bootstrap Apply | {⏳/✅/❌/⏭️} | [View]({url}) | {time} |
 | Static CI | {⏳/✅/❌} | [View]({url}) | {HH:MM UTC} |
 | Infra Plan | {⏳/✅/❌/⏭️} | [View]({url}) | {time} |
 | Infra Apply | {⏳/✅/❌/⏭️} | [View]({url}) | {time} |
@@ -132,6 +134,7 @@ sequenceDiagram
 
 | Action | Trigger | Output | Time |
 |:---|:---|:---|:---|
+| Bootstrap Plan | [@user]({trigger_url}) 👀 | [result]({output_url}) | {time} |
 | Plan | [@user]({trigger_url}) 👀 | [result]({output_url}) | {time} |
 | Apply | [@user]({trigger_url}) 👀 | [result]({output_url}) | {time} |
 <!-- history-rows -->
@@ -142,8 +145,10 @@ sequenceDiagram
 
 | Command | Description |
 |:---|:---|
-| `atlantis plan` | Re-run plan |
-| `atlantis apply` | Deploy changes |
+| `bootstrap plan` | Preview L1 changes (k3s, cert-manager, Platform PG, Atlantis) |
+| `bootstrap apply` | Deploy L1 |
+| `atlantis plan` | Preview L2/L3/L4 changes |
+| `atlantis apply` | Deploy L2/L3/L4 |
 
 </details>
 
@@ -154,9 +159,9 @@ sequenceDiagram
 
 ### 设计原则
 
-1. **紧凑主体**: 主表 4 行状态，其余折叠
-2. **正确顺序**: Static CI → Plan → Apply → AI Review（执行顺序）
-3. **👀 反馈链**: 人类 `atlantis plan/apply` 评论收到 👀，表示已开始处理
+1. **紧凑主体**: 主表 6 行状态（含 Bootstrap），其余折叠
+2. **正确顺序**: Bootstrap → Static CI → Plan → Apply → AI Review（执行顺序）
+3. **👀 反馈链**: 人类命令评论立即收到 👀（由 `atlantis-acknowledge.yml` 处理）
 4. **触发溯源**: History 表中 Trigger 列链接到触发评论
 
 ### Marker 规范
@@ -287,11 +292,12 @@ flowchart TD
 | 文件 | 身份 | 职责 | 触发器 |
 |:---|:---|:---|:---|
 | `terraform-plan.yml` | `infra-flash[bot]` | 静态 CI + 骨架评论创建 + CI 结果更新 | `pull_request` |
+| `atlantis-acknowledge.yml` | `github-actions` | 👀 立即响应 `atlantis plan/apply` 命令 | `issue_comment` |
 | `infra-commands.yml` | `infra-flash[bot]` | 指令分发器 (`dig`, `help`) | `issue_comment` |
 | `infra-flash-update.yml` | `infra-flash[bot]` | 监听并搬运 Atlantis 的输出到主评论 | `issue_comment` |
+| `deploy-L1-bootstrap.yml` | `infra-flash[bot]` | L1 Bootstrap (`bootstrap plan/apply`) | `issue_comment` / `workflow_dispatch` |
 | `claude.yml` | `claude[bot]` | 响应 @claude 评论，执行 AI 任务 | `issue_comment` |
 | `claude-code-review.yml` | `claude[bot]` | Apply 成功后自动审查部署变更 | `workflow_run` |
-| `deploy-k3s.yml` | `github-actions` | 灾备平面：全量 L1-L4 Flash | `push` to main |
 
 ---
 
@@ -320,7 +326,7 @@ Terraform 版本通过 **`.terraform-version`** 文件统一管理，确保四�
 |:---|:---|:---|
 | PR CI (`terraform validate`) | `.terraform-version` | `terraform-plan.yml` 读取文件 |
 | Atlantis (`plan/apply`) | `required_version` 约束 | 各层 `versions.tf` 设置 `>= X.Y.Z` |
-| Post-merge (`deploy-k3s`) | `.terraform-version` | `terraform-setup` action 读取 |
+| L1 Bootstrap | `.terraform-version` | `deploy-L1-bootstrap.yml` 读取（手动触发）|
 | Local dev | `.terraform-version` | tfenv/asdf 自动读取 |
 
 **版本更新流程**：只需修改 `.terraform-version` 和各层 `required_version` 约束。
@@ -380,7 +386,7 @@ Terraform 版本通过 **`.terraform-version`** 文件统一管理，确保四�
 
 - [ ] **文档-代码同步检查**: CI 检查 workflow 变更是否同步更新了本 SSOT
 
-*Last Updated: 2025-12-22*
+*Last Updated: 2025-12-23*
 
 ## Used by
 

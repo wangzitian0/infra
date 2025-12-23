@@ -1,0 +1,420 @@
+name: Deploy L1 Bootstrap
+
+# L1 Bootstrap: k3s, cert-manager, Platform PG, Atlantis
+# Purpose: Initial setup and disaster recovery ONLY
+# Daily operations should use Atlantis for L2/L3/L4
+#
+# Triggers:
+#   - workflow_dispatch: Manual trigger with confirmation
+#   - issue_comment: PR comment with "bootstrap plan" or "bootstrap apply"
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "bootstrap" to confirm L1 deployment'
+        required: true
+        type: string
+  issue_comment:
+    types: [created]
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TG_NON_INTERACTIVE: "true"
+
+jobs:
+  # Parse bootstrap command from PR comment
+  parse-command:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       github.event.comment.user.type != 'Bot' &&
+       (contains(github.event.comment.body, 'bootstrap plan') ||
+        contains(github.event.comment.body, 'bootstrap apply'))) ||
+      (github.event_name == 'workflow_dispatch')
+    outputs:
+      command: ${{ steps.parse.outputs.command }}
+      valid: ${{ steps.parse.outputs.valid }}
+      pr_number: ${{ steps.parse.outputs.pr_number }}
+      head_sha: ${{ steps.parse.outputs.head_sha }}
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Acknowledge Command (👀)
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'eyes'
+            });
+
+      - name: Parse Command
+        id: parse
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+        run: |
+          if [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+            BODY=$(echo "${{ github.event.comment.body }}" | head -n 1 | tr '[:upper:]' '[:lower:]')
+            if [[ "$BODY" == *"bootstrap apply"* ]]; then
+              echo "command=apply" >> $GITHUB_OUTPUT
+              echo "valid=true" >> $GITHUB_OUTPUT
+            elif [[ "$BODY" == *"bootstrap plan"* ]]; then
+              echo "command=plan" >> $GITHUB_OUTPUT
+              echo "valid=true" >> $GITHUB_OUTPUT
+            else
+              echo "valid=false" >> $GITHUB_OUTPUT
+            fi
+            # Get PR info
+            PR_NUMBER=${{ github.event.issue.number }}
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            HEAD_SHA=$(gh pr view $PR_NUMBER --json headRefOid -q .headRefOid | head -c 7)
+            echo "head_sha=$HEAD_SHA" >> $GITHUB_OUTPUT
+          else
+            # workflow_dispatch - apply only
+            if [[ "${{ github.event.inputs.confirm }}" == "bootstrap" ]]; then
+              echo "command=apply" >> $GITHUB_OUTPUT
+              echo "valid=true" >> $GITHUB_OUTPUT
+            else
+              echo "valid=false" >> $GITHUB_OUTPUT
+            fi
+            echo "pr_number=" >> $GITHUB_OUTPUT
+            echo "head_sha=" >> $GITHUB_OUTPUT
+          fi
+
+  # Validate manual trigger
+  validate-input:
+    runs-on: ubuntu-latest
+    needs: parse-command
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      needs.parse-command.outputs.valid != 'true'
+    steps:
+      - name: Validate confirmation
+        run: |
+          echo "::error::You must type 'bootstrap' to confirm L1 deployment"
+          exit 1
+
+  # Run L1 Bootstrap (plan or apply)
+  bootstrap:
+    needs: parse-command
+    if: needs.parse-command.outputs.valid == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    outputs:
+      result: ${{ steps.terraform.outputs.result }}
+      plan_output: ${{ steps.terraform.outputs.plan_output }}
+
+    steps:
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # =========================================================
+      # L1 Bootstrap: K3s, Cert-Manager, Platform PG, Atlantis
+      # =========================================================
+      - name: Setup Terraform Environment (L1)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "1.bootstrap"
+          tf_state_key: "k3s/terraform.tfstate"
+          secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Pre-flight Check (Helm URLs)
+        run: |
+          chmod +x 0.tools/preflight-check.sh
+          0.tools/preflight-check.sh
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.28.4
+
+      - name: Import Existing Resources
+        working-directory: 1.bootstrap
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          if ! terraform state show kubernetes_config_map_v1.local_path_config 2>/dev/null; then
+            terraform import kubernetes_config_map_v1.local_path_config kube-system/local-path-config || true
+          fi
+          if ! terraform state show helm_release.atlantis 2>/dev/null; then
+            terraform import helm_release.atlantis bootstrap/atlantis || true
+          fi
+
+      - name: Pre-flight (3-State Consistency)
+        working-directory: 1.bootstrap
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          TF_HAS_ATLANTIS=$(terraform state show helm_release.atlantis 2>/dev/null && echo "yes" || echo "no")
+          HELM_HAS_ATLANTIS=$(helm status atlantis -n bootstrap 2>/dev/null && echo "yes" || echo "no")
+          if [ "$HELM_HAS_ATLANTIS" = "yes" ] && [ "$TF_HAS_ATLANTIS" = "no" ]; then
+            kubectl -n bootstrap get secrets -o name | grep "sh.helm.release.v1.atlantis" | xargs -r kubectl -n bootstrap delete || true
+            kubectl delete deployment -n bootstrap atlantis 2>/dev/null || true
+          elif [ "$HELM_HAS_ATLANTIS" = "no" ] && [ "$TF_HAS_ATLANTIS" = "yes" ]; then
+            terraform state rm helm_release.atlantis || true
+          fi
+
+      - name: Terraform Plan/Apply
+        id: terraform
+        working-directory: 1.bootstrap
+        run: |
+          COMMAND="${{ needs.parse-command.outputs.command }}"
+          if [[ "$COMMAND" == "plan" ]]; then
+            echo "Running terraform plan..."
+            OUTPUT=$(terraform plan -no-color 2>&1) || true
+            echo "result=plan" >> $GITHUB_OUTPUT
+            # Store plan output for comment (truncate if too long)
+            echo "plan_output<<EOF" >> $GITHUB_OUTPUT
+            echo "$OUTPUT" | tail -100 >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "Running terraform apply..."
+            terraform apply -auto-approve
+            echo "result=apply" >> $GITHUB_OUTPUT
+            echo "plan_output=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify L1 (Smoke Test)
+        if: needs.parse-command.outputs.command == 'apply'
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          set -euo pipefail
+          echo "=== L1 Bootstrap Verification ==="
+
+          echo "Checking nodes..."
+          kubectl get nodes -o wide
+
+          echo "Checking cert-manager..."
+          kubectl -n cert-manager rollout status deployment/cert-manager --timeout=180s
+
+          echo "Checking Atlantis..."
+          kubectl -n bootstrap wait --for=condition=Ready pod/atlantis-0 --timeout=180s
+
+          echo "Checking Platform PG..."
+          kubectl -n platform wait --for=condition=Ready pod -l app.kubernetes.io/name=postgresql --timeout=180s
+
+          echo ""
+          echo "========================================"
+          echo "L1 Bootstrap Complete!"
+          echo "========================================"
+
+      - name: Upload kubeconfig
+        if: needs.parse-command.outputs.command == 'apply'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: ${{ env.KUBECONFIG_PATH }}
+
+  # Update PR Dashboard with bootstrap results
+  update-dashboard:
+    needs: [parse-command, bootstrap]
+    if: |
+      always() &&
+      needs.parse-command.outputs.pr_number != '' &&
+      needs.parse-command.outputs.valid == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Update Dashboard
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            const prNumber = parseInt('${{ needs.parse-command.outputs.pr_number }}');
+            const sha = '${{ needs.parse-command.outputs.head_sha }}';
+            const command = '${{ needs.parse-command.outputs.command }}';
+            const bootstrapResult = '${{ needs.bootstrap.result }}';
+            const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const isSuccess = bootstrapResult === 'success';
+            const statusIcon = isSuccess ? '✅' : '❌';
+            const stage = command === 'plan' ? 'Bootstrap Plan' : 'Bootstrap Apply';
+
+            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+
+            // Get existing comments
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100
+            });
+
+            let flashComment = comments.find(c =>
+              c.user.login === 'infra-flash[bot]' &&
+              c.body.includes(MARKER)
+            );
+
+            if (!flashComment) {
+              // Create new dashboard with Bootstrap row
+              const skeleton = [
+                MARKER,
+                `## ⚡ Commit \`${sha}\` Dashboard`,
+                "",
+                "| Stage | Status | Link | Time |",
+                "|:---|:---:|:---|:---|",
+                `| Bootstrap Plan | ${command === 'plan' ? statusIcon : '⏭️'} | ${command === 'plan' ? `[View](${runUrl})` : '-'} | ${command === 'plan' ? timestamp : '-'} |`,
+                `| Bootstrap Apply | ${command === 'apply' ? statusIcon : '⏭️'} | ${command === 'apply' ? `[View](${runUrl})` : '-'} | ${command === 'apply' ? timestamp : '-'} |`,
+                "| Static CI | ⏭️ | - | - |",
+                "| Infra Plan | ⏭️ | - | - |",
+                "| Infra Apply | ⏭️ | - | - |",
+                "| AI Review | ⏭️ | - | - |",
+                "",
+                "<details><summary>📜 Action History</summary>",
+                "",
+                "| Action | Trigger | Output | Time |",
+                "|:---|:---|:---|:---|",
+                `| ${stage} | [@${context.actor}](${context.payload.comment?.html_url || runUrl}) 👀 | [result](${runUrl}) | ${timestamp} |`,
+                "<!-- history-rows -->",
+                "",
+                "</details>",
+                "",
+                "<details><summary>📖 Commands</summary>",
+                "",
+                "| Command | Description |",
+                "|:---|:---|",
+                "| `bootstrap plan` | Preview L1 changes |",
+                "| `bootstrap apply` | Deploy L1 (k3s, cert-manager, Platform PG, Atlantis) |",
+                "| `atlantis plan` | Preview L2/L3/L4 changes |",
+                "| `atlantis apply` | Deploy L2/L3/L4 |",
+                "",
+                "</details>",
+                "",
+                "<!-- next-step -->",
+                isSuccess && command === 'plan' ? `Review [bootstrap plan](${runUrl}), then comment \`bootstrap apply\`` :
+                isSuccess && command === 'apply' ? '✅ L1 Bootstrap complete. Run `atlantis plan` for L2/L3/L4' :
+                `❌ ${stage} failed. See [logs](${runUrl})`,
+                "<!-- /next-step -->"
+              ].join('\n');
+
+              const created = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: skeleton
+              });
+              console.log('Created new dashboard with bootstrap row');
+            } else {
+              // Update existing dashboard
+              let body = flashComment.body;
+
+              // Add Bootstrap rows if not present
+              if (!body.includes('Bootstrap Plan')) {
+                body = body.replace(
+                  '| Static CI |',
+                  `| Bootstrap Plan | ⏭️ | - | - |\n| Bootstrap Apply | ⏭️ | - | - |\n| Static CI |`
+                );
+              }
+
+              // Update the appropriate row
+              if (command === 'plan') {
+                body = body.replace(
+                  /\| Bootstrap Plan \| .* \| .* \| .* \|/,
+                  `| Bootstrap Plan | ${statusIcon} | [View](${runUrl}) | ${timestamp} |`
+                );
+              } else {
+                body = body.replace(
+                  /\| Bootstrap Apply \| .* \| .* \| .* \|/,
+                  `| Bootstrap Apply | ${statusIcon} | [View](${runUrl}) | ${timestamp} |`
+                );
+              }
+
+              // Add history row
+              const triggerUrl = context.payload.comment?.html_url || runUrl;
+              const historyRow = `| ${stage} | [@${context.actor}](${triggerUrl}) 👀 | [result](${runUrl}) | ${timestamp} |`;
+              body = body.replace('<!-- history-rows -->', `${historyRow}\n<!-- history-rows -->`);
+
+              // Update next step
+              let nextStep;
+              if (isSuccess && command === 'plan') {
+                nextStep = `Review [bootstrap plan](${runUrl}), then comment \`bootstrap apply\``;
+              } else if (isSuccess && command === 'apply') {
+                nextStep = '✅ L1 Bootstrap complete. Run `atlantis plan` for L2/L3/L4';
+              } else {
+                nextStep = `❌ ${stage} failed. See [logs](${runUrl})`;
+              }
+              body = body.replace(/<!-- next-step -->[\s\S]*?<!-- \/next-step -->/, `<!-- next-step -->\n${nextStep}\n<!-- /next-step -->`);
+
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: flashComment.id,
+                body: body
+              });
+              console.log(`Updated dashboard: ${stage} ${statusIcon}`);
+            }
+
+      - name: Post Plan Output
+        if: needs.parse-command.outputs.command == 'plan' && needs.bootstrap.outputs.plan_output != ''
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            const prNumber = parseInt('${{ needs.parse-command.outputs.pr_number }}');
+            const planOutput = `${{ needs.bootstrap.outputs.plan_output }}`;
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const body = [
+              '## 🔧 Bootstrap Plan Output',
+              '',
+              '**Project**: `1.bootstrap` (L1)',
+              '',
+              '<details><summary>📜 Plan Output</summary>',
+              '',
+              '```',
+              planOutput,
+              '```',
+              '',
+              '</details>',
+              '',
+              `💡 **Next Step**: Review above, then comment \`bootstrap apply\` to deploy L1`,
+              '',
+              `[Full logs](${runUrl})`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body
+            });

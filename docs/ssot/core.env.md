@@ -26,7 +26,7 @@
 
 | 层 | 部署份数 | 管理方式 |
 |----|---------|---------|
-| **L1 Bootstrap** | 1 套 | GitHub Actions `deploy-k3s.yml` |
+| **L1 Bootstrap** | 1 套 | GitHub Actions `deploy-L1-bootstrap.yml` (手动) |
 | **L2 Platform** | 1 套 | Atlantis `platform`（`workspace=default`） |
 | **L4 Apps 控制面** | 1 套 | Atlantis `apps-staging`/`apps-prod`（Kubero 只部署一次） |
 
@@ -116,7 +116,7 @@ flowchart TB
 
 ### 5.1 L1/L2：GitHub Secrets → TF_VAR_（CI/Atlantis 注入）
 
-- **L1**：`deploy-k3s.yml` 通过 `.github/actions/terraform-setup` 把 GitHub Secrets 写入 `TF_VAR_*`
+- **L1**：`deploy-L1-bootstrap.yml` 通过 `.github/actions/terraform-setup` 把 GitHub Secrets 写入 `TF_VAR_*`
 - **L2**：Atlantis 的 `helm_release.atlantis` 也会在 Pod 环境中注入 `TF_VAR_*`（见 `1.bootstrap/2.atlantis.tf`）
 
 结论：L1/L2 变量以 **TF_VAR** 为主（CI/Atlantis 注入），不依赖 envs 下的 `*.tfvars`。

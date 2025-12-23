@@ -1,5 +1,10 @@
-# Atlantis Repo Configuration
-# Layer Structure: 1.bootstrap (L1), 2.platform (L2), envs/{env}/3.data (L3), 4.apps (L4)
+# Atlantis Repo Configuration (L2/L3/L4 Only)
+#
+# Layer Responsibility:
+#   L1 (1.bootstrap)        → CI ONLY via deploy-L1-bootstrap.yml (manual trigger)
+#   L2 (2.platform)         → Atlantis (this file)
+#   L3 (envs/*/3.data)      → Atlantis (this file)
+#   L4 (4.apps)             → Atlantis (this file)
 #
 # TF VERSION: Atlantis uses required_version constraint from terragrunt-generated versions.tf
 # This ensures consistency with .terraform-version (SSOT) used by CI and local dev.

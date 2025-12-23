@@ -109,7 +109,7 @@ flowchart TB
     GithubDir --> WorkflowsDir["workflows/"]
     WorkflowsDir --> WorkflowsReadme["README.md<br/>CI 索引"]
     WorkflowsDir --> TerraformPlan["terraform-plan.yml<br/>(!) TF 验证"]
-    WorkflowsDir --> DeployK3s["deploy-k3s.yml<br/>(!) K3s 部署"]
+    WorkflowsDir --> DeployL1["deploy-L1-bootstrap.yml<br/>(!) L1 引导 (手动)"]
     WorkflowsDir --> InfraCommands["infra-commands.yml<br/>Infra Commands (review, dig)"]
 
     Root --> BootstrapDir["1.bootstrap/<br/>L1: GitHub Actions 部署"]

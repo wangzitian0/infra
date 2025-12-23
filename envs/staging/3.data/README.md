@@ -16,20 +16,21 @@ This layer provides stateful services for **Business Applications** (L4).
 
 *Note: Platform DB (for Vault/Casdoor) is in L1 (`1.bootstrap/5.platform_pg.tf`).*
 
-### Password Flow (Vault-first Pattern - Issue #349)
+### Password Flow (VSO Pattern - Issue #351)
 
 ```mermaid
 graph LR
     subgraph "L2 Platform"
         VM[vault_mount.kv]
         VD[vault_mount.database]
+        VSO[Vault Secrets Operator]
     end
     subgraph "L3 Data"
-        K8S[K8s Secret] --> |recovery| LOCAL[local.*_password]
-        RND[random_password] --> |first deploy| LOCAL
-        LOCAL --> KV[Vault KV]
-        LOCAL --> HELM[DB Helm Charts]
-        LOCAL --> DB_CFG[database_secret_backend]
+        RND[random_password] --> KV[Vault KV]
+        KV --> |VaultStaticSecret| VSO
+        VSO --> |sync| K8S[K8s Secret]
+        K8S --> |existingSecret| HELM[DB Helm Charts]
+        RND --> DB_CFG[database_secret_backend]
     end
     VM --> KV
     VD --> DB_CFG
@@ -37,39 +38,41 @@ graph LR
     KV --> |static creds| L4
 ```
 
-**L3 owns password generation** - L2 only creates Vault mounts.
+**L3 owns password generation** - L2 deploys VSO for automatic sync.
 
-**State Recovery Pattern**: When Terraform state is lost but resources exist:
-1. `data.external.*_password` reads existing password from Vault (SSOT)
-2. `local.*_password` selects existing or generates new
-3. Helm chart uses same password → no restart needed
-4. Vault secret has `ignore_changes` → no credential overwrite
+**VSO Pattern**: Vault Secrets Operator automatically syncs Vault KV secrets to K8s Secrets:
+1. `random_password` generates password on first deploy
+2. `vault_kv_secret_v2` stores in Vault (SSOT, with `ignore_changes`)
+3. `VaultStaticSecret` CR tells VSO to sync Vault → K8s Secret
+4. Helm chart uses `existingSecret` to read from K8s Secret
+5. No more fragile `data.external` + kubectl exec workarounds
 
 ### Components
 
 | File | Component | Purpose |
 |------|-----------|---------|
-| `1.postgres.tf` | PostgreSQL | Business database, creds from Vault KV |
-| `2.redis.tf` | Redis | Cache and session storage |
-| `3.clickhouse.tf` | ClickHouse | OLAP analytics database (Keeper disabled for single-node) |
-| `4.arangodb.tf` | ArangoDB | Multi-model database (document/graph/KV) |
+| `0.vault-auth.tf` | VaultAuth CR | VSO authentication config for Vault access |
+| `1.postgres.tf` | PostgreSQL | Business database, existingSecret via VSO |
+| `2.redis.tf` | Redis | Cache and session storage, existingSecret via VSO |
+| `3.clickhouse.tf` | ClickHouse | OLAP analytics database, existingSecret via VSO |
+| `4.arangodb.tf` | ArangoDB | Multi-model database, JWT + password via VSO |
 
 ### Deployment Order
 
 1. **L1** (Bootstrap): k3s, Platform PostgreSQL
-2. **L2** (Platform): Vault, vault_mount, password generation, database engine config
-3. **L3** (Data): Read password from Vault, deploy PostgreSQL Helm
+2. **L2** (Platform): Vault, vault_mount, VSO (Vault Secrets Operator)
+3. **L3** (Data): Create Vault KV → VSO syncs to K8s Secret → Helm uses existingSecret
 4. **L4** (Apps): Get dynamic credentials via Vault Agent
 
 ### Credentials
 
 | Service | Vault Path | Type |
 |---------|------------|------|
-| PostgreSQL root | `secret/data/postgres` | Static (L2 generated) |
+| PostgreSQL root | `secret/data/postgres` | Static (L3 generated, VSO synced) |
 | PostgreSQL app users | `database/creds/app-*` | Dynamic (short-lived) |
-| Redis | `secret/data/redis` | Static (L2 generated) |
-| ClickHouse | `secret/data/clickhouse` | Static (L2 generated) |
-| ArangoDB | `secret/data/arangodb` | Static (L2 generated) |
+| Redis | `secret/data/redis` | Static (L3 generated, VSO synced) |
+| ClickHouse | `secret/data/clickhouse` | Static (L3 generated, VSO synced) |
+| ArangoDB | `secret/data/arangodb` | Static (L3 generated, VSO synced) |
 
 ## Design Decisions
 
@@ -96,19 +99,20 @@ The `data-staging` namespace is **owned by L3** (`envs/staging/3.data/1.postgres
 - **L3 owns `data-staging`** (namespace created in L3 staging)
 - L4 operates within `apps-staging` (and may create app-specific namespaces)
 
-### Dual-SSOT Password Rationale
+### VSO Pattern Rationale
 
-Password is stored in **both Vault KV and Helm values**:
+Password flow: `random_password` → `Vault KV` → `VSO` → `K8s Secret` → `Helm existingSecret`
 
 | Location | Purpose | Justification |
 |----------|---------|---------------|
-| Vault KV (`secret/data/postgres`) | Dynamic credential generation | Vault Database Engine uses this to create short-lived app users |
-| Helm values (via random_password) | Initial PostgreSQL deployment | PostgreSQL needs password at install time |
+| Vault KV (`secret/data/postgres`) | SSOT for all credentials | Single source of truth, supports rotation |
+| K8s Secret (via VSO sync) | Helm chart consumption | Helm `existingSecret` reads from K8s Secret |
+| VaultStaticSecret CR | Automation | VSO watches Vault and auto-syncs to K8s |
 
-**Why not Vault Agent Injector for PostgreSQL itself?**
-- PostgreSQL is the **database itself**, not an app consuming it
-- The root password must exist at PostgreSQL startup
-- Vault Agent pattern is for **consumers** (L4 apps), not the database server
+**Why VSO instead of Vault Agent Injector?**
+- Helm charts natively support `existingSecret` parameter
+- VSO provides automatic sync (no sidecar needed for databases)
+- Cleaner than `data.external` + kubectl exec workarounds
 
 ## Disaster Recovery
 
@@ -125,10 +129,11 @@ kubectl exec -n "$NS" postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 
 ### Recovery Steps
 
-1. **Terraform State Lost** (Issue #349 pattern):
-   - Re-run L3 apply → reads existing passwords from Vault (SSOT)
-   - No database restart needed (same credentials)
-   - Vault secrets protected by `ignore_changes`
+1. **Terraform State Lost** (VSO Pattern - Issue #351):
+   - Vault KV secrets protected by `ignore_changes` (won't overwrite)
+   - VSO auto-syncs existing Vault secrets to K8s Secrets
+   - Helm uses `existingSecret` → no password mismatch
+   - Database continues with same credentials
 2. **Data Loss**: Restore from pg_dump backup
 3. **Full Recreation**: Delete `data-<env>` namespace, re-apply L3
 
@@ -180,4 +185,4 @@ Scale-out / multi-replica migration notes are tracked in:
 - [db.overview.md](../docs/ssot/db.overview.md) (database capability SSOT)
 
 ---
-*Last updated: 2025-12-23 (Vault-first password pattern - Issue #349)*
+*Last updated: 2025-12-23 (VSO Pattern - Issue #351)*

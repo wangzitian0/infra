@@ -45,9 +45,9 @@
 | `INTERNAL_DOMAIN` | Infra 域名（可选，默认同 `BASE_DOMAIN`） | |
 | `INTERNAL_ZONE_ID` | Infra 域名 Zone ID（可选） | |
 
-Push 到 main（匹配 workflow 的 paths filter）或手动触发 `Deploy k3s to VPS`（`.github/workflows/deploy-k3s.yml`）。
-
-当前 `deploy-k3s.yml` 为 bootstrap/recovery pipeline：按顺序 apply L1→L2→L3→L4（L3/L4 的 apply/verify 仅在 `push` 事件执行）。
+**部署方式**:
+- **日常变更**: 通过 PR + Atlantis 管理 L2/L3/L4（自动 plan，评论 `atlantis apply`）
+- **初始引导/灾备**: 手动触发 `deploy-L1-bootstrap.yml`（仅 L1: k3s, cert-manager, Platform PG, Atlantis）
 
 **Pre-flight 验证（Shift-Left）**：
 - **Phase 0 (Inputs)**：立即验证所有必填 secrets，<30s 内报错

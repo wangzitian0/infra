@@ -31,7 +31,7 @@
 | `infra-flash-update.yml` | Atlantis 结果搬运 | Plan/Apply 输出实时同步至看板 |
 | `claude-code-review.yml` | **AI 自动化审计** | Apply 成功后自动执行代码规范与文档一致性检查 |
 | `infra-commands.yml` | 指令分发器 (`dig`, `help`) | 通过评论手动触发环境健康探测，结果回写看板 |
-| `deploy-k3s.yml` | 全量灾备 Flash | 灾备与初始引导 (Bootstrap) |
+| `deploy-L1-bootstrap.yml` | L1 初始引导 (手动) | k3s, cert-manager, Platform PG, Atlantis |
 
 ---
-*Last updated: 2025-12-22*
+*Last updated: 2025-12-23*

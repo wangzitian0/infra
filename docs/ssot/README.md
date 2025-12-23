@@ -64,7 +64,7 @@
 
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
-| [ops.pipeline.md](./ops.pipeline.md) | 流程汇总 | PR CI + Atlantis autoplan + deploy-k3s |
+| [ops.pipeline.md](./ops.pipeline.md) | 流程汇总 | PR CI + Atlantis (L2/L3/L4) + deploy-L1-bootstrap (手动) |
 | [ops.recovery.md](./ops.recovery.md) | 故障恢复 | Secrets 恢复、Vault Token、State Lock |
 | [ops.storage.md](./ops.storage.md) | 存储与备份 | /data、StorageClass、R2 备份与同步 |
 | [ops.observability.md](./ops.observability.md) | 日志与监控 | SigNoz、OTel、数据保留 |
