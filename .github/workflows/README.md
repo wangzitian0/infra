@@ -86,7 +86,7 @@ Fix errors below, then run `atlantis plan`  (失败时)
 | `atlantis-acknowledge.yml` | `issue_comment` | 👀 立即响应 atlantis 命令 | N/A (仅加 👀) |
 | `infra-flash-update.yml` | `issue_comment` | 搬运 Atlantis Plan/Apply 输出 | 更新 `Plan/Apply` 行 & `Action` 表 |
 | `deploy-L1-bootstrap.yml` | `issue_comment` / `workflow_dispatch` | L1 Bootstrap (`bootstrap plan/apply`) | 更新 `Bootstrap Plan/Apply` 行 |
-| `post-merge-verify.yml` | `push` (main) / `schedule` / `workflow_dispatch` | Merge 后全量 L1-L4 drift 检测 | 结果贴回被合并的 PR |
+| `post-merge-verify.yml` | `push` (main) / `workflow_dispatch` | Merge 后全量 L1-L4 drift 检测 | 结果贴回被合并的 PR |
 | `claude-code-review.yml`| `workflow_run` | Apply 成功后自动执行 AI 审计 | 更新 `AI Review` 行 |
 | `claude.yml` | `@claude` 评论 | 手动触发 AI 编码/审计任务 | 更新 `AI Review` 行 |
 | `infra-commands.yml` | `infra dig/help` | 指令分发器（健康探测/帮助） | 更新 `Health Check` 行 |
@@ -137,7 +137,6 @@ L3 resource imports are handled by **Atlantis** (not GitHub Actions) via the sha
 | Trigger | When | Purpose |
 |:---|:---|:---|
 | `push` to main | After merge | Verify merged changes |
-| `schedule` (daily) | UTC 00:00 | Catch external drift |
 | `workflow_dispatch` | Manual | On-demand verification |
 
 ### Flow

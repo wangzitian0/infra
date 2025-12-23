@@ -95,7 +95,6 @@ Merge 到 main 后，系统自动执行全量验证以检测 drift 和部署健�
 | 触发器 | 场景 | 说明 |
 |:---|:---|:---|
 | `push` to main | 代码合并后 | 自动验证刚合并的 PR |
-| `schedule` (daily) | 定时检查 | 每日 UTC 00:00 (北京 08:00) |
 | `workflow_dispatch` | 手动触发 | 故障排查或按需验证 |
 
 ### 验证流程
@@ -129,8 +128,6 @@ sequenceDiagram
 | 场景 | 输出位置 | 内容 |
 |:---|:---|:---|
 | Push 触发 | 被合并的 PR 评论 | L1/L2/L3/L4 验证摘要 |
-| Schedule 触发 (无 drift) | 无输出 | 静默成功 |
-| Schedule 触发 (有 drift) | 新建 Issue | Drift 详情和修复建议 |
 | Manual 触发 | Actions 日志 | 完整验证结果 |
 
 ### Drift 状态定义
@@ -356,7 +353,7 @@ flowchart TD
 | `infra-commands.yml` | `infra-flash[bot]` | 指令分发器 (`dig`, `help`) | `issue_comment` |
 | `infra-flash-update.yml` | `infra-flash[bot]` | 监听并搬运 Atlantis 的输出到主评论 | `issue_comment` |
 | `deploy-L1-bootstrap.yml` | `infra-flash[bot]` | L1 Bootstrap (`bootstrap plan/apply`) | `issue_comment` / `workflow_dispatch` |
-| `post-merge-verify.yml` | `infra-flash[bot]` | Merge 后全量 L1-L4 drift 检测 | `push` (main) / `schedule` / `workflow_dispatch` |
+| `post-merge-verify.yml` | `infra-flash[bot]` | Merge 后全量 L1-L4 drift 检测 | `push` (main) / `workflow_dispatch` |
 | `claude.yml` | `claude[bot]` | 响应 @claude 评论，执行 AI 任务 | `issue_comment` |
 | `claude-code-review.yml` | `claude[bot]` | Apply 成功后自动审查部署变更 | `workflow_run` |
 
