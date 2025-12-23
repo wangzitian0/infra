@@ -9,9 +9,15 @@
   - **Goal**: Deploy k3s + Vault + Core Platform on Staging VPS.
   - **Status**: Phase 0.x (Bootstrap) Complete. Cloudflare integration in progress (PR #56).
 
-- [BRN-008: Infrastructure SSOT Refactor](./BRN-008.md) - **Active**
-  - **Goal**: Consolidate topic-based SSOT docs under `docs/ssot/` and migrate Casdoor admin password to 1Password SSOT (via GitHub Secrets → TF_VAR).
-  - **Status**: In progress (see `0.check_now.md` and `docs/change_log/2025-12-12.brn_008_infrastructure_ssot.md`).
+- [BRN-008: CI/CD Architecture - Deploy Verification](./BRN-008-CI-CD-Architecture.md) - **Active (NEW)**
+  - **Goal**: 解决 CI/CD 脱节问题 - Atlantis apply 后自动验证部署是否真的成功
+  - **Problem**: apply ✓ ≠ deployment success; E2E 测试手动触发，无法反馈到 PR
+  - **Solution**: 三层验证模型 (apply → readiness → e2e tests) + PR 评论反馈
+  - **Status**: Phase 1 完成 ✅ 框架已交付；Phase 2 待实施 (GitHub Actions 改造)
+  - **Deliverables**:
+    - E2E 自动化测试框架 (42 个测试)
+    - SSOT 文档 (docs/ssot/ops.e2e-regressions.md)
+    - 架构设计方案 (BRN-008-CI-CD-Architecture.md)
 
 ## Active Issues
 
