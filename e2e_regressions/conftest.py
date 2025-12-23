@@ -3,7 +3,7 @@ Global pytest fixtures and configuration for E2E tests.
 """
 import os
 import asyncio
-from typing import Generator, AsyncGenerator
+from typing import AsyncGenerator
 from pathlib import Path
 import pytest
 from dotenv import load_dotenv
@@ -26,25 +26,7 @@ class TestConfig:
 
     # Platform Services
     VAULT_URL = os.getenv("VAULT_URL", "https://secrets.zitian.party")
-    VAULT_TOKEN = os.getenv("VAULT_TOKEN", "")
     DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://kdashboard.zitian.party")
-    DASHBOARD_TOKEN = os.getenv("DASHBOARD_TOKEN", "")
-
-    # Databases
-    DB_HOST = os.getenv("DB_HOST", "postgresql.data-prod.svc.cluster.local")
-    DB_PORT = int(os.getenv("DB_PORT", "5432"))
-    DB_USER = os.getenv("DB_USER", "postgres")
-    DB_PASSWORD = os.getenv("DB_PASSWORD", "")
-    DB_NAME = os.getenv("DB_NAME", "postgres")
-
-    REDIS_HOST = os.getenv("REDIS_HOST", "redis.data-prod.svc.cluster.local")
-    REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
-
-    CLICKHOUSE_HOST = os.getenv("CLICKHOUSE_HOST", "clickhouse.data-prod.svc.cluster.local")
-    CLICKHOUSE_PORT = int(os.getenv("CLICKHOUSE_PORT", "8123"))
-    CLICKHOUSE_USER = os.getenv("CLICKHOUSE_USER", "default")
-    CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
 
     # Test Configuration
     HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
@@ -98,22 +80,6 @@ async def page(context: BrowserContext) -> AsyncGenerator[Page, None]:
     await page.close()
 
 
-@pytest.fixture
-def db_connection_string(config: TestConfig) -> str:
-    """PostgreSQL connection string."""
-    return (
-        f"postgresql://{config.DB_USER}:{config.DB_PASSWORD}"
-        f"@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}"
-    )
-
-
-@pytest.fixture
-def redis_connection_string(config: TestConfig) -> str:
-    """Redis connection string."""
-    password_part = f":{config.REDIS_PASSWORD}" if config.REDIS_PASSWORD else ""
-    return f"redis://{password_part}@{config.REDIS_HOST}:{config.REDIS_PORT}/0"
-
-
 # Markers
 def pytest_configure(config):
     """Register custom markers."""
@@ -121,5 +87,4 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "sso: SSO/Portal tests")
     config.addinivalue_line("markers", "platform: Platform service tests")
     config.addinivalue_line("markers", "api: API endpoint tests")
-    config.addinivalue_line("markers", "database: Database connection tests")
     config.addinivalue_line("markers", "e2e: full end-to-end tests")

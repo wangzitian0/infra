@@ -71,10 +71,10 @@ async def test_ssl_certificates_valid(config: TestConfig):
 
     # Note: We're using verify=False in client, so this just checks
     # that service responds on HTTPS port
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
         for name, url in services:
             try:
-                response = await client.get(url, verify=False)
+                response = await client.get(url)
                 # Should get a response (not a connection error)
                 assert response.status_code < 600
             except Exception as e:
@@ -83,11 +83,13 @@ async def test_ssl_certificates_valid(config: TestConfig):
 
 @pytest.mark.api
 async def test_api_error_responses(config: TestConfig):
-    """Verify services return proper error responses."""
+    """Verify services return proper error responses for nonexistent paths."""
     async with httpx.AsyncClient(verify=False) as client:
-        # Test 404 handling
+        # Test handling of nonexistent path
+        # SSO-protected sites may return 302 (redirect to login) or 404
         response = await client.get(f"{config.PORTAL_URL}/nonexistent", timeout=10.0)
-        assert response.status_code == 404, "Should return 404 for nonexistent path"
+        assert response.status_code in [302, 404], \
+            f"Expected 302 (SSO redirect) or 404, got {response.status_code}"
 
 
 @pytest.mark.api

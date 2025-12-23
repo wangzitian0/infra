@@ -87,9 +87,10 @@ Fix errors below, then run `atlantis plan`  (失败时)
 | `infra-flash-update.yml` | `issue_comment` | 搬运 Atlantis Plan/Apply 输出 | 更新 `Plan/Apply` 行 & `Action` 表 |
 | `deploy-L1-bootstrap.yml` | `issue_comment` / `workflow_dispatch` | L1 Bootstrap (`bootstrap plan/apply`) | 更新 `Bootstrap Plan/Apply` 行 |
 | `post-merge-verify.yml` | `push` (main) / `workflow_dispatch` | Merge 后全量 L1-L4 drift 检测 | 结果贴回被合并的 PR |
+| `e2e-tests.yml` | `push (main)` / `workflow_dispatch` / `infra e2e` | E2E 回归测试 | GitHub Step Summary |
 | `claude-code-review.yml`| `workflow_run` | Apply 成功后自动执行 AI 审计 | 更新 `AI Review` 行 |
 | `claude.yml` | `@claude` 评论 | 手动触发 AI 编码/审计任务 | 更新 `AI Review` 行 |
-| `infra-commands.yml` | `infra dig/help` | 指令分发器（健康探测/帮助） | 更新 `Health Check` 行 |
+| `infra-commands.yml` | `infra dig/e2e/help` | 指令分发器（健康探测/E2E测试/帮助） | 更新 `Health Check` 行 |
 
 ---
 

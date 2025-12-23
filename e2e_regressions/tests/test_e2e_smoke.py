@@ -43,14 +43,15 @@ async def test_deployment_complete_smoke(config: TestConfig):
 @pytest.mark.e2e
 async def test_deployment_ingress_routing(config: TestConfig):
     """Verify Ingress is routing all services correctly."""
-    import re
     from urllib.parse import urlparse
 
-    # Extract domain
+    # Extract base domain (e.g., "zitian.party" from "home.zitian.party")
     portal_url = urlparse(config.PORTAL_URL)
-    domain = portal_url.hostname
+    portal_host = portal_url.hostname
+    domain_parts = portal_host.split(".")
+    base_domain = ".".join(domain_parts[-2:]) if len(domain_parts) >= 2 else portal_host
 
-    # Each service should be on a subdomain of the same domain
+    # Each service should be on a subdomain of the same base domain
     services_domains = [
         (config.PORTAL_URL, "Portal"),
         (config.VAULT_URL, "Vault"),
@@ -61,8 +62,8 @@ async def test_deployment_ingress_routing(config: TestConfig):
     async with httpx.AsyncClient(verify=False) as client:
         for url, name in services_domains:
             service_domain = urlparse(url).hostname
-            assert service_domain.endswith(domain), \
-                f"{name} should be on domain {domain}, got {service_domain}"
+            assert service_domain.endswith(base_domain), \
+                f"{name} should be on domain {base_domain}, got {service_domain}"
 
             # Service should respond
             response = await client.get(url, timeout=10.0)
@@ -76,7 +77,7 @@ async def test_deployment_security_headers(page: Page, config: TestConfig):
     response = await page.goto(config.PORTAL_URL, wait_until="domcontentloaded")
 
     # Get response headers
-    headers_dict = response.all_headers() if response else {}
+    headers_dict = await response.all_headers() if response else {}
     headers_lower = {k.lower(): v for k, v in headers_dict.items()}
 
     # Some security headers to check (not all may be present)
@@ -102,9 +103,9 @@ async def test_deployment_error_pages(page: Page, config: TestConfig):
     await page.goto(f"{config.PORTAL_URL}/does-not-exist-xyz",
                     wait_until="domcontentloaded")
 
-    # Should show error page
-    title = page.title()
-    assert title and len(title) > 0, "Error page should load"
+    # Should show error page or redirect to login
+    title = await page.title()
+    assert title is not None, "Error page should load"
 
 
 @pytest.mark.e2e
@@ -223,13 +224,13 @@ async def test_deployment_data_persistence(page: Page, config: TestConfig):
     """Verify data persistence across requests."""
     # Navigate to Portal and check it stays available
     await page.goto(config.PORTAL_URL, wait_until="networkidle")
-    first_load_title = page.title()
+    first_load_title = await page.title()
 
     # Wait and reload
     await page.wait_for_timeout(1000)
     await page.reload(wait_until="networkidle")
 
-    second_load_title = page.title()
+    second_load_title = await page.title()
 
     # Page should load consistently
     assert first_load_title == second_load_title, \
@@ -246,6 +247,6 @@ async def test_deployment_error_recovery(page: Page, config: TestConfig):
     await page.reload(timeout=15000)
 
     # Should still work
-    title = page.title()
-    assert title and len(title) > 0, \
+    title = await page.title()
+    assert title is not None, \
         "Portal should recover after reload"

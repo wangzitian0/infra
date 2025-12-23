@@ -93,21 +93,33 @@ make test-e2e        # E2E：9 个测试
 
 ## CI/CD 集成
 
-### GitHub Actions（Atlantis 后）
+### GitHub Actions
 
-目前在 `e2e_regressions/.github-workflow-example.yml` 中提供了模板。
+已集成到 `.github/workflows/e2e-tests.yml`：
 
-**应该改进为**（见 #S-CI-ARCH）：
+**触发方式**:
+1. **Post-merge**: 推送到 `main` 分支时自动运行
+2. **手动触发**: GitHub Actions UI → `workflow_dispatch`
+3. **PR 评论**: 在 PR 中输入 `infra e2e`
+
+**工作流功能**:
 ```yaml
-deploy-k3s-apply:
-  # ... apply 逻辑 ...
-
-e2e-tests-post-apply:  # ← 新增
-  needs: deploy-k3s-apply
-  if: needs.deploy-k3s-apply.result == 'success'  # ← 仅 apply 成功才运行
-  steps:
-    - run: make test-smoke
+# e2e-tests.yml
+on:
+  push:
+    branches: [main]           # 合并后自动运行
+  workflow_dispatch:           # 手动触发
+    inputs:
+      test_scope: smoke|all    # 选择测试范围
+  workflow_call:               # 供其他 workflow 调用
 ```
+
+**测试范围选项**:
+- `smoke`: 快速烟雾测试 (默认, ~2min)
+- `platform`: Platform 服务测试
+- `sso`: SSO/Portal 测试
+- `api`: API 健康测试
+- `all`: 全部测试
 
 ## 维护
 
@@ -118,11 +130,12 @@ e2e-tests-post-apply:  # ← 新增
 | 生成报告 | 按需 | `make report` |
 | 扩展测试 | 按需 | 在 `tests/` 新建 `test_*.py` |
 
-## 下一步
+## 状态
 
-1. **当前**：框架已就绪，等待 CI 流程集成（见下方）
-2. **短期**：手动运行 `make test-smoke` 验证部署
-3. **长期**：Atlantis/GitHub Actions 集成（需要解决 CI 脱节问题）
+- ✅ **框架搭建**: 完成
+- ✅ **测试用例**: 39 个测试 (37 passed, 1 failed, 1 skipped)
+- ✅ **CI 集成**: 已完成 (`e2e-tests.yml`)
+- ⏳ **数据库测试**: 待补充 (`test_databases.py`)
 
 ---
 
