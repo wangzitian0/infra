@@ -25,9 +25,17 @@
 
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
-| [core.dir.md](./core.dir.md) | 项目结构 | 目录树、Layer 定义、Namespace 注册 |
-| [core.env.md](./core.env.md) | 环境模型 | environment/workspace/namespace/state key/域名/vars 统一规则 |
-| [core.vars.md](./core.vars.md) | 非密钥变量 | TF_VAR 列表、默认值、Feature Flags |
+| [core.md](./core.md) | 架构 + 目录 + 环境 + 变量 + 网络 | 三层模型、拓扑依赖、Namespace、域名规则 |
+
+---
+
+## Bootstrap - 引导层
+
+| 文件 | 核心问题 | 关键内容 |
+|------|----------|----------|
+| [bootstrap.compute.md](./bootstrap.compute.md) | 计算层 | K3s 集群、Atlantis CI |
+| [bootstrap.storage.md](./bootstrap.storage.md) | 存储层 | Platform PG、StorageClass、PVC |
+| [bootstrap.network.md](./bootstrap.network.md) | 网络层 | DNS、Cloudflare、TLS 证书 |
 
 ---
 
@@ -35,12 +43,9 @@
 
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
-| [platform.auth.md](./platform.auth.md) | 统一认证 | Casdoor SSO 门户覆盖、Vault RBAC (Identity Groups)、宏观进度看板 |
-| [platform.network.md](./platform.network.md) | 域名规则 | Internal vs Env 模式（环境模型见 `core.env.md`） |
-| [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单、SSO flags |
-| [platform.ai.md](./platform.ai.md) | AI 接入 | OpenRouter、变量/密钥、注入方式 |
-
-> 注：`platform.auth.md` 已包含登录白屏排障、TokenFormat 与 Token 过期问题跟踪。
+| [platform.auth.md](./platform.auth.md) | 统一认证 | Casdoor SSO、Vault RBAC |
+| [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单 |
+| [platform.ai.md](./platform.ai.md) | AI 接入 | OpenRouter、变量/密钥 |
 
 ---
 
