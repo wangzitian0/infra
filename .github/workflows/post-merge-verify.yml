@@ -40,4 +40,4 @@ jobs:
         with:
           working_directory: ${{ matrix.layer }}
           tf_state_key: "terraform.tfstate"
-          secrets_json: "{}"
+          secrets_json: ${{ toJSON(secrets) }}
