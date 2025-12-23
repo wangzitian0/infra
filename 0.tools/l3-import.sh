@@ -1,6 +1,6 @@
 #!/bin/bash
 # L3 Import Script - Shared logic for importing existing L3 resources into Terraform state
-# Used by both Atlantis (atlantis.yaml) and GitHub Actions (deploy-k3s.yml)
+# Used by Atlantis (atlantis.yaml) for L3 resource state synchronization
 #
 # Usage: ./0.tools/l3-import.sh <namespace> [terragrunt_command]
 #

@@ -52,9 +52,8 @@ This layer supports both **Atlantis (CI)** and **Standalone/Local** execution vi
   - Layer-specific providers (cloudflare, kubectl, restapi, time, null) from `2.platform/terragrunt.hcl`
   - Auto-configured for both local kubeconfig and in-cluster ServiceAccount
 - **Database Providers**: Both `clickhousedbops` and `postgresql` providers connect to L3 databases (DISABLED in Terragrunt migration)
-  - **CI Mode**: Requires port-forward (handled by `deploy-k3s.yml` workflow)
   - **Atlantis Mode**: Uses in-cluster DNS (e.g., `postgresql.data-staging.svc.cluster.local`)
-  - Override via: `-var="clickhouse_host=127.0.0.1" -var="postgres_host=127.0.0.1"` in CI
+  - **Local Mode**: Requires port-forward or direct connection to database hosts
 - **Pipeline Feedback**: All Plan/Apply actions are synchronized to the **`infra-flash` Dashboard** in the PR.
 - **Variables**: Defaults provided in `variables.tf`; Atlantis/Terragrunt inject environment values via `TF_VAR_*` / `inputs{}`
 

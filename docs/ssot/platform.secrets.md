@@ -80,7 +80,7 @@ op item get "Infra-GHA-Secrets" --vault="my_cloud" --format json |
 |------|------|
 | 1Password SSOT | ✅ 已覆盖 24+ 核心字段 |
 | Python Loader | ✅ `0.tools/ci_load_secrets.py` 已上线 |
-| Workflow DRY | ✅ `deploy-k3s.yml` 冗余减少 80% |
+| Workflow DRY | ✅ `deploy-L1-bootstrap.yml` 冗余减少 80% |
 | 变量链条 | ✅ 1Password -> GH -> Env -> TF 闭环 |
 
 ---

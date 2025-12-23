@@ -126,7 +126,7 @@ flowchart TB
 
 解法:
   方式A: 本地 terraform apply (有 1Password 根密钥)
-  方式B: GitHub Actions deploy-k3s.yml (push to main)
+  方式B: GitHub Actions deploy-L1-bootstrap.yml (手动触发，仅 L1)
 
 结论: 无死锁 (Basic Auth + 多恢复路径)
 ```
