@@ -162,7 +162,7 @@ To deploy Portal SSO Gate for non-OIDC portals (e.g., Dashboard):
    - https://kdashboard.zitian.party (Dashboard)
 
 ---
-*Last updated: 2025-12-23 (Portal reorganization: Casdoor Admin moved to Platform Services, Emergency section simplified to Vault Root Token only)*
+*Last updated: 2025-12-23 (VSO for Vault→K8s sync; Portal reorganization)*
 
 ---
 
