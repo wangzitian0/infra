@@ -214,3 +214,19 @@ variable "kubernetes_ca_cert" {
   }
 }
 
+
+# ============================================================
+# Kubero Configuration (Control Plane)
+# ============================================================
+
+variable "kubero_ui_image_tag" {
+  description = "Kubero UI image tag. Pin this to a fixed version for reproducible deploys (avoid 'latest')."
+  type        = string
+  default     = "latest"
+}
+
+variable "kubero_ui_image_pull_policy" {
+  description = "Kubero UI image pull policy. Use IfNotPresent for stability; avoid Always unless debugging."
+  type        = string
+  default     = "IfNotPresent"
+}

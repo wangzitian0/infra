@@ -142,7 +142,7 @@ jobs:
       - name: Setup Terraform Environment (L1)
         uses: ./.github/actions/terraform-setup
         with:
-          working_directory: "1.bootstrap"
+          working_directory: "bootstrap"
           tf_state_key: "k3s/terraform.tfstate"
           secrets_json: ${{ toJSON(secrets) }}
 
@@ -157,7 +157,7 @@ jobs:
           version: v1.28.4
 
       - name: Import Existing Resources
-        working-directory: 1.bootstrap
+        working-directory: bootstrap
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
@@ -169,7 +169,7 @@ jobs:
           fi
 
       - name: Pre-flight (3-State Consistency)
-        working-directory: 1.bootstrap
+        working-directory: bootstrap
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
         run: |
@@ -184,7 +184,7 @@ jobs:
 
       - name: Terraform Plan/Apply
         id: terraform
-        working-directory: 1.bootstrap
+        working-directory: bootstrap
         run: |
           COMMAND="${{ needs.parse-command.outputs.command }}"
           if [[ "$COMMAND" == "plan" ]]; then
@@ -397,7 +397,7 @@ jobs:
             const body = [
               '## 🔧 Bootstrap Plan Output',
               '',
-              '**Project**: `1.bootstrap` (L1)',
+              '**Project**: `bootstrap` (L1)',
               '',
               '<details><summary>📜 Plan Output</summary>',
               '',

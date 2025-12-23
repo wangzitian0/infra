@@ -5,9 +5,9 @@ on:
   push:
     branches: [main]
     paths:
-      - '2.platform/**'
-      - 'envs/*/3.data/**'
-      - '4.apps/**'
+      - 'platform/**'
+      - 'envs/*/data/**'
+      - 'platform/**'
 
   # 手动触发
   workflow_dispatch:

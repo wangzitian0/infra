@@ -1,4 +1,5 @@
-# Phase 2.4: Kubero (GitOps PaaS Controller)
+# Phase 2.5: Kubero (GitOps PaaS Controller)
+# Migrated from 4.apps/1.kubero.tf
 # Installation method: kubectl_manifest from local YAML files
 # Source: https://github.com/kubero-dev/kubero-operator
 #
@@ -15,7 +16,7 @@
 # ============================================================
 locals {
   # Read and split the operator.yaml into individual documents
-  operator_yaml_raw_content = file("${path.module}/manifests/kubero/operator.yaml")
+  operator_yaml_raw_content = file("${path.module}/manifests-kubero/kubero/operator.yaml")
 
   # NOTE: L4 control plane is SINGLETON (no env suffix)
   # ClusterRole/ClusterRoleBinding names from upstream manifest are used as-is
@@ -55,7 +56,7 @@ resource "kubernetes_namespace" "kubero_operator_system" {
     name = "kubero-operator-system" # L4 control plane: singleton
     labels = {
       "control-plane" = "controller-manager"
-      "layer"         = "L4"
+      "layer"         = "platform"
     }
   }
 }
@@ -91,9 +92,9 @@ import {
 
 resource "kubernetes_namespace" "kubero" {
   metadata {
-    name = "kubero" # L4 control plane: singleton
+    name = "kubero" # Control plane: singleton
     labels = {
-      "layer" = "L4"
+      "layer" = "platform"
     }
   }
 
@@ -101,13 +102,14 @@ resource "kubernetes_namespace" "kubero" {
 }
 
 # NOTE: Kubero random secrets (Session/Webhook) are now generated and stored in Vault 
-# by the Platform layer (2.platform/92.vault-kubero.tf).
+# by the Platform layer (92.vault-kubero.tf).
 # Apps layer retrieves them via Vault Agent Injection for the pods,
 # and via data source for the CR spec.
 
 data "vault_kv_secret_v2" "kubero" {
-  mount = var.vault_kv_mount
-  name  = "kubero"
+  mount = local.vault_kv_mount
+
+  name = "kubero"
 
   lifecycle {
     postcondition {
@@ -126,6 +128,9 @@ data "vault_kv_secret_v2" "kubero" {
       error_message = "Kubero secrets not found in Vault. Ensure L2 92.vault-kubero.tf has been applied."
     }
   }
+
+  # Depend on vault_kv_secret_v2.kubero from 92.vault-kubero.tf
+  depends_on = [vault_kv_secret_v2.kubero]
 }
 
 # ============================================================
@@ -150,7 +155,7 @@ resource "kubernetes_secret" "kubero_secrets" {
     KUBERO_SESSION_KEY    = data.vault_kv_secret_v2.kubero.data["KUBERO_SESSION_KEY"]
   }
 
-  depends_on = [kubernetes_namespace.kubero]
+  depends_on = [kubernetes_namespace.kubero, data.vault_kv_secret_v2.kubero]
 }
 
 # ============================================================
@@ -158,7 +163,7 @@ resource "kubernetes_secret" "kubero_secrets" {
 # ============================================================
 import {
   to = kubernetes_service_account.kubero
-  id = "kubero/kubero" # L4 control plane: singleton
+  id = "kubero/kubero" # Control plane: singleton
 }
 
 resource "kubernetes_service_account" "kubero" {
@@ -194,9 +199,9 @@ resource "kubectl_manifest" "kubero_instance" {
         # to use kubernetes_annotations resource to target the deployment.
         "vault.hashicorp.com/agent-inject"              = "true"
         "vault.hashicorp.com/role"                      = "kubero"
-        "vault.hashicorp.com/agent-inject-secret-env"   = "${var.vault_kv_mount}/data/data/kubero"
+        "vault.hashicorp.com/agent-inject-secret-env"   = "${local.vault_kv_mount}/data/data/kubero"
         "vault.hashicorp.com/agent-inject-template-env" = <<-EOT
-          {{- with secret "${var.vault_kv_mount}/data/data/kubero" -}}
+          {{- with secret "${local.vault_kv_mount}/data/data/kubero" -}}
           export KUBERO_WEBHOOK_SECRET="{{ .Data.data.KUBERO_WEBHOOK_SECRET }}"
           export KUBERO_SESSION_KEY="{{ .Data.data.KUBERO_SESSION_KEY }}"
           {{- end -}}
@@ -253,7 +258,7 @@ resource "kubectl_manifest" "kubero_instance" {
         }]
       }
       kubero = {
-        namespace  = "kubero" # L4 control plane: singleton
+        namespace  = "kubero" # Control plane: singleton
         context    = "inClusterContext"
         sessionKey = data.vault_kv_secret_v2.kubero.data["KUBERO_SESSION_KEY"]
         auth = {
@@ -296,7 +301,8 @@ resource "kubectl_manifest" "kubero_instance" {
   depends_on = [
     kubectl_manifest.kubero_operator,
     kubernetes_namespace.kubero,
-    kubernetes_service_account.kubero
+    kubernetes_service_account.kubero,
+    data.vault_kv_secret_v2.kubero
   ]
 
   # Use server-side apply for CRD instances

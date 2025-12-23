@@ -46,6 +46,18 @@ data "http" "portal_auth_ping" {
 }
 
 # ------------------------------------------------------------
+# Domain Configuration Check (from L4)
+# -------- ----------------------------------------------------
+resource "terraform_data" "domain_config_check" {
+  lifecycle {
+    precondition {
+      condition     = var.internal_domain != "" && var.internal_domain != var.base_domain
+      error_message = "internal_domain must be explicitly set and different from base_domain. Expected: zitian.party (infra), Got: ${var.internal_domain}"
+    }
+  }
+}
+
+# ------------------------------------------------------------
 # E2E Summary Output
 # ------------------------------------------------------------
 output "sso_e2e_status" {
@@ -55,4 +67,19 @@ output "sso_e2e_status" {
     target_url     = local.portal_sso_gate_enabled ? try(terraform_data.health_check_target[0].output, "n/a") : "n/a"
   }
   description = "E2E SSO validation results with target URL for debugging"
+}
+
+# ------------------------------------------------------------
+# Platform Control Plane Health Status
+# ------------------------------------------------------------
+output "platform_control_plane_status" {
+  value = {
+    kubero_operator_manifests = length(kubectl_manifest.kubero_operator)
+    kubero_cr_deployed        = kubectl_manifest.kubero_instance.id != ""
+    kubero_secrets_synced     = kubernetes_secret.kubero_secrets.id != ""
+    kubero_namespace          = kubernetes_namespace.kubero.metadata[0].name
+    signoz_deployed           = helm_release.signoz.status == "deployed"
+    observability_namespace   = kubernetes_namespace.observability.metadata[0].name
+  }
+  description = "Platform control plane (Kubero, SigNoz) deployment status"
 }

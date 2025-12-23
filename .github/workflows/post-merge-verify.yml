@@ -12,10 +12,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "1.bootstrap/**"
-      - "2.platform/**"
+      - "bootstrap/**"
+      - "platform/**"
       - "envs/**"
-      - "4.apps/**"
+      - "platform/**"
   workflow_dispatch:
 
 env:
@@ -104,13 +104,13 @@ jobs:
       - name: Setup Terraform Environment (L1)
         uses: ./.github/actions/terraform-setup
         with:
-          working_directory: "1.bootstrap"
+          working_directory: "bootstrap"
           tf_state_key: "k3s/terraform.tfstate"
           secrets_json: ${{ toJSON(secrets) }}
 
       - name: Terraform Plan (L1)
         id: plan
-        working-directory: 1.bootstrap
+        working-directory: bootstrap
         continue-on-error: true
         run: |
           echo "Running L1 Bootstrap plan..."
