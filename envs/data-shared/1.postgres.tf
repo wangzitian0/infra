@@ -1,6 +1,5 @@
-# L3 Business PostgreSQL
-#
-# Purpose: PostgreSQL for business applications (L4)
+# Purpose: PostgreSQL for business applications
+
 #
 # Architecture (VSO Pattern - Issue #351):
 # - random_password generates password on first deploy
@@ -20,8 +19,8 @@ resource "kubernetes_namespace" "data" {
   metadata {
     name = local.namespace_name
     labels = {
-      layer = "L3"
-      env   = local.env_name
+      module = "data"
+      env    = local.env_name
     }
   }
 }
@@ -45,8 +44,8 @@ resource "random_password" "postgres" {
 # =============================================================================
 
 resource "vault_kv_secret_v2" "postgres" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
+  mount               = data.terraform_remote_state.platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.platform.outputs.vault_db_secrets["postgres"]
   delete_all_versions = true
 
   data_json = jsonencode({
@@ -79,8 +78,8 @@ resource "kubectl_manifest" "postgres_vault_secret" {
     }
     spec = {
       type  = "kv-v2"
-      mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-      path  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
+      mount = data.terraform_remote_state.platform.outputs.vault_kv_mount
+      path  = data.terraform_remote_state.platform.outputs.vault_db_secrets["postgres"]
       destination = {
         name   = "postgresql-credentials"
         create = true
@@ -238,7 +237,7 @@ output "postgres_host" {
 }
 
 output "postgres_vault_path" {
-  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]}"
+  value       = "${data.terraform_remote_state.platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.platform.outputs.vault_db_secrets["postgres"]}"
   description = "Vault KV path for PostgreSQL credentials"
 }
 
@@ -269,8 +268,8 @@ resource "random_password" "openpanel_postgres" {
 
 # Store OpenPanel credentials in Vault KV for L4 to consume
 resource "vault_kv_secret_v2" "openpanel" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["openpanel"]
+  mount               = data.terraform_remote_state.platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.platform.outputs.vault_db_secrets["openpanel"]
   delete_all_versions = true
 
   data_json = jsonencode({

@@ -1,6 +1,5 @@
-# L3 ClickHouse
-#
-# Purpose: OLAP analytics database for L4 applications
+# Purpose: OLAP analytics database for applications
+
 #
 # Architecture (VSO Pattern - Issue #351):
 # - random_password generates password on first deploy
@@ -30,8 +29,8 @@ resource "random_password" "clickhouse" {
 # =============================================================================
 
 resource "vault_kv_secret_v2" "clickhouse" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
+  mount               = data.terraform_remote_state.platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.platform.outputs.vault_db_secrets["clickhouse"]
   delete_all_versions = true
 
   data_json = jsonencode({
@@ -64,8 +63,8 @@ resource "kubectl_manifest" "clickhouse_vault_secret" {
     }
     spec = {
       type  = "kv-v2"
-      mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-      path  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
+      mount = data.terraform_remote_state.platform.outputs.vault_kv_mount
+      path  = data.terraform_remote_state.platform.outputs.vault_db_secrets["clickhouse"]
       destination = {
         name   = "clickhouse-credentials"
         create = true
@@ -175,7 +174,7 @@ resource "helm_release" "clickhouse" {
 }
 
 # =============================================================================
-# SigNoz ClickHouse User & Databases (moved from L2)
+# SigNoz ClickHouse User & Databases (moved from Platform)
 # =============================================================================
 
 # Wait for ClickHouse to be ready before creating users
@@ -192,7 +191,7 @@ resource "random_password" "signoz_clickhouse" {
 
 # Store SigNoz credentials in Vault for L4 to consume
 resource "vault_kv_secret_v2" "signoz" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  mount               = data.terraform_remote_state.platform.outputs.vault_kv_mount
   name                = "signoz"
   delete_all_versions = true
 
@@ -252,12 +251,12 @@ output "clickhouse_native_port" {
 }
 
 output "clickhouse_vault_path" {
-  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]}"
+  value       = "${data.terraform_remote_state.platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.platform.outputs.vault_db_secrets["clickhouse"]}"
   description = "Vault KV path for ClickHouse credentials"
 }
 
 output "signoz_vault_path" {
-  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/signoz"
+  value       = "${data.terraform_remote_state.platform.outputs.vault_kv_mount}/data/signoz"
   description = "Vault KV path for SigNoz ClickHouse credentials"
 }
 

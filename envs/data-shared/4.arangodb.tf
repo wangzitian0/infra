@@ -35,8 +35,8 @@ resource "random_bytes" "arangodb_jwt" {
 # =============================================================================
 
 resource "vault_kv_secret_v2" "arangodb" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]
+  mount               = data.terraform_remote_state.platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.platform.outputs.vault_db_secrets["arangodb"]
   delete_all_versions = true
 
   data_json = jsonencode({
@@ -70,8 +70,8 @@ resource "kubectl_manifest" "arangodb_vault_secret" {
     }
     spec = {
       type  = "kv-v2"
-      mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-      path  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]
+      mount = data.terraform_remote_state.platform.outputs.vault_kv_mount
+      path  = data.terraform_remote_state.platform.outputs.vault_db_secrets["arangodb"]
       destination = {
         name   = "arangodb-credentials"
         create = true

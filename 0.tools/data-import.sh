@@ -1,6 +1,6 @@
 #!/bin/bash
-# L3 Import Script - Shared logic for importing existing L3 resources into Terraform state
-# Used by Atlantis (atlantis.yaml) for L3 resource state synchronization
+# Data Import Script - Shared logic for importing existing Data layer resources into Terraform state
+# Used by Atlantis (atlantis.yaml) for Data resource state synchronization
 #
 # Usage: ./0.tools/l3-import.sh <namespace> [terragrunt_command]
 #
@@ -19,7 +19,7 @@ if [ -z "$NS" ]; then
   exit 1
 fi
 
-echo "=== L3 Resource Import Check (NS: $NS) ==="
+echo "=== Data Resource Import Check (NS: $NS) ==="
 echo "Using Terragrunt command: $TG_CMD"
 
 # Import namespace if exists but not in state
@@ -50,4 +50,4 @@ if kubectl get secret arangodb-jwt -n "$NS" 2>/dev/null && ! $TG_CMD state show 
   $TG_CMD import kubernetes_secret.arangodb_jwt "$NS/arangodb-jwt" || true
 fi
 
-echo "✅ L3 import check complete"
+echo "✅ Data import check complete"

@@ -1,17 +1,17 @@
 #!/bin/bash
 set -e
 
-# Migration Script: Splits Monolithic State into L1 and L2
+# Migration Script: Splits Monolithic State into Bootstrap and Platform layer
 # Usage: ./scripts/migrate-state.sh
 # Pre-requisites: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, R2_BUCKET, R2_ACCOUNT_ID defined.
 
 BOLD="\033[1m"
 RESET="\033[0m"
 
-echo -e "${BOLD}Refactoring Migration: Splitting L1/L2 States${RESET}"
+echo -e "${BOLD}Refactoring Migration: Splitting Bootstrap/Platform States${RESET}"
 
 # 1. Initialize L1 (Root)
-echo "Initializing L1 (Root)..."
+echo "Initializing Bootstrap (Root)..."
 cd terraform
 # We need to ensure we use the correct backend config
 # Assuming R2_BUCKET etc are present
@@ -27,7 +27,7 @@ terraform init -reconfigure \
   -backend-config="region=auto"
 
 # 2. Initialize L2 (New)
-echo "Initializing L2 (New Layer)..."
+echo "Initializing Platform layer (New)..."
 cd layer2-platform
 terraform init -reconfigure \
   -backend-config="bucket=${R2_BUCKET}" \

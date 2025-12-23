@@ -8,9 +8,9 @@ locals {
   vault_enabled = nonsensitive(var.vault_root_token) != ""
 
   # =============================================================================
-  # Vault KV v2 SSOT - Single Source of Truth for all L3 DB secrets
+  # Vault KV v2 SSOT - Single Source of Truth for all Data DB secrets
   # Issue #301: Centralized path definitions
-  # L3 reads these via terraform_remote_state
+  # Data layer reads these via terraform_remote_state
   # =============================================================================
   vault_kv_mount = "secret"
 

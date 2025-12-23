@@ -1,8 +1,8 @@
 # =============================================================================
-# Read L2 Platform Outputs (Issue #301)
-# Native Terraform layer dependency: L3 reads L2 outputs
+# Read Platform Outputs (Issue #301)
+# Native Terraform module dependency: Data reads Platform outputs
 # =============================================================================
-data "terraform_remote_state" "l2_platform" {
+data "terraform_remote_state" "platform" {
   backend = "s3"
   config = {
     bucket                      = var.r2_bucket
@@ -21,8 +21,8 @@ data "terraform_remote_state" "l2_platform" {
 # Once L2 is applied, try() will use the real output value
 locals {
   vault_database_mount = try(
-    data.terraform_remote_state.l2_platform.outputs.vault_database_mount,
-    "database" # Fallback to hardcoded value if L2 hasn't been applied yet
+    data.terraform_remote_state.platform.outputs.vault_database_mount,
+    "database" # Fallback to hardcoded value if Platform hasn't been applied yet
   )
 }
 

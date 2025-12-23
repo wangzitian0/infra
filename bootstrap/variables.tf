@@ -1,17 +1,15 @@
-# ============================================================
-# Centralized Variables for L1-L4
-# ============================================================
+# Centralized Variables for Bootstrap to Applications
 # All variables are defined here because:
-# 1. L1 is the only layer with direct secret access (GitHub Secrets)
-# 2. L2+ layers read config from L1 state or Vault
+# 1. Bootstrap is the only layer with direct secret access (GitHub Secrets)
+# 2. Platform+ layers read config from Bootstrap state or Vault
 # 3. Single source of truth for variable definitions
 # 4. Simplifies tfvars management in CI/CD
 #
 # Categories:
-# -# L1 Bootstrap Variables
+# - Bootstrap Variables
 # Trigger CI: oauth deployment verify, DNS, Atlantis
-# - L2 Platform: Vault, Dashboard, Kubero
-# - L3+ Runtime: Accessed via Vault, not declared here
+# - Platform: Vault, Dashboard, Kubero
+# - Data/Apps Runtime: Accessed via Vault, not declared here
 # ============================================================
 
 variable "vps_host" {
@@ -24,7 +22,7 @@ variable "vps_host" {
   }
 }
 
-# L1 Bootstrap: R2 State Backend
+# Bootstrap: R2 State Backend
 variable "r2_bucket" {
   description = "Cloudflare R2 bucket name for Terraform state"
   type        = string
@@ -107,7 +105,7 @@ variable "disable_components" {
 
 # Shared Infrastructure Toggle
 variable "enable_infra" {
-  description = "Enable shared infrastructure modules (L1/L2). Set to false for app-only deployments (staging/prod)."
+  description = "Enable shared infrastructure modules (Bootstrap/Platform). Set to false for app-only deployments (staging/prod)."
   type        = bool
   default     = true
 }
@@ -160,7 +158,7 @@ variable "vault_postgres_storage" {
   default     = "10Gi"
 }
 
-# Redis (L3 - not yet implemented)
+# Redis (Data layer - not yet implemented)
 variable "redis_password" {
   description = "Redis password (REQUIRED when enabling Redis)"
   type        = string
@@ -174,7 +172,7 @@ variable "redis_storage" {
   default     = "20Gi"
 }
 
-# Neo4j (L3 - not yet implemented)
+# Neo4j (Data layer - not yet implemented)
 variable "neo4j_password" {
   description = "Neo4j password (REQUIRED when enabling Neo4j)"
   type        = string
@@ -331,7 +329,7 @@ variable "atlantis_allowed_admin_ips" {
   default     = []
 }
 
-# L3 Vault Access
+# Data layer Vault Access
 variable "vault_root_token" {
   description = "Vault root token for L3 secret storage (from 1Password via GitHub Secret VAULT_ROOT_TOKEN)"
   type        = string

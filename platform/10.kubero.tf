@@ -125,7 +125,7 @@ data "vault_kv_secret_v2" "kubero" {
           )
         )
       )
-      error_message = "Kubero secrets not found in Vault. Ensure L2 92.vault-kubero.tf has been applied."
+      error_message = "Kubero secrets not found in Vault. Ensure Platform 92.vault-kubero.tf has been applied."
     }
   }
 

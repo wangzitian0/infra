@@ -1,22 +1,20 @@
 # =============================================================================
 # Root Terragrunt Configuration
 # =============================================================================
-# This file centralizes backend and provider configuration for all layers,
-# eliminating 77% code duplication across L2/L3/L4.
+# This file centralizes backend and provider configuration for all modules,
+# eliminating code duplication across Platform and Data layers.
 #
 # Directory Structure:
-#   2.platform/           → L2 singleton (shared by all environments)
-#   envs/staging/3.data/  → L3 staging data layer
-#   envs/prod/3.data/     → L3 production data layer
-#   4.apps/               → L4 singleton control plane (manages all environments)
+#   platform/           → Platform singleton (shared by all environments)
+#   envs/staging/data/  → Staging data layer
+#   envs/prod/data/     → Production data layer
 # =============================================================================
 
 locals {
   # Parse directory structure to determine layer and environment
   # Examples:
-  #   /path/to/2.platform              → layer=platform, env=null (singleton)
-  #   /path/to/envs/staging/3.data     → layer=data, env=staging
-  #   /path/to/envs/prod/4.apps        → layer=apps, env=prod
+  #   /path/to/platform              → layer=platform, env=null (singleton)
+  #   /path/to/envs/staging/data     → layer=data, env=staging
 
   path_components = split("/", get_terragrunt_dir())
 
@@ -35,8 +33,8 @@ locals {
   layer_name  = replace(local.current_dir, "/^[0-9]+\\./", "")
 
   # Generate state key based on environment and layer
-  # Singleton layers (L2): k3s/platform.tfstate
-  # Multi-env layers (L3/L4): k3s/data-{env}.tfstate (backward compatible)
+  # Singleton layers: k3s/platform.tfstate
+  # Multi-env layers: k3s/data-{env}.tfstate
   state_key = local.env == null ? "k3s/${local.layer_name}.tfstate" : "k3s/${local.layer_name}-${local.env}.tfstate"
 }
 
@@ -104,7 +102,7 @@ generate "common_providers" {
       skip_tls_verify = true
     }
 
-    # kubectl provider - used by L2/L3/L4 for raw manifests
+    # kubectl provider - used for raw manifests
     provider "kubectl" {
       config_path      = var.kubeconfig_path != "" ? var.kubeconfig_path : null
       load_config_file = var.kubeconfig_path != ""
@@ -142,7 +140,7 @@ inputs = {
   r2_bucket     = get_env("R2_BUCKET", "")
   r2_account_id = get_env("R2_ACCOUNT_ID", "")
 
-  # === Environment Context ===
-  # Auto-detected from directory path (null for singleton layers like L2/L4)
+  # Environment Context ===
+  # Auto-detected from directory path (null for singleton layers like Platform)
   environment = local.env
 }

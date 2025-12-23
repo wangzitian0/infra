@@ -23,11 +23,11 @@ graph LR
 
 | 数据库 | SSOT Key | 层级 | 命名空间 | 密码来源 | 消费者 | 详情 |
 |--------|----------|------|----------|----------|--------|------|
-| **Platform PG** | `db.platform_pg` | L1 | `platform` | GitHub Secret | Vault, Casdoor | [db.platform_pg.md](./db.platform_pg.md) |
-| **Business PG** | `db.business_pg` | L3 | `data-<env>` | Vault | L4 Apps | [db.business_pg.md](./db.business_pg.md) |
-| **Redis** | `db.redis` | L3 | `data-<env>` | Vault | L4 Apps (Cache) | [db.redis.md](./db.redis.md) |
-| **ClickHouse** | `db.clickhouse` | L3 | `data-<env>` | Vault | L4 Apps, SigNoz | [db.clickhouse.md](./db.clickhouse.md) |
-| **ArangoDB** | `db.arangodb` | L3 | `data-<env>` | Vault | L4 Apps (Graph) | [db.arangodb.md](./db.arangodb.md) |
+| **Platform PG** | `db.platform_pg` | Bootstrap | `platform` | GitHub Secret | Vault, Casdoor | [db.platform_pg.md](./db.platform_pg.md) |
+| **Business PG** | `db.business_pg` | Data | `data-<env>` | Vault | Apps | [db.business_pg.md](./db.business_pg.md) |
+| **Redis** | `db.redis` | Data | `data-<env>` | Vault | Apps (Cache) | [db.redis.md](./db.redis.md) |
+| **ClickHouse** | `db.clickhouse` | Data | `data-<env>` | Vault | Apps, SigNoz | [db.clickhouse.md](./db.clickhouse.md) |
+| **ArangoDB** | `db.arangodb` | Data | `data-<env>` | Vault | Apps (Graph) | [db.arangodb.md](./db.arangodb.md) |
 
 ---
 
@@ -121,14 +121,14 @@ annotations:
 
 ```mermaid
 flowchart TB
-    L1["L1 Bootstrap — Platform PostgreSQL<br/>密码: GitHub Secret (打破 SSOT)"]
-    L2["L2 Platform — Vault<br/>生成 L3 密码 → 存入 Vault KV<br/>配置 K8s Auth → 每个 App 独立 Role/Policy"]
-    L3["L3 Data — 业务数据库 (data-staging / data-prod)<br/>PostgreSQL | Redis | ClickHouse | ArangoDB<br/>密码: 从 Vault KV 读取部署"]
-    L4["L4 Apps — 应用层<br/>通过 Vault Agent Injector 获取 DB 凭据"]
+    B["Bootstrap — Platform PostgreSQL<br/>密码: GitHub Secret"]
+    P["Platform — Vault<br/>生成 Data 密码 → 存入 Vault KV<br/>配置 K8s Auth → 每个 App 独立 Role/Policy"]
+    D["Data — 业务数据库 (data-staging / data-prod)<br/>PostgreSQL | Redis | ClickHouse | ArangoDB<br/>密码: 从 Vault KV 读取部署"]
+    A["Apps — 应用层<br/>通过 Vault Agent Injector 获取 DB 凭据"]
 
-    L1 -->|依赖| L2
-    L2 -->|供给| L3
-    L3 -->|消费| L4
+    B -->|依赖| P
+    P -->|供给| D
+    D -->|消费| A
 ```
 
 ---
