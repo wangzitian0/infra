@@ -102,6 +102,7 @@ jobs:
               `| Static CI | ⏳ | [Running...](${runUrl}) | ${timestamp} |`,
               "| Infra Plan | ⏳ | Pending | - |",
               "| Infra Apply | ⏭️ | - | - |",
+              "| E2E Tests | ⏭️ | - | - |",
               "| AI Review | ⏭️ | - | - |",
               "",
               "<details><summary>📜 Action History</summary>",
@@ -313,6 +314,10 @@ jobs:
               body = body.replace(
                 /\| Infra Apply \| .* \| .* \| .* \|/,
                 `| Infra Apply | ⏭️ | - | - |`
+              );
+              body = body.replace(
+                /\| E2E Tests \| .* \| .* \| .* \|/,
+                `| E2E Tests | ⏭️ | - | - |`
               );
             }
 

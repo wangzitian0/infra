@@ -9,28 +9,44 @@ on:
       - 'envs/*/data/**'
       - 'platform/**'
 
-  # 手动触发
+  # 手动触发或由 Atlantis 调用
   workflow_dispatch:
     inputs:
       test_scope:
         description: 'Test scope to run'
         required: false
-        default: 'smoke'
+        default: 'all'
         type: choice
         options:
           - smoke
-          - platform
-          - sso
-          - api
+          - compute
+          - storage
+          - network
           - all
+      pr_number:
+        description: 'PR number for dashboard update'
+        required: false
+        type: string
+      commit_sha:
+        description: 'Full commit SHA for dashboard update'
+        required: false
+        type: string
 
-  # 供其他 workflow 调用 (如 Atlantis apply 成功后)
+  # 供其他 workflow 调用
   workflow_call:
     inputs:
       test_scope:
         description: 'Test scope to run'
         required: false
-        default: 'smoke'
+        default: 'all'
+        type: string
+      pr_number:
+        description: 'PR number for dashboard update'
+        required: false
+        type: string
+      commit_sha:
+        description: 'Full commit SHA for dashboard update'
+        required: false
         type: string
 
 env:
@@ -38,6 +54,10 @@ env:
   SSO_URL: https://sso.zitian.party
   VAULT_URL: https://secrets.zitian.party
   DASHBOARD_URL: https://kdashboard.zitian.party
+  # Used for mapping test scopes to markers
+  SCOPE_COMPUTE: "-m bootstrap and compute"
+  SCOPE_STORAGE: "-m bootstrap and storage"
+  SCOPE_NETWORK: "-m bootstrap and network"
 
 jobs:
   e2e-smoke:
@@ -73,16 +93,53 @@ jobs:
             echo "marker=-m $SCOPE" >> $GITHUB_OUTPUT
           fi
 
+      - name: Generate App Token
+        if: inputs.pr_number || github.event.pull_request.number
+        id: app_token_init
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Set initial status
+        if: inputs.pr_number || github.event.pull_request.number
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token_init.outputs.token }}
+          script: |
+            const sha = ('${{ inputs.commit_sha }}' || context.sha).substring(0, 7);
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            // 1. Set Commit Status to Pending
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ inputs.commit_sha }}' || context.sha,
+              state: 'pending',
+              context: 'e2e/smoke-test',
+              description: 'E2E tests running...',
+              target_url: runUrl
+            });
+
       - name: Run E2E tests
         working-directory: e2e_regressions
         run: |
-          uv run pytest ${{ steps.scope.outputs.marker }} -v --tb=short
+          SCOPE="${{ inputs.test_scope || 'all' }}"
+          case $SCOPE in
+            smoke)   MARKER="-m smoke" ;;
+            compute) MARKER="$SCOPE_COMPUTE" ;;
+            storage) MARKER="$SCOPE_STORAGE" ;;
+            network) MARKER="$SCOPE_NETWORK" ;;
+            all)     MARKER="" ;;
+            *)       MARKER="-m smoke" ;;
+          esac
+          uv run pytest $MARKER -v --tb=short
 
       - name: Generate HTML report
         if: always()
         working-directory: e2e_regressions
         run: |
-          uv run pytest ${{ steps.scope.outputs.marker }} --html=report.html --self-contained-html || true
+          uv run pytest -m smoke --html=report.html --self-contained-html || true
 
       - name: Upload test report
         if: always()
@@ -91,6 +148,63 @@ jobs:
           name: e2e-test-report
           path: e2e_regressions/report.html
           retention-days: 14
+
+      - name: Generate App Token
+        if: always() && (inputs.pr_number || github.event.pull_request.number)
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Update commit status and dashboard
+        if: always() && (inputs.pr_number || github.event.pull_request.number)
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            const prNumber = parseInt('${{ inputs.pr_number }}' || context.payload.pull_request?.number);
+            const sha = ('${{ inputs.commit_sha }}' || context.sha).substring(0, 7);
+            const status = '${{ job.status }}' === 'success' ? 'success' : 'failure';
+            const icon = status === 'success' ? '✅' : '❌';
+            const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
+
+            // 1. Update Commit Status (Check List)
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ inputs.commit_sha }}' || context.sha,
+              state: status,
+              context: 'e2e/smoke-test',
+              description: `E2E tests ${status}`,
+              target_url: runUrl
+            });
+
+            // 2. Update Dashboard Comment
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: prNumber, per_page: 100
+            });
+            const flashComment = comments.find(c => c.body.includes(MARKER));
+            if (flashComment) {
+              let body = flashComment.body;
+              body = body.replace(
+                /\| E2E Tests \| .* \| .* \| .* \|/,
+                `| E2E Tests | ${icon} | [View](${runUrl}) | ${timestamp} |`
+              );
+              
+              // If success and was waiting, update next step
+              if (status === 'success' && body.includes('Ready to merge')) {
+                // keep it
+              }
+
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                comment_id: flashComment.id, body: body
+              });
+            }
 
       - name: Post result summary
         if: always()
