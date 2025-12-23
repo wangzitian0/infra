@@ -97,6 +97,24 @@ Fix errors below, then run `atlantis plan`  (失败时)
 
 ---
 
+## L3 Resource Import in CI
+
+`deploy-k3s.yml` automatically imports existing L3 resources before applying to handle state synchronization after Terragrunt migration:
+
+### Imported Resources
+| Resource | Import ID | Condition |
+|:---|:---|:---|
+| `kubernetes_namespace.data` | `data-prod` | Namespace exists in K8s |
+| `helm_release.postgresql` | `data-prod/postgresql` | Helm release exists |
+| `helm_release.redis` | `data-prod/redis` | Helm release exists |
+| `helm_release.clickhouse` | `data-prod/clickhouse` | Helm release exists |
+| `helm_release.arangodb_operator` | `data-prod/arangodb-operator` | Helm release exists |
+| `kubernetes_secret.arangodb_jwt` | `data-prod/arangodb-jwt` | Secret exists |
+
+> **Note**: Import only runs if the resource exists in cluster but not in Terraform state.
+
+---
+
 ## Database Port-Forwards in CI
 
 `deploy-k3s.yml` uses `kubectl port-forward` to connect to databases for L3 terraform providers:
@@ -108,4 +126,4 @@ Fix errors below, then run `atlantis plan`  (失败时)
 > **Note**: L2 (Platform) no longer requires database port-forwards after PR #340 removed temporary DB providers.
 
 ---
-*Last updated: 2025-12-22*
+*Last updated: 2025-12-23*
