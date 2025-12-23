@@ -1,64 +1,42 @@
 # E2E Regression Tests
 
-自动化测试部署完成后的各种情况，使用 Python + Playwright + pytest。
+此目录包含 **cc_infra** 项目的端到端（E2E）自动化测试框架。该框架基于 **Python**、**Playwright** 和 **pytest** 构建，用于验证从基础设施部署到应用层功能的完整流程。
 
-## Quick Start
+## 📋 项目概览
 
-### 安装依赖
+本项目遵循测试金字塔原则，测试用例按部署阶段和功能模块分层组织。
+
+**关键特点**：
+- ✅ **全栈覆盖**：覆盖 Portal、Platform、API、数据库等各个层面。
+- ⚡ **快速反馈**：烟雾测试（Smoke Test）可在 1-2 分钟内验证系统核心健康状态。
+- 📦 **模块化结构**：测试目录结构与基础设施代码目录结构（`1.bootstrap`, `2.platform`, `3.data`, `4.apps`）对齐。
+- 🚀 **CI/CD 就绪**：包含 GitHub Actions 工作流，支持自动触发和定时运行。
+
+---
+
+## 🚀 快速开始 (Quick Start)
+
+### 1. 初始化项目
 
 ```bash
 cd e2e_regressions
+
+# 安装依赖（自动读取 pyproject.toml 并生成 uv.lock）
 uv sync
+
+# 安装浏览器驱动
+uv run playwright install chromium
 ```
 
-### 运行测试
+### 2. 配置环境
 
-```bash
-# 所有测试
-uv run pytest
-
-# 仅运行 smoke 测试（快速）
-uv run pytest -m smoke
-
-# 运行特定分类
-uv run pytest -m sso      # SSO/Portal 测试
-uv run pytest -m platform # Platform 服务测试
-uv run pytest -m api      # API 测试
-uv run pytest -m database # 数据库测试
-
-# 带详细输出和浏览器可见
-uv run pytest -vv --headed
-
-# 生成 HTML 报告
-uv run pytest --html=report.html --self-contained-html
-```
-
-## 项目结构
-
-```
-e2e_regressions/
-├── pyproject.toml           # uv 项目配置
-├── README.md                # 本文件
-├── conftest.py              # pytest fixtures & 全局配置
-├── .env.example             # 环境变量模板
-└── tests/
-    ├── __init__.py
-    ├── test_portal_sso.py    # Portal SSO 登录流程
-    ├── test_platform.py      # Vault, Dashboard, Casdoor 可用性
-    ├── test_api_health.py    # API 端点健康检查
-    ├── test_databases.py     # 数据库连接验证
-    └── test_e2e_smoke.py     # 整体烟雾测试
-```
-
-## 环境配置
-
-复制并填充环境变量：
+复制环境变量模板并根据实际环境修改：
 
 ```bash
 cp .env.example .env
 ```
 
-配置项：
+**关键配置项**（`.env`）：
 
 | 变量 | 说明 | 示例 |
 |------|------|------|
@@ -66,94 +44,115 @@ cp .env.example .env
 | `SSO_URL` | Casdoor SSO URL | `https://sso.zitian.party` |
 | `VAULT_URL` | Vault URL | `https://secrets.zitian.party` |
 | `DASHBOARD_URL` | K8s Dashboard URL | `https://kdashboard.zitian.party` |
-| `TEST_USERNAME` | 登录用户名 | `test_user` |
-| `TEST_PASSWORD` | 登录密码 | `***` |
-| `TEST_GITHUB_TOKEN` | GitHub OAuth token | `ghp_***` |
-| `VAULT_ADDR` | Vault HTTP API | `https://secrets.zitian.party` |
-| `DB_HOST` | PostgreSQL 主机 | `postgresql.data-prod.svc.cluster.local` |
-| `DB_PORT` | PostgreSQL 端口 | `5432` |
-| `DB_USER` | 数据库用户 | `postgres` |
-| `DB_PASSWORD` | 数据库密码 | `***` |
-| `REDIS_HOST` | Redis 主机 | `redis.data-prod.svc.cluster.local` |
-| `REDIS_PORT` | Redis 端口 | `6379` |
-| `CLICKHOUSE_HOST` | ClickHouse 主机 | `clickhouse.data-prod.svc.cluster.local` |
-| `CLICKHOUSE_PORT` | ClickHouse 端口 | `8123` |
+| `TEST_USERNAME` | 测试用用户名 | `test_user` |
+| `TEST_PASSWORD` | 测试用密码 | `***` |
 
-## 测试分类
+> 更多配置项（如数据库连接）请查看 `.env.example` 文件。
 
-### Smoke Tests (快速验证)
-- Portal 可访问
-- 服务端点响应 200
-- 基础连接检查
+### 3. 运行测试
 
-### SSO Tests
-- Portal GitHub OAuth 流程
-- 登录后 Session 管理
-- 权限检查
+推荐使用 `Makefile` 进行操作：
 
-### Platform Tests
-- Vault 健康检查
-- Dashboard 可用性
-- Casdoor OIDC 配置验证
-
-### API Tests
-- 业务 API 端点
-- 认证/授权
-- 错误处理
-
-### Database Tests
-- PostgreSQL 连接和查询
-- Redis 连接和键操作
-- ClickHouse 连接和查询
-
-## CI/CD 集成
-
-在 GitHub Actions 中运行（示例）：
-
-```yaml
-- name: Run E2E Tests
-  run: |
-    cd e2e_regressions
-    uv sync
-    uv run pytest -m smoke --html=report.html
-```
-
-## 常见问题
-
-### 浏览器安装
-首次运行会自动下载浏览器，或手动安装：
 ```bash
-uv run playwright install chromium
+# 查看所有可用命令
+make help
+
+# 运行烟雾测试（快速检查核心服务，~1-2 分钟）
+make test-smoke
+
+# 运行所有测试
+make test
+
+# 调试模式（显示浏览器界面，慢速执行）
+make test-headed
 ```
 
-### 超时问题
-调整 `conftest.py` 中的超时时间：
-```python
-TIMEOUT = 30000  # ms
-```
+或者直接使用 `uv run pytest`：
 
-### 跳过某个测试
 ```bash
-uv run pytest -k "not test_portal_sso"
+# 运行指定标签的测试
+uv run pytest -m smoke
+uv run pytest -m sso
+uv run pytest -m platform
+
+# 生成 HTML 报告
+uv run pytest --html=report.html --self-contained-html
 ```
 
-### 生成调试视频
-在 conftest.py 中启用：
-```python
-browser_context_args = {
-    "record_video_dir": "test-videos",
-}
+---
+
+## 🏗️ 项目结构与测试分层
+
+测试文件结构与基础设施代码结构保持一致，便于维护和定位问题。
+
+```
+e2e_regressions/
+├── tests/
+│   ├── bootstrap/          # Bootstrap 层测试（K8s、存储、网络等）
+│   │   ├── k8s/           # K8s 集群测试
+│   │   ├── atlantis/      # Atlantis CI/CD 测试
+│   │   ├── dns_cert/      # DNS 和证书测试
+│   │   └── ...            # 其他 Bootstrap 组件
+│   ├── platform/           # Platform 层测试
+│   │   └── test_platform.py    # Vault, Dashboard, Casdoor 可用性
+│   ├── data/               # Data 层测试
+│   │   └── test_databases.py   # PostgreSQL, Redis, ClickHouse 连接验证
+│   ├── apps/               # Apps 层测试
+│   │   ├── test_portal_sso.py  # Portal SSO 登录流程
+│   │   └── test_api_health.py  # 业务 API 健康检查
+│   └── smoke/              # 跨层烟雾测试
+│       └── test_smoke.py       # 整体系统快速健康检查
+├── Makefile                # 快捷命令
+├── pyproject.toml          # 依赖管理配置
+├── conftest.py             # pytest 全局配置 & Fixtures
+└── ...
 ```
 
-## 维护指南
+### 测试策略分层
 
-1. **新增服务**：在对应测试文件中添加健康检查
-2. **更新 URL**：修改 `.env` 和相关测试
-3. **变更认证方式**：更新 `test_portal_sso.py` 中的登录逻辑
-4. **数据库迁移**：更新 `test_databases.py` 中的连接字符串
+| 层级 | 测试内容 | 耗时 | 目的 |
+|------|---------|------|------|
+| **Smoke** | 核心服务可访问性 | 1-2 min | 部署后的冒烟测试，快速阻断 |
+| **Platform** | Ingress, Vault, Casdoor | 2-3 min | 验证平台基础组件是否正常工作 |
+| **Data** | Postgres, Redis, ClickHouse | 3-5 min | 验证数据层连接和基本读写权限 |
+| **Apps** | Portal, SSO flows, APIs | 5-10 min | 验证上层业务逻辑和用户交互流程 |
+| **E2E** | 全链路场景 | 10+ min | 完整模拟用户行为的端到端测试 |
 
-## 参考
+---
 
-- [Playwright Python 文档](https://playwright.dev/python/)
-- [pytest 文档](https://docs.pytest.org/)
-- [项目架构](../docs/ssot/core.dir.md)
+## 🔧 常见场景与故障排除
+
+### 场景：部署后验证
+1. 运行 `make test-smoke`。
+2. 如果通过，系统基本健康。如果失败，查看具体报错的服务。
+
+### 场景：调试 SSO 登录问题
+1. 设置 `HEADLESS=false` 或运行 `make test-headed`。
+2. 观察浏览器中的自动操作，确认是否卡在跳转、验证码或权限页面。
+3. 检查 `.env` 中的 `TEST_USERNAME` 和 `TEST_PASSWORD` 是否正确。
+
+### 故障排除指南
+
+- **浏览器启动失败**：执行 `uv run playwright install chromium --with-deps` 重新安装依赖。
+- **超时（Timeout）**：服务响应慢可能导致测试超时。可在命令前加环境变量临时调整：`TIMEOUT_MS=60000 make test-smoke`。
+- **数据库连接失败**：
+    - 检查 `.env` 中的 `DB_HOST` 是否正确（是否需要端口转发？）。
+    - 确保测试运行环境（尤其是本地）能访问 K8s 集群内的 Service 地址（可能需要 VPN 或 `kubectl port-forward`）。
+
+---
+
+## 🤖 CI/CD 集成
+
+本项目包含 GitHub Actions 配置示例 `.github-workflow-example.yml`。
+
+**集成步骤**：
+1. 将 `.github-workflow-example.yml` 复制到项目根目录的 `.github/workflows/e2e-tests.yml`。
+2. 在 GitHub 仓库 Settings -> Secrets 中配置必要的环境变量（`PORTAL_URL`, `TEST_USERNAME` 等）。
+3. 工作流将在 `main` 分支推送或 Pull Request 时自动触发。
+
+---
+
+## 📚 参考文档
+
+- [Playwright Python Documentation](https://playwright.dev/python/)
+- [pytest Documentation](https://docs.pytest.org/)
