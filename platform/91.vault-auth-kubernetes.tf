@@ -42,8 +42,9 @@ resource "vault_policy" "vso_reader" {
 resource "vault_kubernetes_auth_backend_role" "vso" {
   backend                          = vault_auth_backend.kubernetes.path
   role_name                        = "vault-secrets-operator"
-  bound_service_account_names      = ["vault-secrets-operator-controller-manager"]
-  bound_service_account_namespaces = ["vault-secrets-operator-system"]
+  bound_service_account_names      = ["vault-secrets-operator-controller-manager", "default"]
+  bound_service_account_namespaces = ["vault-secrets-operator-system", "data-*"]
   token_policies                   = [vault_policy.vso_reader.name]
   token_ttl                        = 3600
 }
+
