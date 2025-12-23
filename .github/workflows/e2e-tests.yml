@@ -1,0 +1,106 @@
+name: E2E Regression Tests
+
+on:
+  # Post-merge: 合并到 main 后立即运行
+  push:
+    branches: [main]
+    paths:
+      - '2.platform/**'
+      - 'envs/*/3.data/**'
+      - '4.apps/**'
+
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: 'Test scope to run'
+        required: false
+        default: 'smoke'
+        type: choice
+        options:
+          - smoke
+          - platform
+          - sso
+          - api
+          - all
+
+  # 供其他 workflow 调用 (如 Atlantis apply 成功后)
+  workflow_call:
+    inputs:
+      test_scope:
+        description: 'Test scope to run'
+        required: false
+        default: 'smoke'
+        type: string
+
+env:
+  PORTAL_URL: https://home.zitian.party
+  SSO_URL: https://sso.zitian.party
+  VAULT_URL: https://secrets.zitian.party
+  DASHBOARD_URL: https://kdashboard.zitian.party
+
+jobs:
+  e2e-smoke:
+    name: E2E Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        working-directory: e2e_regressions
+        run: |
+          uv sync
+          uv run playwright install chromium
+
+      - name: Determine test scope
+        id: scope
+        run: |
+          SCOPE="${{ inputs.test_scope || 'smoke' }}"
+          if [ "$SCOPE" = "all" ]; then
+            echo "marker=" >> $GITHUB_OUTPUT
+          else
+            echo "marker=-m $SCOPE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run E2E tests
+        working-directory: e2e_regressions
+        run: |
+          uv run pytest ${{ steps.scope.outputs.marker }} -v --tb=short
+
+      - name: Generate HTML report
+        if: always()
+        working-directory: e2e_regressions
+        run: |
+          uv run pytest ${{ steps.scope.outputs.marker }} --html=report.html --self-contained-html || true
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-report
+          path: e2e_regressions/report.html
+          retention-days: 14
+
+      - name: Post result summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### ✅ E2E Tests Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ E2E Tests Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Scope**: ${{ inputs.test_scope || 'smoke' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
