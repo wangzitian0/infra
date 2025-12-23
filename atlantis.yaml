@@ -82,18 +82,41 @@ workflows:
         - run: |
             terraform state rm kubernetes_namespace.platform 2>/dev/null || true
 
-        # L3-specific: Import existing namespace if it exists but not in state
-        # This handles cases where namespace was created manually or state was lost
+        # L3-specific: Import existing resources if they exist but not in state
+        # This handles state sync after Terragrunt migration or manual resource creation
         - run: |
             if [[ "$REPO_REL_DIR" == envs/*/3.data ]]; then
-              # Determine namespace name based on environment path
+              # Determine namespace name based on environment path (staging/prod)
               ENV=$(echo "$REPO_REL_DIR" | grep -oP 'envs/\K[^/]+')
-              NS="data-${WORKSPACE:-default}"
-              echo "Checking L3 namespace: $NS"
-              # Try to import if namespace exists but not in state
-              if kubectl get ns "$NS" 2>/dev/null && ! TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt state show kubernetes_namespace.data 2>/dev/null; then
-                echo "Importing existing namespace $NS..."
-                TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt import kubernetes_namespace.data "$NS" || true
+              NS="data-${ENV}"
+              TG="TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
+              echo "=== L3 Resource Import Check (NS: $NS) ==="
+
+              # Import namespace if exists but not in state
+              if kubectl get ns "$NS" 2>/dev/null && ! eval "$TG state show kubernetes_namespace.data" 2>/dev/null; then
+                echo "Importing kubernetes_namespace.data..."
+                eval "$TG import kubernetes_namespace.data $NS" || true
+              fi
+
+              # Import helm releases if they exist but not in state
+              declare -A HELM_RELEASES=(
+                ["helm_release.postgresql"]="postgresql"
+                ["helm_release.redis"]="redis"
+                ["helm_release.clickhouse"]="clickhouse"
+                ["helm_release.arangodb_operator"]="arangodb-operator"
+              )
+              for tf_resource in "${!HELM_RELEASES[@]}"; do
+                release_name="${HELM_RELEASES[$tf_resource]}"
+                if helm status "$release_name" -n "$NS" 2>/dev/null && ! eval "$TG state show $tf_resource" 2>/dev/null; then
+                  echo "Importing $tf_resource..."
+                  eval "$TG import $tf_resource $NS/$release_name" || true
+                fi
+              done
+
+              # Import kubernetes_secret.arangodb_jwt if exists but not in state
+              if kubectl get secret arangodb-jwt -n "$NS" 2>/dev/null && ! eval "$TG state show kubernetes_secret.arangodb_jwt" 2>/dev/null; then
+                echo "Importing kubernetes_secret.arangodb_jwt..."
+                eval "$TG import kubernetes_secret.arangodb_jwt $NS/arangodb-jwt" || true
               fi
             fi
 
