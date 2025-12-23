@@ -14,6 +14,7 @@
 | **审计合规** | `infra-flash` 评论流 | GHA + Atlantis | 每一笔操作都有 Commit 级别的记录 |
 | **环境健康** | `infra dig` | GitHub Actions | 外部视角验证服务连通性 |
 | **L1 引导** | `deploy-L1-bootstrap.yml` | GitHub Actions | 初始引导（手动触发）|
+| **Drift 检测** | `post-merge-verify.yml` | GitHub Actions + Atlantis | Merge 后自动全量验证，防止配置漂移 |
 
 ---
 
@@ -85,7 +86,96 @@ sequenceDiagram
 
 ---
 
-## 4. 运维节点与触发矩阵
+## 4. Post-Merge Verification
+
+Merge 到 main 后，`post-merge-verify.yml` 自动执行全量验证。
+
+### 完整流程
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant GHA as post-merge-verify.yml
+    participant L1 as L1 Terraform (GHA)
+    participant Atlantis as Atlantis (VPS)
+    participant PR as Merged PR #xxx
+
+    User->>PR: Merge PR
+    PR->>GHA: push to main
+
+    GHA->>GHA: 1. Find merged PR #xxx
+
+    par L1 Verification
+        GHA->>L1: 2a. terraform plan
+        L1-->>GHA: result (no_changes/drift/error)
+    and L2/L3/L4 Verification
+        GHA->>PR: 2b. Comment "atlantis plan"
+        PR->>Atlantis: Webhook
+        Atlantis->>Atlantis: Run plan
+        Atlantis->>PR: Post result
+        GHA->>PR: 3. Poll for result (max 10min)
+    end
+
+    GHA->>PR: 4. Post summary comment
+```
+
+### 触发条件
+
+| 触发器 | 场景 | 输出位置 |
+|:---|:---|:---|
+| `push` to main | PR 合并后自动 | 原 PR 评论 |
+| `workflow_dispatch` | 手动触发 | Actions 日志 |
+
+### 状态定义
+
+| 状态 | 图标 | 含义 |
+|:---|:---:|:---|
+| `no_changes` | ✅ | 基础设施与代码一致 |
+| `drift` | ⚠️ | 检测到配置漂移 |
+| `error` | ❌ | Plan 执行失败 |
+| `timeout` | ⏳ | Atlantis 响应超时 |
+| `skipped` | ⏭️ | 未执行（无 PR 上下文）|
+
+### 异常处理
+
+```mermaid
+flowchart TD
+    A{Post-Merge 触发}
+
+    A --> B{找到 merged PR?}
+    B -->|No| B1["workflow_dispatch 无 PR 上下文<br/>→ 仅输出到 Actions 日志"]
+    B -->|Yes| C[并行执行 L1 + L2/L3/L4]
+
+    C --> D{L1 Plan 结果?}
+    D -->|no_changes| D1["✅ L1 无漂移"]
+    D -->|drift| D2["⚠️ L1 有变更<br/>→ 检查是否需要 bootstrap apply"]
+    D -->|error| D3["❌ L1 Plan 失败<br/>→ 检查 backend 连接/credentials"]
+
+    C --> E{Atlantis 响应?}
+    E -->|10min 内收到| F{Plan 结果?}
+    E -->|超时| E1["⏳ Atlantis 超时<br/>→ 检查 Atlantis Pod 日志<br/>→ kubectl logs -n bootstrap atlantis-0"]
+
+    F -->|no_changes| F1["✅ L2/L3/L4 无漂移"]
+    F -->|drift| F2["⚠️ 有变更<br/>→ 创建新 PR 同步状态"]
+    F -->|error| F3["❌ Atlantis Plan 失败<br/>→ 检查 Vault token/Provider 配置"]
+
+    D1 & D2 & D3 & E1 & F1 & F2 & F3 --> G[汇总结果贴到 PR]
+```
+
+### 异常场景速查
+
+| 异常 | 症状 | 排查步骤 |
+|:---|:---|:---|
+| **找不到 PR** | `has_pr=false` | 检查是否通过 PR 合并（直接 push 无 PR 上下文）|
+| **L1 Backend 403** | `error reading state` | 检查 R2 credentials（`AWS_ACCESS_KEY_ID`）|
+| **L1 SSH 失败** | `connection refused` | 检查 VPS 连通性和 `VPS_SSH_KEY` |
+| **Atlantis 超时** | 10min 无响应 | `kubectl logs -n bootstrap atlantis-0` |
+| **Atlantis Vault 401** | `permission denied` | 重启 Atlantis Pod 刷新 token |
+| **Drift 但无变更记录** | 手动修改了基础设施 | `terraform import` 或手动回滚 |
+
+---
+
+## 5. 运维节点与触发矩阵
 
 我们将流程分为 **自动 (Push)** 和 **指令 (Comment)** 两个平面。
 
@@ -97,6 +187,7 @@ sequenceDiagram
 2. **Static (静态)**: 同上，执行 `validate` 并更新评论中的 CI 表格。
 3. **Autoplan**: Atlantis 监听到 push，自动执行 `plan`，由 `infra-flash-update.yml` 将结果追加到评论。
 4. **Post-Apply Review**: `claude-code-review.yml` 在 `atlantis apply` 成功后自动触发，Claude 审查已部署的变更。
+5. **Post-Merge Verification**: `post-merge-verify.yml` 在 merge 到 main 后自动执行 L1-L4 全量 plan 验证。
 
 ### B. 指令平面 (Comment Trigger)
 
@@ -296,6 +387,7 @@ flowchart TD
 | `infra-commands.yml` | `infra-flash[bot]` | 指令分发器 (`dig`, `help`) | `issue_comment` |
 | `infra-flash-update.yml` | `infra-flash[bot]` | 监听并搬运 Atlantis 的输出到主评论 | `issue_comment` |
 | `deploy-L1-bootstrap.yml` | `infra-flash[bot]` | L1 Bootstrap (`bootstrap plan/apply`) | `issue_comment` / `workflow_dispatch` |
+| `post-merge-verify.yml` | `infra-flash[bot]` | Merge 后全量 L1-L4 drift 检测 | `push` (main) / `workflow_dispatch` |
 | `claude.yml` | `claude[bot]` | 响应 @claude 评论，执行 AI 任务 | `issue_comment` |
 | `claude-code-review.yml` | `claude[bot]` | Apply 成功后自动审查部署变更 | `workflow_run` |
 
