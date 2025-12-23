@@ -1,1 +1,1 @@
-../../3.data-shared/99.checks.tf
+../../data-shared/99.checks.tf

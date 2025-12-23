@@ -1,1 +1,1 @@
-../../3.data-shared/.terraform.lock.hcl
+../../data-shared/.terraform.lock.hcl

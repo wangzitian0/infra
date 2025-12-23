@@ -1,1 +1,1 @@
-../../3.data-shared/3.clickhouse.tf
+../../data-shared/3.clickhouse.tf

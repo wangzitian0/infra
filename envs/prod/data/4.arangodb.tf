@@ -1,1 +1,1 @@
-../../3.data-shared/4.arangodb.tf
+../../data-shared/4.arangodb.tf

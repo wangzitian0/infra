@@ -1,1 +1,1 @@
-../../3.data-shared/locals.tf
+../../data-shared/locals.tf

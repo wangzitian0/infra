@@ -1,1 +1,1 @@
-../../3.data-shared/1.postgres.tf
+../../data-shared/1.postgres.tf

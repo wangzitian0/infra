@@ -1,1 +1,1 @@
-../../3.data-shared/2.redis.tf
+../../data-shared/2.redis.tf

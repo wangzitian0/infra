@@ -1,1 +1,1 @@
-../../3.data.terragrunt.hcl
+../../data.terragrunt.hcl
