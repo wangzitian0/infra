@@ -3,7 +3,7 @@
 # CI Trigger: Force validation run
 # =============================================================================
 # Provides data services (PostgreSQL, ClickHouse, Redis, ArangoDB)
-# Environment is auto-detected from directory path (envs/{env}/3.data)
+# Environment is auto-detected from directory path (envs/{env}/data)
 
 include "root" {
   path = find_in_parent_folders()

@@ -1,4 +1,4 @@
-# 3.data (Data Layer / Layer 3) - Production Environment
+# data (Data Layer / Layer 3) - Production Environment
 
 > **环境**: Production
 > **定位**: 模块维护文档（面向基础设施运维者）
@@ -85,7 +85,7 @@ graph LR
 
 ```bash
 # Standalone usage
-cd envs/prod/3.data
+cd envs/prod/data
 export R2_BUCKET=<bucket> R2_ACCOUNT_ID=<account-id>
 terragrunt init
 terragrunt apply
@@ -93,7 +93,7 @@ terragrunt apply
 
 ### Namespace Ownership
 
-The `data-prod` namespace is **owned by L3** (`envs/prod/3.data/1.postgres.tf`). This follows the pattern:
+The `data-prod` namespace is **owned by L3** (`envs/prod/data/1.postgres.tf`). This follows the pattern:
 - L1 owns `kube-system`, `platform` (namespace created in L1)
 - L2 operates within `platform` (namespace passed from L1)
 - **L3 owns `data-prod`** (namespace created in L3 prod)
