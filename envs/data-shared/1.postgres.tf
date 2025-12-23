@@ -1,15 +1,14 @@
-# Purpose: PostgreSQL for business applications
-
+# Purpose: PostgreSQL for business applications via CloudNativePG
 #
 # Architecture (VSO Pattern - Issue #351):
 # - random_password generates password on first deploy
 # - vault_kv_secret_v2 stores password in Vault (SSOT)
 # - VaultStaticSecret syncs Vault → K8s Secret (via VSO)
-# - Helm uses existingSecret to read from K8s Secret
+# - CNPG Cluster uses superuserSecret from K8s Secret
 # - Vault Database Engine uses random_password with ignore_changes
 #
-# Pattern: Bitnami Helm chart (matches L1 platform_pg)
-# Note: Bitnami deletes old image tags, so we use 'latest' with IfNotPresent
+# Pattern: CloudNativePG Cluster CR (professional operator)
+# Docs: https://cloudnative-pg.io
 
 # =============================================================================
 # Namespace (per-environment: data-staging, data-prod)
@@ -30,7 +29,7 @@ resource "kubernetes_namespace" "data" {
 # - random_password generates password on first deployment
 # - vault_kv_secret_v2 stores password in Vault (SSOT)
 # - VaultStaticSecret syncs Vault → K8s Secret (via VSO)
-# - Helm uses existingSecret to read from K8s Secret
+# - CNPG uses superuserSecret to read from K8s Secret
 # =============================================================================
 
 resource "random_password" "postgres" {
@@ -51,7 +50,8 @@ resource "vault_kv_secret_v2" "postgres" {
   data_json = jsonencode({
     username = "postgres"
     password = random_password.postgres.result
-    host     = "postgresql.${local.namespace_name}.svc.cluster.local"
+    # CNPG uses -rw service for read-write operations
+    host     = "postgresql-rw.${local.namespace_name}.svc.cluster.local"
     port     = "5432"
     database = "app"
   })
@@ -92,70 +92,92 @@ resource "kubectl_manifest" "postgres_vault_secret" {
   depends_on = [vault_kv_secret_v2.postgres, kubectl_manifest.vault_auth]
 }
 
-# Wait for VSO to sync the secret before Helm tries to use it
+# Wait for VSO to sync the secret before CNPG tries to use it
 resource "time_sleep" "wait_for_postgres_secret" {
   create_duration = "15s"
   depends_on      = [kubectl_manifest.postgres_vault_secret]
 }
 
 # =============================================================================
-# PostgreSQL via Bitnami Helm chart
+# PostgreSQL via CloudNativePG Cluster CR
+# Professional Kubernetes-native PostgreSQL with HA, backup, and lifecycle
 # =============================================================================
 
-resource "helm_release" "postgresql" {
-  name             = "postgresql"
-  namespace        = kubernetes_namespace.data.metadata[0].name
-  repository       = "oci://registry-1.docker.io/bitnamicharts"
-  chart            = "postgresql"
-  version          = "16.4.2"
-  create_namespace = false
-  timeout          = 300
-  wait             = true
-  wait_for_jobs    = true
+resource "kubectl_manifest" "postgresql_cluster" {
+  yaml_body = yamlencode({
+    apiVersion = "postgresql.cnpg.io/v1"
+    kind       = "Cluster"
+    metadata = {
+      name      = "postgresql"
+      namespace = local.namespace_name
+      labels = {
+        module = "data"
+        env    = local.env_name
+      }
+    }
+    spec = {
+      # Single instance for now; can scale to 3 for HA
+      instances = 1
 
-  values = [
-    yamlencode({
-      # Bitnami deletes old tags; use latest + IfNotPresent to reduce drift
-      image = {
-        tag        = "latest"
-        pullPolicy = "IfNotPresent"
-      }
-      auth = {
-        # Use existingSecret created by VSO (synced from Vault KV)
-        existingSecret = "postgresql-credentials"
-        secretKeys = {
-          adminPasswordKey = "password"
-        }
-        database = "app"
-      }
-      primary = {
-        persistence = {
-          enabled      = true
-          storageClass = "local-path-retain"
-          size         = "10Gi"
-        }
-        resources = {
-          limits = {
-            cpu    = "500m"
-            memory = "512Mi"
-          }
-          requests = {
-            cpu    = "100m"
-            memory = "128Mi"
-          }
+      # Bootstrap from scratch with initdb
+      bootstrap = {
+        initdb = {
+          database = "app"
+          owner    = "postgres"
         }
       }
-    })
-  ]
+
+      # Superuser credentials from VSO-synced secret
+      superuserSecret = {
+        name = "postgresql-credentials"
+      }
+
+      # Storage configuration
+      storage = {
+        storageClass = "local-path-retain"
+        size         = "10Gi"
+      }
+
+      # Resource limits
+      resources = {
+        limits = {
+          cpu    = "500m"
+          memory = "512Mi"
+        }
+        requests = {
+          cpu    = "100m"
+          memory = "128Mi"
+        }
+      }
+
+      # PostgreSQL configuration
+      postgresql = {
+        parameters = {
+          shared_buffers        = "128MB"
+          max_connections       = "100"
+          effective_cache_size  = "256MB"
+          maintenance_work_mem  = "64MB"
+          checkpoint_timeout    = "15min"
+          wal_level             = "replica"
+          max_wal_senders       = "3"
+          max_replication_slots = "3"
+        }
+      }
+
+      # Monitoring (can enable when Prometheus is ready)
+      monitoring = {
+        enablePodMonitor = false
+      }
+    }
+  })
 
   depends_on = [time_sleep.wait_for_postgres_secret]
+}
 
-  lifecycle {
-    postcondition {
-      condition     = self.status == "deployed"
-      error_message = "PostgreSQL Helm release failed to deploy. Check pod logs and events."
-    }
-  }
+# Wait for CNPG cluster to be ready before configuring Vault
+resource "time_sleep" "wait_for_postgresql_cluster" {
+  create_duration = "60s"
+  depends_on      = [kubectl_manifest.postgresql_cluster]
 }
 
 # =============================================================================
@@ -170,10 +192,11 @@ resource "vault_database_secret_backend_connection" "postgres" {
   allowed_roles = ["postgres-readonly", "postgres-readwrite"]
 
   postgresql {
-    connection_url = "postgres://postgres:${random_password.postgres.result}@postgresql.${local.namespace_name}.svc.cluster.local:5432/app?sslmode=disable"
+    # CNPG uses -rw service for read-write operations
+    connection_url = "postgres://postgres:${random_password.postgres.result}@postgresql-rw.${local.namespace_name}.svc.cluster.local:5432/app?sslmode=disable"
   }
 
-  depends_on = [helm_release.postgresql, vault_kv_secret_v2.postgres]
+  depends_on = [time_sleep.wait_for_postgresql_cluster, vault_kv_secret_v2.postgres]
 
   lifecycle {
     # Don't update connection if state is recovered (password would be wrong)
@@ -232,8 +255,8 @@ resource "vault_database_secret_backend_role" "postgres_readwrite" {
 # =============================================================================
 
 output "postgres_host" {
-  value       = "postgresql.${local.namespace_name}.svc.cluster.local"
-  description = "PostgreSQL K8s service DNS"
+  value       = "postgresql-rw.${local.namespace_name}.svc.cluster.local"
+  description = "PostgreSQL K8s service DNS (CNPG read-write service)"
 }
 
 output "postgres_vault_path" {
@@ -266,7 +289,7 @@ resource "random_password" "openpanel_postgres" {
   special = false
 }
 
-# Store OpenPanel credentials in Vault KV for L4 to consume
+# Store OpenPanel credentials in Vault KV for Applications to consume
 resource "vault_kv_secret_v2" "openpanel" {
   mount               = data.terraform_remote_state.platform.outputs.vault_kv_mount
   name                = data.terraform_remote_state.platform.outputs.vault_db_secrets["openpanel"]
@@ -274,13 +297,13 @@ resource "vault_kv_secret_v2" "openpanel" {
 
   data_json = jsonencode({
     # PostgreSQL (primary database)
-    postgres_host     = "postgresql.${local.namespace_name}.svc.cluster.local"
+    postgres_host     = "postgresql-rw.${local.namespace_name}.svc.cluster.local"
     postgres_port     = "5432"
     postgres_user     = "openpanel"
     postgres_password = random_password.openpanel_postgres.result
     postgres_database = "openpanel"
 
-    # Redis (cache/queue) - shared L3 instance
+    # Redis (cache/queue) - shared Data instance
     redis_host     = "redis-master.${local.namespace_name}.svc.cluster.local"
     redis_port     = "6379"
     redis_password = random_password.redis.result # Direct reference to random_password
@@ -293,7 +316,7 @@ resource "vault_kv_secret_v2" "openpanel" {
     clickhouse_database = "openpanel_events"
   })
 
-  depends_on = [helm_release.postgresql, helm_release.redis, random_password.openpanel_clickhouse]
+  depends_on = [kubectl_manifest.postgresql_cluster, helm_release.redis, random_password.openpanel_clickhouse]
 
   lifecycle {
     # Don't overwrite existing credentials in Vault during state recovery
@@ -343,15 +366,15 @@ resource "kubectl_manifest" "openpanel_postgres_init" {
             args = ["-c", <<-EOT
               set -e
               echo "Waiting for PostgreSQL..."
-              until pg_isready -h postgresql -U postgres -t 5; do sleep 2; done
+              until pg_isready -h postgresql-rw -U postgres -t 5; do sleep 2; done
 
               echo "Creating OpenPanel user..."
-              psql -h postgresql -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='openpanel'" | grep -q 1 || \
-                psql -h postgresql -U postgres -c "CREATE USER openpanel WITH PASSWORD '$OPENPANEL_PASSWORD';"
+              psql -h postgresql-rw -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='openpanel'" | grep -q 1 || \
+                psql -h postgresql-rw -U postgres -c "CREATE USER openpanel WITH PASSWORD '$OPENPANEL_PASSWORD';"
 
               echo "Creating OpenPanel database..."
-              psql -h postgresql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='openpanel'" | grep -q 1 || \
-                psql -h postgresql -U postgres -c "CREATE DATABASE openpanel OWNER openpanel;"
+              psql -h postgresql-rw -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='openpanel'" | grep -q 1 || \
+                psql -h postgresql-rw -U postgres -c "CREATE DATABASE openpanel OWNER openpanel;"
 
               echo "OpenPanel PostgreSQL setup complete"
             EOT
@@ -362,5 +385,5 @@ resource "kubectl_manifest" "openpanel_postgres_init" {
     }
   })
 
-  depends_on = [helm_release.postgresql, kubectl_manifest.postgres_vault_secret]
+  depends_on = [time_sleep.wait_for_postgresql_cluster, kubectl_manifest.postgres_vault_secret]
 }

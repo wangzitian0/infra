@@ -1,4 +1,4 @@
-# Platform PostgreSQL - Trust Anchor Database
+# Platform PostgreSQL - Trust Anchor Database via CloudNativePG
 # Purpose: Shared database for Platform services (Vault, Casdoor)
 # Note: Deployed in Bootstrap to avoid circular dependency with Vault
 #
@@ -9,52 +9,13 @@
 # Consumers:
 # - Vault (Platform layer): storage backend
 # - Casdoor (Platform layer): user/session data
+#
+# Pattern: CloudNativePG Cluster CR (professional operator)
+# Docs: https://cloudnative-pg.io
 
 locals {
-  platform_pg_host        = "postgresql.platform.svc.cluster.local"
-  platform_pg_init_script = <<-SCRIPT
-    #!/bin/sh
-    set -eu
-
-    for i in $(seq 1 30); do
-      if pg_isready -h "$${PGHOST}" -U "$${PGUSER}" >/dev/null 2>&1; then
-        break
-      fi
-      sleep 2
-    done
-
-    if ! pg_isready -h "$${PGHOST}" -U "$${PGUSER}" >/dev/null 2>&1; then
-      echo "PostgreSQL not ready after waiting." >&2
-      exit 1
-    fi
-
-    # Idempotent: create Casdoor database if missing
-    psql -h "$${PGHOST}" -U "$${PGUSER}" -tc "SELECT 1 FROM pg_database WHERE datname = 'casdoor'" | grep -q 1 || \
-      psql -h "$${PGHOST}" -U "$${PGUSER}" -c "CREATE DATABASE casdoor"
-
-    # Idempotent: create Vault tables if missing
-    psql -h "$${PGHOST}" -U "$${PGUSER}" -d vault <<'SQL'
-      CREATE TABLE IF NOT EXISTS vault_kv_store (
-        parent_path TEXT COLLATE "C" NOT NULL,
-        path        TEXT COLLATE "C",
-        key         TEXT COLLATE "C",
-        value       BYTEA,
-        CONSTRAINT pkey PRIMARY KEY (path, key)
-      );
-      CREATE INDEX IF NOT EXISTS parent_path_idx ON vault_kv_store (parent_path);
-
-      CREATE TABLE IF NOT EXISTS vault_ha_locks (
-        ha_key      TEXT COLLATE "C" NOT NULL,
-        ha_identity TEXT COLLATE "C" NOT NULL,
-        ha_value    TEXT COLLATE "C",
-        valid_until TIMESTAMP WITH TIME ZONE NOT NULL,
-        CONSTRAINT ha_key PRIMARY KEY (ha_key)
-      );
-
-      SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename LIKE 'vault_%';
-SQL
-  SCRIPT
-  platform_pg_init_hash   = substr(sha1(local.platform_pg_init_script), 0, 8)
+  # CNPG uses -rw suffix for read-write service
+  platform_pg_host = "postgresql-rw.platform.svc.cluster.local"
 }
 
 # Create/manage platform namespace in Bootstrap (before Platform layer Vault deployment)
@@ -67,52 +28,17 @@ resource "kubernetes_namespace" "platform" {
   }
 }
 
-# Platform PostgreSQL via Bitnami Helm chart
-# Note: Bitnami deletes old image tags, so we use 'latest' with IfNotPresent
-resource "helm_release" "platform_pg" {
-  name             = "postgresql"
-  namespace        = kubernetes_namespace.platform.metadata[0].name
-  repository       = "oci://registry-1.docker.io/bitnamicharts"
-  chart            = "postgresql"
-  version          = "16.4.2"
-  create_namespace = false
-  timeout          = 300
-  wait             = true
-  wait_for_jobs    = true
+# Superuser secret for CNPG (must exist before Cluster)
+resource "kubernetes_secret" "platform_pg_superuser" {
+  metadata {
+    name      = "platform-pg-superuser"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
 
-  values = [
-    yamlencode({
-      # Bitnami deletes old tags; use latest + IfNotPresent to reduce drift
-      image = {
-        tag        = "latest"
-        pullPolicy = "IfNotPresent"
-      }
-      auth = {
-        postgresPassword = var.vault_postgres_password
-        database         = "vault"
-      }
-      primary = {
-        persistence = {
-          enabled      = true
-          storageClass = "local-path-retain"
-          size         = var.vault_postgres_storage
-        }
-        resources = {
-          limits = {
-            cpu    = "500m"
-            memory = "512Mi"
-          }
-          requests = {
-            cpu    = "100m"
-            memory = "128Mi"
-          }
-        }
-      }
-      metrics = {
-        enabled = false
-      }
-    })
-  ]
+  data = {
+    username = "postgres"
+    password = var.vault_postgres_password
+  }
 
   depends_on = [kubernetes_namespace.platform]
 
@@ -124,63 +50,91 @@ resource "helm_release" "platform_pg" {
   }
 }
 
-# Vault tables + Casdoor database initialization (idempotent)
-resource "kubectl_manifest" "platform_pg_init" {
+# Platform PostgreSQL via CloudNativePG Cluster
+resource "kubectl_manifest" "platform_pg" {
   yaml_body = yamlencode({
-    apiVersion = "batch/v1"
-    kind       = "Job"
+    apiVersion = "postgresql.cnpg.io/v1"
+    kind       = "Cluster"
     metadata = {
-      name      = "platform-pg-init-${local.platform_pg_init_hash}"
+      name      = "postgresql"
       namespace = kubernetes_namespace.platform.metadata[0].name
+      labels = {
+        layer = "Platform"
+      }
     }
     spec = {
-      backoffLimit = 3
-      template = {
-        metadata = {
-          labels = {
-            app = "platform-pg-init"
-          }
-        }
-        spec = {
-          restartPolicy = "OnFailure"
-          containers = [
-            {
-              name    = "psql"
-              image   = "postgres:16"
-              command = ["/bin/sh", "-c"]
-              args    = [local.platform_pg_init_script]
-              env = [
-                {
-                  name  = "PGPASSWORD"
-                  value = var.vault_postgres_password
-                },
-                {
-                  name  = "PGHOST"
-                  value = local.platform_pg_host
-                },
-                {
-                  name  = "PGUSER"
-                  value = "postgres"
-                },
-                {
-                  name  = "PGPORT"
-                  value = "5432"
-                },
-              ]
-            }
+      # Single instance for platform services
+      instances = 1
+
+      # Bootstrap with Vault and Casdoor databases
+      bootstrap = {
+        initdb = {
+          database = "vault"
+          owner    = "postgres"
+          postInitSQL = [
+            # Idempotent: create Casdoor database
+            "CREATE DATABASE casdoor;",
+            # Vault tables (CNPG handles schema creation)
+            "CREATE TABLE IF NOT EXISTS vault_kv_store (parent_path TEXT COLLATE \"C\" NOT NULL, path TEXT COLLATE \"C\", key TEXT COLLATE \"C\", value BYTEA, CONSTRAINT pkey PRIMARY KEY (path, key));",
+            "CREATE INDEX IF NOT EXISTS parent_path_idx ON vault_kv_store (parent_path);",
+            "CREATE TABLE IF NOT EXISTS vault_ha_locks (ha_key TEXT COLLATE \"C\" NOT NULL, ha_identity TEXT COLLATE \"C\" NOT NULL, ha_value TEXT COLLATE \"C\", valid_until TIMESTAMP WITH TIME ZONE NOT NULL, CONSTRAINT ha_key PRIMARY KEY (ha_key));"
           ]
         }
+      }
+
+      # Superuser credentials from K8s secret
+      superuserSecret = {
+        name = "platform-pg-superuser"
+      }
+
+      # Storage configuration
+      storage = {
+        storageClass = "local-path-retain"
+        size         = var.vault_postgres_storage
+      }
+
+      # Resource limits
+      resources = {
+        limits = {
+          cpu    = "500m"
+          memory = "512Mi"
+        }
+        requests = {
+          cpu    = "100m"
+          memory = "128Mi"
+        }
+      }
+
+      # PostgreSQL configuration
+      postgresql = {
+        parameters = {
+          shared_buffers       = "128MB"
+          max_connections      = "100"
+          effective_cache_size = "256MB"
+          wal_level            = "replica"
+        }
+      }
+
+      # Monitoring (disabled for now)
+      monitoring = {
+        enablePodMonitor = false
       }
     }
   })
 
-  depends_on = [helm_release.platform_pg]
+  depends_on = [kubernetes_secret.platform_pg_superuser]
+}
+
+# Wait for CNPG cluster to be ready before Platform layer services connect
+resource "time_sleep" "wait_for_platform_pg" {
+  create_duration = "60s"
+  depends_on      = [kubectl_manifest.platform_pg]
 }
 
 # Output for Platform layer to consume
 output "platform_pg_host" {
   value       = local.platform_pg_host
-  description = "Platform PostgreSQL service hostname"
+  description = "Platform PostgreSQL service hostname (CNPG read-write service)"
 }
 
 output "platform_pg_port" {
@@ -191,4 +145,10 @@ output "platform_pg_port" {
 output "platform_namespace" {
   value       = kubernetes_namespace.platform.metadata[0].name
   description = "Platform namespace name"
+}
+
+output "platform_pg_ready" {
+  value       = true
+  description = "Platform PostgreSQL cluster is ready for connections"
+  depends_on  = [time_sleep.wait_for_platform_pg]
 }

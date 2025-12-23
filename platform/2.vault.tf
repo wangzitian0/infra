@@ -19,8 +19,8 @@ data "kubernetes_namespace" "platform" {
 }
 
 locals {
-  # PostgreSQL connection string for Vault storage backend
-  vault_pg_connection = "postgres://postgres:${var.vault_postgres_password}@postgresql.platform.svc.cluster.local:5432/vault?sslmode=disable"
+  # PostgreSQL connection string for Vault storage backend (CNPG uses -rw suffix)
+  vault_pg_connection = "postgres://postgres:${var.vault_postgres_password}@postgresql-rw.platform.svc.cluster.local:5432/vault?sslmode=disable"
 
   vault_config = <<-EOT
     ui = true
@@ -72,7 +72,7 @@ resource "helm_release" "vault" {
             image = "busybox:1.36"
             command = [
               "sh", "-c",
-              "timeout=120; elapsed=0; until nc -z postgresql.platform.svc.cluster.local 5432; do echo \"waiting for PostgreSQL... ($elapsed/$timeout s)\"; sleep 2; elapsed=$((elapsed+2)); if [ $elapsed -ge $timeout ]; then echo 'TIMEOUT: PostgreSQL not available'; exit 1; fi; done"
+              "timeout=120; elapsed=0; until nc -z postgresql-rw.platform.svc.cluster.local 5432; do echo \"waiting for PostgreSQL... ($elapsed/$timeout s)\"; sleep 2; elapsed=$((elapsed+2)); if [ $elapsed -ge $timeout ]; then echo 'TIMEOUT: PostgreSQL not available'; exit 1; fi; done"
             ]
           }
         ]
