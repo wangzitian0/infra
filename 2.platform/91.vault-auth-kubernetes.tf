@@ -19,3 +19,31 @@ resource "vault_kubernetes_auth_backend_config" "config" {
     }
   }
 }
+
+# =============================================================================
+# Vault Secrets Operator (VSO) Authentication
+# Allows VSO to read secrets from Vault KV and sync to K8s Secrets
+# =============================================================================
+
+resource "vault_policy" "vso_reader" {
+  name = "vso-reader"
+
+  policy = <<-EOT
+    # Read access to all KV secrets for syncing to K8s
+    path "secret/data/*" {
+      capabilities = ["read"]
+    }
+    path "secret/metadata/*" {
+      capabilities = ["read", "list"]
+    }
+  EOT
+}
+
+resource "vault_kubernetes_auth_backend_role" "vso" {
+  backend                          = vault_auth_backend.kubernetes.path
+  role_name                        = "vault-secrets-operator"
+  bound_service_account_names      = ["vault-secrets-operator-controller-manager"]
+  bound_service_account_namespaces = ["vault-secrets-operator-system"]
+  token_policies                   = [vault_policy.vso_reader.name]
+  token_ttl                        = 3600
+}

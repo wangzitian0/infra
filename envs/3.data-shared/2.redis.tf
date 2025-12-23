@@ -2,10 +2,11 @@
 #
 # Purpose: Cache and session storage for L4 applications
 #
-# Architecture (after refactor - Issue #336):
-# - L3 generates password locally
-# - L3 stores password in Vault KV
-# - L4 reads password from Vault KV
+# Architecture (VSO Pattern - Issue #351):
+# - random_password generates password on first deploy
+# - vault_kv_secret_v2 stores password in Vault (SSOT)
+# - VaultStaticSecret syncs Vault → K8s Secret (via VSO)
+# - Helm uses existingSecret to read from K8s Secret
 #
 # Pattern: Bitnami Helm chart
 # Namespace: per-env (data-staging, data-prod)
@@ -14,9 +15,7 @@
 # so we just store the password in Vault KV for L4 to consume
 
 # =============================================================================
-# Password Management (Vault-first pattern - Issue #349)
-# - On first deployment: generate new password
-# - On state recovery: read existing password from Vault (SSOT)
+# Password Management (VSO Pattern - Issue #351)
 # =============================================================================
 
 resource "random_password" "redis" {
@@ -24,26 +23,61 @@ resource "random_password" "redis" {
   special = false
 }
 
-# Read existing password from Vault if it exists (Vault is SSOT)
-data "external" "redis_password" {
-  program = ["bash", "-c", <<-EOT
-    # Try to read password from Vault (SSOT)
-    PW=$(vault kv get -field=password secret/redis 2>/dev/null || true)
-    if [ -n "$PW" ]; then
-      printf '{"password": "%s", "source": "vault"}' "$PW"
-    else
-      printf '{"password": "", "source": "none"}'
-    fi
-  EOT
-  ]
+# =============================================================================
+# Vault KV Storage (store password - SSOT)
+# =============================================================================
+
+resource "vault_kv_secret_v2" "redis" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    password = random_password.redis.result
+    host     = "redis-master.${local.namespace_name}.svc.cluster.local"
+    port     = "6379"
+  })
+
+  depends_on = [kubernetes_namespace.data]
+
+  lifecycle {
+    # Don't overwrite existing password in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
-locals {
-  redis_password = data.external.redis_password.result.password != "" ? (
-    data.external.redis_password.result.password
-    ) : (
-    random_password.redis.result
-  )
+# =============================================================================
+# VaultStaticSecret - Syncs Vault KV → K8s Secret (via VSO)
+# =============================================================================
+
+resource "kubectl_manifest" "redis_vault_secret" {
+  yaml_body = yamlencode({
+    apiVersion = "secrets.hashicorp.com/v1beta1"
+    kind       = "VaultStaticSecret"
+    metadata = {
+      name      = "redis-credentials"
+      namespace = local.namespace_name
+    }
+    spec = {
+      type  = "kv-v2"
+      mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+      path  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]
+      destination = {
+        name   = "redis-credentials"
+        create = true
+      }
+      refreshAfter = "1h"
+      vaultAuthRef = "default"
+    }
+  })
+
+  depends_on = [vault_kv_secret_v2.redis, kubectl_manifest.vault_auth]
+}
+
+# Wait for VSO to sync the secret before Helm tries to use it
+resource "time_sleep" "wait_for_redis_secret" {
+  create_duration = "15s"
+  depends_on      = [kubectl_manifest.redis_vault_secret]
 }
 
 # =============================================================================
@@ -78,7 +112,9 @@ resource "helm_release" "redis" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        password = local.redis_password
+        # Use existingSecret created by VSO (synced from Vault KV)
+        existingSecret            = "redis-credentials"
+        existingSecretPasswordKey = "password"
       }
       master = {
         persistence = {
@@ -111,30 +147,7 @@ resource "helm_release" "redis" {
     })
   ]
 
-  depends_on = [kubernetes_namespace.data]
-}
-
-# =============================================================================
-# Vault KV Storage
-# =============================================================================
-
-resource "vault_kv_secret_v2" "redis" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]
-  delete_all_versions = true
-
-  data_json = jsonencode({
-    password = local.redis_password
-    host     = "${helm_release.redis.name}-master.${local.namespace_name}.svc.cluster.local"
-    port     = "6379"
-  })
-
-  depends_on = [helm_release.redis]
-
-  lifecycle {
-    # Don't overwrite existing password in Vault during state recovery
-    ignore_changes = [data_json]
-  }
+  depends_on = [time_sleep.wait_for_redis_secret]
 }
 
 # =============================================================================

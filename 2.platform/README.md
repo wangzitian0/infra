@@ -26,12 +26,13 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `5.casdoor.tf` | Casdoor SSO | Helm release + bootstrap init_data (org, admin, builtin-app only) |
 | `6.vault-database.tf` | Vault Mounts | Vault KV and Database secrets engine mounts (credentials managed by L3) |
+| `7.vault-secrets-operator.tf` | VSO | Vault Secrets Operator for automatic Vault → K8s Secret sync (Issue #351) |
 | `90.provider_restapi.tf` | RestAPI Provider | Casdoor REST API provider (M2M credentials via casdoor-builtin-app) |
 | `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via `restapi_object` resources |
 | `4.portal.tf` | Homer Portal | SSO-protected unified dashboard with categorized service links. Emergency access (Root Token, Admin) separated in "Platform (Emergency)" section. |
 | `91.casdoor-roles.tf` | Casdoor Roles | Defines `vault-admin`, `vault-developer`, `vault-viewer` roles in Casdoor. Uses `TF_VAR_gh_account` to auto-assign admin user. |
 | `91.vault-auth.tf` | Vault OIDC Auth | Vault OIDC backend connected to Casdoor |
-| `91.vault-auth-kubernetes.tf` | Vault K8s Auth | Kubernetes authentication backend for pod identity |
+| `91.vault-auth-kubernetes.tf` | Vault K8s Auth | Kubernetes authentication backend for pod identity + VSO role |
 | `92.vault-kubero.tf` | Kubero Vault | Vault KV secrets (session/webhook/OIDC), policies, and roles for Kubero |
 | `92.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |
 | `99.checks.tf` | SSO Validation | Whitebox checks for OIDC discovery, Casdoor health, and Portal auth readiness |
@@ -162,7 +163,7 @@ To deploy Portal SSO Gate for non-OIDC portals (e.g., Dashboard):
    - https://kdashboard.zitian.party (Dashboard)
 
 ---
-*Last updated: 2025-12-22 (Added clickhouse_host variable for CI port-forward)*
+*Last updated: 2025-12-23 (Added Vault Secrets Operator for automatic Vault → K8s Secret sync - Issue #351)*
 
 ---
 

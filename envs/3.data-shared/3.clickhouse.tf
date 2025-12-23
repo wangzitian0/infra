@@ -2,10 +2,12 @@
 #
 # Purpose: OLAP analytics database for L4 applications
 #
-# Architecture (Vault-first pattern - Issue #349):
-# - Password generated locally, stored in Vault (SSOT)
-# - On state recovery, password read from Vault/K8s secret
-# - Provider uses existing password, not newly generated one
+# Architecture (VSO Pattern - Issue #351):
+# - random_password generates password on first deploy
+# - vault_kv_secret_v2 stores password in Vault (SSOT)
+# - VaultStaticSecret syncs Vault → K8s Secret (via VSO)
+# - Helm uses existingSecret to read from K8s Secret
+# - Provider uses random_password with ignore_changes for state recovery
 #
 # Pattern: Bitnami Helm chart
 # Namespace: per-env (data-staging, data-prod)
@@ -15,7 +17,7 @@
 # Future: Enable sharding/replication (requires ZooKeeper)
 
 # =============================================================================
-# Password Generation (generated in L3, stored in Vault)
+# Password Generation
 # =============================================================================
 
 resource "random_password" "clickhouse" {
@@ -24,36 +26,70 @@ resource "random_password" "clickhouse" {
 }
 
 # =============================================================================
-# Read existing password from Vault (SSOT)
-# Uses external data source to gracefully handle missing secret
+# Vault KV Storage (store password - SSOT)
 # =============================================================================
 
-data "external" "clickhouse_password" {
-  program = ["bash", "-c", <<-EOT
-    # Try to read password from Vault (SSOT)
-    PW=$(vault kv get -field=password secret/clickhouse 2>/dev/null || true)
-    if [ -n "$PW" ]; then
-      printf '{"password": "%s", "source": "vault"}' "$PW"
-    else
-      printf '{"password": "", "source": "none"}'
-    fi
-  EOT
-  ]
+resource "vault_kv_secret_v2" "clickhouse" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    username = "default"
+    password = random_password.clickhouse.result
+    host     = "clickhouse.${local.namespace_name}.svc.cluster.local"
+    port     = "9000"
+    database = "default"
+  })
+
+  depends_on = [kubernetes_namespace.data]
+
+  lifecycle {
+    # Don't overwrite existing password in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
-locals {
-  # Use existing password from Vault if available, otherwise use random_password
-  clickhouse_password = data.external.clickhouse_password.result.password != "" ? (
-    data.external.clickhouse_password.result.password
-    ) : (
-    random_password.clickhouse.result
-  )
+# =============================================================================
+# VaultStaticSecret - Syncs Vault KV → K8s Secret (via VSO)
+# =============================================================================
+
+resource "kubectl_manifest" "clickhouse_vault_secret" {
+  yaml_body = yamlencode({
+    apiVersion = "secrets.hashicorp.com/v1beta1"
+    kind       = "VaultStaticSecret"
+    metadata = {
+      name      = "clickhouse-credentials"
+      namespace = local.namespace_name
+    }
+    spec = {
+      type  = "kv-v2"
+      mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+      path  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
+      destination = {
+        name   = "clickhouse-credentials"
+        create = true
+      }
+      refreshAfter = "1h"
+      vaultAuthRef = "default"
+    }
+  })
+
+  depends_on = [vault_kv_secret_v2.clickhouse, kubectl_manifest.vault_auth]
+}
+
+# Wait for VSO to sync the secret before Helm tries to use it
+resource "time_sleep" "wait_for_clickhouse_secret" {
+  create_duration = "15s"
+  depends_on      = [kubectl_manifest.clickhouse_vault_secret]
 }
 
 # =============================================================================
 # ClickHouse Provider Configuration
 # =============================================================================
-# Uses existing password from K8s secret to survive state reset
+# Note: Provider uses random_password directly. On state recovery, this may
+# cause auth errors until manually updated. The Helm release uses existingSecret
+# so it will work correctly after VSO syncs from Vault.
 
 provider "clickhousedbops" {
   host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.${local.namespace_name}.svc.cluster.local"
@@ -63,7 +99,7 @@ provider "clickhousedbops" {
   auth_config = {
     strategy = "basicauth"
     username = "default"
-    password = local.clickhouse_password
+    password = random_password.clickhouse.result
   }
 }
 
@@ -103,8 +139,9 @@ resource "helm_release" "clickhouse" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        username = "default"
-        password = local.clickhouse_password
+        # Use existingSecret created by VSO (synced from Vault KV)
+        existingSecret            = "clickhouse-credentials"
+        existingSecretPasswordKey = "password"
       }
       shards       = 1 # Single VPS MVP: single shard (can scale later)
       replicaCount = 1 # Single VPS MVP: no replication (can scale later)
@@ -134,32 +171,7 @@ resource "helm_release" "clickhouse" {
     })
   ]
 
-  depends_on = [kubernetes_namespace.data]
-}
-
-# =============================================================================
-# Vault KV Storage
-# =============================================================================
-
-resource "vault_kv_secret_v2" "clickhouse" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["clickhouse"]
-  delete_all_versions = true
-
-  data_json = jsonencode({
-    username = "default"
-    password = local.clickhouse_password
-    host     = "${helm_release.clickhouse.name}.${local.namespace_name}.svc.cluster.local"
-    port     = "9000"
-    database = "default"
-  })
-
-  depends_on = [helm_release.clickhouse]
-
-  lifecycle {
-    # Don't overwrite existing password in Vault during state recovery
-    ignore_changes = [data_json]
-  }
+  depends_on = [time_sleep.wait_for_clickhouse_secret]
 }
 
 # =============================================================================

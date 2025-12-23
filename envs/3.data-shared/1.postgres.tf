@@ -2,11 +2,12 @@
 #
 # Purpose: PostgreSQL for business applications (L4)
 #
-# Architecture (after refactor - Issue #336):
-# - L3 generates password locally
-# - L3 stores password in Vault KV
-# - L3 configures Vault Database Engine for dynamic credentials
-# - L4 uses Vault dynamic credentials
+# Architecture (VSO Pattern - Issue #351):
+# - random_password generates password on first deploy
+# - vault_kv_secret_v2 stores password in Vault (SSOT)
+# - VaultStaticSecret syncs Vault → K8s Secret (via VSO)
+# - Helm uses existingSecret to read from K8s Secret
+# - Vault Database Engine uses random_password with ignore_changes
 #
 # Pattern: Bitnami Helm chart (matches L1 platform_pg)
 # Note: Bitnami deletes old image tags, so we use 'latest' with IfNotPresent
@@ -26,9 +27,11 @@ resource "kubernetes_namespace" "data" {
 }
 
 # =============================================================================
-# Password Management (Vault-first pattern - Issue #349)
-# - On first deployment: generate new password
-# - On state recovery: read existing password from Vault (SSOT)
+# Password Management (VSO Pattern - Issue #351)
+# - random_password generates password on first deployment
+# - vault_kv_secret_v2 stores password in Vault (SSOT)
+# - VaultStaticSecret syncs Vault → K8s Secret (via VSO)
+# - Helm uses existingSecret to read from K8s Secret
 # =============================================================================
 
 resource "random_password" "postgres" {
@@ -36,26 +39,64 @@ resource "random_password" "postgres" {
   special = false
 }
 
-# Read existing password from Vault if it exists (Vault is SSOT)
-data "external" "postgres_password" {
-  program = ["bash", "-c", <<-EOT
-    # Try to read password from Vault (SSOT)
-    PW=$(vault kv get -field=password secret/postgres 2>/dev/null || true)
-    if [ -n "$PW" ]; then
-      printf '{"password": "%s", "source": "vault"}' "$PW"
-    else
-      printf '{"password": "", "source": "none"}'
-    fi
-  EOT
-  ]
+# =============================================================================
+# Vault KV Storage (store password - SSOT)
+# Must be created BEFORE VaultStaticSecret can sync it
+# =============================================================================
+
+resource "vault_kv_secret_v2" "postgres" {
+  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
+  delete_all_versions = true
+
+  data_json = jsonencode({
+    username = "postgres"
+    password = random_password.postgres.result
+    host     = "postgresql.${local.namespace_name}.svc.cluster.local"
+    port     = "5432"
+    database = "app"
+  })
+
+  depends_on = [kubernetes_namespace.data]
+
+  lifecycle {
+    # Don't overwrite existing password in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
-locals {
-  postgres_password = data.external.postgres_password.result.password != "" ? (
-    data.external.postgres_password.result.password
-    ) : (
-    random_password.postgres.result
-  )
+# =============================================================================
+# VaultStaticSecret - Syncs Vault KV → K8s Secret (via VSO)
+# =============================================================================
+
+resource "kubectl_manifest" "postgres_vault_secret" {
+  yaml_body = yamlencode({
+    apiVersion = "secrets.hashicorp.com/v1beta1"
+    kind       = "VaultStaticSecret"
+    metadata = {
+      name      = "postgresql-credentials"
+      namespace = local.namespace_name
+    }
+    spec = {
+      type  = "kv-v2"
+      mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
+      path  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
+      destination = {
+        name   = "postgresql-credentials"
+        create = true
+      }
+      refreshAfter = "1h"
+      vaultAuthRef = "default"
+    }
+  })
+
+  depends_on = [vault_kv_secret_v2.postgres, kubectl_manifest.vault_auth]
+}
+
+# Wait for VSO to sync the secret before Helm tries to use it
+resource "time_sleep" "wait_for_postgres_secret" {
+  create_duration = "15s"
+  depends_on      = [kubectl_manifest.postgres_vault_secret]
 }
 
 # =============================================================================
@@ -81,21 +122,14 @@ resource "helm_release" "postgresql" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        postgresPassword = local.postgres_password
-        database         = "app"
+        # Use existingSecret created by VSO (synced from Vault KV)
+        existingSecret = "postgresql-credentials"
+        secretKeys = {
+          adminPasswordKey = "password"
+        }
+        database = "app"
       }
       primary = {
-        # Wait for Vault to be available (max 120s timeout)
-        initContainers = [
-          {
-            name  = "wait-for-vault"
-            image = "busybox:1.36"
-            command = [
-              "sh", "-c",
-              "t=120;e=0;until nc -z vault.platform.svc.cluster.local 8200;do echo \"waiting for Vault... ($e/$t s)\";sleep 2;e=$((e+2));[ $e -ge $t ]&&exit 1;done"
-            ]
-          }
-        ]
         persistence = {
           enabled      = true
           storageClass = "local-path-retain"
@@ -115,6 +149,8 @@ resource "helm_release" "postgresql" {
     })
   ]
 
+  depends_on = [time_sleep.wait_for_postgres_secret]
+
   lifecycle {
     postcondition {
       condition     = self.status == "deployed"
@@ -124,33 +160,9 @@ resource "helm_release" "postgresql" {
 }
 
 # =============================================================================
-# Vault KV Storage (store password for reference and DB Engine config)
-# =============================================================================
-
-resource "vault_kv_secret_v2" "postgres" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
-  delete_all_versions = true
-
-  data_json = jsonencode({
-    username = "postgres"
-    password = local.postgres_password
-    host     = "postgresql.${local.namespace_name}.svc.cluster.local"
-    port     = "5432"
-    database = "app"
-  })
-
-  depends_on = [helm_release.postgresql]
-
-  lifecycle {
-    # Don't overwrite existing password in Vault during state recovery
-    ignore_changes = [data_json]
-  }
-}
-
-# =============================================================================
 # Vault Database Engine Configuration
 # Configures Vault to use PostgreSQL root credentials for dynamic user creation
+# Note: Uses random_password directly; ignore_changes for state recovery
 # =============================================================================
 
 resource "vault_database_secret_backend_connection" "postgres" {
@@ -159,10 +171,15 @@ resource "vault_database_secret_backend_connection" "postgres" {
   allowed_roles = ["postgres-readonly", "postgres-readwrite"]
 
   postgresql {
-    connection_url = "postgres://postgres:${local.postgres_password}@postgresql.${local.namespace_name}.svc.cluster.local:5432/app?sslmode=disable"
+    connection_url = "postgres://postgres:${random_password.postgres.result}@postgresql.${local.namespace_name}.svc.cluster.local:5432/app?sslmode=disable"
   }
 
   depends_on = [helm_release.postgresql, vault_kv_secret_v2.postgres]
+
+  lifecycle {
+    # Don't update connection if state is recovered (password would be wrong)
+    ignore_changes = [postgresql]
+  }
 }
 
 # =============================================================================
@@ -267,7 +284,7 @@ resource "vault_kv_secret_v2" "openpanel" {
     # Redis (cache/queue) - shared L3 instance
     redis_host     = "redis-master.${local.namespace_name}.svc.cluster.local"
     redis_port     = "6379"
-    redis_password = local.redis_password
+    redis_password = random_password.redis.result # Direct reference to random_password
 
     # ClickHouse (event storage) - credentials defined in 3.clickhouse.tf
     clickhouse_host     = "clickhouse.${local.namespace_name}.svc.cluster.local"
@@ -278,6 +295,11 @@ resource "vault_kv_secret_v2" "openpanel" {
   })
 
   depends_on = [helm_release.postgresql, helm_release.redis, random_password.openpanel_clickhouse]
+
+  lifecycle {
+    # Don't overwrite existing credentials in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
 # Create OpenPanel user and database via init Job
@@ -303,25 +325,36 @@ resource "kubectl_manifest" "openpanel_postgres_init" {
           containers = [{
             name  = "psql-init"
             image = "postgres:16-alpine"
-            env = [{
-              name  = "PGPASSWORD"
-              value = local.postgres_password
-            }]
+            env = [
+              {
+                name = "PGPASSWORD"
+                valueFrom = {
+                  secretKeyRef = {
+                    name = "postgresql-credentials"
+                    key  = "password"
+                  }
+                }
+              },
+              {
+                name  = "OPENPANEL_PASSWORD"
+                value = random_password.openpanel_postgres.result
+              }
+            ]
             command = ["/bin/sh"]
             args = ["-c", <<-EOT
               set -e
               echo "Waiting for PostgreSQL..."
               until pg_isready -h postgresql -U postgres -t 5; do sleep 2; done
-              
+
               echo "Creating OpenPanel user..."
               psql -h postgresql -U postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='openpanel'" | grep -q 1 || \
-                psql -h postgresql -U postgres -c "CREATE USER openpanel WITH PASSWORD '${random_password.openpanel_postgres.result}';"
-              
+                psql -h postgresql -U postgres -c "CREATE USER openpanel WITH PASSWORD '$OPENPANEL_PASSWORD';"
+
               echo "Creating OpenPanel database..."
               psql -h postgresql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname='openpanel'" | grep -q 1 || \
                 psql -h postgresql -U postgres -c "CREATE DATABASE openpanel OWNER openpanel;"
-              
-              echo "✅ OpenPanel PostgreSQL setup complete"
+
+              echo "OpenPanel PostgreSQL setup complete"
             EOT
             ]
           }]
@@ -330,5 +363,5 @@ resource "kubectl_manifest" "openpanel_postgres_init" {
     }
   })
 
-  depends_on = [helm_release.postgresql]
+  depends_on = [helm_release.postgresql, kubectl_manifest.postgres_vault_secret]
 }
