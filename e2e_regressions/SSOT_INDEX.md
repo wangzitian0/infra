@@ -1,60 +1,53 @@
 # SSOT Documentation Index
 
-All SSOT (Single Source of Truth) documentation is now co-located with corresponding tests.
+All SSOT (Single Source of Truth) documentation is centralized in `docs/ssot/`.
+
+Test documentation in `e2e_regressions/tests/` focuses on testing and references these SSOT docs.
 
 ## 📍 Core Documentation
 
-Located in `tests/`:
-- [tests/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/README.md) - Directory structure SSOT
-- [tests/ENV.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/ENV.md) - Environment variables SSOT
-- [tests/VARS.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/VARS.md) - Terraform variables SSOT
+- [core.dir.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/core.dir.md) - Directory structure and project organization
+- [core.env.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/core.env.md) - Environment variables
+- [core.vars.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/core.vars.md) - Terraform variables
 
 ## 🏗️ Bootstrap Layer
 
-- [tests/bootstrap/k8s/](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/bootstrap/k8s/) - K8s cluster tests
-- [tests/bootstrap/atlantis/](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/bootstrap/atlantis/) - Atlantis CI/CD tests
-- [tests/bootstrap/dns_cert/](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/bootstrap/dns_cert/) - DNS & certificates tests
-- [tests/bootstrap/storage/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/bootstrap/storage/README.md) - Storage SSOT
-- [tests/bootstrap/traefik/](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/bootstrap/traefik/) - Traefik Ingress tests
-- [tests/bootstrap/platform_pg/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/bootstrap/platform_pg/README.md) - Platform PostgreSQL SSOT
-- [tests/bootstrap/observability/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/bootstrap/observability/README.md) - Observability SSOT
-- [tests/bootstrap/network/](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/bootstrap/network/) - Network configuration
+- [Platform PostgreSQL](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.platform_pg.md) - Platform database configuration
+- [Storage](file:///Users/SP14016/zitian/cc_infra/docs/ssot/ops.storage.md) - Persistent storage configuration
+- [Observability](file:///Users/SP14016/zitian/cc_infra/docs/ssot/ops.observability.md) - Monitoring and logging
 
 ## 🚀 Platform Layer
 
-- [tests/platform/auth/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/platform/auth/README.md) - Auth & SSO SSOT
-- [tests/platform/secrets/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/platform/secrets/README.md) - Vault secrets SSOT
-- [tests/platform/ai/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/platform/ai/README.md) - AI services SSOT
-- [tests/platform/network/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/platform/network/README.md) - Platform network SSOT
+- [Auth & SSO](file:///Users/SP14016/zitian/cc_infra/docs/ssot/platform.auth.md) - Authentication and authorization
+- [Secrets](file:///Users/SP14016/zitian/cc_infra/docs/ssot/platform.secrets.md) - Vault secrets management
+- [AI Services](file:///Users/SP14016/zitian/cc_infra/docs/ssot/platform.ai.md) - AI platform services
+- [Network](file:///Users/SP14016/zitian/cc_infra/docs/ssot/platform.network.md) - Network architecture
 
 ## 💾 Data Layer
 
-- [tests/data/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/data/README.md) - Database overview SSOT
-- [tests/data/postgresql/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/data/postgresql/README.md) - Business PostgreSQL SSOT
-- [tests/data/redis/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/data/redis/README.md) - Redis SSOT
-- [tests/data/clickhouse/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/data/clickhouse/README.md) - ClickHouse SSOT
-- [tests/data/arangodb/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/data/arangodb/README.md) - ArangoDB SSOT
-- [tests/data/vault_integration/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/data/vault_integration/README.md) - Vault-DB integration SSOT
-
-## 📱 Apps Layer
-
-- [tests/apps/](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/apps/) - Application tests
-- [tests/apps/portal/](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/apps/portal/) - Portal tests
+- [Database Overview](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.overview.md) - Data layer architecture
+- [Business PostgreSQL](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.business_pg.md) - Main business database
+- [Redis](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.redis.md) - Caching layer
+- [ClickHouse](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.clickhouse.md) - Analytics database
+- [ArangoDB](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.arangodb.md) - Graph database
+- [Vault Integration](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.vault-integration.md) - Database secrets via Vault
 
 ## 🔧 Operations
 
-- [tests/ops/pipeline/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/ops/pipeline/README.md) - CI/CD pipeline SSOT
-- [tests/ops/recovery/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/ops/recovery/README.md) - Disaster recovery SSOT
-- [tests/ops/alerting/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/ops/alerting/README.md) - Alerting SSOT
-- [tests/ops/standards/README.md](file:///Users/SP14016/zitian/cc_infra/e2e_regressions/tests/ops/standards/README.md) - Standards SSOT
+- [CI/CD Pipeline](file:///Users/SP14016/zitian/cc_infra/docs/ssot/ops.pipeline.md) - Continuous integration and deployment
+- [Disaster Recovery](file:///Users/SP14016/zitian/cc_infra/docs/ssot/ops.recovery.md) - Backup and recovery procedures
+- [Alerting](file:///Users/SP14016/zitian/cc_infra/docs/ssot/ops.alerting.md) - Monitoring and alerting
+- [Standards](file:///Users/SP14016/zitian/cc_infra/docs/ssot/ops.standards.md) - Coding and operational standards
+- [E2E Testing](file:///Users/SP14016/zitian/cc_infra/docs/ssot/ops.e2e-regressions.md) - E2E test strategy
 
-## ✅ Benefits of Co-location
+## ✅ Design Philosophy
 
-- **Strong Coupling**: Tests and docs must be updated together
-- **Discoverability**: Developers find docs when writing/reading tests
-- **Atomic Changes**: One PR updates both tests and SSOT
-- **Verification**: Tests validate what's documented
+**Separation of Concerns**:
+- **SSOT (docs/ssot/)**: Design, definition, architecture - the "what" and "why"
+- **Tests (e2e_regressions/tests/)**: Verification, validation - the "how we test"
+- **References**: Test READMEs link to relevant SSOT docs
 
-## 📝 Old Location
-
-Previous SSOT location `docs/ssot/` can be deprecated after migration verification.
+This ensures:
+- Single source of truth for design decisions
+- Test documentation focuses on testing concerns
+- Clear separation between design and verification

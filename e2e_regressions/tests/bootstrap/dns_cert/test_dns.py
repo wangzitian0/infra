@@ -73,3 +73,27 @@ async def test_dns_wildcard_subdomain(config: TestConfig):
     
     assert resolved_count >= 2, \
         f"Wildcard DNS may not be configured (only {resolved_count} subdomains resolved)"
+
+
+@pytest.mark.bootstrap
+async def test_dns_consistency(config: TestConfig):
+    """Verify DNS resolution is consistent across multiple queries."""
+    import socket
+    from urllib.parse import urlparse
+    
+    portal_host = urlparse(config.PORTAL_URL).hostname
+    
+    # Query multiple times to check consistency
+    ips = []
+    for _ in range(3):
+        try:
+            ip = socket.gethostbyname(portal_host)
+            ips.append(ip)
+        except socket.gaierror:
+            pass
+    
+    # Should get consistent results
+    assert len(ips) > 0, "At least one DNS query should succeed"
+    assert len(set(ips)) <= 2, \
+        f"DNS should be consistent, got multiple IPs: {set(ips)}"
+

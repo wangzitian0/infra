@@ -1,81 +1,31 @@
-# Business PostgreSQL SSOT
+# PostgreSQL Tests
 
-> **核心问题**：业务应用如何使用 PostgreSQL？
+验证业务 PostgreSQL 数据库的连接和基本操作。
 
-## 概述
+## 测试覆盖
 
-| 属性 | 值 |
-|------|------|
-| **SSOT Key** | `db.business_pg` |
-| **层级** | L3 Data |
-| **命名空间** | `data-<env>` (staging/prod) |
-| **密码来源** | Vault (`secret/data/postgres`) |
-| **StorageClass** | `local-path-retain` |
-| **消费者** | L4 Apps |
+- 数据库连接可达性
+- 基本 CRUD 操作
+- 连接池配置
+- 事务处理
+- 数据持久化
 
----
+## 运行测试
 
-## Vault 动态凭证
-
-```mermaid
-graph LR
-    APP[L4 App + Vault Agent] -->|"vault read database/creds/app-readonly"| VAULT[Vault]
-    VAULT -->|"CREATE ROLE + GRANT"| PG[(L3 PostgreSQL)]
-    VAULT -->|"短期 user/pass"| APP
-    APP -->|"使用动态凭证"| PG
+```bash
+uv run pytest tests/data/postgresql/ -v
 ```
 
-**可用角色**：
-- `database/creds/app-readonly` - SELECT 权限 (TTL: 1h)
-- `database/creds/app-readwrite` - SELECT, INSERT, UPDATE, DELETE (TTL: 1h)
+## 环境配置
 
-> TODO(vault): 配置 Vault Database Engine for PostgreSQL
+需要配置以下环境变量：
+- `DB_HOST` - 数据库主机
+- `DB_PORT` - 端口号（默认 5432）
+- `DB_USER` - 用户名
+- `DB_PASSWORD` - 密码
 
----
+## SSOT 参考
 
-## 连接方式
-
-| 方式 | 适用场景 |
-|------|----------|
-| Vault Agent Sidecar | 生产 App (推荐) |
-| 静态密码 (Vault KV) | 调试/迁移 |
-
-**服务地址**：`postgresql.data-<env>.svc.cluster.local:5432`
-
----
-
-## Vault Agent 配置
-
-```yaml
-annotations:
-  vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-pg: "secret/data/postgres"
-  vault.hashicorp.com/agent-inject-template-pg: |
-    {{- with secret "secret/data/postgres" -}}
-    export PGPASSWORD="{{ .Data.data.password }}"
-    {{- end }}
-```
-
----
-
-## Vault Secrets 路径
-
-| 路径 | 字段 | 用途 |
-|------|------|------|
-| `secret/data/postgres` | `password` | 静态密码 |
-| `database/creds/app-readonly` | `username`, `password` | 动态凭证 |
-
----
-
-## 相关文件
-
-- [3.data/](../../3.data/)
-- [db.overview.md](./db.overview.md)
-- [platform.secrets.md](./platform.secrets.md)
-
----
-
-## Used by
-
-- [docs/ssot/db.overview.md](./db.overview.md)
+配置详见：
+- [db.business_pg.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.business_pg.md) - 业务数据库配置
+- [db.overview.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.overview.md) - 数据库架构概览
