@@ -8,7 +8,14 @@ name: Post-Merge Verification
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
 
 env:
   TF_IN_AUTOMATION: "true"
@@ -42,6 +49,14 @@ jobs:
               return;
             }
 
+            if (context.eventName === 'pull_request') {
+              console.log(`PR event: #${context.payload.pull_request.number}`);
+              core.setOutput('pr_number', context.payload.pull_request.number);
+              core.setOutput('has_pr', 'true');
+              return;
+            }
+
+            // For push events, check if it's a merge commit
             const commit = await github.rest.repos.getCommit({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -124,7 +139,8 @@ jobs:
   # 2. Sequential Deploy (Bootstrap -> Platform -> Data)
   verify-bootstrap:
     needs: [find-merged-pr, drift-scan]
-    if: success() || failure() # Run even if drift scan shows errors in some layers (fail-fast: false)
+    # IMPORTANT: Only run 'apply' steps on PUSH to MAIN. Skip on Pull Request.
+    if: (success() || failure()) && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
@@ -180,7 +196,8 @@ jobs:
 
   verify-platform:
     needs: [find-merged-pr, verify-bootstrap]
-    if: always() && needs.verify-bootstrap.result != 'cancelled'
+    # Depend on verify-bootstrap status and only run on MAIN PUSH
+    if: always() && needs.verify-bootstrap.result != 'cancelled' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
@@ -235,7 +252,7 @@ jobs:
 
   verify-data-staging:
     needs: [find-merged-pr, verify-platform]
-    if: always() && needs.verify-platform.result != 'cancelled'
+    if: always() && needs.verify-platform.result != 'cancelled' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
@@ -290,7 +307,7 @@ jobs:
 
   verify-data-prod:
     needs: [find-merged-pr, verify-platform]
-    if: always() && needs.verify-platform.result != 'cancelled'
+    if: always() && needs.verify-platform.result != 'cancelled' && github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
