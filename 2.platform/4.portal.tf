@@ -66,27 +66,27 @@ locals {
             tag      = "iac"
             url      = "https://atlantis.${local.internal_domain}"
             target   = "_blank"
+          },
+          {
+            name     = "Casdoor Admin"
+            logo     = "https://cdn.casbin.org/img/casbin.svg"
+            subtitle = "User & role management"
+            tag      = "admin"
+            url      = "https://sso.${local.internal_domain}"
+            target   = "_blank"
           }
         ]
       },
       {
-        name = "Platform (Emergency)"
+        name = "Emergency Access"
         icon = "fas fa-exclamation-triangle"
         items = [
           {
             name     = "Vault (Root Token)"
             logo     = "https://www.datocms-assets.com/2885/1620155117-brandhcvaultprimaryattributedcolor.svg"
-            subtitle = "⚠️ Break-glass access only"
+            subtitle = "⚠️ Break-glass when OIDC fails"
             tag      = "emergency"
             url      = "https://secrets.${local.internal_domain}/ui/vault/auth?with=token"
-            target   = "_blank"
-          },
-          {
-            name     = "Casdoor Admin"
-            logo     = "https://cdn.casbin.org/img/casbin.svg"
-            subtitle = "⚙️ User & role management"
-            tag      = "admin"
-            url      = "https://sso.${local.internal_domain}"
             target   = "_blank"
           }
         ]

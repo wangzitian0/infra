@@ -29,7 +29,7 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `7.vault-secrets-operator.tf` | VSO | Vault Secrets Operator for automatic Vault → K8s Secret sync (Issue #351) |
 | `90.provider_restapi.tf` | RestAPI Provider | Casdoor REST API provider (M2M credentials via casdoor-builtin-app) |
 | `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via `restapi_object` resources |
-| `4.portal.tf` | Homer Portal | SSO-protected unified dashboard with categorized service links. Emergency access (Root Token, Admin) separated in "Platform (Emergency)" section. |
+| `4.portal.tf` | Homer Portal | SSO-protected unified dashboard with categorized service links. Emergency section contains only Vault Root Token for break-glass access. |
 | `91.casdoor-roles.tf` | Casdoor Roles | Defines `vault-admin`, `vault-developer`, `vault-viewer` roles in Casdoor. Uses `TF_VAR_gh_account` to auto-assign admin user. |
 | `91.vault-auth.tf` | Vault OIDC Auth | Vault OIDC backend connected to Casdoor |
 | `91.vault-auth-kubernetes.tf` | Vault K8s Auth | Kubernetes authentication backend for pod identity + VSO role |
@@ -69,8 +69,8 @@ terragrunt apply
 
 - **Portal**: `https://home.<internal_domain>` (e.g., `home.zitian.party`) - **⭐ Start here!**
   - 🔒 **Protected by SSO**: Login with GitHub to access
-  - Unified landing page with categorized service links
-  - Emergency access options (Vault Root Token, Casdoor Admin) in separate "Platform (Emergency)" section
+  - Unified landing page with categorized service links (Platform Services includes Casdoor Admin)
+  - Emergency section: Vault Root Token only (break-glass when OIDC fails)
 - **Vault**: `https://secrets.<internal_domain>` (e.g., `secrets.zitian.party`) - HTTPS via cert-manager; manual init/unseal required
 - **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager
 - **Casdoor**: `https://sso.<internal_domain>` (e.g., `sso.zitian.party`) - Unified SSO
@@ -162,7 +162,7 @@ To deploy Portal SSO Gate for non-OIDC portals (e.g., Dashboard):
    - https://kdashboard.zitian.party (Dashboard)
 
 ---
-*Last updated: 2025-12-23 (Added Vault Secrets Operator for automatic Vault → K8s Secret sync - Issue #351)*
+*Last updated: 2025-12-23 (Portal reorganization: Casdoor Admin moved to Platform Services, Emergency section simplified to Vault Root Token only)*
 
 ---
 
