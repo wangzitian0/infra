@@ -1,5 +1,10 @@
 name: Post-Merge Verification
 
+# Runs full infrastructure verification after merge to main
+# Flow:
+# 1. Drift Scan (Parallel Plans - Detects state drift)
+# 2. Sequential Deploy (Bootstrap -> Platform -> Data - Reconciles state)
+
 on:
   push:
     branches: [main]
@@ -17,11 +22,75 @@ env:
   TF_INPUT: "false"
 
 jobs:
+  # Find the PR that was merged
   find-merged-pr:
     runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.find.outputs.pr_number }}
+      has_pr: ${{ steps.find.outputs.has_pr }}
     steps:
-      - run: echo "OK"
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
+      - name: Find Merged PR
+        id: find
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            if (context.eventName === 'workflow_dispatch') {
+              console.log('Manual trigger - no PR context');
+              core.setOutput('pr_number', '');
+              core.setOutput('has_pr', 'false');
+              return;
+            }
+
+            if (context.eventName === 'pull_request') {
+              console.log(`PR event: #${context.payload.pull_request.number}`);
+              core.setOutput('pr_number', context.payload.pull_request.number);
+              core.setOutput('has_pr', 'true');
+              return;
+            }
+
+            // For push events, check if it's a merge commit
+            const commit = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha
+            });
+            const message = commit.data.commit.message;
+            const prMatch = message.match(/\(#(\d+)\)/);
+
+            if (prMatch) {
+              const prNumber = prMatch[1];
+              console.log(`Found PR #${prNumber} from commit message`);
+              core.setOutput('pr_number', prNumber);
+              core.setOutput('has_pr', 'true');
+              return;
+            }
+
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha
+            });
+
+            const merged = prs.data.find(pr => pr.merged_at);
+            if (merged) {
+              console.log(`Found merged PR #${merged.number} via API`);
+              core.setOutput('pr_number', merged.number.toString());
+              core.setOutput('has_pr', 'true');
+            } else {
+              console.log('No merged PR found');
+              core.setOutput('pr_number', '');
+              core.setOutput('has_pr', 'false');
+            }
+
+  # 1. Preliminary Drift Scan (Parallel Plans)
   drift-scan:
     needs: find-merged-pr
     runs-on: ubuntu-latest
@@ -39,5 +108,327 @@ jobs:
         uses: ./.github/actions/terraform-setup
         with:
           working_directory: ${{ matrix.layer }}
-          tf_state_key: ${{ matrix.layer == 'bootstrap' ? 'k3s/terraform.tfstate' : 'terraform.tfstate' }}
+          # tf_state_key default is terraform.tfstate, action auto-corrects for bootstrap
           secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Plan Layer
+        id: plan
+        working-directory: ${{ matrix.layer }}
+        run: |
+          echo "Scanning drift for ${{ matrix.layer }}..."
+          # Use -detailed-exitcode to detect drift
+          # 0 = No changes, 1 = Error, 2 = Drift
+          
+          if [ -f "terragrunt.hcl" ] || [ -L "terragrunt.hcl" ]; then
+            terragrunt plan -no-color --terragrunt-non-interactive -detailed-exitcode || EXIT_CODE=$?
+          else
+            terraform plan -no-color -detailed-exitcode || EXIT_CODE=$?
+          fi
+          
+          EXIT_CODE=${EXIT_CODE:-0}
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ ${{ matrix.layer }}: No drift detected."
+          elif [ $EXIT_CODE -eq 2 ]; then
+            echo "⚠️ ${{ matrix.layer }}: Drift detected. Sequential deploy will reconcile."
+            exit 0 # Success for the scan job, drift is expected
+          else
+            echo "❌ ${{ matrix.layer }}: Execution error (exit code $EXIT_CODE)."
+            exit 1
+          fi
+
+  # 2. Sequential Deploy (Bootstrap -> Platform -> Data)
+  verify-bootstrap:
+    needs: [find-merged-pr, drift-scan]
+    # IMPORTANT: Only run 'apply' steps on PUSH to MAIN. Skip on Pull Request.
+    if: (success() || failure()) && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.plan.outputs.result }}
+      summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Terraform (Bootstrap)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "bootstrap"
+          # k3s/terraform.tfstate will be auto-set by action logic
+          secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: bootstrap
+        continue-on-error: true
+        run: |
+          echo "Running Bootstrap reconciliation plan..."
+          OUTPUT=$(terraform plan -no-color -detailed-exitcode 2>&1) || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
+
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+            echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
+          elif [[ $EXIT_CODE -eq 2 ]]; then
+            echo "result=drift" >> $GITHUB_OUTPUT
+            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
+            echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
+          else
+            echo "result=error" >> $GITHUB_OUTPUT
+            ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:" | head -1 || echo "Plan failed")
+            echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Terraform Apply
+        id: apply
+        if: steps.plan.outputs.result == 'drift'
+        working-directory: bootstrap
+        run: |
+          echo "Applying Bootstrap changes..."
+          if terraform apply -auto-approve -no-color; then
+            echo "summary=🚀 Applied successfully" >> $GITHUB_OUTPUT
+          else
+            echo "summary=❌ Apply failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  verify-platform:
+    needs: [find-merged-pr, verify-bootstrap]
+    if: always() && needs.verify-bootstrap.result != 'cancelled' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.plan.outputs.result }}
+      summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Terragrunt (Platform)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "platform"
+          secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Terragrunt Plan
+        id: plan
+        working-directory: platform
+        continue-on-error: true
+        run: |
+          echo "Running Platform reconciliation plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive -detailed-exitcode 2>&1) || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
+          
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+            echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
+          elif [[ $EXIT_CODE -eq 2 ]]; then
+            echo "result=drift" >> $GITHUB_OUTPUT
+            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
+            echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
+          else
+            echo "result=error" >> $GITHUB_OUTPUT
+            ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:|panic:" | head -1 || echo "Plan failed")
+            echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Terragrunt Apply
+        id: apply
+        if: steps.plan.outputs.result == 'drift'
+        working-directory: platform
+        run: |
+          echo "Applying Platform changes..."
+          if terragrunt apply -auto-approve -no-color --terragrunt-non-interactive; then
+            echo "summary=🚀 Applied successfully" >> $GITHUB_OUTPUT
+          else
+            echo "summary=❌ Apply failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  verify-data-staging:
+    needs: [find-merged-pr, verify-platform]
+    if: always() && needs.verify-platform.result != 'cancelled' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.plan.outputs.result }}
+      summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Terragrunt (Data Staging)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "envs/staging/data"
+          secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Terragrunt Plan
+        id: plan
+        working-directory: envs/staging/data
+        continue-on-error: true
+        run: |
+          echo "Running Data Staging reconciliation plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive -detailed-exitcode 2>&1) || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
+          
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+            echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
+          elif [[ $EXIT_CODE -eq 2 ]]; then
+            echo "result=drift" >> $GITHUB_OUTPUT
+            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
+            echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
+          else
+            echo "result=error" >> $GITHUB_OUTPUT
+            ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:|panic:" | head -1 || echo "Plan failed")
+            echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Terragrunt Apply
+        id: apply
+        if: steps.plan.outputs.result == 'drift'
+        working-directory: envs/staging/data
+        run: |
+          echo "Applying Data Staging changes..."
+          if terragrunt apply -auto-approve -no-color --terragrunt-non-interactive; then
+            echo "summary=🚀 Applied successfully" >> $GITHUB_OUTPUT
+          else
+            echo "summary=❌ Apply failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  verify-data-prod:
+    needs: [find-merged-pr, verify-platform]
+    if: always() && needs.verify-platform.result != 'cancelled' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.plan.outputs.result }}
+      summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Terragrunt (Data Prod)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "envs/prod/data"
+          secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Terragrunt Plan
+        id: plan
+        working-directory: envs/prod/data
+        continue-on-error: true
+        run: |
+          echo "Running Data Prod reconciliation plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive -detailed-exitcode 2>&1) || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
+          
+          if [[ $EXIT_CODE -eq 0 ]]; then
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+            echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
+          elif [[ $EXIT_CODE -eq 2 ]]; then
+            echo "result=drift" >> $GITHUB_OUTPUT
+            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
+            echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
+          else
+            echo "result=error" >> $GITHUB_OUTPUT
+            ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:|panic:" | head -1 || echo "Plan failed")
+            echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Terragrunt Apply
+        id: apply
+        if: steps.plan.outputs.result == 'drift'
+        working-directory: envs/prod/data
+        run: |
+          echo "Applying Data Prod changes..."
+          if terragrunt apply -auto-approve -no-color --terragrunt-non-interactive; then
+            echo "summary=🚀 Applied successfully" >> $GITHUB_OUTPUT
+          else
+            echo "summary=❌ Apply failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  # Post summary to merged PR
+  post-results:
+    needs: [find-merged-pr, verify-bootstrap, verify-platform, verify-data-staging, verify-data-prod]
+    if: always() && needs.find-merged-pr.outputs.has_pr == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate App Token
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Post Summary
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            const prNumber = parseInt('${{ needs.find-merged-pr.outputs.pr_number }}');
+            const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const results = {
+              bootstrap: '${{ needs.verify-bootstrap.outputs.result }}' || 'skipped',
+              platform: '${{ needs.verify-platform.outputs.result }}' || 'skipped',
+              staging: '${{ needs.verify-data-staging.outputs.result }}' || 'skipped',
+              prod: '${{ needs.verify-data-prod.outputs.result }}' || 'skipped'
+            };
+
+            const summaries = {
+              bootstrap: '${{ needs.verify-bootstrap.outputs.summary }}' || '⏭️ Skipped',
+              platform: '${{ needs.verify-platform.outputs.summary }}' || '⏭️ Skipped',
+              staging: '${{ needs.verify-data-staging.outputs.summary }}' || '⏭️ Skipped',
+              prod: '${{ needs.verify-data-prod.outputs.summary }}' || '⏭️ Skipped'
+            };
+
+            const hasError = Object.values(results).includes('error');
+            const hasDrift = Object.values(results).includes('drift');
+
+            let overallIcon = '✅', overallStatus = 'Success';
+            if (hasError) { overallIcon = '❌'; overallStatus = 'Failed'; }
+            else if (hasDrift) { overallIcon = '🚀'; overallStatus = 'Applied Changes'; }
+
+            const statusIcon = (r) => r === 'no_changes' ? '✅' : (r === 'drift' ? '🚀' : (r === 'error' ? '❌' : '⏭️'));
+
+            const body = [
+              `## ${overallIcon} Post-Merge Deployment: ${overallStatus}`,
+              '',
+              '| Layer | Status | Details |',
+              '|:---|:---:|:---|',
+              `| Bootstrap | ${statusIcon(results.bootstrap)} | ${summaries.bootstrap} |`,
+              `| Platform | ${statusIcon(results.platform)} | ${summaries.platform} |`,
+              `| Data Staging | ${statusIcon(results.staging)} | ${summaries.staging} |`,
+              `| Data Prod | ${statusIcon(results.prod)} | ${summaries.prod} |`,
+              '',
+              `**Time**: ${timestamp} | [Workflow Run](${runUrl})`,
+              '',
+              hasError ? '> ❌ **Action**: Some layers failed to apply. Check logs and fix manually.' : '> ✅ All infrastructure layers are up to date.',
+              '',
+              '---',
+              '🤖 Generated by Post-Merge Auto-Apply'
+            ].join('\n');
+
+            if (!isNaN(prNumber)) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body
+              });
+            } else {
+               console.log("No PR Number to post results to.");
+            }
