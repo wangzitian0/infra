@@ -39,5 +39,5 @@ jobs:
         uses: ./.github/actions/terraform-setup
         with:
           working_directory: ${{ matrix.layer }}
-          tf_state_key: "terraform.tfstate"
+          tf_state_key: ${{ matrix.layer == 'bootstrap' ? 'k3s/terraform.tfstate' : 'terraform.tfstate' }}
           secrets_json: ${{ toJSON(secrets) }}
