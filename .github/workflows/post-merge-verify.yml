@@ -35,7 +35,9 @@ jobs:
         with:
           submodules: true
 
-      - name: Debug Matrix
-        run: echo "${{ matrix.layer }}"
-
-      # Removed terraform-setup usage to test if that is the breaker
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: ${{ matrix.layer }}
+          tf_state_key: "terraform.tfstate"
+          secrets_json: "{}"
