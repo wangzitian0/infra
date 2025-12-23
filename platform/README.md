@@ -22,7 +22,7 @@ Depends on Bootstrap for K8s cluster availability.
 
 | File | Component | Purpose |
 |------|-----------|---------
-| `2.secret.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
+| `2.vault.tf` | Vault | Secrets management (PostgreSQL backend + injector) |
 | `3.dashboard.tf` | K8s Dashboard | Cluster management web UI via Ingress |
 | `5.casdoor.tf` | Casdoor SSO | Helm release + bootstrap init_data (org, admin, builtin-app only) |
 | `6.vault-database.tf` | Vault Mounts | Vault KV and Database secrets engine mounts (credentials managed by Data layer) |
@@ -31,7 +31,7 @@ Depends on Bootstrap for K8s cluster availability.
 | `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via `restapi_object` resources |
 | `4.portal.tf` | Homer Portal | SSO-protected unified dashboard with categorized service links. Emergency section contains only Vault Root Token for break-glass access. |
 | `91.casdoor-roles.tf` | Casdoor Roles | Defines `vault-admin`, `vault-developer`, `vault-viewer` roles in Casdoor. Uses `TF_VAR_gh_account` to auto-assign admin user. |
-| `91.vault-auth.tf` | Vault OIDC Auth | Vault OIDC backend connected to Casdoor |
+| `91.vault-oidc.tf` | Vault OIDC Auth | Vault OIDC backend connected to Casdoor |
 | `91.vault-auth-kubernetes.tf` | Vault K8s Auth | Kubernetes authentication backend for pod identity + VSO role |
 | `92.vault-kubero.tf` | Kubero Vault | Vault KV secrets (session/webhook/OIDC), policies, and roles for Kubero |
 | `92.portal-auth.tf` | Portal SSO Gate | Optional Casdoor-backed OAuth2-Proxy + Traefik middleware |

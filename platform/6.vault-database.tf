@@ -30,6 +30,8 @@ resource "vault_mount" "kv" {
   type        = "kv-v2"
   description = "KV v2 secrets engine for database credentials"
 
+  depends_on = [helm_release.vault]
+
   lifecycle {
     precondition {
       condition     = var.vault_root_token != ""
@@ -48,6 +50,8 @@ resource "vault_mount" "database" {
   path        = "database"
   type        = "database"
   description = "Database secrets engine for dynamic credentials (configured by Data layer)"
+
+  depends_on = [helm_release.vault]
 }
 
 # =============================================================================

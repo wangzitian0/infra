@@ -76,7 +76,7 @@ flowchart TB
     BootstrapDir --> B3["3.dns_and_cert.tf<br/>DNS/TLS"]
 
     Root --> PlatformDir["platform/<br/>Platform 层"]
-    PlatformDir --> P1["2.secret.tf<br/>Vault"]
+    PlatformDir --> P1["2.vault.tf<br/>Vault"]
     PlatformDir --> P2["5.casdoor.tf<br/>SSO"]
     PlatformDir --> P3["10.kubero.tf<br/>PaaS"]
     PlatformDir --> P4["11.signoz.tf<br/>可观测"]
