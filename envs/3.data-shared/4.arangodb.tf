@@ -16,7 +16,9 @@
 # Note: Migrating from Single to Cluster requires data migration (cannot hot-upgrade)
 
 # =============================================================================
-# Password Generation (generated in L3, stored in Vault)
+# Password Management (Vault-first pattern - Issue #349)
+# - On first deployment: generate new password
+# - On state recovery: read existing password from Vault (SSOT)
 # =============================================================================
 
 resource "random_password" "arangodb" {
@@ -27,6 +29,47 @@ resource "random_password" "arangodb" {
 # Generate JWT secret for ArangoDB (32 bytes minimum)
 resource "random_bytes" "arangodb_jwt" {
   length = 32
+}
+
+# Read existing password from Vault if it exists (Vault is SSOT)
+data "external" "arangodb_password" {
+  program = ["bash", "-c", <<-EOT
+    # Try to read password from Vault (SSOT)
+    PW=$(vault kv get -field=password secret/arangodb 2>/dev/null || true)
+    if [ -n "$PW" ]; then
+      printf '{"password": "%s", "source": "vault"}' "$PW"
+    else
+      printf '{"password": "", "source": "none"}'
+    fi
+  EOT
+  ]
+}
+
+# Read existing JWT from Vault if it exists
+data "external" "arangodb_jwt" {
+  program = ["bash", "-c", <<-EOT
+    # Try to read JWT from Vault (SSOT)
+    JWT=$(vault kv get -field=jwt_secret secret/arangodb 2>/dev/null || true)
+    if [ -n "$JWT" ]; then
+      printf '{"token": "%s", "source": "vault"}' "$JWT"
+    else
+      printf '{"token": "", "source": "none"}'
+    fi
+  EOT
+  ]
+}
+
+locals {
+  arangodb_password = data.external.arangodb_password.result.password != "" ? (
+    data.external.arangodb_password.result.password
+    ) : (
+    random_password.arangodb.result
+  )
+  arangodb_jwt = data.external.arangodb_jwt.result.token != "" ? (
+    data.external.arangodb_jwt.result.token
+    ) : (
+    random_bytes.arangodb_jwt.base64
+  )
 }
 
 # =============================================================================
@@ -95,10 +138,15 @@ resource "kubernetes_secret" "arangodb_jwt" {
   }
 
   data = {
-    token = random_bytes.arangodb_jwt.base64
+    token = local.arangodb_jwt
   }
 
   depends_on = [kubernetes_namespace.data]
+
+  lifecycle {
+    # Don't overwrite existing JWT during state recovery
+    ignore_changes = [data]
+  }
 }
 
 # =============================================================================
@@ -165,13 +213,18 @@ resource "vault_kv_secret_v2" "arangodb" {
 
   data_json = jsonencode({
     username   = "root"
-    password   = random_password.arangodb.result
-    jwt_secret = random_bytes.arangodb_jwt.base64
+    password   = local.arangodb_password
+    jwt_secret = local.arangodb_jwt
     host       = "arangodb.${local.namespace_name}.svc.cluster.local"
     port       = "8529"
   })
 
   depends_on = [kubectl_manifest.arangodb_deployment]
+
+  lifecycle {
+    # Don't overwrite existing credentials in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
 # =============================================================================

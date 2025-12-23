@@ -14,12 +14,36 @@
 # so we just store the password in Vault KV for L4 to consume
 
 # =============================================================================
-# Password Generation (generated in L3, stored in Vault)
+# Password Management (Vault-first pattern - Issue #349)
+# - On first deployment: generate new password
+# - On state recovery: read existing password from Vault (SSOT)
 # =============================================================================
 
 resource "random_password" "redis" {
   length  = 32
   special = false
+}
+
+# Read existing password from Vault if it exists (Vault is SSOT)
+data "external" "redis_password" {
+  program = ["bash", "-c", <<-EOT
+    # Try to read password from Vault (SSOT)
+    PW=$(vault kv get -field=password secret/redis 2>/dev/null || true)
+    if [ -n "$PW" ]; then
+      printf '{"password": "%s", "source": "vault"}' "$PW"
+    else
+      printf '{"password": "", "source": "none"}'
+    fi
+  EOT
+  ]
+}
+
+locals {
+  redis_password = data.external.redis_password.result.password != "" ? (
+    data.external.redis_password.result.password
+    ) : (
+    random_password.redis.result
+  )
 }
 
 # =============================================================================
@@ -54,7 +78,7 @@ resource "helm_release" "redis" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        password = random_password.redis.result
+        password = local.redis_password
       }
       master = {
         persistence = {
@@ -100,12 +124,17 @@ resource "vault_kv_secret_v2" "redis" {
   delete_all_versions = true
 
   data_json = jsonencode({
-    password = random_password.redis.result
+    password = local.redis_password
     host     = "${helm_release.redis.name}-master.${local.namespace_name}.svc.cluster.local"
     port     = "6379"
   })
 
   depends_on = [helm_release.redis]
+
+  lifecycle {
+    # Don't overwrite existing password in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
 # =============================================================================

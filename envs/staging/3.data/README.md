@@ -16,22 +16,34 @@ This layer provides stateful services for **Business Applications** (L4).
 
 *Note: Platform DB (for Vault/Casdoor) is in L1 (`1.bootstrap/5.platform_pg.tf`).*
 
-### Password Flow (Fully Reproducible)
+### Password Flow (Vault-first Pattern - Issue #349)
 
 ```mermaid
 graph LR
     subgraph "L2 Platform"
-        RND[random_password] --> KV[Vault KV<br/>secret/data/postgres]
-        KV --> DB_CFG[database_secret_backend]
+        VM[vault_mount.kv]
+        VD[vault_mount.database]
     end
     subgraph "L3 Data"
-        DATA[data.vault_kv_secret_v2] --> HELM[PostgreSQL Helm]
+        K8S[K8s Secret] --> |recovery| LOCAL[local.*_password]
+        RND[random_password] --> |first deploy| LOCAL
+        LOCAL --> KV[Vault KV]
+        LOCAL --> HELM[DB Helm Charts]
+        LOCAL --> DB_CFG[database_secret_backend]
     end
-    KV --> DATA
+    VM --> KV
+    VD --> DB_CFG
     DB_CFG --> |dynamic creds| L4[L4 Apps]
+    KV --> |static creds| L4
 ```
 
-**No manual steps required** - all Vault configuration is IaC managed in L2.
+**L3 owns password generation** - L2 only creates Vault mounts.
+
+**State Recovery Pattern**: When Terraform state is lost but resources exist:
+1. `data.external.*_password` reads existing password from Vault (SSOT)
+2. `local.*_password` selects existing or generates new
+3. Helm chart uses same password → no restart needed
+4. Vault secret has `ignore_changes` → no credential overwrite
 
 ### Components
 
@@ -113,7 +125,10 @@ kubectl exec -n "$NS" postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 
 ### Recovery Steps
 
-1. **Password Lost**: Re-run L2 apply (regenerates password, updates Vault KV)
+1. **Terraform State Lost** (Issue #349 pattern):
+   - Re-run L3 apply → reads existing passwords from Vault (SSOT)
+   - No database restart needed (same credentials)
+   - Vault secrets protected by `ignore_changes`
 2. **Data Loss**: Restore from pg_dump backup
 3. **Full Recreation**: Delete `data-<env>` namespace, re-apply L3
 
@@ -165,4 +180,4 @@ Scale-out / multi-replica migration notes are tracked in:
 - [db.overview.md](../docs/ssot/db.overview.md) (database capability SSOT)
 
 ---
-*Last updated: 2025-12-22 (Restored clickhousedbops provider for state cleanup)*
+*Last updated: 2025-12-23 (Vault-first password pattern - Issue #349)*
