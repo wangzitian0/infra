@@ -23,6 +23,7 @@ The central engine for CI variable injection. It parses the GitHub `secrets` con
 - **PEM Handling**: Correctly handles multiline RSA private keys for SSH and GitHub Apps.
 - **Derived Logic**: Automatically推导 derived variables（如 `TF_VAR_vault_address`）。
 - **Feature Flags**: Loads boolean toggles (e.g., `ENABLE_CASDOOR_OIDC`, `ENABLE_PORTAL_SSO_GATE`) into `TF_VAR_*` for CI applies.
+- **User Assignment**: Maps `GH_ACCOUNT` (GitHub email) to `TF_VAR_gh_account` for automatic Vault admin role assignment.
 
 ---
 
@@ -61,4 +62,4 @@ CI guard that ensures READMEs are updated when code in a directory changes. Outp
 Threshold: 60% of changed directories must have corresponding README updates.
 
 ---
-*Last updated: 2025-12-22*
+*Last updated: 2025-12-23 (Added GH_ACCOUNT support)*

@@ -10,6 +10,7 @@
 - **Platform DB**: PostgreSQL (for Vault)
 - **Dashboard**: Kubernetes Dashboard (cluster web UI)
 - **SSO**: Casdoor (OIDC provider for L2+ services)
+- **Portal**: Homer (unified landing page with quick links to all services)
 - **Namespaces**: `platform` (main), `kubero-operator-system` (Operator only)
 
 ## Architecture
@@ -27,7 +28,8 @@ Depends on L1 (bootstrap) for K8s cluster availability.
 | `6.vault-database.tf` | Vault Mounts | Vault KV and Database secrets engine mounts (credentials managed by L3) |
 | `90.provider_restapi.tf` | RestAPI Provider | Casdoor REST API provider (M2M credentials via casdoor-builtin-app) |
 | `90.casdoor-apps.tf` | Casdoor Apps | OIDC applications & Providers (GitHub) via `restapi_object` resources |
-| `91.casdoor-roles.tf` | Casdoor Roles | Defines `vault-admin`, `vault-developer`, `vault-viewer` roles in Casdoor |
+| `4.portal.tf` | Homer Portal | SSO-protected unified dashboard with categorized service links. Emergency access (Root Token, Admin) separated in "Platform (Emergency)" section. |
+| `91.casdoor-roles.tf` | Casdoor Roles | Defines `vault-admin`, `vault-developer`, `vault-viewer` roles in Casdoor. Uses `TF_VAR_gh_account` to auto-assign admin user. |
 | `91.vault-auth.tf` | Vault OIDC Auth | Vault OIDC backend connected to Casdoor |
 | `91.vault-auth-kubernetes.tf` | Vault K8s Auth | Kubernetes authentication backend for pod identity |
 | `92.vault-kubero.tf` | Kubero Vault | Vault KV secrets (session/webhook/OIDC), policies, and roles for Kubero |
@@ -65,6 +67,10 @@ terragrunt apply
 
 ### Access
 
+- **Portal**: `https://home.<internal_domain>` (e.g., `home.zitian.party`) - **⭐ Start here!**
+  - 🔒 **Protected by SSO**: Login with GitHub to access
+  - Unified landing page with categorized service links
+  - Emergency access options (Vault Root Token, Casdoor Admin) in separate "Platform (Emergency)" section
 - **Vault**: `https://secrets.<internal_domain>` (e.g., `secrets.zitian.party`) - HTTPS via cert-manager; manual init/unseal required
 - **Dashboard**: `https://kdashboard.<internal_domain>` (e.g., `kdashboard.zitian.party`) - HTTPS via cert-manager
 - **Casdoor**: `https://sso.<internal_domain>` (e.g., `sso.zitian.party`) - Unified SSO
@@ -92,6 +98,12 @@ Vault permissions are managed via **Identity Groups**, offering a "Login and For
     - Casdoor `vault-developer` -> Vault Identity Group `developer` -> Policy `developer` (App Secrets RW)
     - Default (No role) -> Vault Identity Group `viewer` -> Policy `viewer` (Read Only)
 - **Benefit**: Users don't need to manually select a role during login. Permissions are automatically stacked based on Casdoor roles.
+
+**Admin User Assignment**:
+- The `vault-admin` role automatically assigns the user specified by `TF_VAR_gh_account` (GitHub Secret: `GH_ACCOUNT`)
+- Format: Your GitHub email (e.g., `wangzitian0@gmail.com`), automatically prefixed with `built-in/` in Casdoor
+- Update via: `python3 0.tools/sync_secrets.py` after adding `GH_ACCOUNT` field to `Infra-OAuth` item in 1Password
+- See `2.platform/91.casdoor-roles.tf` for implementation details
 
 For detailed architecture and usage, see [platform.auth.md](../docs/ssot/platform.auth.md).
 

@@ -9,6 +9,7 @@ locals {
     kapi       = true  # HTTPS via proxy
     signoz     = true  # HTTPS via proxy
     openpanel  = true  # HTTPS via proxy
+    home       = true  # Homer Portal - HTTPS via proxy
     sso        = false # SSO (Casdoor) - DNS only (avoid Cloudflare caching/WAF issues)
     k3s        = false # API on 6443, must stay DNS-only
   }

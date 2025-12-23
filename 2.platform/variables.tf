@@ -102,6 +102,23 @@ variable "github_oauth_org" {
   default     = ""
 }
 
+variable "gh_account" {
+  description = "GitHub account identifier for Casdoor user assignment (e.g., wangzitian0@gmail.com)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# ============================================================
+# Portal Dashboard
+# ============================================================
+
+variable "enable_portal_dashboard" {
+  description = "Enable Homer portal dashboard (unified landing page with SSO protection)"
+  type        = bool
+  default     = true
+}
+
 # ============================================================
 # Cloudflare (for Casdoor DNS)
 # ============================================================
@@ -136,9 +153,9 @@ variable "enable_casdoor_oidc" {
 }
 
 variable "enable_portal_sso_gate" {
-  description = "Enable Casdoor-based SSO gate for non-OIDC portals (e.g., Dashboard) via OAuth2-Proxy; keep false until Casdoor + client credentials are ready to avoid lockout."
+  description = "Enable Casdoor-based SSO gate for Portal and non-OIDC portals (e.g., Dashboard) via OAuth2-Proxy. Default true to protect Portal with SSO."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "casdoor_portal_client_id" {

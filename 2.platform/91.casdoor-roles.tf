@@ -7,6 +7,19 @@
 # - vault-viewer: Read-only access to Vault
 
 # =============================================================================
+# Local Variables for User Assignment
+# =============================================================================
+
+locals {
+  # Construct Casdoor user identifier from GH_ACCOUNT
+  # Format: "built-in/email@example.com" or empty if not provided
+  casdoor_admin_user = var.gh_account != "" ? "built-in/${var.gh_account}" : ""
+
+  # User list for vault-admin role
+  vault_admin_users = local.casdoor_admin_user != "" ? [local.casdoor_admin_user] : []
+}
+
+# =============================================================================
 # Vault Roles
 # =============================================================================
 
@@ -27,7 +40,7 @@ resource "restapi_object" "role_vault_admin" {
     createdTime = "2025-01-01T00:00:00Z"
     displayName = "Vault Administrator"
     description = "Full administrative access to Vault (read/write/configure)"
-    users       = []
+    users       = local.vault_admin_users
     groups      = []
     roles       = []
     domains     = []
