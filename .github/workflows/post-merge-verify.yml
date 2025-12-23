@@ -1,19 +1,13 @@
 name: Post-Merge Verification
 
 # Runs full infrastructure verification after merge to main
-# Flow (Plan then Apply if drift):
-# 1. Bootstrap (Plan -> Apply)
-# 2. Platform (Plan -> Apply)
-# 3. Data Staging (Plan -> Apply)
-# 4. Data Prod (Plan -> Apply)
+# Flow:
+# 1. Drift Scan (Parallel Plans - Detects state drift)
+# 2. Sequential Deploy (Bootstrap -> Platform -> Data - Reconciles state)
 
 on:
   push:
     branches: [main]
-    paths:
-      - "bootstrap/**"
-      - "platform/**"
-      - "envs/**"
   workflow_dispatch:
 
 env:
@@ -81,15 +75,60 @@ jobs:
               core.setOutput('has_pr', 'false');
             }
 
-  # 1. Bootstrap verification and auto-apply
-  verify-bootstrap:
+  # 1. Preliminary Drift Scan (Parallel Plans)
+  drift-scan:
     needs: find-merged-pr
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        layer: [bootstrap, platform, envs/staging/data, envs/prod/data]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: ${{ matrix.layer }}
+          tf_state_key: ${{ matrix.layer == 'bootstrap' ? 'k3s/terraform.tfstate' : '' }}
+          secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Plan Layer
+        id: plan
+        working-directory: ${{ matrix.layer }}
+        run: |
+          echo "Scanning drift for ${{ matrix.layer }}..."
+          # Use -detailed-exitcode to detect drift
+          # 0 = No changes, 1 = Error, 2 = Drift
+          
+          if [ -f "terragrunt.hcl" ] || [ -L "terragrunt.hcl" ]; then
+            terragrunt plan -no-color --terragrunt-non-interactive -detailed-exitcode || EXIT_CODE=$?
+          else
+            terraform plan -no-color -detailed-exitcode || EXIT_CODE=$?
+          fi
+          
+          EXIT_CODE=${EXIT_CODE:-0}
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ ${{ matrix.layer }}: No drift detected."
+          elif [ $EXIT_CODE -eq 2 ]; then
+            echo "⚠️ ${{ matrix.layer }}: Drift detected. Sequential deploy will reconcile."
+            exit 0 # Success for the scan job, drift is expected
+          else
+            echo "❌ ${{ matrix.layer }}: Execution error (exit code $EXIT_CODE)."
+            exit 1
+          fi
+
+  # 2. Sequential Deploy (Bootstrap -> Platform -> Data)
+  verify-bootstrap:
+    needs: [find-merged-pr, drift-scan]
+    if: success() || failure() # Run even if drift scan shows errors in some layers (fail-fast: false)
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
       summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
-    permissions:
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -108,7 +147,7 @@ jobs:
         working-directory: bootstrap
         continue-on-error: true
         run: |
-          echo "Running Bootstrap plan..."
+          echo "Running Bootstrap reconciliation plan..."
           OUTPUT=$(terraform plan -no-color -detailed-exitcode 2>&1) || EXIT_CODE=$?
           EXIT_CODE=${EXIT_CODE:-0}
 
@@ -139,9 +178,9 @@ jobs:
             exit 1
           fi
 
-  # 2. Platform verification and auto-apply
   verify-platform:
     needs: [find-merged-pr, verify-bootstrap]
+    if: always() && needs.verify-bootstrap.result != 'cancelled'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
@@ -163,13 +202,14 @@ jobs:
         working-directory: platform
         continue-on-error: true
         run: |
-          echo "Running Platform plan..."
-          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive 2>&1) || EXIT_CODE=$?
+          echo "Running Platform reconciliation plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive -detailed-exitcode 2>&1) || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
           
-          if echo "$OUTPUT" | grep -q "No changes."; then
+          if [[ $EXIT_CODE -eq 0 ]]; then
             echo "result=no_changes" >> $GITHUB_OUTPUT
             echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
-          elif echo "$OUTPUT" | grep -q "Plan:"; then
+          elif [[ $EXIT_CODE -eq 2 ]]; then
             echo "result=drift" >> $GITHUB_OUTPUT
             CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
             echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
@@ -193,9 +233,9 @@ jobs:
             exit 1
           fi
 
-  # 3. Data Staging verification and auto-apply
   verify-data-staging:
     needs: [find-merged-pr, verify-platform]
+    if: always() && needs.verify-platform.result != 'cancelled'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
@@ -217,13 +257,14 @@ jobs:
         working-directory: envs/staging/data
         continue-on-error: true
         run: |
-          echo "Running Data Staging plan..."
-          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive 2>&1) || EXIT_CODE=$?
+          echo "Running Data Staging reconciliation plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive -detailed-exitcode 2>&1) || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
           
-          if echo "$OUTPUT" | grep -q "No changes."; then
+          if [[ $EXIT_CODE -eq 0 ]]; then
             echo "result=no_changes" >> $GITHUB_OUTPUT
             echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
-          elif echo "$OUTPUT" | grep -q "Plan:"; then
+          elif [[ $EXIT_CODE -eq 2 ]]; then
             echo "result=drift" >> $GITHUB_OUTPUT
             CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
             echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
@@ -247,9 +288,9 @@ jobs:
             exit 1
           fi
 
-  # 4. Data Prod verification and auto-apply
   verify-data-prod:
     needs: [find-merged-pr, verify-platform]
+    if: always() && needs.verify-platform.result != 'cancelled'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
@@ -271,13 +312,14 @@ jobs:
         working-directory: envs/prod/data
         continue-on-error: true
         run: |
-          echo "Running Data Prod plan..."
-          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive 2>&1) || EXIT_CODE=$?
+          echo "Running Data Prod reconciliation plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive -detailed-exitcode 2>&1) || EXIT_CODE=$?
+          EXIT_CODE=${EXIT_CODE:-0}
           
-          if echo "$OUTPUT" | grep -q "No changes."; then
+          if [[ $EXIT_CODE -eq 0 ]]; then
             echo "result=no_changes" >> $GITHUB_OUTPUT
             echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
-          elif echo "$OUTPUT" | grep -q "Plan:"; then
+          elif [[ $EXIT_CODE -eq 2 ]]; then
             echo "result=drift" >> $GITHUB_OUTPUT
             CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
             echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
