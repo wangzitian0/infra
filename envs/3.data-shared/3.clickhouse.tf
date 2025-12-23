@@ -2,11 +2,10 @@
 #
 # Purpose: OLAP analytics database for L4 applications
 #
-# Architecture (after refactor - Issue #336):
-# - L3 generates password locally
-# - L3 stores password in Vault KV
-# - L3 manages ClickHouse users via clickhousedbops provider
-# - L4 reads credentials from Vault KV
+# Architecture (Vault-first pattern - Issue #349):
+# - Password generated locally, stored in Vault (SSOT)
+# - On state recovery, password read from Vault/K8s secret
+# - Provider uses existing password, not newly generated one
 #
 # Pattern: Bitnami Helm chart
 # Namespace: per-env (data-staging, data-prod)
@@ -16,10 +15,50 @@
 # Future: Enable sharding/replication (requires ZooKeeper)
 
 # =============================================================================
+# Password Generation (generated in L3, stored in Vault)
+# =============================================================================
+
+resource "random_password" "clickhouse" {
+  length  = 32
+  special = false
+}
+
+# =============================================================================
+# Read existing password from K8s Secret (created by Helm chart)
+# This is the SSOT for password after initial deployment
+# Uses external data source to gracefully handle missing secret
+# =============================================================================
+
+data "external" "clickhouse_password" {
+  program = ["bash", "-c", <<-EOT
+    NS="${local.namespace_name}"
+    # Try to read password from K8s secret (created by Helm chart)
+    PW=$(kubectl get secret clickhouse -n "$NS" -o jsonpath='{.data.admin-password}' 2>/dev/null | base64 -d 2>/dev/null || true)
+    if [ -n "$PW" ]; then
+      # Secret exists, return existing password
+      printf '{"password": "%s", "source": "k8s-secret"}' "$PW"
+    else
+      # Secret doesn't exist (first deployment), return empty
+      printf '{"password": "", "source": "none"}'
+    fi
+  EOT
+  ]
+}
+
+locals {
+  # Use existing password from K8s secret if available, otherwise use random_password
+  # K8s secret is created by Helm chart and survives state reset
+  clickhouse_password = data.external.clickhouse_password.result.password != "" ? (
+    data.external.clickhouse_password.result.password
+    ) : (
+    random_password.clickhouse.result
+  )
+}
+
+# =============================================================================
 # ClickHouse Provider Configuration
 # =============================================================================
-# NOTE: This provider is configured here (not in terragrunt-generated files)
-# because it needs access to the random_password.clickhouse resource.
+# Uses existing password from K8s secret to survive state reset
 
 provider "clickhousedbops" {
   host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.${local.namespace_name}.svc.cluster.local"
@@ -29,17 +68,8 @@ provider "clickhousedbops" {
   auth_config = {
     strategy = "basicauth"
     username = "default"
-    password = random_password.clickhouse.result
+    password = local.clickhouse_password
   }
-}
-
-# =============================================================================
-# Password Generation (generated in L3, stored in Vault)
-# =============================================================================
-
-resource "random_password" "clickhouse" {
-  length  = 32
-  special = false
 }
 
 # =============================================================================
@@ -79,7 +109,7 @@ resource "helm_release" "clickhouse" {
       }
       auth = {
         username = "default"
-        password = random_password.clickhouse.result
+        password = local.clickhouse_password
       }
       shards       = 1 # Single VPS MVP: single shard (can scale later)
       replicaCount = 1 # Single VPS MVP: no replication (can scale later)
@@ -123,13 +153,18 @@ resource "vault_kv_secret_v2" "clickhouse" {
 
   data_json = jsonencode({
     username = "default"
-    password = random_password.clickhouse.result
+    password = local.clickhouse_password
     host     = "${helm_release.clickhouse.name}.${local.namespace_name}.svc.cluster.local"
     port     = "9000"
     database = "default"
   })
 
   depends_on = [helm_release.clickhouse]
+
+  lifecycle {
+    # Don't overwrite existing password in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
 # =============================================================================

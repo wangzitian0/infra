@@ -26,12 +26,37 @@ resource "kubernetes_namespace" "data" {
 }
 
 # =============================================================================
-# Password Generation (generated in L3, stored in Vault)
+# Password Management (Vault-first pattern - Issue #349)
+# - On first deployment: generate new password
+# - On state recovery: read existing password from K8s secret
 # =============================================================================
 
 resource "random_password" "postgres" {
   length  = 24
   special = false
+}
+
+# Read existing password from K8s secret if it exists
+data "external" "postgres_password" {
+  program = ["bash", "-c", <<-EOT
+    NS="${local.namespace_name}"
+    # Try to read password from K8s secret (created by Helm chart)
+    PW=$(kubectl get secret postgresql -n "$NS" -o jsonpath='{.data.postgres-password}' 2>/dev/null | base64 -d 2>/dev/null || true)
+    if [ -n "$PW" ]; then
+      printf '{"password": "%s", "source": "k8s-secret"}' "$PW"
+    else
+      printf '{"password": "", "source": "none"}'
+    fi
+  EOT
+  ]
+}
+
+locals {
+  postgres_password = data.external.postgres_password.result.password != "" ? (
+    data.external.postgres_password.result.password
+    ) : (
+    random_password.postgres.result
+  )
 }
 
 # =============================================================================
@@ -57,7 +82,7 @@ resource "helm_release" "postgresql" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        postgresPassword = random_password.postgres.result
+        postgresPassword = local.postgres_password
         database         = "app"
       }
       primary = {
@@ -110,13 +135,18 @@ resource "vault_kv_secret_v2" "postgres" {
 
   data_json = jsonencode({
     username = "postgres"
-    password = random_password.postgres.result
+    password = local.postgres_password
     host     = "postgresql.${local.namespace_name}.svc.cluster.local"
     port     = "5432"
     database = "app"
   })
 
   depends_on = [helm_release.postgresql]
+
+  lifecycle {
+    # Don't overwrite existing password in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
 # =============================================================================
@@ -130,7 +160,7 @@ resource "vault_database_secret_backend_connection" "postgres" {
   allowed_roles = ["postgres-readonly", "postgres-readwrite"]
 
   postgresql {
-    connection_url = "postgres://postgres:${random_password.postgres.result}@postgresql.${local.namespace_name}.svc.cluster.local:5432/app?sslmode=disable"
+    connection_url = "postgres://postgres:${local.postgres_password}@postgresql.${local.namespace_name}.svc.cluster.local:5432/app?sslmode=disable"
   }
 
   depends_on = [helm_release.postgresql, vault_kv_secret_v2.postgres]
@@ -238,7 +268,7 @@ resource "vault_kv_secret_v2" "openpanel" {
     # Redis (cache/queue) - shared L3 instance
     redis_host     = "redis-master.${local.namespace_name}.svc.cluster.local"
     redis_port     = "6379"
-    redis_password = random_password.redis.result
+    redis_password = local.redis_password
 
     # ClickHouse (event storage) - credentials defined in 3.clickhouse.tf
     clickhouse_host     = "clickhouse.${local.namespace_name}.svc.cluster.local"
@@ -276,7 +306,7 @@ resource "kubectl_manifest" "openpanel_postgres_init" {
             image = "postgres:16-alpine"
             env = [{
               name  = "PGPASSWORD"
-              value = random_password.postgres.result
+              value = local.postgres_password
             }]
             command = ["/bin/sh"]
             args = ["-c", <<-EOT

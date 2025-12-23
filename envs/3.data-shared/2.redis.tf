@@ -14,12 +14,37 @@
 # so we just store the password in Vault KV for L4 to consume
 
 # =============================================================================
-# Password Generation (generated in L3, stored in Vault)
+# Password Management (Vault-first pattern - Issue #349)
+# - On first deployment: generate new password
+# - On state recovery: read existing password from K8s secret
 # =============================================================================
 
 resource "random_password" "redis" {
   length  = 32
   special = false
+}
+
+# Read existing password from K8s secret if it exists
+data "external" "redis_password" {
+  program = ["bash", "-c", <<-EOT
+    NS="${local.namespace_name}"
+    # Try to read password from K8s secret (created by Helm chart)
+    PW=$(kubectl get secret redis -n "$NS" -o jsonpath='{.data.redis-password}' 2>/dev/null | base64 -d 2>/dev/null || true)
+    if [ -n "$PW" ]; then
+      printf '{"password": "%s", "source": "k8s-secret"}' "$PW"
+    else
+      printf '{"password": "", "source": "none"}'
+    fi
+  EOT
+  ]
+}
+
+locals {
+  redis_password = data.external.redis_password.result.password != "" ? (
+    data.external.redis_password.result.password
+    ) : (
+    random_password.redis.result
+  )
 }
 
 # =============================================================================
@@ -54,7 +79,7 @@ resource "helm_release" "redis" {
         pullPolicy = "IfNotPresent"
       }
       auth = {
-        password = random_password.redis.result
+        password = local.redis_password
       }
       master = {
         persistence = {
@@ -100,12 +125,17 @@ resource "vault_kv_secret_v2" "redis" {
   delete_all_versions = true
 
   data_json = jsonencode({
-    password = random_password.redis.result
+    password = local.redis_password
     host     = "${helm_release.redis.name}-master.${local.namespace_name}.svc.cluster.local"
     port     = "6379"
   })
 
   depends_on = [helm_release.redis]
+
+  lifecycle {
+    # Don't overwrite existing password in Vault during state recovery
+    ignore_changes = [data_json]
+  }
 }
 
 # =============================================================================
