@@ -15,7 +15,7 @@ include "root" {
 # L3 depends on L2 platform for infrastructure services
 
 dependency "platform" {
-  config_path = "../../../2.platform"
+  config_path = "../../../platform"
 
   # skip_outputs = true is required for Atlantis compatibility
   # Atlantis runs each project in isolation, so L2 outputs are not accessible
@@ -28,6 +28,7 @@ dependency "platform" {
   }
   mock_outputs_allowed_terraform_commands = ["validate", "plan"]
 }
+
 
 # =============================================================================
 # Layer-Specific Providers
