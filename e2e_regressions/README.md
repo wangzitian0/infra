@@ -1,158 +1,225 @@
-# E2E Regression Tests
+# E2E 回归测试 (E2E Regression Testing)
 
-此目录包含 **cc_infra** 项目的端到端（E2E）自动化测试框架。该框架基于 **Python**、**Playwright** 和 **pytest** 构建，用于验证从基础设施部署到应用层功能的完整流程。
+> **定位**：部署后的自动化验证系统
+> **存储**：`e2e_regressions/` (项目根目录)
+> **触发**：Atlantis apply 成功后
 
-## 📋 项目概览
+## 架构
 
-本项目遵循测试金字塔原则，测试用例按部署阶段和功能模块分层组织。
+```
+部署流程:
+├── Atlantis plan ✓
+├── Atlantis apply ✓
+└── E2E 回归测试 ← 仅当 apply 成功时运行
+    ├── 烟雾测试 (1-2 min)
+    ├── 功能测试 (10-20 min)
+    └── E2E 测试 (5-10 min)
+```
 
-**关键特点**：
-- ✅ **全栈覆盖**：覆盖 Portal、Platform、API、数据库等各个层面。
-- ⚡ **快速反馈**：烟雾测试（Smoke Test）可在 1-2 分钟内验证系统核心健康状态。
-- 📦 **模块化结构**：测试目录结构与基础设施代码目录结构（`1.bootstrap`, `2.platform`, `3.data`, `4.apps`）对齐。
-- 🚀 **CI/CD 就绪**：包含 GitHub Actions 工作流，支持自动触发和定时运行。
-
----
-
-## 🚀 快速开始 (Quick Start)
-
-### 1. 初始化项目
+## 快速使用
 
 ```bash
+# 安装
 cd e2e_regressions
-
-# 安装依赖（自动读取 pyproject.toml 并生成 uv.lock）
 uv sync
-
-# 安装浏览器驱动
 uv run playwright install chromium
-```
 
-### 2. 配置环境
-
-复制环境变量模板并根据实际环境修改：
-
-```bash
+# 配置
 cp .env.example .env
-```
+# 编辑 .env 填入部署的 URL
 
-**关键配置项**（`.env`）：
-
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `PORTAL_URL` | Portal 主页 URL | `https://home.zitian.party` |
-| `SSO_URL` | Casdoor SSO URL | `https://sso.zitian.party` |
-| `VAULT_URL` | Vault URL | `https://secrets.zitian.party` |
-| `DASHBOARD_URL` | K8s Dashboard URL | `https://kdashboard.zitian.party` |
-| `TEST_USERNAME` | 测试用用户名 | `test_user` |
-| `TEST_PASSWORD` | 测试用密码 | `***` |
-
-> 更多配置项（如数据库连接）请查看 `.env.example` 文件。
-
-### 3. 运行测试
-
-推荐使用 `Makefile` 进行操作：
-
-```bash
-# 查看所有可用命令
-make help
-
-# 运行烟雾测试（快速检查核心服务，~1-2 分钟）
+# 运行烟雾测试（部署直后推荐）
 make test-smoke
 
-# 运行所有测试
-make test
-
-# 调试模式（显示浏览器界面，慢速执行）
-make test-headed
+# 其他
+make test          # 全部 42 个测试
+make test-headed   # 可见浏览器调试
+make report        # HTML 报告
 ```
 
-或者直接使用 `uv run pytest`：
+## 测试覆盖范围
+
+### 按层级
+
+| 层级 | 测试项 | 耗时 | 文件 |
+|------|--------|------|------|
+| **L2 Platform** | Vault, Dashboard, Casdoor 可访问 | 2-3 min | `test_platform.py` |
+| **L3 Data** | PostgreSQL, Redis, ClickHouse 连接 | 3-5 min | `test_databases.py` |
+| **L4 Portal** | Homer SSO 登录、服务链接 | 3-5 min | `test_portal_sso.py` |
+| **API** | HTTP 端点、响应时间、SSL 证书 | 2-3 min | `test_api_health.py` |
+| **E2E** | 跨层验证、性能基线、故障恢复 | 5-10 min | `test_e2e_smoke.py` |
+
+### 按标记（42 个测试）
 
 ```bash
-# 运行指定标签的测试
-uv run pytest -m smoke
-uv run pytest -m sso
-uv run pytest -m platform
-
-# 生成 HTML 报告
-uv run pytest --html=report.html --self-contained-html
+make test-smoke      # 烟雾：6 个测试 (1-2 min)
+make test-sso        # SSO：7 个测试
+make test-platform   # Platform：7 个测试
+make test-api        # API：10 个测试
+make test-database   # 数据库：9 个测试
+make test-e2e        # E2E：9 个测试
 ```
 
----
+## 故障诊断
 
-## 🏗️ 项目结构与测试分层
-
-测试文件结构与基础设施代码结构保持一致，便于维护和定位问题。
-
+### 所有服务不可访问
 ```
-e2e_regressions/
-├── tests/
-│   ├── bootstrap/          # Bootstrap 层测试（K8s、存储、网络等）
-│   │   ├── k8s/           # K8s 集群测试
-│   │   ├── atlantis/      # Atlantis CI/CD 测试
-│   │   ├── dns_cert/      # DNS 和证书测试
-│   │   └── ...            # 其他 Bootstrap 组件
-│   ├── platform/           # Platform 层测试
-│   │   └── test_platform.py    # Vault, Dashboard, Casdoor 可用性
-│   ├── data/               # Data 层测试
-│   │   └── test_databases.py   # PostgreSQL, Redis, ClickHouse 连接验证
-│   ├── apps/               # Apps 层测试
-│   │   ├── test_portal_sso.py  # Portal SSO 登录流程
-│   │   └── test_api_health.py  # 业务 API 健康检查
-│   └── smoke/              # 跨层烟雾测试
-│       └── test_smoke.py       # 整体系统快速健康检查
-├── Makefile                # 快捷命令
-├── pyproject.toml          # 依赖管理配置
-├── conftest.py             # pytest 全局配置 & Fixtures
-└── ...
+症状: test_http_connectivity 失败
+→ 检查 DNS/Ingress
+  kubectl get ingress -A
+  nslookup home.zitian.party
+→ 检查网络策略
+  kubectl get networkpolicy -A
 ```
 
-### 测试策略分层
+### Portal 可访问但 SSO 失败
+```
+症状: test_portal_password_login 失败
+→ Casdoor 是否启动
+  kubectl get pod -n platform -l app=casdoor
+→ OIDC 配置是否正确
+  curl https://sso.zitian.party/.well-known/openid-configuration
+```
 
-| 层级 | 测试内容 | 耗时 | 目的 |
-|------|---------|------|------|
-| **Smoke** | 核心服务可访问性 | 1-2 min | 部署后的冒烟测试，快速阻断 |
-| **Platform** | Ingress, Vault, Casdoor | 2-3 min | 验证平台基础组件是否正常工作 |
-| **Data** | Postgres, Redis, ClickHouse | 3-5 min | 验证数据层连接和基本读写权限 |
-| **Apps** | Portal, SSO flows, APIs | 5-10 min | 验证上层业务逻辑和用户交互流程 |
-| **E2E** | 全链路场景 | 10+ min | 完整模拟用户行为的端到端测试 |
+### 数据库连接失败
+```
+症状: test_postgresql_connection 失败
+→ 检查 Pod 启动
+  kubectl get pod -n data-prod -l app=postgres
+→ 测试连接（需要 port-forward）
+  kubectl run -it --rm debug --image=postgres:latest -- \
+    psql -h postgresql.data-prod.svc.cluster.local -U postgres
+```
+
+## CI/CD 集成
+
+### GitHub Actions
+
+已集成到 `.github/workflows/e2e-tests.yml`：
+
+**触发方式**:
+1. **Post-merge**: 推送到 `main` 分支时自动运行
+2. **手动触发**: GitHub Actions UI → `workflow_dispatch`
+3. **PR 评论**: 在 PR 中输入 `infra e2e`
+
+**工作流功能**:
+```yaml
+# e2e-tests.yml
+on:
+  push:
+    branches: [main]           # 合并后自动运行
+  workflow_dispatch:           # 手动触发
+    inputs:
+      test_scope: smoke|all    # 选择测试范围
+  workflow_call:               # 供其他 workflow 调用
+```
+
+**测试范围选项**:
+- `smoke`: 快速烟雾测试 (默认, ~2min)
+- `platform`: Platform 服务测试
+- `sso`: SSO/Portal 测试
+- `api`: API 健康测试
+- `all`: 全部测试
+
+## 维护
+
+| 任务 | 频率 | 命令 |
+|------|------|------|
+| 更新依赖 | 月 | `uv sync && uv lock` |
+| 运行全量测试 | 周 | `make test` |
+| 生成报告 | 按需 | `make report` |
+| 扩展测试 | 按需 | 在 `tests/` 新建 `test_*.py` |
+
+## 状态
+
+- ✅ **框架搭建**: 完成
+- ✅ **测试用例**: 39 个测试 (37 passed, 1 failed, 1 skipped)
+- ✅ **CI 集成**: 已完成 (`e2e-tests.yml`)
+- ⏳ **数据库测试**: 待补充 (`test_databases.py`)
 
 ---
 
-## 🔧 常见场景与故障排除
+## 架构问题讨论（#S-CI-ARCH）
 
-### 场景：部署后验证
-1. 运行 `make test-smoke`。
-2. 如果通过，系统基本健康。如果失败，查看具体报错的服务。
+### 问题：当前 CI 和命令体系脱节
 
-### 场景：调试 SSO 登录问题
-1. 设置 `HEADLESS=false` 或运行 `make test-headed`。
-2. 观察浏览器中的自动操作，确认是否卡在跳转、验证码或权限页面。
-3. 检查 `.env` 中的 `TEST_USERNAME` 和 `TEST_PASSWORD` 是否正确。
+**现状**：
+- Atlantis apply 成功 ≠ 部署成功
+- E2E 测试依赖手动触发或定时任务
+- 没有 feedback 机制告诉用户"部署实际成功了吗"
 
-### 故障排除指南
+**建议方案**：
 
-- **浏览器启动失败**：执行 `uv run playwright install chromium --with-deps` 重新安装依赖。
-- **超时（Timeout）**：服务响应慢可能导致测试超时。可在命令前加环境变量临时调整：`TIMEOUT_MS=60000 make test-smoke`。
-- **数据库连接失败**：
-    - 检查 `.env` 中的 `DB_HOST` 是否正确（是否需要端口转发？）。
-    - 确保测试运行环境（尤其是本地）能访问 K8s 集群内的 Service 地址（可能需要 VPN 或 `kubectl port-forward`）。
+#### 1. 定义"部署完全成功"的条件
+
+```
+Atlantis apply ✓ (基础设施同步)
+    ↓
+等待资源就绪 (Kubernetes 健康检查)
+    ↓
+运行 E2E 烟雾测试 (功能验证)
+    ↓
+CI 状态 = success/failure ← 这是最终答案
+```
+
+#### 2. 三层 CI 状态模型
+
+```
+❌ FAILED (apply 失败 或 资源就绪失败)
+  → 在 PR 评论中显示：❌ Deployment failed: [error]
+
+⚠️ PENDING (apply 成功，等待资源就绪)
+  → 在 PR 评论中显示：🟡 Running E2E tests...
+
+✅ SUCCESS (所有检查通过)
+  → 在 PR 评论中显示：✅ Deployment successful
+    - Vault: ready
+    - Dashboard: ready
+    - Portal: ready
+    - Databases: ready
+```
+
+#### 3. 建议的 GitHub Actions 流程
+
+```yaml
+post-apply-validation:
+  needs: atlantis-apply
+  if: needs.atlantis-apply.result == 'success'  # ← 关键：仅 apply 成功时运行
+
+  steps:
+    - name: 1️⃣ Wait for resources ready
+      run: |
+        kubectl wait --for=condition=ready pod \
+          -l app=vault -n platform --timeout=5m
+        # ... 其他资源 ...
+
+    - name: 2️⃣ Run E2E smoke tests
+      run: make test-smoke
+
+    - name: 3️⃣ Report results
+      if: always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const status = ${{ job.status }} === 'success' ? '✅' : '❌'
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            body: `${status} **Deployment Status**: ...`
+          })
+```
+
+#### 4. 优势
+
+✅ **clear**: 用户清楚知道部署是否真正完成
+✅ **fail-fast**: apply 失败立即停止，不浪费时间等待 E2E
+✅ **actionable**: 错误明确，容易定位问题
+✅ **measurable**: 有明确的 success/failure 指标
 
 ---
 
-## 🤖 CI/CD 集成
+## 参考
 
-本项目包含 GitHub Actions 配置示例 `.github-workflow-example.yml`。
-
-**集成步骤**：
-1. 将 `.github-workflow-example.yml` 复制到项目根目录的 `.github/workflows/e2e-tests.yml`。
-2. 在 GitHub 仓库 Settings -> Secrets 中配置必要的环境变量（`PORTAL_URL`, `TEST_USERNAME` 等）。
-3. 工作流将在 `main` 分支推送或 Pull Request 时自动触发。
-
----
-
-## 📚 参考文档
-
-- [Playwright Python Documentation](https://playwright.dev/python/)
-- [pytest Documentation](https://docs.pytest.org/)
+- 详细文档：`e2e_regressions/README.md`
+- 快速开始：`e2e_regressions/QUICK_START.md`
+- 架构深度：`e2e_regressions/ARCHITECTURE.md`
+- 测试策略：`e2e_regressions/TESTING_STRATEGY.md`
