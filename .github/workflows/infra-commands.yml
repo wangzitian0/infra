@@ -129,7 +129,22 @@ jobs:
         with:
           github-token: ${{ steps.app_token.outputs.token }}
           script: |
-            const body = "### 🛠️ Operations Hub\n\n- `@claude review this`: AI Code Review\n- `infra dig`: Health Check\n- `infra help`: This message";
+            const body = [
+              "### 🛠️ Operations Hub",
+              "",
+              "**L1 Bootstrap** (k3s, cert-manager, Platform PG, Atlantis):",
+              "- `bootstrap plan`: Preview L1 changes",
+              "- `bootstrap apply`: Deploy L1",
+              "",
+              "**L2/L3/L4** (Vault, Data, Apps - via Atlantis):",
+              "- `atlantis plan`: Preview changes",
+              "- `atlantis apply`: Deploy changes",
+              "",
+              "**Other**:",
+              "- `@claude review this`: AI Code Review",
+              "- `infra dig`: Health Check",
+              "- `infra help`: This message"
+            ].join('\n');
             await github.rest.issues.createComment({
               owner: context.repo.owner, repo: context.repo.repo,
               issue_number: ${{ github.event.issue.number || github.event.pull_request.number }},
