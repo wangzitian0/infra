@@ -83,26 +83,12 @@ jobs:
               per_page: 100
             });
 
-            // Find trigger comment and add 👀 reaction
+            // Find trigger comment for history link (👀 is handled by atlantis-acknowledge.yml)
             const atlantisCommentTime = new Date(context.payload.comment.created_at);
             const triggerComment = comments
               .filter(c => new Date(c.created_at) < atlantisCommentTime)
               .filter(c => (c.body || '').toLowerCase().includes(`atlantis ${stage.toLowerCase()}`))
               .pop();
-
-            if (triggerComment) {
-              try {
-                await github.rest.reactions.createForIssueComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: triggerComment.id,
-                  content: 'eyes'
-                });
-                console.log(`Added 👀 to trigger comment #${triggerComment.id}`);
-              } catch (e) {
-                console.log(`Could not add reaction: ${e.message}`);
-              }
-            }
 
             const prUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/pull/${prNumber}`;
             const MARKER = `<!-- infra-flash-commit:${targetSha} -->`;

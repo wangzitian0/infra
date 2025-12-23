@@ -50,6 +50,24 @@ jobs:
               return;
             }
 
+            // Method 1: Parse PR number from commit message (squash-and-merge format: "... (#123)")
+            const commit = await github.rest.repos.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha
+            });
+            const message = commit.data.commit.message;
+            const prMatch = message.match(/\(#(\d+)\)/);
+
+            if (prMatch) {
+              const prNumber = prMatch[1];
+              console.log(`Found PR #${prNumber} from commit message`);
+              core.setOutput('pr_number', prNumber);
+              core.setOutput('has_pr', 'true');
+              return;
+            }
+
+            // Method 2: Fallback to API lookup (for merge commits)
             const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -58,7 +76,7 @@ jobs:
 
             const merged = prs.data.find(pr => pr.merged_at);
             if (merged) {
-              console.log(`Found merged PR #${merged.number}`);
+              console.log(`Found merged PR #${merged.number} via API`);
               core.setOutput('pr_number', merged.number.toString());
               core.setOutput('has_pr', 'true');
             } else {
