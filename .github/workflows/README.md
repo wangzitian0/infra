@@ -131,25 +131,30 @@ L3 resource imports are handled by **Atlantis** (not GitHub Actions) via the sha
 
 ## Post-Merge Verification
 
-`post-merge-verify.yml` provides drift detection after PRs are merged:
-
-### Triggers
-| Trigger | When | Purpose |
-|:---|:---|:---|
-| `push` to main | After merge | Verify merged changes |
-| `workflow_dispatch` | Manual | On-demand verification |
+`post-merge-verify.yml` verifies infrastructure state after PR merge:
 
 ### Flow
-1. **L1 Verification**: Direct `terraform plan` in GHA
-2. **L2/L3/L4 Verification**: Creates temp drift-check PR → Atlantis autoplan → Auto-close
-3. **Results**: Posted to merged PR (push) or Issue (schedule with drift)
+```
+PR merge → push to main
+    ↓
+find-merged-pr (#xxx)
+    ↓
+┌─────────────────┬─────────────────────────┐
+│ verify-l1       │ verify-l234             │
+│ terraform plan  │ Comment "atlantis plan" │
+│ (direct in GHA) │ on merged PR #xxx       │
+└─────────────────┴─────────────────────────┘
+    ↓
+post-results → Summary comment on PR #xxx
+```
 
-### Status Icons
-| Status | Icon | Meaning |
+### Status
+| Status | Icon | Action |
 |:---|:---:|:---|
-| No changes | ✅ | Infrastructure matches code |
-| Drift detected | ⚠️ | Changes detected, create PR to sync |
-| Error | ❌ | Plan failed, check logs |
+| `no_changes` | ✅ | None |
+| `drift` | ⚠️ | Create PR to sync |
+| `error` | ❌ | Check logs |
+| `timeout` | ⏳ | Check Atlantis pod |
 
 ---
 *Last updated: 2025-12-23*

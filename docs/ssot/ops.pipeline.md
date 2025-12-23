@@ -88,56 +88,90 @@ sequenceDiagram
 
 ## 4. Post-Merge Verification
 
-Merge 到 main 后，系统自动执行全量验证以检测 drift 和部署健康状态。
+Merge 到 main 后，`post-merge-verify.yml` 自动执行全量验证。
 
-### 触发场景
-
-| 触发器 | 场景 | 说明 |
-|:---|:---|:---|
-| `push` to main | 代码合并后 | 自动验证刚合并的 PR |
-| `workflow_dispatch` | 手动触发 | 故障排查或按需验证 |
-
-### 验证流程
+### 完整流程
 
 ```mermaid
 sequenceDiagram
-    participant Main as main branch
+    participant User
     participant GHA as post-merge-verify.yml
-    participant L1 as L1 Terraform
-    participant Atlantis
-    participant PR as Merged PR
+    participant L1 as L1 Terraform (GHA)
+    participant Atlantis as Atlantis (VPS)
+    participant PR as Merged PR #xxx
 
-    Main->>GHA: push / schedule / manual
-    GHA->>GHA: Find merged PR (if push)
+    User->>PR: Merge PR
+    PR->>GHA: push to main
+
+    GHA->>GHA: 1. Find merged PR #xxx
 
     par L1 Verification
-        GHA->>L1: terraform plan (direct)
-        L1-->>GHA: no_changes / drift / error
+        GHA->>L1: 2a. terraform plan
+        L1-->>GHA: result (no_changes/drift/error)
     and L2/L3/L4 Verification
-        GHA->>GHA: Create drift-check branch
-        GHA->>Atlantis: Open PR (triggers autoplan)
-        Atlantis-->>GHA: Plan result
-        GHA->>GHA: Close drift-check PR
+        GHA->>PR: 2b. Comment "atlantis plan"
+        PR->>Atlantis: Webhook
+        Atlantis->>Atlantis: Run plan
+        Atlantis->>PR: Post result
+        GHA->>PR: 3. Poll for result (max 10min)
     end
 
-    GHA->>PR: Post verification summary
+    GHA->>PR: 4. Post summary comment
 ```
 
-### 结果输出
+### 触发条件
 
-| 场景 | 输出位置 | 内容 |
+| 触发器 | 场景 | 输出位置 |
 |:---|:---|:---|
-| Push 触发 | 被合并的 PR 评论 | L1/L2/L3/L4 验证摘要 |
-| Manual 触发 | Actions 日志 | 完整验证结果 |
+| `push` to main | PR 合并后自动 | 原 PR 评论 |
+| `workflow_dispatch` | 手动触发 | Actions 日志 |
 
-### Drift 状态定义
+### 状态定义
 
-| 状态 | 图标 | 含义 | 建议操作 |
-|:---|:---:|:---|:---|
-| `no_changes` | ✅ | 无漂移 | 无需操作 |
-| `drift` | ⚠️ | 检测到变更 | 创建 PR 同步状态 |
-| `error` | ❌ | 执行失败 | 检查日志修复问题 |
-| `skipped` | ⏭️ | 跳过验证 | 检查配置 |
+| 状态 | 图标 | 含义 |
+|:---|:---:|:---|
+| `no_changes` | ✅ | 基础设施与代码一致 |
+| `drift` | ⚠️ | 检测到配置漂移 |
+| `error` | ❌ | Plan 执行失败 |
+| `timeout` | ⏳ | Atlantis 响应超时 |
+| `skipped` | ⏭️ | 未执行（无 PR 上下文）|
+
+### 异常处理
+
+```mermaid
+flowchart TD
+    A{Post-Merge 触发}
+
+    A --> B{找到 merged PR?}
+    B -->|No| B1["workflow_dispatch 无 PR 上下文<br/>→ 仅输出到 Actions 日志"]
+    B -->|Yes| C[并行执行 L1 + L2/L3/L4]
+
+    C --> D{L1 Plan 结果?}
+    D -->|no_changes| D1["✅ L1 无漂移"]
+    D -->|drift| D2["⚠️ L1 有变更<br/>→ 检查是否需要 bootstrap apply"]
+    D -->|error| D3["❌ L1 Plan 失败<br/>→ 检查 backend 连接/credentials"]
+
+    C --> E{Atlantis 响应?}
+    E -->|10min 内收到| F{Plan 结果?}
+    E -->|超时| E1["⏳ Atlantis 超时<br/>→ 检查 Atlantis Pod 日志<br/>→ kubectl logs -n bootstrap atlantis-0"]
+
+    F -->|no_changes| F1["✅ L2/L3/L4 无漂移"]
+    F -->|drift| F2["⚠️ 有变更<br/>→ 创建新 PR 同步状态"]
+    F -->|error| F3["❌ Atlantis Plan 失败<br/>→ 检查 Vault token/Provider 配置"]
+
+    D1 & D2 & D3 & E1 & F1 & F2 & F3 --> G[汇总结果贴到 PR]
+```
+
+### 异常场景速查
+
+| 异常 | 症状 | 排查步骤 |
+|:---|:---|:---|
+| **找不到 PR** | `has_pr=false` | 检查是否通过 PR 合并（直接 push 无 PR 上下文）|
+| **L1 Backend 403** | `error reading state` | 检查 R2 credentials（`AWS_ACCESS_KEY_ID`）|
+| **L1 SSH 失败** | `connection refused` | 检查 VPS 连通性和 `VPS_SSH_KEY` |
+| **Atlantis 超时** | 10min 无响应 | `kubectl logs -n bootstrap atlantis-0` |
+| **Atlantis Vault 401** | `permission denied` | 重启 Atlantis Pod 刷新 token |
+| **Drift 但无变更记录** | 手动修改了基础设施 | `terraform import` 或手动回滚 |
 
 ---
 
