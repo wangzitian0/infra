@@ -51,6 +51,33 @@ Run before `terraform apply` to catch common issues early (e.g., Helm URL valida
 
 ---
 
+## L3 Import Script
+
+**File**: `l3-import.sh`
+
+Shared script for importing existing L3 resources (namespace, Helm releases, secrets) into Terraform state. Eliminates code duplication between Atlantis CI and GitHub Actions deploy workflows.
+
+### Usage
+```bash
+./0.tools/l3-import.sh <namespace> [terragrunt_command]
+```
+
+### Examples
+```bash
+# GitHub Actions (deploy-k3s.yml)
+./0.tools/l3-import.sh "data-prod" "terragrunt"
+
+# Atlantis (atlantis.yaml)
+./0.tools/l3-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
+```
+
+### Resources Imported
+- `kubernetes_namespace.data`
+- `helm_release.{postgresql,redis,clickhouse,arangodb_operator}`
+- `kubernetes_secret.arangodb_jwt`
+
+---
+
 ## README Coverage Check
 
 **File**: `check-readme-coverage.sh`
@@ -62,4 +89,4 @@ CI guard that ensures READMEs are updated when code in a directory changes. Outp
 Threshold: 60% of changed directories must have corresponding README updates.
 
 ---
-*Last updated: 2025-12-23 (Added GH_ACCOUNT support)*
+*Last updated: 2025-12-23 (Added L3 Import Script and GH_ACCOUNT support)*

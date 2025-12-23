@@ -145,36 +145,8 @@ jobs:
         run: |
           NS="data-prod"
 
-          # Import L3 namespace if it exists but not in state (e.g. after restructure)
-          echo "=== Importing L3 Namespace ==="
-          if kubectl get ns "$NS" 2>/dev/null && ! terragrunt state show kubernetes_namespace.data 2>/dev/null; then
-            echo "Importing existing namespace $NS..."
-            terragrunt import kubernetes_namespace.data "$NS" || true
-          fi
-
-          # Import existing helm releases if they exist in cluster but not in state
-          echo "=== Importing L3 Helm Releases ==="
-          declare -A HELM_RELEASES=(
-            ["helm_release.postgresql"]="postgresql"
-            ["helm_release.redis"]="redis"
-            ["helm_release.clickhouse"]="clickhouse"
-            ["helm_release.arangodb_operator"]="arangodb-operator"
-          )
-
-          for tf_resource in "${!HELM_RELEASES[@]}"; do
-            release_name="${HELM_RELEASES[$tf_resource]}"
-            if helm status "$release_name" -n "$NS" 2>/dev/null && ! terragrunt state show "$tf_resource" 2>/dev/null; then
-              echo "Importing $tf_resource from $NS/$release_name..."
-              terragrunt import "$tf_resource" "$NS/$release_name" || true
-            fi
-          done
-
-          # Import kubernetes_secret.arangodb_jwt if it exists but not in state
-          echo "=== Importing L3 Kubernetes Secrets ==="
-          if kubectl get secret arangodb-jwt -n "$NS" 2>/dev/null && ! terragrunt state show kubernetes_secret.arangodb_jwt 2>/dev/null; then
-            echo "Importing kubernetes_secret.arangodb_jwt..."
-            terragrunt import kubernetes_secret.arangodb_jwt "$NS/arangodb-jwt" || true
-          fi
+          # Use shared L3 import script (DRY)
+          ../../../0.tools/l3-import.sh "$NS" "terragrunt"
 
           # Start port-forward for ClickHouse provider (L3 uses data-prod)
           echo "=== Starting ClickHouse Port-Forward ==="
