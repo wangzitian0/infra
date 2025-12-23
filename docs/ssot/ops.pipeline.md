@@ -175,7 +175,7 @@ flowchart TD
 
 ---
 
-## 5. 运维节点与触发矩阵
+## 5. 运维指令矩阵
 
 我们将流程分为 **自动 (Push)** 和 **指令 (Comment)** 两个平面。
 
@@ -204,7 +204,7 @@ flowchart TD
 
 ---
 
-## 5. Dashboard Schema
+## 6. Dashboard Schema
 
 每个 `infra-flash` 评论遵循紧凑结构（~12行可见）：
 
@@ -265,7 +265,7 @@ flowchart TD
 
 ---
 
-## 6. SLA 与超时预期
+## 7. SLA 与超时预期
 
 | 阶段 | 正常耗时 | 超时阈值 | 超时处理 |
 |:---|:---|:---|:---|
@@ -278,7 +278,7 @@ flowchart TD
 
 ---
 
-## 7. 并发与竞态处理
+## 8. 并发与竞态处理
 
 ### 快速连续 Push
 - **策略**: 使用 `concurrency` 取消旧的 CI run。
@@ -294,7 +294,7 @@ flowchart TD
 
 ---
 
-## 8. 回滚策略
+## 9. 回滚策略
 
 ### Apply 失败场景
 
@@ -322,7 +322,7 @@ flowchart TD
 
 ---
 
-## 9. Troubleshooting 决策树
+## 10. Troubleshooting 决策树
 
 ```mermaid
 flowchart TD
@@ -365,7 +365,7 @@ flowchart TD
 
 ---
 
-## 10. 守卫节点与准入标准 (Guards & Admission)
+## 11. 守卫节点与准入标准 (Guards & Admission)
 
 为了确保流水线的健壮性，执行过程中嵌入了多个“守卫”节点。
 
@@ -378,7 +378,7 @@ flowchart TD
 
 ---
 
-## 11. 关键工作流清单 (Workflows)
+## 12. 关键工作流清单 (Workflows)
 
 | 文件 | 身份 | 职责 | 触发器 |
 |:---|:---|:---|:---|
@@ -393,7 +393,7 @@ flowchart TD
 
 ---
 
-## 12. 验收准则与测试场景 (UAT)
+## 13. 验收准则与测试场景 (UAT)
 
 | 场景 | 操作 | 预期 Dashboard 行为 | 预期 Identity |
 |:---|:---|:---|:---|
@@ -408,7 +408,7 @@ flowchart TD
 ---
 
 
-## 13. 版本要求与 SSOT
+## 14. 版本要求与 SSOT
 
 ### Terraform 版本 SSOT
 
@@ -435,7 +435,7 @@ Terraform 版本通过 **`.terraform-version`** 文件统一管理，确保四�
 
 ---
 
-## 14. 实现状态与 TODO
+## 15. 实现状态与 TODO
 
 ### 当前实现状态 (2025-12)
 
