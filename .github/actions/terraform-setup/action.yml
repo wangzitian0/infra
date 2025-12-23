@@ -15,7 +15,7 @@ inputs:
   working_directory:
     description: "Working directory for Terraform operations"
     required: false
-    default: "1.bootstrap"
+    default: "bootstrap"
 
 runs:
   using: "composite"
@@ -119,7 +119,7 @@ runs:
         PORT="${VPS_SSH_PORT:-22}"
         CLUSTER="${K3S_CLUSTER_NAME:-truealpha-k3s}"
         if [ -z "$HOST" ]; then exit 0; fi
-        KUBECONFIG_PATH="${GITHUB_WORKSPACE}/1.bootstrap/output/${CLUSTER}-kubeconfig.yaml"
+        KUBECONFIG_PATH="${GITHUB_WORKSPACE}/bootstrap/output/${CLUSTER}-kubeconfig.yaml"
         mkdir -p "$(dirname "${KUBECONFIG_PATH}")"
         if ssh -i ~/.ssh/id_rsa -p "${PORT}" -o StrictHostKeyChecking=no "root@${HOST}" "sudo cat /etc/rancher/k3s/k3s.yaml" > "${KUBECONFIG_PATH}" 2>/dev/null; then
           sed -i "s/127.0.0.1/${HOST}/g" "${KUBECONFIG_PATH}"
