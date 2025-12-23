@@ -114,3 +114,12 @@ workflows:
         # Terragrunt apply (uses PLANFILE from plan step)
         # Use TG_TF_PATH (new) instead of deprecated TERRAGRUNT_TFPATH
         - run: TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt apply -input=false $PLANFILE
+
+        # After successful apply, trigger E2E regression tests
+        - run: |
+            echo "Triggering E2E tests for branch: $HEAD_BRANCH_NAME"
+            gh workflow run e2e-tests.yml \
+              --ref $HEAD_BRANCH_NAME \
+              -f test_scope=smoke \
+              -f pr_number=$PULL_NUM \
+              -f commit_sha=$HEAD_COMMIT

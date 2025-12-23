@@ -156,8 +156,11 @@ jobs:
                 /\| Infra Apply \| .* \| .* \| .* \|/,
                 `| Infra Apply | ${statusIcon} | [View](${atlantisCommentUrl}) | ${timestamp} |`
               );
-              // Reset AI Review to pending when apply succeeds
               if (isSuccess) {
+                body = body.replace(
+                  /\| E2E Tests \| .* \| .* \| .* \|/,
+                  `| E2E Tests | ⏳ | Running... | ${timestamp} |`
+                );
                 body = body.replace(
                   /\| AI Review \| .* \| .* \| .* \|/,
                   `| AI Review | ⏳ | Running... | ${timestamp} |`
