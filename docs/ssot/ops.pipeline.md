@@ -14,6 +14,7 @@
 | **审计合规** | `infra-flash` 评论流 | GHA + Atlantis | 每一笔操作都有 Commit 级别的记录 |
 | **环境健康** | `infra dig` | GitHub Actions | 外部视角验证服务连通性 |
 | **L1 引导** | `deploy-L1-bootstrap.yml` | GitHub Actions | 初始引导（手动触发）|
+| **Drift 检测** | `post-merge-verify.yml` | GitHub Actions + Atlantis | Merge 后自动全量验证，防止配置漂移 |
 
 ---
 
@@ -85,7 +86,65 @@ sequenceDiagram
 
 ---
 
-## 4. 运维节点与触发矩阵
+## 4. Post-Merge Verification
+
+Merge 到 main 后，系统自动执行全量验证以检测 drift 和部署健康状态。
+
+### 触发场景
+
+| 触发器 | 场景 | 说明 |
+|:---|:---|:---|
+| `push` to main | 代码合并后 | 自动验证刚合并的 PR |
+| `schedule` (daily) | 定时检查 | 每日 UTC 00:00 (北京 08:00) |
+| `workflow_dispatch` | 手动触发 | 故障排查或按需验证 |
+
+### 验证流程
+
+```mermaid
+sequenceDiagram
+    participant Main as main branch
+    participant GHA as post-merge-verify.yml
+    participant L1 as L1 Terraform
+    participant Atlantis
+    participant PR as Merged PR
+
+    Main->>GHA: push / schedule / manual
+    GHA->>GHA: Find merged PR (if push)
+
+    par L1 Verification
+        GHA->>L1: terraform plan (direct)
+        L1-->>GHA: no_changes / drift / error
+    and L2/L3/L4 Verification
+        GHA->>GHA: Create drift-check branch
+        GHA->>Atlantis: Open PR (triggers autoplan)
+        Atlantis-->>GHA: Plan result
+        GHA->>GHA: Close drift-check PR
+    end
+
+    GHA->>PR: Post verification summary
+```
+
+### 结果输出
+
+| 场景 | 输出位置 | 内容 |
+|:---|:---|:---|
+| Push 触发 | 被合并的 PR 评论 | L1/L2/L3/L4 验证摘要 |
+| Schedule 触发 (无 drift) | 无输出 | 静默成功 |
+| Schedule 触发 (有 drift) | 新建 Issue | Drift 详情和修复建议 |
+| Manual 触发 | Actions 日志 | 完整验证结果 |
+
+### Drift 状态定义
+
+| 状态 | 图标 | 含义 | 建议操作 |
+|:---|:---:|:---|:---|
+| `no_changes` | ✅ | 无漂移 | 无需操作 |
+| `drift` | ⚠️ | 检测到变更 | 创建 PR 同步状态 |
+| `error` | ❌ | 执行失败 | 检查日志修复问题 |
+| `skipped` | ⏭️ | 跳过验证 | 检查配置 |
+
+---
+
+## 5. 运维节点与触发矩阵
 
 我们将流程分为 **自动 (Push)** 和 **指令 (Comment)** 两个平面。
 
@@ -97,6 +156,7 @@ sequenceDiagram
 2. **Static (静态)**: 同上，执行 `validate` 并更新评论中的 CI 表格。
 3. **Autoplan**: Atlantis 监听到 push，自动执行 `plan`，由 `infra-flash-update.yml` 将结果追加到评论。
 4. **Post-Apply Review**: `claude-code-review.yml` 在 `atlantis apply` 成功后自动触发，Claude 审查已部署的变更。
+5. **Post-Merge Verification**: `post-merge-verify.yml` 在 merge 到 main 后自动执行 L1-L4 全量 plan 验证。
 
 ### B. 指令平面 (Comment Trigger)
 
@@ -296,6 +356,7 @@ flowchart TD
 | `infra-commands.yml` | `infra-flash[bot]` | 指令分发器 (`dig`, `help`) | `issue_comment` |
 | `infra-flash-update.yml` | `infra-flash[bot]` | 监听并搬运 Atlantis 的输出到主评论 | `issue_comment` |
 | `deploy-L1-bootstrap.yml` | `infra-flash[bot]` | L1 Bootstrap (`bootstrap plan/apply`) | `issue_comment` / `workflow_dispatch` |
+| `post-merge-verify.yml` | `infra-flash[bot]` | Merge 后全量 L1-L4 drift 检测 | `push` (main) / `schedule` / `workflow_dispatch` |
 | `claude.yml` | `claude[bot]` | 响应 @claude 评论，执行 AI 任务 | `issue_comment` |
 | `claude-code-review.yml` | `claude[bot]` | Apply 成功后自动审查部署变更 | `workflow_run` |
 
