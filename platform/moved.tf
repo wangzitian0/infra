@@ -1,4 +1,4 @@
-# Migration History for L2 Platform
+# Migration History for Platform layer
 # ============================================================
 # This file contains `moved` blocks that track Terraform state migrations.
 # These blocks are REQUIRED to maintain state continuity across refactoring.
@@ -13,15 +13,15 @@
 # ============================================================
 
 # Note: This moved block is no longer needed since platform namespace
-# is now created in L1 (1.bootstrap/5.platform_pg.tf) as a NEW resource.
-# The old namespace resource in L2 is replaced by a data source.
+# is now created in Bootstrap (bootstrap/5.platform_pg.tf) as a NEW resource.
+# The old namespace resource in Platform layer is replaced by a data source.
 #
 # moved {
 #   from = kubernetes_namespace.security
 #   to   = kubernetes_namespace.platform
 # }
 
-# CRITICAL: kubernetes_namespace.platform is now managed by L1 (1.bootstrap/5.platform_pg.tf)
+# CRITICAL: kubernetes_namespace.platform is now managed by Bootstrap (bootstrap/5.platform_pg.tf)
 # The resource is removed from L2 state via atlantis.yaml workflow step:
 #   terraform state rm kubernetes_namespace.platform
 # This runs automatically before plan/apply to prevent namespace destruction.

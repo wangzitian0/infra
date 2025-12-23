@@ -1,4 +1,4 @@
-# data (Data Layer / Layer 3) - Production Environment
+# data (Data Layer) - Production Environment
 
 > **环境**: Production
 > **定位**: 模块维护文档（面向基础设施运维者）
@@ -12,20 +12,20 @@
 
 ## Architecture
 
-This layer provides stateful services for **Business Applications** (L4).
+This layer provides stateful services for **Business Applications**.
 
-*Note: Platform DB (for Vault/Casdoor) is in L1 (`1.bootstrap/5.platform_pg.tf`).*
+*Note: Platform DB (for Vault/Casdoor) is in Bootstrap (`bootstrap/5.platform_pg.tf`).*
 
 ### Password Flow (VSO Pattern - Issue #351)
 
 ```mermaid
 graph LR
-    subgraph "L2 Platform"
+    subgraph "Platform"
         VM[vault_mount.kv]
         VD[vault_mount.database]
         VSO[Vault Secrets Operator]
     end
-    subgraph "L3 Data"
+    subgraph "Data"
         RND[random_password] --> KV[Vault KV]
         KV --> |VaultStaticSecret| VSO
         VSO --> |sync| K8S[K8s Secret]
@@ -34,11 +34,11 @@ graph LR
     end
     VM --> KV
     VD --> DB_CFG
-    DB_CFG --> |dynamic creds| L4[L4 Apps]
-    KV --> |static creds| L4
+    DB_CFG --> |dynamic creds| APPS[Applications]
+    KV --> |static creds| APPS
 ```
 
-**L3 owns password generation** - L2 deploys VSO for automatic sync.
+**Data layer owns password generation** - Platform deploys VSO for automatic sync.
 
 **VSO Pattern**: Vault Secrets Operator automatically syncs Vault KV secrets to K8s Secrets:
 1. `random_password` generates password on first deploy
@@ -59,10 +59,10 @@ graph LR
 
 ### Deployment Order
 
-1. **L1** (Bootstrap): k3s, Platform PostgreSQL
-2. **L2** (Platform): Vault, vault_mount, VSO (Vault Secrets Operator)
-3. **L3** (Data): Create Vault KV → VSO syncs to K8s Secret → Helm uses existingSecret
-4. **L4** (Apps): Get dynamic credentials via Vault Agent
+1. **Bootstrap**: k3s, Platform PostgreSQL
+2. **Platform**: Vault, vault_mount, VSO (Vault Secrets Operator)
+3. **Data**: Create Vault KV → VSO syncs to K8s Secret → Helm uses existingSecret
+4. **Applications**: Get dynamic credentials via Vault Agent
 
 ### Credentials
 
@@ -93,11 +93,11 @@ terragrunt apply
 
 ### Namespace Ownership
 
-The `data-prod` namespace is **owned by L3** (`envs/prod/data/1.postgres.tf`). This follows the pattern:
-- L1 owns `kube-system`, `platform` (namespace created in L1)
-- L2 operates within `platform` (namespace passed from L1)
-- **L3 owns `data-prod`** (namespace created in L3 prod)
-- L4 operates within `apps-prod` (and may create app-specific namespaces)
+The `data-prod` namespace is **owned by Data layer**. This follows the pattern:
+- Bootstrap owns `kube-system`, `platform` (namespace created in Bootstrap)
+- Platform operates within `platform` (namespace passed from Bootstrap)
+- **Data owns `data-prod`** (namespace created in Data layer prod)
+- Applications operate within `apps-prod` (and may create app-specific namespaces)
 
 ### VSO Pattern Rationale
 

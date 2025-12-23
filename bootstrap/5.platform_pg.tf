@@ -1,14 +1,14 @@
-# L1.5: Platform PostgreSQL - Trust Anchor Database
-# Purpose: Shared database for L2 platform services (Vault, Casdoor)
-# Note: Deployed in L1 to avoid circular dependency with Vault
+# Platform PostgreSQL - Trust Anchor Database
+# Purpose: Shared database for Platform services (Vault, Casdoor)
+# Note: Deployed in Bootstrap to avoid circular dependency with Vault
 #
-# Why L1?
+# Why Bootstrap?
 # - Vault needs DB → Services need Vault → Can't use Vault to manage Vault's DB
 # - This breaks SSOT intentionally as Trust Anchor
 #
 # Consumers:
-# - Vault (L2): storage backend
-# - Casdoor (L2): user/session data
+# - Vault (Platform layer): storage backend
+# - Casdoor (Platform layer): user/session data
 
 locals {
   platform_pg_host        = "postgresql.platform.svc.cluster.local"
@@ -57,12 +57,12 @@ SQL
   platform_pg_init_hash   = substr(sha1(local.platform_pg_init_script), 0, 8)
 }
 
-# Create/manage platform namespace in L1 (before L2 Vault deployment)
+# Create/manage platform namespace in Bootstrap (before Platform layer Vault deployment)
 resource "kubernetes_namespace" "platform" {
   metadata {
     name = "platform"
     labels = {
-      layer = "L2"
+      layer = "Platform"
     }
   }
 }
@@ -177,7 +177,7 @@ resource "kubectl_manifest" "platform_pg_init" {
   depends_on = [helm_release.platform_pg]
 }
 
-# Output for L2 to consume
+# Output for Platform layer to consume
 output "platform_pg_host" {
   value       = local.platform_pg_host
   description = "Platform PostgreSQL service hostname"

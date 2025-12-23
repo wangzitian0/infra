@@ -14,7 +14,7 @@ data "local_file" "kubeconfig" {
 }
 
 output "kubeconfig" {
-  description = "Kubeconfig content for L2"
+  description = "Kubeconfig content for Platform layer"
   value       = data.local_file.kubeconfig.content
   sensitive   = true
 }

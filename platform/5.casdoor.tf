@@ -1,9 +1,9 @@
 # Casdoor - Unified SSO Platform
 # Namespace: platform
 # URL: sso.{internal_domain} (e.g., sso.zitian.party)
-# Database: L1 Platform PostgreSQL (vault database, separate casdoor schema)
+# Database: Bootstrap Platform PostgreSQL (vault database, separate casdoor schema)
 #
-# Purpose: Centralized authentication for all L2+ services
+# Purpose: Centralized authentication for all Platform+ services
 # - GitHub/Google OAuth as identity providers
 # - OIDC provider for Vault, Dashboard, Kubero, etc.
 #

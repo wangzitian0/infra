@@ -8,12 +8,7 @@
 
 ```mermaid
 flowchart TB
-    subgraph L0["L0: 人工密钥层"]
-        L0P["1Password: SSH Key, R2 Key, CF Token, Vault Unseal"]
-        L0G["GitHub Secrets: 所有 TF_VAR_* 注入"]
-    end
-
-    subgraph L1["L1: Bootstrap 层<br/>Trust Anchor - 不依赖任何 L2+ 组件"]
+    subgraph B_Layer["Bootstrap 层<br/>Trust Anchor - 不依赖任何 Platform+ 组件"]
         K3s["K3s"]
         PlatformPG["Platform PG"]
         Atlantis["Atlantis<br/>Basic Auth (独立，不走 SSO)"]
@@ -21,10 +16,10 @@ flowchart TB
         K3s --> Atlantis
     end
 
-    L0P --> K3s
-    L0G --> Atlantis
+    K3s-link[L0P] --> K3s
+    Atlantis-link[L0G] --> Atlantis
 
-    subgraph L2["L2: Platform"]
+    subgraph P_Layer["Platform 层"]
         Vault["Vault"]
         Casdoor["Casdoor"]
     end
@@ -34,18 +29,18 @@ flowchart TB
     Vault ---|DB 共享| Casdoor
     Casdoor -->|OIDC Provider| Vault
 
-    subgraph Services["L2/L4 服务矩阵"]
+    subgraph Services["Applications / Control Plane"]
         PortalGate["Portal Gate (OAuth2-Proxy)"]
-        Dashboard["Dashboard (L2)"]
-        Kubero["Kubero (L4)"]
-        Django["Django CMS (L4)"]
+        Dashboard["Dashboard (Platform)"]
+        Kubero["Kubero (Platform)"]
+        App["Business Apps"]
     end
 
     Casdoor --> PortalGate
     PortalGate --> Dashboard
     Casdoor --> Kubero
-    PortalGate --> Django
-    Vault --> Django
+    PortalGate --> App
+    Vault --> App
 ```
 
 ---
@@ -54,11 +49,11 @@ flowchart TB
 
 | 组件 | 日常认证 | 紧急绕过 | 备注 |
 |------|----------|----------|------|
-| **Atlantis** | Basic Auth | 本地 TF apply | L1 不走 SSO |
+| **Atlantis** | Basic Auth | 本地 TF apply | Bootstrap 不走 SSO |
 | **Vault UI** | Casdoor OIDC (原生) | Root Token (CLI) | 双认证路径 |
 | **Dashboard** | Portal Gate → Casdoor | kubectl proxy | ForwardAuth |
 | **Kubero** | Casdoor OIDC (原生) | - | 业务应用 |
-| **Django CMS** | Portal Gate → Casdoor | API Token (JWT) | ForwardAuth |
+| **Business Apps** | Portal Gate → Casdoor | API Token (JWT) | ForwardAuth |
 
 ---
 
@@ -66,11 +61,11 @@ flowchart TB
 
 | 组件挂掉 | 直接影响 | 间接影响 | 恢复难度 |
 |----------|----------|----------|----------|
-| **Platform PG** | Vault/Casdoor 不可用 | 所有 L2+ SSO | 需要 L1 apply + 备份恢复 |
-| **Vault** | 密钥注入失败 | L3/L4 新 Pod 启动 | Unseal Keys (1Password) |
+| **Platform PG** | Vault/Casdoor 不可用 | 所有 Platform+ SSO | 需要 Bootstrap apply + 备份恢复 |
+| **Vault** | 密钥注入失败 | Data/Apps 新 Pod 启动 | Unseal Keys (1Password) |
 | **Casdoor** | SSO 登录失败 | Vault OIDC / Portal Gate | Vault Root Token 绕过 |
 | **Portal Gate** | Dashboard 登录失败 | - | kubectl proxy 或重启 |
-| **Atlantis** | CI/CD 失败 | L2+ 无法 apply | 本地 terraform apply |
+| **Atlantis** | CI/CD 失败 | Platform+ 无法 apply | 本地 terraform apply |
 
 ---
 
@@ -103,7 +98,7 @@ flowchart TB
   3. atlantis apply 或本地 terraform apply
   4. PG 恢复后 Vault/Casdoor 自动恢复
 
-结论: 无死锁 (L1 独立于 L2)
+结论: 无死锁 (Bootstrap 独立于 Platform)
 ```
 
 ### 场景 3: Vault 挂了
@@ -161,7 +156,7 @@ flowchart TB
 | **Portal Gate** | kubectl port-forward | kubeconfig | 1Password |
 | **Dashboard** | kubectl proxy | kubeconfig | 1Password |
 | **Atlantis** | 本地 terraform apply | 所有根密钥 | 1Password |
-| **Platform PG** | L1 apply + pg restore | SSH Key + PG备份 | 1Password + VPS |
+| **Platform PG** | Bootstrap apply + pg restore | SSH Key + PG备份 | 1Password + VPS |
 
 ---
 
@@ -206,8 +201,8 @@ op read 'op://Infrastructure/Vault Root Token/credential'
 # 2. 更新 GitHub Secret
 gh secret set VAULT_ROOT_TOKEN --body "<token>" --repo wangzitian0/infra
 
-# 3. Apply L1 (更新 Atlantis Pod)
-cd 1.bootstrap
+# 3. Apply Bootstrap (更新 Atlantis Pod)
+cd bootstrap
 terraform apply
 
 # 4. 重试 Atlantis plan
@@ -390,7 +385,7 @@ kubectl get ingress -n platform
 
 | 设计原则 | 实现 | 死锁风险 |
 |----------|------|----------|
-| L1 独立于 L2 | Atlantis Basic Auth + GitHub Secrets | 无 |
+| Bootstrap 独立于 Platform | Atlantis Basic Auth + GitHub Secrets | 无 |
 | Vault 双认证 | 日常 OIDC + 紧急 Root Token | 无 |
 | 1Password Trust Anchor | 所有根密钥可从零重建 | 无 |
 | 每组件有绕过路径 | CLI/kubectl/本地 apply | 无 |

@@ -92,7 +92,7 @@
 ### 常见问题快速链接
 
 - 密钥权限错误 → [Vault 故障排查](./04.secrets.md#故障排查)
-- 部署失败 → [Kubero Troubleshooting](../../4.apps/README.md#troubleshooting)
+- 部署失败 → [Kubero Troubleshooting](../../platform/README.md#troubleshooting)
 - 无法访问应用 → [网络和域名](../ssot/platform.network.md)
 - 登录问题 → [认证故障排查](./05.sso.md#常见问题)
 
@@ -102,9 +102,9 @@
 
 - **平台架构总览** - [docs/README.md](../README.md)
 - **SSOT 索引** - [docs/ssot/README.md](../ssot/README.md)
-- **Layer 文档** - [L4 Apps](../../4.apps/README.md) · [L2 Platform](../../2.platform/README.md)
+- **Layer 文档** - [Platform](../../platform/README.md) · [Bootstrap](../../bootstrap/README.md)
 - **变更日志** - [docs/change_log/](../change_log/)
 
 ---
 
-*Last updated: 2025-12-22*
+*Last updated: 2025-12-24*

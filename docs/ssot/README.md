@@ -50,11 +50,11 @@
 |------|----------|----------|
 | [db.overview.md](./db.overview.md) | 数据库总览 + Quick Start | 各库快速接入、Vault 机制概述 |
 | [db.vault-integration.md](./db.vault-integration.md) | Vault 接入详解 | Per-App Token、新应用接入流程、故障排查 |
-| [db.platform_pg.md](./db.platform_pg.md) | Platform PG (L1) | Vault/Casdoor 后端 |
-| [db.business_pg.md](./db.business_pg.md) | Business PG (L3) | 业务应用数据库 |
-| [db.redis.md](./db.redis.md) | Redis (L3) | 缓存、消息队列 |
-| [db.clickhouse.md](./db.clickhouse.md) | ClickHouse (L3) | OLAP、SigNoz |
-| [db.arangodb.md](./db.arangodb.md) | ArangoDB (L3) | 图数据库 |
+| [db.platform_pg.md](./db.platform_pg.md) | Platform PG | Vault/Casdoor 后端 |
+| [db.business_pg.md](./db.business_pg.md) | Business PG | 业务应用数据库 |
+| [db.redis.md](./db.redis.md) | Redis | 缓存、消息队列 |
+| [db.clickhouse.md](./db.clickhouse.md) | ClickHouse | OLAP、SigNoz |
+| [db.arangodb.md](./db.arangodb.md) | ArangoDB | 图数据库 |
 
 > DB SSOT Key 约定：`db.platform_pg` / `db.business_pg` / `db.redis` / `db.clickhouse` / `db.arangodb`（跨文档引用时统一使用）。
 
@@ -64,7 +64,7 @@
 
 | 文件 | 核心问题 | 关键内容 |
 |------|----------|----------|
-| [ops.pipeline.md](./ops.pipeline.md) | 流程汇总 | PR CI + Atlantis (L2/L3/L4) + deploy-L1-bootstrap (手动) |
+| [ops.pipeline.md](./ops.pipeline.md) | 流程汇总 | PR CI + Atlantis (Platform/Data) + deploy-bootstrap (手动) |
 | [ops.e2e-regressions.md](./ops.e2e-regressions.md) | 部署验证 | E2E 自动化测试、烟雾测试、CI 架构讨论 |
 | [ops.recovery.md](./ops.recovery.md) | 故障恢复 | Secrets 恢复、Vault Token、State Lock |
 | [ops.storage.md](./ops.storage.md) | 存储与备份 | /data、StorageClass、R2 备份与同步 |
@@ -87,17 +87,13 @@
 
 ```mermaid
 flowchart TB
-    L1["L1 Bootstrap<br/>Trust Anchor - 打破 SSOT<br/>• K3s Cluster<br/>• Platform PostgreSQL<br/>• Atlantis CI<br/>密钥来源：GitHub Secrets"]
-    L2["L2 Platform<br/>(Vault, SSO)<br/>依赖: L1 PG"]
-    L3["L3 Data<br/>(业务数据库)<br/>依赖: L2 Vault"]
-    L4["L4 Apps<br/>(Kubero, SigNoz)<br/>依赖: L2 + L3"]
+    B["Bootstrap<br/>Trust Anchor<br/>• K3s Cluster<br/>• Platform PostgreSQL<br/>• Atlantis CI<br/>密钥来源：GitHub Secrets"]
+    P["Platform<br/>(Vault, SSO, PaaS, Obs)<br/>依赖: Bootstrap"]
+    D["Data<br/>(业务数据库)<br/>依赖: Platform (Vault)"]
 
-    L1 --> L2
-    L1 --> L3
-    L1 --> L4
-    L2 --> L3
-    L2 --> L4
-    L3 --> L4
+    B --> P
+    B --> D
+    P --> D
 ```
 
 ---

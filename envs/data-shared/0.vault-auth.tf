@@ -8,7 +8,7 @@
 # Flow: VSO → VaultAuth → Vault Kubernetes Auth → secret/data/* → K8s Secret
 # =============================================================================
 
-# Wait for VSO CRDs to be available (deployed by L2)
+# Wait for VSO CRDs to be available (deployed by Platform)
 # This ensures kubectl_manifest can validate VaultAuth CRD exists
 resource "time_sleep" "wait_for_vso" {
   create_duration = "10s"

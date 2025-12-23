@@ -56,7 +56,7 @@ resource "helm_release" "vault_secrets_operator" {
   }
 }
 
-# Wait for VSO CRDs to be available before L3 can create VaultStaticSecret CRs
+# Wait for VSO CRDs to be available before Data layer can create VaultStaticSecret CRs
 resource "time_sleep" "wait_for_vso_crd" {
   create_duration = "30s"
   depends_on      = [helm_release.vault_secrets_operator]

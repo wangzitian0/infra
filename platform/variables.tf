@@ -1,8 +1,8 @@
-# L2 Platform Variables (Vault)
-# Populated via TF_VAR_* from 1.bootstrap/2.atlantis.tf
+# Platform Variables (Vault)
+# Populated via TF_VAR_* from Bootstrap
 
 variable "environment" {
-  description = "Environment name (passed from terragrunt inputs, not used in L2 but declared for consistency)"
+  description = "Environment name (passed from terragrunt inputs, not used in Platform but declared for consistency)"
   type        = string
   default     = "default"
 }
@@ -44,7 +44,7 @@ variable "vault_image_tag" {
 }
 
 variable "vault_postgres_password" {
-  description = "PostgreSQL password for Vault storage backend (from GitHub Secret via L1)"
+  description = "PostgreSQL password for Vault storage backend (from GitHub Secret via Bootstrap)"
   type        = string
   sensitive   = true
 

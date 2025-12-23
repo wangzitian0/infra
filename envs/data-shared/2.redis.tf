@@ -1,6 +1,5 @@
-# L3 Redis
-#
-# Purpose: Cache and session storage for L4 applications
+# Purpose: Cache and session storage for applications
+
 #
 # Architecture (VSO Pattern - Issue #351):
 # - random_password generates password on first deploy
@@ -28,8 +27,8 @@ resource "random_password" "redis" {
 # =============================================================================
 
 resource "vault_kv_secret_v2" "redis" {
-  mount               = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name                = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]
+  mount               = data.terraform_remote_state.platform.outputs.vault_kv_mount
+  name                = data.terraform_remote_state.platform.outputs.vault_db_secrets["redis"]
   delete_all_versions = true
 
   data_json = jsonencode({
@@ -60,8 +59,8 @@ resource "kubectl_manifest" "redis_vault_secret" {
     }
     spec = {
       type  = "kv-v2"
-      mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-      path  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]
+      mount = data.terraform_remote_state.platform.outputs.vault_kv_mount
+      path  = data.terraform_remote_state.platform.outputs.vault_db_secrets["redis"]
       destination = {
         name   = "redis-credentials"
         create = true
@@ -165,6 +164,6 @@ output "redis_port" {
 }
 
 output "redis_vault_path" {
-  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["redis"]}"
+  value       = "${data.terraform_remote_state.platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.platform.outputs.vault_db_secrets["redis"]}"
   description = "Vault KV path for Redis credentials"
 }

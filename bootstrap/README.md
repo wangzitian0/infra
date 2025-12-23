@@ -1,11 +1,11 @@
-# 1.bootstrap (L1 Bootstrap Layer)
+# bootstrap (Bootstrap Layer)
 
 **Scope**: Zero-dependency infrastructure bootstrap.
 
 - **K3s Cluster**: VPS provisioning via SSH
 - **Atlantis CI**: GitOps workflow engine
 - **DNS/Cert**: Cloudflare DNS + Let's Encrypt
-- **Namespace**: `kube-system`, `bootstrap` (L1 layer)
+- **Namespace**: `kube-system`, `bootstrap` (Bootstrap layer)
 
 ## Architecture
 
@@ -27,8 +27,8 @@ Managed by **GitHub Actions only** (not Atlantis).
 |------|---------|
 | `backend.tf` | R2/S3 state backend config |
 | `providers.tf` | Provider definitions |
-| `variables.tf` | All L1 variables |
-| `outputs.tf` | Kubeconfig + R2 credentials for L2 |
+| `variables.tf` | All Bootstrap variables |
+| `outputs.tf` | Kubeconfig + R2 credentials for Platform layer |
 
 ## Domain Scheme
 
@@ -51,12 +51,12 @@ If the `1.bootstrap` layer fails to retrieve VPS metadata, ensure the `VPS_HOST`
 
 ```bash
 # First-time setup (run locally with credentials)
-cd 1.bootstrap
+cd bootstrap
 terraform init
 terraform apply
 ```
 
-## Outputs for L2
+## Outputs for Platform layer
 
 | Output | Description |
 |--------|-------------|
@@ -66,11 +66,11 @@ terraform apply
 
 ## Atlantis TF_VAR Passthrough
 
-L1 Atlantis passes the following variables to L2/L3:
+Bootstrap Atlantis passes the following variables to Platform/Data:
 
 | TF_VAR | Purpose | Source |
 |--------|---------|--------|
-| `vault_root_token` | Vault access for L2 database engine config | 1Password → GitHub Secret |
+| `vault_root_token` | Vault access for Platform database engine config | 1Password → GitHub Secret |
 | `casdoor_admin_password` | Casdoor SSO admin | 1Password → GitHub Secret |
 | `github_oauth_client_id` | OAuth2-Proxy | GitHub OAuth App |
 | `github_oauth_client_secret` | OAuth2-Proxy | GitHub OAuth App |

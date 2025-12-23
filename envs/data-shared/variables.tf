@@ -1,4 +1,4 @@
-# L3 Data Layer Variables
+# Data Layer Variables
 
 variable "kubeconfig_path" {
   description = "Path to kubeconfig file (set via TF_VAR_kubeconfig_path in Atlantis)"

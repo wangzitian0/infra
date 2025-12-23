@@ -1,7 +1,7 @@
 # Vault (Secrets Management) - PostgreSQL Storage Backend
 # Namespace: platform
 # Access: https://secrets.{internal_domain}
-# Storage: PostgreSQL (deployed in L1 as Platform PG)
+# Storage: PostgreSQL (deployed in Bootstrap as Platform PG)
 #
 # MANUAL INIT REQUIRED after first deployment:
 #   kubectl exec -n platform vault-0 -- vault operator init
@@ -10,7 +10,7 @@
 #   kubectl exec -n platform vault-0 -- vault operator unseal <key2>
 #   kubectl exec -n platform vault-0 -- vault operator unseal <key3>
 
-# Platform namespace (created in L1 by 5.platform_pg.tf)
+# Platform namespace (created in Bootstrap by 5.platform_pg.tf)
 # Using data source to reference existing namespace
 data "kubernetes_namespace" "platform" {
   metadata {

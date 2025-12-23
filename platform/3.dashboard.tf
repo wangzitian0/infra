@@ -1,5 +1,4 @@
-# Phase 1.3: Kubernetes Dashboard (Web UI for Cluster Management)
-# Namespace: platform (L2 layer - shared with other platform services)
+# Namespace: platform (Platform layer - shared with other platform services)
 # Access: Ingress via kdashboard.{internal_domain}
 # Note: Dashboard namespace merged into platform namespace
 

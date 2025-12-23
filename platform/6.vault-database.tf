@@ -3,11 +3,11 @@
 # Purpose: Configure Vault secrets engines (KV + database)
 # 
 # Architecture (after refactor):
-# - L2: Only creates Vault mounts (this file)
-# - L3: Generates passwords, stores in Vault KV, configures Database Engine
-# - L4: Uses dynamic credentials from Vault
+# - Platform: Only creates Vault mounts (this file)
+# - Data: Generates passwords, stores in Vault KV, configures Database Engine
+# - Applications: Uses dynamic credentials from Vault
 #
-# Note: Password generation and Database Engine config moved to L3 (Issue #336)
+# Note: Password generation and Database Engine config moved to Data (Issue #336)
 
 # =============================================================================
 # Vault Secrets Engines (IaC - replaces manual vault secrets enable)
@@ -47,11 +47,11 @@ resource "vault_mount" "kv" {
 resource "vault_mount" "database" {
   path        = "database"
   type        = "database"
-  description = "Database secrets engine for dynamic credentials (configured by L3)"
+  description = "Database secrets engine for dynamic credentials (configured by Data layer)"
 }
 
 # =============================================================================
-# Outputs (for L3 to consume via terraform_remote_state)
+# Outputs (for Data layer to consume via terraform_remote_state)
 # =============================================================================
 
 output "vault_kv_mount" {
@@ -64,7 +64,7 @@ output "vault_database_mount" {
   value       = vault_mount.database.path
 }
 
-# SSOT for secret names (L3 uses these to know where to store credentials)
+# SSOT for secret names (Data layer uses these to know where to store credentials)
 output "vault_db_secrets" {
   description = "Map of database names to their Vault KV secret names"
   value       = local.vault_db_secrets

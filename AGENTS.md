@@ -26,15 +26,14 @@ For a detailed map of where everything lives, refer to:
 
 Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 
-## Module Quick Reference (L1-L4)
+## Module Quick Reference
 
-| Layer | Directory (Docs) | Responsibility |
+| Module | Directory (Docs) | Responsibility |
 |---|---|---|
-| **L0 Root** | [`0.tools`](0.tools/README.md) / [`docs`](docs/README.md) | Scripts, CI Automation, Documentation |
-| **L1 Bootstrap** | [`1.bootstrap`](1.bootstrap/README.md) | Raw VPS provisioning, k3s installation, DNS/Cert, Atlantis |
-| **L2 Platform** | [`2.platform`](2.platform/README.md) | Secrets (Vault), K8s Dashboard, Casdoor |
-| **L3 Data** | [`3.data`](3.data/README.md) | Business DBs (Postgres, Redis, Neo4j, ClickHouse) |
-| **L4 Apps** | [`4.apps`](4.apps/README.md) | Applications (prod/staging) |
+| **Root** | [`0.tools`](0.tools/README.md) / [`docs`](docs/README.md) | Scripts, CI Automation, Documentation |
+| **Bootstrap** | [`bootstrap`](bootstrap/README.md) | Raw VPS provisioning, k3s installation, DNS/Cert, Atlantis |
+| **Platform** | [`platform`](platform/README.md) | Control Plane (Vault, SSO, PaaS, Observability) |
+| **Data** | [`envs/{env}/data`](envs/README.md) | Business DBs (Postgres, Redis, ClickHouse, etc.) |
 
 # Standard Operating Procedure (SOP)
 
@@ -49,10 +48,10 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
     5. Commit/PR (Triggers CI).
 
 ## 2. Security & State
-- **Backend**: Cloudflare R2 (S3-compatible). Defined in `1.bootstrap/backend.tf`.
+- **Backend**: Cloudflare R2 (S3-compatible). Defined in `bootstrap/backend.tf`.
 - **Secrets Strategy**:
-    - **L0/L1 (Bootstrap)**: Local Env Vars / GitHub Secrets (`VPS_SSH_KEY`, `R2_*`).
-    - **L2+ (Runtime)**: Vault (deployed in L2).
+    - **Bootstrap**: Local Env Vars / GitHub Secrets (`VPS_SSH_KEY`, `R2_*`).
+    - **Platform+ (Runtime)**: Vault (deployed in Platform layer).
 - **Prohibited**:
     - NEVER commit `*.tfvars`, `*.pem`, `*.key`.
     - NEVER hardcode secrets in `.tf` (use `random_password` or vars).
@@ -94,9 +93,7 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 
 # Documentation Responsibilities (Where to write?)
 
-| Type | Location | Description |
-|---|---|---|
 | **DONE (History)** | `docs/change_log/` | What was finished. (Symlinked by `0.check_now.md`) |
 | **TODO (Plan)** | `docs/project/README.md` | **Mandatory** for all incomplete work/plans. |
-| **TRUTH (SSOT)** | `{1.bootstrap,2.platform,3.data,4.apps}/README.md` | Implementation details, Architecture, Usage. |
+| **TRUTH (SSOT)** | `{bootstrap,platform,envs/**/data}/README.md` | Implementation details, Architecture, Usage. |
 | **Concepts** | `docs/README.md` | Abstract design decisions only. |
