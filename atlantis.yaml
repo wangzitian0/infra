@@ -120,6 +120,6 @@ workflows:
             echo "Triggering E2E tests for branch: $HEAD_BRANCH_NAME"
             gh workflow run e2e-tests.yml \
               --ref $HEAD_BRANCH_NAME \
-              -f test_scope=smoke \
+              -f test_scope=all \
               -f pr_number=$PULL_NUM \
               -f commit_sha=$HEAD_COMMIT

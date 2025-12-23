@@ -15,7 +15,7 @@ on:
       test_scope:
         description: 'Test scope to run'
         required: false
-        default: 'smoke'
+        default: 'all'
         type: choice
         options:
           - smoke
@@ -38,7 +38,7 @@ on:
       test_scope:
         description: 'Test scope to run'
         required: false
-        default: 'smoke'
+        default: 'all'
         type: string
       pr_number:
         description: 'PR number for dashboard update'
@@ -124,7 +124,7 @@ jobs:
       - name: Run E2E tests
         working-directory: e2e_regressions
         run: |
-          SCOPE="${{ inputs.test_scope || 'smoke' }}"
+          SCOPE="${{ inputs.test_scope || 'all' }}"
           case $SCOPE in
             smoke)   MARKER="-m smoke" ;;
             compute) MARKER="$SCOPE_COMPUTE" ;;
