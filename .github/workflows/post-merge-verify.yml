@@ -1,12 +1,11 @@
 name: Post-Merge Verification
 
 # Runs full infrastructure verification after merge to main
-# Flow:
-# 1. Find the merged PR
-# 2. L1: Direct terraform plan in GHA
-# 3. L2/L3/L4: Comment `atlantis plan` on the merged PR
-# 4. Wait for Atlantis result
-# 5. Post summary to merged PR
+# Flow (Plan then Apply if drift):
+# 1. Bootstrap (Plan -> Apply)
+# 2. Platform (Plan -> Apply)
+# 3. Data Staging (Plan -> Apply)
+# 4. Data Prod (Plan -> Apply)
 
 on:
   push:
@@ -15,7 +14,6 @@ on:
       - "bootstrap/**"
       - "platform/**"
       - "envs/**"
-      - "platform/**"
   workflow_dispatch:
 
 env:
@@ -50,7 +48,6 @@ jobs:
               return;
             }
 
-            // Method 1: Parse PR number from commit message (squash-and-merge format: "... (#123)")
             const commit = await github.rest.repos.getCommit({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -67,7 +64,6 @@ jobs:
               return;
             }
 
-            // Method 2: Fallback to API lookup (for merge commits)
             const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -85,14 +81,13 @@ jobs:
               core.setOutput('has_pr', 'false');
             }
 
-  # L1 Bootstrap verification (direct terraform plan)
-  verify-l1:
+  # 1. Bootstrap verification and auto-apply
+  verify-bootstrap:
     needs: find-merged-pr
-    if: needs.find-merged-pr.outputs.has_pr == 'true'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
-      summary: ${{ steps.plan.outputs.summary }}
+      summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
     permissions:
       contents: read
     steps:
@@ -101,26 +96,25 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup Terraform Environment (L1)
+      - name: Setup Terraform (Bootstrap)
         uses: ./.github/actions/terraform-setup
         with:
           working_directory: "bootstrap"
           tf_state_key: "k3s/terraform.tfstate"
           secrets_json: ${{ toJSON(secrets) }}
 
-      - name: Terraform Plan (L1)
+      - name: Terraform Plan
         id: plan
         working-directory: bootstrap
         continue-on-error: true
         run: |
-          echo "Running L1 Bootstrap plan..."
+          echo "Running Bootstrap plan..."
           OUTPUT=$(terraform plan -no-color -detailed-exitcode 2>&1) || EXIT_CODE=$?
           EXIT_CODE=${EXIT_CODE:-0}
 
-          # Exit codes: 0=no changes, 1=error, 2=changes pending
           if [[ $EXIT_CODE -eq 0 ]]; then
             echo "result=no_changes" >> $GITHUB_OUTPUT
-            echo "summary=✅ No drift" >> $GITHUB_OUTPUT
+            echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
           elif [[ $EXIT_CODE -eq 2 ]]; then
             echo "result=drift" >> $GITHUB_OUTPUT
             CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
@@ -129,113 +123,187 @@ jobs:
             echo "result=error" >> $GITHUB_OUTPUT
             ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:" | head -1 || echo "Plan failed")
             echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
+            exit 1
           fi
 
-  # L2/L3/L4 verification via atlantis plan on merged PR
-  verify-l234:
-    needs: find-merged-pr
-    if: needs.find-merged-pr.outputs.has_pr == 'true'
+      - name: Terraform Apply
+        id: apply
+        if: steps.plan.outputs.result == 'drift'
+        working-directory: bootstrap
+        run: |
+          echo "Applying Bootstrap changes..."
+          if terraform apply -auto-approve -no-color; then
+            echo "summary=🚀 Applied successfully" >> $GITHUB_OUTPUT
+          else
+            echo "summary=❌ Apply failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+  # 2. Platform verification and auto-apply
+  verify-platform:
+    needs: [find-merged-pr, verify-bootstrap]
     runs-on: ubuntu-latest
     outputs:
-      result: ${{ steps.wait.outputs.result }}
-      summary: ${{ steps.wait.outputs.summary }}
+      result: ${{ steps.plan.outputs.result }}
+      summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
     steps:
-      - name: Generate App Token
-        id: app_token
-        uses: actions/create-github-app-token@v1
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          submodules: true
 
-      - name: Trigger Atlantis Plan
-        id: trigger
-        uses: actions/github-script@v7
+      - name: Setup Terragrunt (Platform)
+        uses: ./.github/actions/terraform-setup
         with:
-          github-token: ${{ steps.app_token.outputs.token }}
-          script: |
-            const prNumber = parseInt('${{ needs.find-merged-pr.outputs.pr_number }}');
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+          working_directory: "platform"
+          secrets_json: ${{ toJSON(secrets) }}
 
-            // Post atlantis plan comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: `atlantis plan
+      - name: Terragrunt Plan
+        id: plan
+        working-directory: platform
+        continue-on-error: true
+        run: |
+          echo "Running Platform plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive 2>&1) || EXIT_CODE=$?
+          
+          if echo "$OUTPUT" | grep -q "No changes."; then
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+            echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
+          elif echo "$OUTPUT" | grep -q "Plan:"; then
+            echo "result=drift" >> $GITHUB_OUTPUT
+            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
+            echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
+          else
+            echo "result=error" >> $GITHUB_OUTPUT
+            ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:|panic:" | head -1 || echo "Plan failed")
+            echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
-              <!-- post-merge-verify: ${context.runId} -->
-              🔄 **Post-Merge Verification** triggered by [workflow run](${runUrl})`
-            });
+      - name: Terragrunt Apply
+        id: apply
+        if: steps.plan.outputs.result == 'drift'
+        working-directory: platform
+        run: |
+          echo "Applying Platform changes..."
+          if terragrunt apply -auto-approve -no-color --terragrunt-non-interactive; then
+            echo "summary=🚀 Applied successfully" >> $GITHUB_OUTPUT
+          else
+            echo "summary=❌ Apply failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
-            console.log(`Triggered atlantis plan on PR #${prNumber}`);
-            core.setOutput('trigger_time', new Date().toISOString());
-
-      - name: Wait for Atlantis Result
-        id: wait
-        uses: actions/github-script@v7
+  # 3. Data Staging verification and auto-apply
+  verify-data-staging:
+    needs: [find-merged-pr, verify-platform]
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.plan.outputs.result }}
+      summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          github-token: ${{ steps.app_token.outputs.token }}
-          script: |
-            const prNumber = parseInt('${{ needs.find-merged-pr.outputs.pr_number }}');
-            const triggerTime = new Date('${{ steps.trigger.outputs.trigger_time }}');
-            const maxWait = 10 * 60 * 1000; // 10 minutes
-            const pollInterval = 15 * 1000; // 15 seconds
-            const startTime = Date.now();
+          submodules: true
 
-            console.log(`Waiting for Atlantis plan on PR #${prNumber}...`);
+      - name: Setup Terragrunt (Data Staging)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "envs/staging/data"
+          secrets_json: ${{ toJSON(secrets) }}
 
-            let result = 'timeout';
-            let summary = '⏳ Atlantis plan timed out';
+      - name: Terragrunt Plan
+        id: plan
+        working-directory: envs/staging/data
+        continue-on-error: true
+        run: |
+          echo "Running Data Staging plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive 2>&1) || EXIT_CODE=$?
+          
+          if echo "$OUTPUT" | grep -q "No changes."; then
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+            echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
+          elif echo "$OUTPUT" | grep -q "Plan:"; then
+            echo "result=drift" >> $GITHUB_OUTPUT
+            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
+            echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
+          else
+            echo "result=error" >> $GITHUB_OUTPUT
+            ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:|panic:" | head -1 || echo "Plan failed")
+            echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
-            while (Date.now() - startTime < maxWait) {
-              await new Promise(r => setTimeout(r, pollInterval));
+      - name: Terragrunt Apply
+        id: apply
+        if: steps.plan.outputs.result == 'drift'
+        working-directory: envs/staging/data
+        run: |
+          echo "Applying Data Staging changes..."
+          if terragrunt apply -auto-approve -no-color --terragrunt-non-interactive; then
+            echo "summary=🚀 Applied successfully" >> $GITHUB_OUTPUT
+          else
+            echo "summary=❌ Apply failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
-              const comments = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: prNumber,
-                per_page: 20
-              });
+  # 4. Data Prod verification and auto-apply
+  verify-data-prod:
+    needs: [find-merged-pr, verify-platform]
+    runs-on: ubuntu-latest
+    outputs:
+      result: ${{ steps.plan.outputs.result }}
+      summary: ${{ steps.apply.outputs.summary || steps.plan.outputs.summary }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
 
-              // Find Atlantis response after our trigger
-              const atlantisComment = comments.data
-                .filter(c => new Date(c.created_at) > triggerTime)
-                .find(c => c.user.login === 'infra-flash[bot]' && c.body.includes('Ran Plan'));
+      - name: Setup Terragrunt (Data Prod)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "envs/prod/data"
+          secrets_json: ${{ toJSON(secrets) }}
 
-              if (atlantisComment) {
-                const body = atlantisComment.body;
-                const hasError = /\*\*Plan Error\*\*|panic:/i.test(body);
-                const noChanges = /No changes\.|infrastructure matches/i.test(body);
-                const hasChanges = /Plan:.*to (add|import|change|destroy)/i.test(body);
+      - name: Terragrunt Plan
+        id: plan
+        working-directory: envs/prod/data
+        continue-on-error: true
+        run: |
+          echo "Running Data Prod plan..."
+          OUTPUT=$(terragrunt plan -no-color --terragrunt-non-interactive 2>&1) || EXIT_CODE=$?
+          
+          if echo "$OUTPUT" | grep -q "No changes."; then
+            echo "result=no_changes" >> $GITHUB_OUTPUT
+            echo "summary=✅ Already up to date" >> $GITHUB_OUTPUT
+          elif echo "$OUTPUT" | grep -q "Plan:"; then
+            echo "result=drift" >> $GITHUB_OUTPUT
+            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
+            echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
+          else
+            echo "result=error" >> $GITHUB_OUTPUT
+            ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:|panic:" | head -1 || echo "Plan failed")
+            echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
-                if (hasError) {
-                  result = 'error';
-                  summary = '❌ Atlantis plan failed';
-                } else if (noChanges) {
-                  result = 'no_changes';
-                  summary = '✅ No drift';
-                } else if (hasChanges) {
-                  result = 'drift';
-                  const match = body.match(/Plan:.*?([\d]+ to add.*?[\d]+ to destroy)/);
-                  summary = `⚠️ ${match ? match[1] : 'Changes detected'}`;
-                } else {
-                  result = 'unknown';
-                  summary = '❓ Could not parse Atlantis output';
-                }
-
-                console.log(`Atlantis plan completed: ${result}`);
-                break;
-              }
-
-              console.log(`Waiting... (${Math.round((Date.now() - startTime) / 1000)}s)`);
-            }
-
-            core.setOutput('result', result);
-            core.setOutput('summary', summary);
+      - name: Terragrunt Apply
+        id: apply
+        if: steps.plan.outputs.result == 'drift'
+        working-directory: envs/prod/data
+        run: |
+          echo "Applying Data Prod changes..."
+          if terragrunt apply -auto-approve -no-color --terragrunt-non-interactive; then
+            echo "summary=🚀 Applied successfully" >> $GITHUB_OUTPUT
+          else
+            echo "summary=❌ Apply failed" >> $GITHUB_OUTPUT
+            exit 1
+          fi
 
   # Post summary to merged PR
   post-results:
-    needs: [find-merged-pr, verify-l1, verify-l234]
+    needs: [find-merged-pr, verify-bootstrap, verify-platform, verify-data-staging, verify-data-prod]
     if: always() && needs.find-merged-pr.outputs.has_pr == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -255,50 +323,46 @@ jobs:
             const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-            const l1Result = '${{ needs.verify-l1.outputs.result }}' || 'skipped';
-            const l1Summary = '${{ needs.verify-l1.outputs.summary }}' || '⏭️ Skipped';
-            const l234Result = '${{ needs.verify-l234.outputs.result }}' || 'skipped';
-            const l234Summary = '${{ needs.verify-l234.outputs.summary }}' || '⏭️ Skipped';
+            const results = {
+              bootstrap: '${{ needs.verify-bootstrap.outputs.result }}' || 'skipped',
+              platform: '${{ needs.verify-platform.outputs.result }}' || 'skipped',
+              staging: '${{ needs.verify-data-staging.outputs.result }}' || 'skipped',
+              prod: '${{ needs.verify-data-prod.outputs.result }}' || 'skipped'
+            };
 
-            const hasDrift = l1Result === 'drift' || l234Result === 'drift';
-            const hasError = l1Result === 'error' || l234Result === 'error';
-            const hasTimeout = l234Result === 'timeout';
+            const summaries = {
+              bootstrap: '${{ needs.verify-bootstrap.outputs.summary }}' || '⏭️ Skipped',
+              platform: '${{ needs.verify-platform.outputs.summary }}' || '⏭️ Skipped',
+              staging: '${{ needs.verify-data-staging.outputs.summary }}' || '⏭️ Skipped',
+              prod: '${{ needs.verify-data-prod.outputs.summary }}' || '⏭️ Skipped'
+            };
 
-            let overallIcon, overallStatus;
-            if (hasError) {
-              overallIcon = '❌';
-              overallStatus = 'Error';
-            } else if (hasTimeout) {
-              overallIcon = '⏳';
-              overallStatus = 'Timeout';
-            } else if (hasDrift) {
-              overallIcon = '⚠️';
-              overallStatus = 'Drift Detected';
-            } else {
-              overallIcon = '✅';
-              overallStatus = 'No Drift';
-            }
+            const hasError = Object.values(results).includes('error');
+            const hasDrift = Object.values(results).includes('drift');
 
-            const statusIcon = (r) => r === 'no_changes' ? '✅' : (r === 'drift' ? '⚠️' : (r === 'error' ? '❌' : (r === 'timeout' ? '⏳' : '⏭️')));
+            let overallIcon = '✅', overallStatus = 'Success';
+            if (hasError) { overallIcon = '❌'; overallStatus = 'Failed'; }
+            else if (hasDrift) { overallIcon = '🚀'; overallStatus = 'Applied Changes'; }
+
+            const statusIcon = (r) => r === 'no_changes' ? '✅' : (r === 'drift' ? '🚀' : (r === 'error' ? '❌' : '⏭️'));
 
             const body = [
-              `## ${overallIcon} Post-Merge Verification: ${overallStatus}`,
+              `## ${overallIcon} Post-Merge Deployment: ${overallStatus}`,
               '',
               '| Layer | Status | Details |',
               '|:---|:---:|:---|',
-              `| L1 Bootstrap | ${statusIcon(l1Result)} | ${l1Summary} |`,
-              `| L2/L3/L4 Atlantis | ${statusIcon(l234Result)} | ${l234Summary} |`,
+              `| Bootstrap | ${statusIcon(results.bootstrap)} | ${summaries.bootstrap} |`,
+              `| Platform | ${statusIcon(results.platform)} | ${summaries.platform} |`,
+              `| Data Staging | ${statusIcon(results.staging)} | ${summaries.staging} |`,
+              `| Data Prod | ${statusIcon(results.prod)} | ${summaries.prod} |`,
               '',
               `**Time**: ${timestamp} | [Workflow Run](${runUrl})`,
               '',
-              hasDrift ? '> ⚠️ **Action**: Review drift and create PR to reconcile if needed.' : '',
-              hasError ? '> ❌ **Action**: Check logs and fix errors.' : '',
-              hasTimeout ? '> ⏳ **Action**: Atlantis may be slow. Check Atlantis pod logs.' : '',
-              !hasDrift && !hasError && !hasTimeout ? '> ✅ Infrastructure state matches code.' : '',
+              hasError ? '> ❌ **Action**: Some layers failed to apply. Check logs and fix manually.' : '> ✅ All infrastructure layers are up to date.',
               '',
               '---',
-              '🤖 Generated by Post-Merge Verification'
-            ].filter(Boolean).join('\n');
+              '🤖 Generated by Post-Merge Auto-Apply'
+            ].join('\n');
 
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -306,10 +370,3 @@ jobs:
               issue_number: prNumber,
               body: body
             });
-
-            console.log(`Posted verification summary to PR #${prNumber}`);
-
-            // Fail the workflow if there are errors
-            if (hasError) {
-              core.setFailed('Post-merge verification found errors');
-            }
