@@ -16,24 +16,18 @@ async def test_postgresql_connect():
     if not all([db_host, db_password]):
         pytest.skip("DB credentials not configured")
     
-    try:
-        import asyncpg
-        
-        conn = await asyncpg.connect(
-            host=db_host,
-            port=int(os.getenv("DB_PORT", "5432")),
-            user=os.getenv("DB_USER", "postgres"),
-            password=db_password,
-            timeout=10.0,
-        )
-        
-        result = await conn.fetchval('SELECT 1')
-        assert result == 1
-        await conn.close()
-    except ImportError:
-        pytest.skip("asyncpg not installed")
-    except Exception as e:
-        pytest.fail(f"PostgreSQL connection failed: {e}")
+    import asyncpg
+    conn = await asyncpg.connect(
+        host=db_host,
+        port=int(os.getenv("DB_PORT", "5432")),
+        user=os.getenv("DB_USER", "postgres"),
+        password=db_password,
+        timeout=10.0,
+    )
+    
+    result = await conn.fetchval('SELECT 1')
+    assert result == 1
+    await conn.close()
 
 
 @pytest.mark.database
@@ -45,18 +39,15 @@ async def test_postgresql_version():
     if not all([db_host, db_password]):
         pytest.skip("DB credentials not configured")
     
-    try:
-        import asyncpg
-        
-        conn = await asyncpg.connect(
-            host=db_host,
-            port=int(os.getenv("DB_PORT", "5432")),
-            user=os.getenv("DB_USER", "postgres"),
-            password=db_password,
-        )
-        
-        version = await conn.fetchval('SELECT version()')
-        assert "PostgreSQL" in version
-        await conn.close()
-    except ImportError:
-        pytest.skip("asyncpg not installed")
+    import asyncpg
+    conn = await asyncpg.connect(
+        host=db_host,
+        port=int(os.getenv("DB_PORT", "5432")),
+        user=os.getenv("DB_USER", "postgres"),
+        password=db_password,
+    )
+    
+    version = await conn.fetchval('SELECT version()')
+    assert "PostgreSQL" in version
+    await conn.close()
+

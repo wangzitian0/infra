@@ -1,43 +1,30 @@
 """
 Atlantis CI/CD service tests.
 
-Tests Atlantis webhook endpoint and UI accessibility.
+Tests Atlantis configuration and deployment status.
 """
 import pytest
-import httpx
-from playwright.async_api import Page
+import pathlib
 
 
 @pytest.mark.bootstrap
-async def test_atlantis_webhook_accessible():
-    """Verify Atlantis webhook endpoint is accessible."""
-    # Atlantis typically runs on a webhook URL
-    # This test checks if the service is up
-    
-    # You'll need to configure ATLANTIS_URL in .env
-    # For now, this is a placeholder showing the test structure
-    
-    # Example:
-    # async with httpx.AsyncClient(verify=False) as client:
-    #     response = await client.get(f"{atlantis_url}/healthz", timeout=10.0)
-    #     assert response.status_code == 200
-    
-    pytest.skip("ATLANTIS_URL not configured - add to .env to enable")
+async def test_atlantis_config_exists():
+    """Verify atlantis.yaml configuration file exists."""
+    atlantis_config = pathlib.Path(__file__).parent.parent.parent.parent.parent / "atlantis.yaml"
+    assert atlantis_config.exists(), "atlantis.yaml should exist in repo root"
 
 
 @pytest.mark.bootstrap
-async def test_atlantis_ui_loads(page: Page):
-    """Verify Atlantis UI can load (if exposed)."""
-    # If Atlantis UI is exposed, test it loads
-    # Otherwise skip
+async def test_atlantis_config_not_empty():
+    """Verify atlantis.yaml has content."""
+    atlantis_config = pathlib.Path(__file__).parent.parent.parent.parent.parent / "atlantis.yaml"
     
-    pytest.skip("Atlantis UI typically not exposed - webhook only")
+    if not atlantis_config.exists():
+        pytest.skip("atlantis.yaml not found")
+    
+    content = atlantis_config.read_text()
+    assert len(content) > 100, "atlantis.yaml should have substantial content"
+    assert "version:" in content or "version :" in content, "Config should specify version"
+    assert "projects:" in content or "projects :" in content, "Config should define projects"
 
 
-@pytest.mark.bootstrap
-async def test_atlantis_github_webhook_configured():
-    """Verify GitHub webhook is properly configured for Atlantis."""
-    # This would require GitHub API access
-    # Placeholder for structural completeness
-    
-    pytest.skip("Requires GitHub API credentials")
