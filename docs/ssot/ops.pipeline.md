@@ -13,7 +13,7 @@
 | **AI 护栏** | `@claude review` / 自动 | Claude App (Haiku 4.5) | 文档一致性、IaC 规范、安全审计 |
 | **审计合规** | `infra-flash` 评论流 | GHA + Atlantis | 每一笔操作都有 Commit 级别的记录 |
 | **环境健康** | `infra dig` | GitHub Actions | 外部视角验证服务连通性 |
-| **全量恢复** | `deploy-k3s.yml` | GitHub Actions | 灾备与初始引导 (Bootstrap) |
+| **L1 引导** | `deploy-L1-bootstrap.yml` | GitHub Actions | 初始引导（手动触发）|
 
 ---
 
@@ -291,7 +291,7 @@ flowchart TD
 | `infra-flash-update.yml` | `infra-flash[bot]` | 监听并搬运 Atlantis 的输出到主评论 | `issue_comment` |
 | `claude.yml` | `claude[bot]` | 响应 @claude 评论，执行 AI 任务 | `issue_comment` |
 | `claude-code-review.yml` | `claude[bot]` | Apply 成功后自动审查部署变更 | `workflow_run` |
-| `deploy-k3s.yml` | `github-actions` | 灾备平面：全量 L1-L4 Flash | `push` to main |
+| `deploy-L1-bootstrap.yml` | `github-actions` | L1 初始引导 (k3s, cert-manager, Platform PG, Atlantis) | `workflow_dispatch` (手动) |
 
 ---
 
@@ -320,7 +320,7 @@ Terraform 版本通过 **`.terraform-version`** 文件统一管理，确保四�
 |:---|:---|:---|
 | PR CI (`terraform validate`) | `.terraform-version` | `terraform-plan.yml` 读取文件 |
 | Atlantis (`plan/apply`) | `required_version` 约束 | 各层 `versions.tf` 设置 `>= X.Y.Z` |
-| Post-merge (`deploy-k3s`) | `.terraform-version` | `terraform-setup` action 读取 |
+| L1 Bootstrap | `.terraform-version` | `deploy-L1-bootstrap.yml` 读取（手动触发）|
 | Local dev | `.terraform-version` | tfenv/asdf 自动读取 |
 
 **版本更新流程**：只需修改 `.terraform-version` 和各层 `required_version` 约束。
@@ -380,7 +380,7 @@ Terraform 版本通过 **`.terraform-version`** 文件统一管理，确保四�
 
 - [ ] **文档-代码同步检查**: CI 检查 workflow 变更是否同步更新了本 SSOT
 
-*Last Updated: 2025-12-22*
+*Last Updated: 2025-12-23*
 
 ## Used by
 

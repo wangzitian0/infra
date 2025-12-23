@@ -1,0 +1,125 @@
+name: Deploy L1 Bootstrap
+
+# L1 Bootstrap: k3s, cert-manager, Platform PG, Atlantis
+# Purpose: Initial setup and disaster recovery ONLY
+# Daily operations should use Atlantis for L2/L3/L4
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "bootstrap" to confirm L1 deployment'
+        required: true
+        type: string
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TG_NON_INTERACTIVE: "true"
+
+jobs:
+  validate-input:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirmation
+        if: github.event.inputs.confirm != 'bootstrap'
+        run: |
+          echo "::error::You must type 'bootstrap' to confirm L1 deployment"
+          exit 1
+
+  apply:
+    needs: validate-input
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # =========================================================
+      # L1 Bootstrap: K3s, Cert-Manager, Platform PG, Atlantis
+      # =========================================================
+      - name: Setup Terraform Environment (L1)
+        uses: ./.github/actions/terraform-setup
+        with:
+          working_directory: "1.bootstrap"
+          tf_state_key: "k3s/terraform.tfstate"
+          secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Pre-flight Check (Helm URLs)
+        run: |
+          chmod +x 0.tools/preflight-check.sh
+          0.tools/preflight-check.sh
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.28.4
+
+      - name: Import Existing Resources
+        working-directory: 1.bootstrap
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          if ! terraform state show kubernetes_config_map_v1.local_path_config 2>/dev/null; then
+            terraform import kubernetes_config_map_v1.local_path_config kube-system/local-path-config || true
+          fi
+          if ! terraform state show helm_release.atlantis 2>/dev/null; then
+            terraform import helm_release.atlantis bootstrap/atlantis || true
+          fi
+
+      - name: Pre-flight (3-State Consistency)
+        working-directory: 1.bootstrap
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          TF_HAS_ATLANTIS=$(terraform state show helm_release.atlantis 2>/dev/null && echo "yes" || echo "no")
+          HELM_HAS_ATLANTIS=$(helm status atlantis -n bootstrap 2>/dev/null && echo "yes" || echo "no")
+          if [ "$HELM_HAS_ATLANTIS" = "yes" ] && [ "$TF_HAS_ATLANTIS" = "no" ]; then
+            kubectl -n bootstrap get secrets -o name | grep "sh.helm.release.v1.atlantis" | xargs -r kubectl -n bootstrap delete || true
+            kubectl delete deployment -n bootstrap atlantis 2>/dev/null || true
+          elif [ "$HELM_HAS_ATLANTIS" = "no" ] && [ "$TF_HAS_ATLANTIS" = "yes" ]; then
+            terraform state rm helm_release.atlantis || true
+          fi
+
+      - name: Apply Infrastructure (L1)
+        working-directory: 1.bootstrap
+        run: terraform apply -auto-approve
+
+      - name: Verify L1 (Smoke Test)
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          set -euo pipefail
+          echo "=== L1 Bootstrap Verification ==="
+
+          echo "Checking nodes..."
+          kubectl get nodes -o wide
+
+          echo "Checking cert-manager..."
+          kubectl -n cert-manager rollout status deployment/cert-manager --timeout=180s
+
+          echo "Checking Atlantis..."
+          kubectl -n bootstrap wait --for=condition=Ready pod/atlantis-0 --timeout=180s
+
+          echo "Checking Platform PG..."
+          kubectl -n platform wait --for=condition=Ready pod -l app.kubernetes.io/name=postgresql --timeout=180s
+
+          echo ""
+          echo "========================================"
+          echo "L1 Bootstrap Complete!"
+          echo "========================================"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Unseal Vault (if needed): kubectl exec -n platform vault-0 -- vault operator unseal"
+          echo "  2. Create PR to deploy L2/L3/L4 via Atlantis"
+          echo ""
+
+      - name: Upload kubeconfig
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: ${{ env.KUBECONFIG_PATH }}
