@@ -5,10 +5,10 @@ on:
     branches: [main]
     paths:
       - "0.tools/**"
-      - "1.bootstrap/**"
-      - "2.platform/**"
+      - "bootstrap/**"
+      - "platform/**"
       - "envs/**"
-      - "4.apps/**"
+      - "platform/**"
       - ".github/workflows/**"
 
 # Cancel in-progress runs for same PR
@@ -176,13 +176,13 @@ jobs:
 
       - name: TFLint (L1)
         id: lint_l1
-        working-directory: 1.bootstrap
+        working-directory: bootstrap
         run: tflint --init && tflint --recursive --minimum-failure-severity=error
         continue-on-error: true
 
       - name: TFLint (L2)
         id: lint_l2
-        working-directory: 2.platform
+        working-directory: platform
         run: tflint --init && tflint --recursive --minimum-failure-severity=error
         continue-on-error: true
 
@@ -190,12 +190,12 @@ jobs:
       # TFLint would need to run against both directories separately
       - name: TFLint (L3)
         id: lint_l3
-        run: echo "Skipped - L3 now uses directory-based isolation (envs/*/3.data/)"
+        run: echo "Skipped - L3 now uses directory-based isolation (envs/*/data/)"
         continue-on-error: true
 
       - name: TFLint (L4)
         id: lint_l4
-        working-directory: 4.apps
+
         run: tflint --init && tflint --recursive --minimum-failure-severity=error
         continue-on-error: true
 
@@ -206,7 +206,7 @@ jobs:
 
       - name: Validate (L1)
         id: validate_l1
-        working-directory: 1.bootstrap
+        working-directory: bootstrap
         run: terraform init -backend=false -input=false -no-color && terraform validate -no-color
         continue-on-error: true
 
@@ -220,7 +220,7 @@ jobs:
 
       - name: Validate (L3)
         id: validate_l3
-        run: echo "Skipped - L3 now uses Terragrunt + directory isolation (envs/*/3.data/)"
+        run: echo "Skipped - L3 now uses Terragrunt + directory isolation (envs/*/data/)"
         continue-on-error: true
 
       - name: Validate (L4)

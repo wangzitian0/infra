@@ -1,19 +1,17 @@
-# Atlantis Repo Configuration (L2/L3/L4 Only)
+# Atlantis Repo Configuration (Platform + Data Layers Only)
 #
 # Layer Responsibility:
-#   L1 (1.bootstrap)        → CI ONLY via deploy-L1-bootstrap.yml (manual trigger)
-#   L2 (2.platform)         → Atlantis (this file)
-#   L3 (envs/*/3.data)      → Atlantis (this file)
-#   L4 (4.apps)             → Atlantis (this file)
+#   L1 (bootstrap)              → CI ONLY via deploy-L1-bootstrap.yml (manual trigger)
+#   L2 (platform)               → Atlantis (this file) - includes Vault, Casdoor, Kubero, SigNoz
+#   L3 (envs/*/data)            → Atlantis (this file)
 #
 # TF VERSION: Atlantis uses required_version constraint from terragrunt-generated versions.tf
 # This ensures consistency with .terraform-version (SSOT) used by CI and local dev.
 #
 # DIRECTORY STRUCTURE:
-#   2.platform/             → L2 singleton (shared by all environments)
-#   envs/staging/3.data/    → L3 staging data layer
-#   envs/prod/3.data/       → L3 production data layer
-#   4.apps/                 → L4 singleton control plane (manages all environments)
+#   platform/                   → Platform layer (shared by all environments)
+#   envs/staging/data/          → Staging data layer
+#   envs/prod/data/             → Production data layer
 
 version: 3
 
@@ -25,12 +23,13 @@ parallel_apply: false
 projects:
   # L1: Bootstrap (GitHub Actions only, NOT managed by Atlantis)
   # - name: bootstrap
-  #   dir: 1.bootstrap
+  #   dir: bootstrap
   #   ... (Disabled - L1 should only be managed by GitHub Actions)
 
   # L2: Platform (Singleton - shared by all environments)
+  # Includes: Vault, Casdoor, Dashboard, Kubero, SigNoz
   - name: platform
-    dir: 2.platform
+    dir: platform
     terraform_version: "1.11.0"  # Must match .terraform-version
     workflow: terragrunt
     autoplan:
@@ -38,7 +37,7 @@ projects:
 
   # L3: Data (Staging Environment)
   - name: data-staging
-    dir: envs/staging/3.data
+    dir: envs/staging/data
     terraform_version: "1.11.0"  # Must match .terraform-version
     workflow: terragrunt
     autoplan:
@@ -46,18 +45,7 @@ projects:
 
   # L3: Data (Production Environment)
   - name: data-prod
-    dir: envs/prod/3.data
-    terraform_version: "1.11.0"  # Must match .terraform-version
-    workflow: terragrunt
-    autoplan:
-      enabled: true
-
-  # L4: Apps (Singleton - Control Plane)
-  # Multi-environment workload separation is handled at application level:
-  # - Kubero: via Pipeline (env) + Phase (stage within env)
-  # - SigNoz: monitors all environments from single deployment
-  - name: apps
-    dir: 4.apps
+    dir: envs/prod/data
     terraform_version: "1.11.0"  # Must match .terraform-version
     workflow: terragrunt
     autoplan:

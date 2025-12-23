@@ -1,0 +1,1 @@
+../../data-shared/.terraform.lock.hcl

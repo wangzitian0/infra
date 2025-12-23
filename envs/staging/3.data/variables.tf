@@ -1,1 +1,0 @@
-../../3.data-shared/variables.tf

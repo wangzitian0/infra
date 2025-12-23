@@ -1,0 +1,1 @@
+../../data-shared/0.vault-auth.tf
