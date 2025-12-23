@@ -284,24 +284,39 @@ graph LR
 
 #### 1. 为用户分配 Casdoor Role
 
-**方式 A：通过 Terraform 管理（推荐）**
+**方式 A：通过 1Password + GitHub Secret（推荐，自动化）**
 
-编辑 `2.platform/91.casdoor-roles.tf`，在对应 role 的 `users` 数组中添加用户：
+1. **在 1Password 中添加密钥**：
+   - 打开 1Password vault `my_cloud`
+   - 找到 item `Infra-OAuth`
+   - 添加字段 `GH_ACCOUNT`，值为你的 GitHub 邮箱（如：`wangzitian0@gmail.com`）
+
+2. **同步到 GitHub Secrets**：
+   ```bash
+   cd /path/to/codex_infra
+   python3 0.tools/sync_secrets.py
+   ```
+
+3. **自动生效**：
+   - GitHub Actions 会自动读取 `GH_ACCOUNT` 并设置 `TF_VAR_gh_account`
+   - Terraform 会自动将 `built-in/${GH_ACCOUNT}` 添加到 `vault-admin` role
+   - 下次 Terraform apply 时生效
+
+**方式 B：通过 Terraform 手动编辑（高级用户）**
+
+编辑 `2.platform/91.casdoor-roles.tf` 中的 `vault_admin_users` local 变量：
 
 ```hcl
-resource "restapi_object" "role_vault_admin" {
-  # ...
-  data = jsonencode({
-    # ...
-    users = [
-      "built-in/alice",   # 管理员
-      "built-in/bob"
-    ]
-  })
+locals {
+  # 添加更多用户到管理员列表
+  vault_admin_users = [
+    "built-in/alice@example.com",
+    "built-in/bob@example.com"
+  ]
 }
 ```
 
-**方式 B：通过 Casdoor Web UI（临时操作）**
+**方式 C：通过 Casdoor Web UI（临时测试）**
 
 1. 登录 `https://sso.zitian.party`
 2. 进入 `Roles` 管理页面

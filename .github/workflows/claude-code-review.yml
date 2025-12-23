@@ -1,15 +1,18 @@
 name: Claude Code Review
 
 on:
-  # Trigger when infra-flash update completes (after Atlantis apply)
-  workflow_run:
-    workflows: ["Update infra-flash Comment"]
-    types: [completed]
+  # Trigger when Atlantis apply comment is posted
+  issue_comment:
+    types: [created]
 
 jobs:
   claude-review:
-    # Only run if apply succeeded (check artifact or use workflow_run data)
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # Only run on PR Apply success from infra-flash bot
+    if: |
+      github.event.issue.pull_request &&
+      github.event.comment.user.login == 'infra-flash[bot]' &&
+      contains(github.event.comment.body, 'Ran Apply') &&
+      contains(github.event.comment.body, 'Apply complete!')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -18,87 +21,40 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download workflow info
+      - name: Get PR info
+        id: pr_info
         uses: actions/github-script@v7
-        id: check_apply
         with:
+          result-encoding: string
           script: |
-            // Get the workflow run that triggered us
-            const run = context.payload.workflow_run;
-
-            // We need to check if this was an apply success
-            // The infra-flash-update workflow sets outputs, but we can't access them directly
-            // Instead, check the PR comments for the apply success marker
-
-            // Get PR number from the head branch
-            const headBranch = run.head_branch;
-            const headSha = run.head_sha.substring(0, 7);
-
-            // Find associated PR
-            const pulls = await github.rest.pulls.list({
+            const pr = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              head: `${context.repo.owner}:${headBranch}`,
-              state: 'open'
+              pull_number: context.payload.issue.number
             });
 
-            if (pulls.data.length === 0) {
-              console.log('No open PR found for branch ' + headBranch);
-              core.setOutput('should_review', 'false');
-              return;
-            }
-
-            const pr = pulls.data[0];
-            core.setOutput('pr_number', pr.number.toString());
+            const headSha = pr.data.head.sha.substring(0, 7);
+            core.setOutput('pr_number', context.payload.issue.number.toString());
             core.setOutput('head_sha', headSha);
+            core.setOutput('head_ref', pr.data.head.ref);
 
-            // Check if latest Atlantis comment shows successful apply
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.number,
-              per_page: 100
-            });
-
-            // Find most recent Atlantis apply comment
-            const applyComment = comments
-              .filter(c => c.user.login === 'infra-flash[bot]')
-              .filter(c => c.body.includes('Ran Apply'))
-              .pop();
-
-            if (!applyComment) {
-              console.log('No apply comment found');
-              core.setOutput('should_review', 'false');
-              return;
-            }
-
-            // Check if apply was successful (no error markers)
-            const hasError = /\*\*Apply Error\*\*|exit status [1-9]|panic:/i.test(applyComment.body);
-            if (hasError) {
-              console.log('Apply failed, skipping review');
-              core.setOutput('should_review', 'false');
-              return;
-            }
-
-            console.log('Apply succeeded, proceeding with review');
-            core.setOutput('should_review', 'true');
+            console.log(`PR #${context.payload.issue.number} - SHA: ${headSha} - Branch: ${pr.data.head.ref}`);
+            return headSha;
 
       - name: Checkout repository
-        if: steps.check_apply.outputs.should_review == 'true'
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ steps.pr_info.outputs.head_ref }}
           fetch-depth: 1
 
       - name: Run Claude Code Review
-        if: steps.check_apply.outputs.should_review == 'true'
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ steps.check_apply.outputs.pr_number }}
+            PR NUMBER: ${{ steps.pr_info.outputs.pr_number }}
 
             Atlantis apply completed successfully. Review this PR for:
             - Code quality and best practices
@@ -111,13 +67,13 @@ jobs:
           claude_args: '--model claude-haiku-4-5 --allowed-tools "Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"'
 
       - name: Update Dashboard
-        if: always() && steps.check_apply.outputs.should_review == 'true'
+        if: always()
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const prNumber = parseInt('${{ steps.check_apply.outputs.pr_number }}');
-            const sha = '${{ steps.check_apply.outputs.head_sha }}';
+            const prNumber = parseInt('${{ steps.pr_info.outputs.pr_number }}');
+            const sha = '${{ steps.pr_info.outputs.head_sha }}';
             const marker = `<!-- infra-flash-commit:${sha} -->`;
 
             const comments = await github.paginate(github.rest.issues.listComments, {

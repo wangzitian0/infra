@@ -83,10 +83,16 @@ L1 Atlantis passes the following variables to L2/L3:
 
 ## Recent Changes
 
+### 2025-12-23: Homer Portal DNS Record
+- **DNS**: Added `home.internal.domain` subdomain for Homer Portal dashboard
+- **Purpose**: Unified landing page with quick links to all infrastructure services
+- **Protection**: SSO-protected via Casdoor OAuth2-Proxy (Portal SSO Gate)
+- **Location**: Proxied DNS record (HTTPS via Cloudflare)
+
 ### 2025-12-22: OpenPanel Analytics Integration
 - **DNS**: Added `openpanel.internal.domain` subdomain for OpenPanel analytics platform
 - **Purpose**: Replaced PostHog with OpenPanel for product analytics and event tracking
 - **Location**: Uses internal domain (non-proxied) for L4 application layer
 
 ---
-*Last updated: 2025-12-22*
+*Last updated: 2025-12-23*
