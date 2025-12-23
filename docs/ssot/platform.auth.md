@@ -88,7 +88,7 @@ Vault 权限基于 Casdoor Roles 自动分配，采用 **Identity Groups** 架�
 1. **Casdoor (IdP) → 身份 SSOT**: 管理“你是谁”和“你的标签” (Roles)。
    - 位置: `platform/91.casdoor-roles.tf`
 2. **Vault (SP) → 授权 SSOT**: 根据标签映射具体 Policies。
-   - 位置: `platform/91.vault-auth.tf`
+   - 位置: `platform/91.vault-oidc.tf`
 
 ### 角色映射
 | Casdoor Role | Vault Identity Group | Vault Policy | 权限说明 |
@@ -103,7 +103,7 @@ Vault 权限基于 Casdoor Roles 自动分配，采用 **Identity Groups** 架�
 
 - `platform/5.casdoor.tf` - Casdoor 部署
 - `platform/90.casdoor-apps.tf` - OIDC 应用配置
-- `platform/91.vault-auth.tf` - Vault OIDC 配置
+- `platform/91.vault-oidc.tf` - Vault OIDC 配置
 - `platform/92.portal-auth.tf` - Portal Gate 配置
 - `platform/10.kubero.tf` - Kubero 部署 (原生 OIDC)
 
