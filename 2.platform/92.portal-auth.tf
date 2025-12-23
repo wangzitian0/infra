@@ -139,8 +139,8 @@ resource "kubernetes_manifest" "portal_auth_middleware_platform" {
     }
     spec = {
       forwardAuth = {
-        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/"
-        trustForwardHeader  = false
+        address             = "http://portal-auth-oauth2-proxy.${data.kubernetes_namespace.platform.metadata[0].name}.svc.cluster.local/oauth2/auth"
+        trustForwardHeader  = true
         authResponseHeaders = ["X-Auth-Request-User", "X-Auth-Request-Email"]
       }
     }

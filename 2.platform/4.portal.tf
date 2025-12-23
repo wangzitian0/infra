@@ -37,7 +37,7 @@ locals {
         items = [
           {
             name     = "Vault (OIDC Login)"
-            logo     = "https://www.datocms-assets.com/2885/1620155117-brandhcvaultprimaryattributedcolor.svg"
+            logo     = "https://www.vectorlogo.zone/logos/vaultproject/vaultproject-icon.svg"
             subtitle = "Click OIDC → Login with GitHub"
             tag      = "recommended"
             url      = "https://secrets.${local.internal_domain}"
@@ -61,7 +61,7 @@ locals {
           },
           {
             name     = "Atlantis"
-            logo     = "https://www.runatlantis.io/hero/atlantis-icon.png"
+            logo     = "https://avatars.githubusercontent.com/u/36257322?s=200&v=4"
             subtitle = "Terraform Automation (PR comments)"
             tag      = "iac"
             url      = "https://atlantis.${local.internal_domain}"
@@ -83,7 +83,7 @@ locals {
         items = [
           {
             name     = "Vault (Root Token)"
-            logo     = "https://www.datocms-assets.com/2885/1620155117-brandhcvaultprimaryattributedcolor.svg"
+            logo     = "https://www.vectorlogo.zone/logos/vaultproject/vaultproject-icon.svg"
             subtitle = "⚠️ Break-glass when OIDC fails"
             tag      = "emergency"
             url      = "https://secrets.${local.internal_domain}/ui/vault/auth?with=token"
@@ -97,7 +97,7 @@ locals {
         items = [
           {
             name     = "Kubero"
-            logo     = "https://raw.githubusercontent.com/kubero-dev/kubero/main/docs/logo.svg"
+            logo     = "https://www.kubero.dev/img/logo.svg"
             subtitle = "Cloud PaaS Platform"
             tag      = "paas"
             url      = "https://kcloud.${local.internal_domain}"
