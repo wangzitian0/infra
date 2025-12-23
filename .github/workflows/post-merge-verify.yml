@@ -1,12 +1,12 @@
 name: Post-Merge Verification
 
 # Runs full infrastructure verification after merge to main
-# Purpose: Drift detection and deployment health check
-#
 # Flow:
-# 1. L1 (Bootstrap): Direct terraform plan in GHA
-# 2. L2/L3/L4 (Atlantis): Creates drift-check PR → Atlantis autoplan → Close PR
-# 3. Results posted to merged PR that triggered this
+# 1. Find the merged PR
+# 2. L1: Direct terraform plan in GHA
+# 3. L2/L3/L4: Comment `atlantis plan` on the merged PR
+# 4. Wait for Atlantis result
+# 5. Post summary to merged PR
 
 on:
   push:
@@ -16,27 +16,19 @@ on:
       - "2.platform/**"
       - "envs/**"
       - "4.apps/**"
-      - "*.yaml"
-      - "*.yml"
   workflow_dispatch:
-    inputs:
-      skip_drift_pr:
-        description: "Skip creating drift-check PR for L2/L3/L4"
-        type: boolean
-        default: false
 
 env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
 
 jobs:
-  # Find the PR that was merged (for push events)
+  # Find the PR that was merged
   find-merged-pr:
     runs-on: ubuntu-latest
     outputs:
       pr_number: ${{ steps.find.outputs.pr_number }}
-      pr_url: ${{ steps.find.outputs.pr_url }}
-      trigger_type: ${{ steps.find.outputs.trigger_type }}
+      has_pr: ${{ steps.find.outputs.has_pr }}
     steps:
       - name: Generate App Token
         id: app_token
@@ -51,36 +43,34 @@ jobs:
         with:
           github-token: ${{ steps.app_token.outputs.token }}
           script: |
-            let prNumber = '';
-            let prUrl = '';
-            let triggerType = '${{ github.event_name }}';
-
-            if (triggerType === 'push') {
-              // Find PR associated with this commit
-              const commit = context.sha;
-              const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                commit_sha: commit
-              });
-
-              const merged = prs.data.find(pr => pr.merged_at);
-              if (merged) {
-                prNumber = merged.number.toString();
-                prUrl = merged.html_url;
-                console.log(`Found merged PR #${prNumber}`);
-              } else {
-                console.log('No merged PR found for this commit');
-              }
+            if (context.eventName === 'workflow_dispatch') {
+              console.log('Manual trigger - no PR context');
+              core.setOutput('pr_number', '');
+              core.setOutput('has_pr', 'false');
+              return;
             }
 
-            core.setOutput('pr_number', prNumber);
-            core.setOutput('pr_url', prUrl);
-            core.setOutput('trigger_type', triggerType);
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha
+            });
+
+            const merged = prs.data.find(pr => pr.merged_at);
+            if (merged) {
+              console.log(`Found merged PR #${merged.number}`);
+              core.setOutput('pr_number', merged.number.toString());
+              core.setOutput('has_pr', 'true');
+            } else {
+              console.log('No merged PR found');
+              core.setOutput('pr_number', '');
+              core.setOutput('has_pr', 'false');
+            }
 
   # L1 Bootstrap verification (direct terraform plan)
   verify-l1:
     needs: find-merged-pr
+    if: needs.find-merged-pr.outputs.has_pr == 'true'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.plan.outputs.result }}
@@ -112,29 +102,25 @@ jobs:
           # Exit codes: 0=no changes, 1=error, 2=changes pending
           if [[ $EXIT_CODE -eq 0 ]]; then
             echo "result=no_changes" >> $GITHUB_OUTPUT
-            echo "summary=✅ L1 Bootstrap: No drift detected" >> $GITHUB_OUTPUT
+            echo "summary=✅ No drift" >> $GITHUB_OUTPUT
           elif [[ $EXIT_CODE -eq 2 ]]; then
             echo "result=drift" >> $GITHUB_OUTPUT
-            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -3 || echo "Changes detected")
-            echo "summary=⚠️ L1 Bootstrap: $CHANGES" >> $GITHUB_OUTPUT
+            CHANGES=$(echo "$OUTPUT" | grep -E "Plan:|to add|to change|to destroy" | head -1 || echo "Changes detected")
+            echo "summary=⚠️ $CHANGES" >> $GITHUB_OUTPUT
           else
             echo "result=error" >> $GITHUB_OUTPUT
-            echo "summary=❌ L1 Bootstrap: Plan failed" >> $GITHUB_OUTPUT
+            ERROR=$(echo "$OUTPUT" | grep -E "Error:|error:" | head -1 || echo "Plan failed")
+            echo "summary=❌ $ERROR" >> $GITHUB_OUTPUT
           fi
 
-          echo "L1 Plan complete with exit code $EXIT_CODE"
-
-  # L2/L3/L4 verification via drift-check PR
+  # L2/L3/L4 verification via atlantis plan on merged PR
   verify-l234:
     needs: find-merged-pr
-    if: github.event.inputs.skip_drift_pr != 'true'
+    if: needs.find-merged-pr.outputs.has_pr == 'true'
     runs-on: ubuntu-latest
     outputs:
-      drift_pr_number: ${{ steps.create_pr.outputs.pr_number }}
-      drift_pr_url: ${{ steps.create_pr.outputs.pr_url }}
-    permissions:
-      contents: write
-      pull-requests: write
+      result: ${{ steps.wait.outputs.result }}
+      summary: ${{ steps.wait.outputs.summary }}
     steps:
       - name: Generate App Token
         id: app_token
@@ -143,107 +129,39 @@ jobs:
           app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          token: ${{ steps.app_token.outputs.token }}
-          fetch-depth: 0
-
-      - name: Create Drift-Check Branch & PR
-        id: create_pr
-        env:
-          GH_TOKEN: ${{ steps.app_token.outputs.token }}
-        run: |
-          TIMESTAMP=$(date -u +"%Y%m%d-%H%M")
-          BRANCH="drift-check/${TIMESTAMP}"
-
-          # Configure git
-          git config user.name "infra-flash[bot]"
-          git config user.email "infra-flash[bot]@users.noreply.github.com"
-
-          # Create branch
-          git checkout -b "$BRANCH"
-
-          # Create drift-check marker file
-          echo "# Drift Check: $TIMESTAMP" > .drift-check
-          echo "" >> .drift-check
-          echo "Triggered by: ${{ github.event_name }}" >> .drift-check
-          echo "Commit: ${{ github.sha }}" >> .drift-check
-          echo "Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> .drift-check
-
-          git add .drift-check
-          git commit -m "chore(drift): automated drift check $TIMESTAMP
-
-          Trigger: ${{ github.event_name }}
-          Original commit: ${{ github.sha }}
-
-          This PR will be auto-closed after Atlantis plan completes.
-          Do NOT merge this PR."
-
-          git push origin "$BRANCH"
-
-          # Create PR
-          PR_URL=$(gh pr create \
-            --title "🔍 Drift Check: $TIMESTAMP" \
-            --body "$(cat <<'EOF'
-          ## Automated Drift Detection
-
-          This PR was automatically created to verify infrastructure state.
-
-          | Info | Value |
-          |:---|:---|
-          | **Trigger** | ${{ github.event_name }} |
-          | **Original Commit** | ${{ github.sha }} |
-          | **Run** | [View](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |
-
-          ### ⚠️ Do NOT merge this PR
-
-          This PR will be **automatically closed** after Atlantis completes the plan.
-
-          ---
-          🤖 Generated by Post-Merge Verification
-          EOF
-          )" \
-            --base main \
-            --head "$BRANCH" \
-            --label "drift-check" 2>/dev/null || echo "")
-
-          if [[ -n "$PR_URL" ]]; then
-            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
-            echo "Created drift-check PR #$PR_NUMBER"
-          else
-            echo "pr_number=" >> $GITHUB_OUTPUT
-            echo "pr_url=" >> $GITHUB_OUTPUT
-            echo "::warning::Failed to create drift-check PR"
-          fi
-
-  # Wait for Atlantis to complete plan on drift-check PR
-  wait-atlantis:
-    needs: [find-merged-pr, verify-l234]
-    if: needs.verify-l234.outputs.drift_pr_number != ''
-    runs-on: ubuntu-latest
-    outputs:
-      atlantis_result: ${{ steps.check.outputs.result }}
-      atlantis_summary: ${{ steps.check.outputs.summary }}
-    steps:
-      - name: Generate App Token
-        id: app_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
-
-      - name: Wait for Atlantis Plan
-        id: check
+      - name: Trigger Atlantis Plan
+        id: trigger
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.app_token.outputs.token }}
           script: |
-            const prNumber = parseInt('${{ needs.verify-l234.outputs.drift_pr_number }}');
+            const prNumber = parseInt('${{ needs.find-merged-pr.outputs.pr_number }}');
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            // Post atlantis plan comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: `atlantis plan
+
+              <!-- post-merge-verify: ${context.runId} -->
+              🔄 **Post-Merge Verification** triggered by [workflow run](${runUrl})`
+            });
+
+            console.log(`Triggered atlantis plan on PR #${prNumber}`);
+            core.setOutput('trigger_time', new Date().toISOString());
+
+      - name: Wait for Atlantis Result
+        id: wait
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          script: |
+            const prNumber = parseInt('${{ needs.find-merged-pr.outputs.pr_number }}');
+            const triggerTime = new Date('${{ steps.trigger.outputs.trigger_time }}');
             const maxWait = 10 * 60 * 1000; // 10 minutes
-            const pollInterval = 30 * 1000; // 30 seconds
+            const pollInterval = 15 * 1000; // 15 seconds
             const startTime = Date.now();
 
             console.log(`Waiting for Atlantis plan on PR #${prNumber}...`);
@@ -252,35 +170,39 @@ jobs:
             let summary = '⏳ Atlantis plan timed out';
 
             while (Date.now() - startTime < maxWait) {
+              await new Promise(r => setTimeout(r, pollInterval));
+
               const comments = await github.rest.issues.listComments({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: prNumber,
-                per_page: 50
+                per_page: 20
               });
 
-              // Look for Atlantis plan result
-              const atlantisComment = comments.data.find(c =>
-                c.user.login === 'infra-flash[bot]' &&
-                c.body.includes('Ran Plan')
-              );
+              // Find Atlantis response after our trigger
+              const atlantisComment = comments.data
+                .filter(c => new Date(c.created_at) > triggerTime)
+                .find(c => c.user.login === 'infra-flash[bot]' && c.body.includes('Ran Plan'));
 
               if (atlantisComment) {
                 const body = atlantisComment.body;
                 const hasError = /\*\*Plan Error\*\*|panic:/i.test(body);
-                const noChanges = /No changes\. Your infrastructure matches the configuration/i.test(body);
+                const noChanges = /No changes\.|infrastructure matches/i.test(body);
                 const hasChanges = /Plan:.*to (add|import|change|destroy)/i.test(body);
 
                 if (hasError) {
                   result = 'error';
-                  summary = '❌ L2/L3/L4: Atlantis plan failed';
+                  summary = '❌ Atlantis plan failed';
                 } else if (noChanges) {
                   result = 'no_changes';
-                  summary = '✅ L2/L3/L4: No drift detected';
+                  summary = '✅ No drift';
                 } else if (hasChanges) {
                   result = 'drift';
                   const match = body.match(/Plan:.*?([\d]+ to add.*?[\d]+ to destroy)/);
-                  summary = `⚠️ L2/L3/L4: ${match ? match[1] : 'Changes detected'}`;
+                  summary = `⚠️ ${match ? match[1] : 'Changes detected'}`;
+                } else {
+                  result = 'unknown';
+                  summary = '❓ Could not parse Atlantis output';
                 }
 
                 console.log(`Atlantis plan completed: ${result}`);
@@ -288,48 +210,15 @@ jobs:
               }
 
               console.log(`Waiting... (${Math.round((Date.now() - startTime) / 1000)}s)`);
-              await new Promise(r => setTimeout(r, pollInterval));
             }
 
             core.setOutput('result', result);
             core.setOutput('summary', summary);
 
-  # Close drift-check PR and cleanup
-  cleanup-drift-pr:
-    needs: [verify-l234, wait-atlantis]
-    if: always() && needs.verify-l234.outputs.drift_pr_number != ''
-    runs-on: ubuntu-latest
-    steps:
-      - name: Generate App Token
-        id: app_token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
-
-      - name: Close PR and Delete Branch
-        env:
-          GH_TOKEN: ${{ steps.app_token.outputs.token }}
-        run: |
-          PR_NUMBER="${{ needs.verify-l234.outputs.drift_pr_number }}"
-
-          # Close PR with comment
-          gh pr close "$PR_NUMBER" \
-            --repo "${{ github.repository }}" \
-            --comment "✅ Drift check complete. Closing PR.
-
-          Results posted to original merged PR.
-
-          ---
-          🤖 Generated by Post-Merge Verification" \
-            --delete-branch || true
-
-          echo "Closed drift-check PR #$PR_NUMBER"
-
-  # Post summary to original merged PR
+  # Post summary to merged PR
   post-results:
-    needs: [find-merged-pr, verify-l1, verify-l234, wait-atlantis]
-    if: always() && needs.find-merged-pr.outputs.pr_number != ''
+    needs: [find-merged-pr, verify-l1, verify-l234]
+    if: always() && needs.find-merged-pr.outputs.has_pr == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Generate App Token
@@ -339,7 +228,7 @@ jobs:
           app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
-      - name: Post Results Comment
+      - name: Post Summary
         uses: actions/github-script@v7
         with:
           github-token: ${{ steps.app_token.outputs.token }}
@@ -347,39 +236,47 @@ jobs:
             const prNumber = parseInt('${{ needs.find-merged-pr.outputs.pr_number }}');
             const timestamp = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const triggerType = '${{ needs.find-merged-pr.outputs.trigger_type }}';
 
-            // Collect results
             const l1Result = '${{ needs.verify-l1.outputs.result }}' || 'skipped';
-            const l1Summary = '${{ needs.verify-l1.outputs.summary }}' || '⏭️ L1: Skipped';
-            const l234Result = '${{ needs.wait-atlantis.outputs.atlantis_result }}' || 'skipped';
-            const l234Summary = '${{ needs.wait-atlantis.outputs.atlantis_summary }}' || '⏭️ L2/L3/L4: Skipped';
-            const driftPrUrl = '${{ needs.verify-l234.outputs.drift_pr_url }}';
+            const l1Summary = '${{ needs.verify-l1.outputs.summary }}' || '⏭️ Skipped';
+            const l234Result = '${{ needs.verify-l234.outputs.result }}' || 'skipped';
+            const l234Summary = '${{ needs.verify-l234.outputs.summary }}' || '⏭️ Skipped';
 
-            // Determine overall status
             const hasDrift = l1Result === 'drift' || l234Result === 'drift';
             const hasError = l1Result === 'error' || l234Result === 'error';
-            const overallIcon = hasError ? '❌' : (hasDrift ? '⚠️' : '✅');
-            const overallStatus = hasError ? 'Error' : (hasDrift ? 'Drift Detected' : 'No Drift');
+            const hasTimeout = l234Result === 'timeout';
+
+            let overallIcon, overallStatus;
+            if (hasError) {
+              overallIcon = '❌';
+              overallStatus = 'Error';
+            } else if (hasTimeout) {
+              overallIcon = '⏳';
+              overallStatus = 'Timeout';
+            } else if (hasDrift) {
+              overallIcon = '⚠️';
+              overallStatus = 'Drift Detected';
+            } else {
+              overallIcon = '✅';
+              overallStatus = 'No Drift';
+            }
+
+            const statusIcon = (r) => r === 'no_changes' ? '✅' : (r === 'drift' ? '⚠️' : (r === 'error' ? '❌' : (r === 'timeout' ? '⏳' : '⏭️')));
 
             const body = [
               `## ${overallIcon} Post-Merge Verification: ${overallStatus}`,
               '',
-              `| Layer | Status | Details |`,
-              `|:---|:---:|:---|`,
-              `| L1 Bootstrap | ${l1Result === 'no_changes' ? '✅' : (l1Result === 'drift' ? '⚠️' : '❌')} | ${l1Summary} |`,
-              `| L2/L3/L4 Atlantis | ${l234Result === 'no_changes' ? '✅' : (l234Result === 'drift' ? '⚠️' : (l234Result === 'skipped' ? '⏭️' : '❌'))} | ${l234Summary} |`,
+              '| Layer | Status | Details |',
+              '|:---|:---:|:---|',
+              `| L1 Bootstrap | ${statusIcon(l1Result)} | ${l1Summary} |`,
+              `| L2/L3/L4 Atlantis | ${statusIcon(l234Result)} | ${l234Summary} |`,
               '',
-              `| Info | Value |`,
-              `|:---|:---|`,
-              `| **Trigger** | ${triggerType} |`,
-              `| **Time** | ${timestamp} |`,
-              `| **Run** | [View Logs](${runUrl}) |`,
-              driftPrUrl ? `| **Drift PR** | [View](${driftPrUrl}) (closed) |` : '',
+              `**Time**: ${timestamp} | [Workflow Run](${runUrl})`,
               '',
-              hasDrift ? '⚠️ **Action Required**: Review drift and create PR to reconcile if needed.' : '',
-              hasError ? '❌ **Action Required**: Check logs and fix errors.' : '',
-              !hasDrift && !hasError ? '✅ Infrastructure state matches code. No action needed.' : '',
+              hasDrift ? '> ⚠️ **Action**: Review drift and create PR to reconcile if needed.' : '',
+              hasError ? '> ❌ **Action**: Check logs and fix errors.' : '',
+              hasTimeout ? '> ⏳ **Action**: Atlantis may be slow. Check Atlantis pod logs.' : '',
+              !hasDrift && !hasError && !hasTimeout ? '> ✅ Infrastructure state matches code.' : '',
               '',
               '---',
               '🤖 Generated by Post-Merge Verification'
@@ -392,5 +289,9 @@ jobs:
               body: body
             });
 
-            console.log(`Posted verification results to PR #${prNumber}`);
+            console.log(`Posted verification summary to PR #${prNumber}`);
 
+            // Fail the workflow if there are errors
+            if (hasError) {
+              core.setFailed('Post-merge verification found errors');
+            }
