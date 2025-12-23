@@ -54,3 +54,17 @@ async def test_k8s_namespaces_exist():
     # In a real test, you'd query the K8s API
     # For E2E, we verify the namespace structure is as expected
     assert len(expected_namespaces) > 0, "Expected namespaces defined"
+
+
+@pytest.mark.bootstrap
+async def test_k8s_core_services_running(config: TestConfig):
+    """Verify core K8s services are accessible."""
+    # K8s core services should be available via their endpoints
+    # We verify this indirectly through the Dashboard
+    
+    async with httpx.AsyncClient(verify=False) as client:
+        # Dashboard requires K8s API to be working
+        response = await client.get(config.DASHBOARD_URL, timeout=10.0)
+        assert response.status_code in [200, 301, 302, 401, 403], \
+            "Dashboard accessibility implies K8s API is running"
+

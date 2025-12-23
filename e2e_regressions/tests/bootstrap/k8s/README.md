@@ -1,22 +1,27 @@
 # K8s Cluster Tests
 
-## 测试范围
+验证 Kubernetes 集群的健康状态和核心功能。
 
-- K8s API Server 可访问性
-- 节点健康状态
-- 核心组件运行状态
+## 测试覆盖
+
+- K8s API Server 可达性
+- 节点健康检查
+- 核心组件状态（kube-system）
 - Namespace 结构验证
-
-## SSOT Reference
-
-K8s 集群配置详见根目录 `1.bootstrap/1.k3s.tf`。
+- Pod 调度和运行能力
 
 ## 运行测试
 
 ```bash
-# 运行所有 K8s 测试
+# 所有 K8s 测试
 uv run pytest tests/bootstrap/k8s/ -v
 
-# 运行特定测试
-uv run pytest tests/bootstrap/k8s/test_cluster.py::test_k8s_api_accessible -v
+# Smoke 测试
+uv run pytest tests/bootstrap/k8s/ -m smoke -v
 ```
+
+## SSOT 参考
+
+配置和架构详见：
+- [core.dir.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/core.dir.md) - 目录结构
+- Terraform: `1.bootstrap/1.k3s.tf`

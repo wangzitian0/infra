@@ -7,38 +7,25 @@ import pytest
 
 
 @pytest.mark.bootstrap
-async def test_storage_class_exists():
-    """Verify default StorageClass is available."""
-    # This requires K8s API access
-    # Placeholder for structural completeness
+async def test_storage_class_defined():
+    """Verify local-path-retain storage class is defined in terraform."""
+    import pathlib
+    storage_tf = pathlib.Path(__file__).parent.parent.parent.parent.parent / "1.bootstrap" / "4.storage.tf"
     
-    # In reality:
-    # - kubectl get storageclass
-    # - Verify default storageclass exists
-    # - Verify it's marked as default
+    assert storage_tf.exists(), "Storage configuration should exist"
+    content = storage_tf.read_text()
     
-    pytest.skip("Requires kubectl/K8s API access")
+    assert "resource \"kubernetes_storage_class\" \"local_path_retain\"" in content
+    assert "reclaim_policy         = \"Retain\"" in content
 
 
 @pytest.mark.bootstrap
-async def test_pvc_creation_works():
-    """Verify PVCs can be created and bound."""
-    # This would involve:
-    # 1. Creating a test PVC
-    # 2. Waiting for it to bind
-    # 3. Cleaning up
+async def test_storage_config_map_patched():
+    """Verify local-path-provisioner configuration map is patched."""
+    import pathlib
+    storage_tf = pathlib.Path(__file__).parent.parent.parent.parent.parent / "1.bootstrap" / "4.storage.tf"
     
-    pytest.skip("Requires kubectl/K8s API access and cleanup")
+    content = storage_tf.read_text()
+    assert "resource \"kubernetes_config_map_v1\" \"local_path_config\"" in content
+    assert "/data/local-path-provisioner" in content, "Storage should be configured to use /data"
 
-
-@pytest.mark.bootstrap
-async def test_storage_persistence():
-    """Verify data persists across pod restarts."""
-    # This is a complex test requiring:
-    # 1. Creating a pod with PVC
-    # 2. Writing data
-    # 3. Deleting pod
-    # 4. Recreating pod
-    # 5. Verifying data is still there
-    
-    pytest.skip("Complex test requiring pod orchestration")

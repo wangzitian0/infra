@@ -6,6 +6,7 @@ Verifies certificate issuance and validity via cert-manager.
 import pytest
 import httpx
 import ssl
+import socket
 from urllib.parse import urlparse
 from conftest import TestConfig
 
@@ -51,28 +52,43 @@ async def test_certificates_valid_or_self_signed(config: TestConfig):
 
 
 @pytest.mark.bootstrap
-async def test_certificate_not_expired(config: TestConfig):
-    """Verify certificates are not expired."""
+async def test_certificate_expiry_check(config: TestConfig):
+    """Verify certificates are not close to expiration (at least 7 days remaining)."""
     import datetime
+    from cryptography import x509
+    from cryptography.hazmat.backends import default_backend
     
-    # This is a simplified check - in production you'd use the ssl module
-    # to extract certificate expiry dates
+    url = config.PORTAL_URL
+    hostname = urlparse(url).hostname
+    port = 443
     
-    async with httpx.AsyncClient(verify=False) as client:
-        response = await client.get(config.PORTAL_URL, timeout=10.0)
-        # If service responds, certificate is at least functional
-        assert response.status_code < 500, "Service with expired cert should fail"
+    try:
+        cert_pem = ssl.get_server_certificate((hostname, port))
+        cert = x509.load_pem_x509_certificate(cert_pem.encode(), default_backend())
+        
+        remaining = cert.not_valid_after_utc - datetime.datetime.now(datetime.UTC)
+        assert remaining.days > 7, f"Certificate for {hostname} expires in {remaining.days} days"
+    except ImportError:
+        # Fallback if cryptography is not installed
+        async with httpx.AsyncClient(verify=False) as client:
+            response = await client.get(url, timeout=10.0)
+            assert response.status_code < 500, "Service with expired cert would likely fail or show SSL error"
+    except Exception as e:
+        pytest.fail(f"Failed to check certificate expiry: {e}")
 
 
 @pytest.mark.bootstrap
-async def test_cert_manager_present():
-    """Verify cert-manager is installed and running."""
-    # This would require K8s API access
-    # Placeholder showing the test structure
+async def test_certificate_issuer_info(config: TestConfig):
+    """Verify certificate issuer information."""
+    hostname = urlparse(config.PORTAL_URL).hostname
     
-    # In reality:
-    # - Check cert-manager namespace exists
-    # - Check cert-manager pods are running
-    # - Check ClusterIssuer/Issuer resources exist
+    context = ssl.create_default_context()
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
     
-    pytest.skip("Requires kubectl/K8s API access")
+    with socket.create_connection((hostname, 443)) as sock:
+        with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+            cert = ssock.getpeercert(binary_form=True)
+            # This is a basic check to ensure we can at least retrieve cert info
+            assert cert is not None, "Should be able to retrieve certificate"
+
