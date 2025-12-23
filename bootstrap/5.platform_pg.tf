@@ -122,7 +122,8 @@ resource "kubectl_manifest" "platform_pg" {
     }
   })
 
-  depends_on = [kubernetes_secret.platform_pg_superuser]
+  # CNPG operator must be installed first to have the CRD available
+  depends_on = [kubernetes_secret.platform_pg_superuser, helm_release.cnpg_operator]
 }
 
 # Wait for CNPG cluster to be ready before Platform layer services connect
