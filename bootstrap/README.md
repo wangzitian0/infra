@@ -1,68 +1,53 @@
 # bootstrap (Bootstrap Layer)
 
-**Scope**: Zero-dependency infrastructure bootstrap and CI/CD Orchestrator.
+> **Role**: Trust Anchor & CI/CD Orchestrator
+> **Dependencies**: Zero (Start here)
 
-- **K3s Cluster**: VPS provisioning via SSH
-- **Digger Orchestrator**: Self-hosted CI/CD backend (OpenTaco)
-- **DNS/Cert**: Cloudflare DNS + Let's Encrypt
-- **Namespace**: `kube-system`, `bootstrap` (Bootstrap layer)
+The `bootstrap` layer establishes the foundation of the entire infrastructure. It provisions the Kubernetes cluster and the GitOps orchestrator (Digger) that manages all subsequent layers (L2-L4).
 
-## Architecture
+## 📚 SSOT References (Start Here)
 
-This layer runs **first** and has no dependencies on other layers. It establishes the "Trust Anchor" by deploying the **Digger Orchestrator**, which manages all subsequent layers (L2-L4).
+For authoritative architecture, configuration rules, and SOPs, refer to the **Single Source of Truth (SSOT)**:
 
-> [!IMPORTANT]
-> To avoid circular dependencies, the `bootstrap` layer is managed by a **dedicated GitHub Actions workflow** (`bootstrap-deploy.yml`), not by Digger itself.
-
-### Network & Domain Scheme
-
-Infrastructure uses two primary domain sets:
-- **Internal/Infra**: Uses `INTERNAL_DOMAIN` (e.g., `secrets.xxx`, `digger.xxx`).
-- **External/App**: Uses `BASE_DOMAIN` with `x-*` prefixes for dev/test (`x-staging.xxx`) or root for prod (`xxx`).
-
-Full DNS patterns, proxy rules, and proxy modes are defined in the **[Bootstrap Network SSOT](../docs/ssot/bootstrap.network.md)**.
-
-### Core Components
-
-| File | Component | Purpose |
-|------|-----------|---------|
-| `1.k3s.tf` | K3s Cluster | SSH-based VPS bootstrap |
-| `2.digger.tf` | Digger Orchestrator | Self-hosted backend for GitOps CI/CD |
-| `3.dns_and_cert.tf` | DNS + Certs | Cloudflare + cert-manager. See **[Network SSOT](../docs/ssot/bootstrap.network.md)**. |
-| `5.platform_pg.tf` | Platform PostgreSQL | Trust anchor DB for Vault, Casdoor, and Digger |
+| Topic | SSOT Document | Key Contents |
+|-------|---------------|--------------|
+| **Compute** | [**Bootstrap Compute SSOT**](../docs/ssot/bootstrap.compute.md) | K3s Cluster, Digger Orchestrator, L1 CI Flow |
+| **Storage** | [**Bootstrap Storage SSOT**](../docs/ssot/bootstrap.storage.md) | StorageClass, Platform PG (Trust Anchor) |
+| **Network** | [**Bootstrap Network SSOT**](../docs/ssot/bootstrap.network.md) | Cloudflare DNS Mode, TLS Certs, Ingress |
 
 ---
 
-## CI/CD Workflow
+## 🚦 Operational Guide
 
-Managed via the `/bootstrap` command in PR comments. Output is summarized for readability.
-- `/bootstrap plan`: Preview changes.
-- `/bootstrap apply`: Deploy changes.
+### CI/CD Workflow
+> See [**Compute SSOT / Playbooks**](../docs/ssot/bootstrap.compute.md#sop-002-部署更新-l1-bootstrap) for detailed SOP.
 
+- **Trigger**: GitHub Actions workflow `bootstrap-deploy.yml`
+- **Commands**:
+    - Comment `/bootstrap plan` on PR
+    - Comment `/bootstrap apply` on PR
+    - Push to `main` (Auto Apply)
 
-Push to `main` for changes in `bootstrap/**` will also trigger an automatic plan/apply.
-
-## Bootstrap Command (Manual/Local)
+### Local Deployment (Emergency)
+> See [**Compute SSOT / Constraints**](../docs/ssot/bootstrap.compute.md#设计约束-dos--donts) for when this is allowed.
 
 ```bash
-# First-time setup (run locally with credentials)
-export AWS_ACCESS_KEY_ID=...
-export AWS_SECRET_ACCESS_KEY=...
-# Load other variables from 1Password or use -var-file
 cd bootstrap
 terraform init -backend-config=backend.tfvars
 terraform apply
 ```
 
-## Outputs for Platform layer
+---
 
-| Output | Description |
-|--------|-------------|
-| `kubeconfig` | Cluster access (sensitive) |
-| `r2_bucket` | State bucket name |
-| `r2_account_id` | R2 endpoint |
+## 🏗️ Core Components
 
-- [tools/](./tools): Shared CI/CD scripts and formatting tools.
+| File | Component | SSOT Reference |
+|------|-----------|----------------|
+| `1.k3s.tf` | K3s Cluster | [Compute SSOT](../docs/ssot/bootstrap.compute.md) |
+| `2.digger.tf` | Digger Orchestrator | [Compute SSOT](../docs/ssot/bootstrap.compute.md) |
+| `3.dns_and_cert.tf` | DNS + Certs | [Network SSOT](../docs/ssot/bootstrap.network.md) |
+| `4.storage.tf` | StorageClass | [Storage SSOT](../docs/ssot/bootstrap.storage.md) |
+| `5.platform_pg.tf` | Platform PG | [Storage SSOT](../docs/ssot/bootstrap.storage.md) |
 
 ## Variable Passthrough
 
@@ -78,6 +63,8 @@ The CI loader (`tools/secrets/ci_load_secrets.py`) ensures the following are pas
 
 - **PostgreSQL Chart**: Migrated to OCI format (`oci://registry-1.docker.io/bitnamicharts`)
 - **Reason**: Bitnami deprecated HTTP chart repository in favor of OCI registry
+
+---
 
 ## Recent Changes
 

@@ -105,9 +105,19 @@ pytest e2e_regressions/tests/platform/auth/ -v
 
 ---
 
+## 引用指南 (How to Reference)
+
+在其他文档（如 README 或设计文档）中引用 SSOT 时，请使用标准格式：
+
+- **引用整体架构**：
+  > 详见 [**Auth SSOT**](./path/to/platform.auth.md)。
+- **引用特定 SOP**：
+  > 执行 [**SOP-001: 轮换密钥**](./path/to/platform.auth.md#sop-001-轮换数据库密码)。
+- **引用设计约束**：
+  > 根据 [**Auth SSOT / Blacklist**](./path/to/platform.auth.md#禁止模式-blacklist)，禁止提交 .env 文件。
+
+---
+
 ## Used by
 
-<!-- 反向链接：列出谁引用了本文档，方便重构时评估影响 -->
-
-- [docs/onboarding/README.md](../onboarding/README.md)
-- [docs/README.md](../README.md)
+> **Note**: 本章节由 MkDocs 插件自动维护反向链接 (Backlinks)，无需人工编辑。

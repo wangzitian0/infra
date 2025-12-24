@@ -2,11 +2,13 @@
 
 验证 Bootstrap 层基础设施的端到端测试。
 
-## SSOT 参考
+## 📚 SSOT References
 
-- [bootstrap.compute.md](../../../docs/ssot/bootstrap.compute.md)
-- [bootstrap.storage.md](../../../docs/ssot/bootstrap.storage.md)
-- [bootstrap.network.md](../../../docs/ssot/bootstrap.network.md)
+这些测试用于验证以下文档中定义的行为：
+
+- **Compute**: [Bootstrap Compute SSOT / 验证与测试](../../../docs/ssot/bootstrap.compute.md#5-验证与测试-the-proof)
+- **Storage**: [Bootstrap Storage SSOT / 验证与测试](../../../docs/ssot/bootstrap.storage.md#5-验证与测试-the-proof)
+- **Network**: [Bootstrap Network SSOT / 验证与测试](../../../docs/ssot/bootstrap.network.md#5-验证与测试-the-proof)
 
 ## 测试结构
 
