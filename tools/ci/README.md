@@ -6,7 +6,7 @@ Python-driven CI/CD pipeline for infrastructure management.
 
 ```bash
 # From repo root
-python -m 0.tools.ci <command> [options]
+python -m tools.ci <command> [options]
 
 # Or via workflow
 # PR comment: /plan, /apply, /health, /e2e, /review

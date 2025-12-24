@@ -17,8 +17,8 @@ include "root" {
 dependency "platform" {
   config_path = "../../../platform"
 
-  # skip_outputs = true is required for Atlantis compatibility
-  # Atlantis runs each project in isolation, so L2 outputs are not accessible
+  # skip_outputs = true is required for Digger compatibility
+  # Digger runs each project in isolation, so L2 outputs may not be accessible in all modes
   # Real values come from terraform_remote_state data source in *.tf files
   skip_outputs = true
 

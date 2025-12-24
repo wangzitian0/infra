@@ -30,7 +30,7 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
 
 | Module | Directory (Docs) | Responsibility |
 |---|---|---|
-| **Root** | [`0.tools`](0.tools/README.md) / [`docs`](docs/README.md) | Scripts, CI Automation, Documentation |
+| **Root** | [`tools`](tools/README.md) / [`docs`](docs/README.md) | Scripts, CI Automation, Documentation |
 | **Bootstrap** | [`bootstrap`](bootstrap/README.md) | Raw VPS provisioning, k3s installation, DNS/Cert, Atlantis |
 | **Platform** | [`platform`](platform/README.md) | Control Plane (Vault, SSO, PaaS, Observability) |
 | **Data** | [`envs/{env}/data`](envs/README.md) | Business DBs (Postgres, Redis, ClickHouse, etc.) |
@@ -57,11 +57,11 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
     - NEVER hardcode secrets in `.tf` (use `random_password` or vars).
 
 ## 3. Secret & Variable Pipeline (The Variable Chain)
-- **Variable Changes**: When adding/changing a variable in any `variables.tf`, you MUST update the mapping in `0.tools/ci_load_secrets.py`. CI will fail if they are not aligned (Variable Guard).
+- **Variable Changes**: When adding/changing a variable in any `variables.tf`, you MUST update the mapping in `tools/ci_load_secrets.py`. CI will fail if they are not aligned (Variable Guard).
 - **1Password Alignment**: 
     - 1Password is the master SSOT. GitHub Secrets are just a cache.
     - NEVER manually set secrets in GitHub Web UI.
-    - ALWAYS use `python3 0.tools/sync_secrets.py` to push secrets from 1Password to GitHub.
+    - ALWAYS use `python3 tools/sync_secrets.py` to push secrets from 1Password to GitHub.
 - **Composite Action Constraint**: Inside a GitHub Composite Action (`action.yml`), NEVER use `env: ${{ env.VAR }}` to map variables generated in previous steps of the same action. Use raw shell variables `$VAR` instead to avoid shadowing.
 
 ## 4. Defensive Maintenance SOP (Infrastructure Reliability)

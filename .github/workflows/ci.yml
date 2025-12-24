@@ -147,7 +147,7 @@ jobs:
       - name: Init Dashboard
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHONPATH: ${{ github.workspace }}/0.tools
+          PYTHONPATH: ${{ github.workspace }}/tools
         run: |
           python -m ci init --pr ${{ github.event.pull_request.number }}
 
@@ -167,8 +167,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
+          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
       
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
@@ -294,8 +294,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
+          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
       
       - uses: actions/setup-python@v5
         with:
@@ -310,7 +310,7 @@ jobs:
         if: needs.parse.outputs.command == 'apply'
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          PYTHONPATH: ${{ github.workspace }}/0.tools
+          PYTHONPATH: ${{ github.workspace }}/tools
         run: |
           # Check if Vault is sealed before allowing Apply
           python -m ci check-vault
@@ -330,7 +330,7 @@ jobs:
         if: always()
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          PYTHONPATH: ${{ github.workspace }}/0.tools
+          PYTHONPATH: ${{ github.workspace }}/tools
         run: |
           # Determine PR Number (for issue_comment or pull_request)
           PR="${{ needs.parse.outputs.pr_number }}"
@@ -377,7 +377,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
-          PYTHONPATH: ${{ github.workspace }}/0.tools
+          PYTHONPATH: ${{ github.workspace }}/tools
         run: |
           CMD="${{ needs.parse.outputs.command }}"
           PR="${{ needs.parse.outputs.pr_number }}"

@@ -26,4 +26,4 @@ uv run pytest tests/platform/auth/ -v
 ## SSOT 参考
 
 配置详见：
-- [platform.auth.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/platform.auth.md) - 认证架构
+- [platform.auth.md](../../../../docs/ssot/platform.auth.md) - 认证架构

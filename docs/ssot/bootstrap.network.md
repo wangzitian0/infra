@@ -1,15 +1,22 @@
 # Bootstrap 网络层 SSOT
 
-> **核心问题**：DNS 如何配置？TLS 证书如何颁发？Cloudflare 代理规则？
+> [!NOTE]
+> 核心问题：DNS 如何配置？TLS 证书如何颁发？Cloudflare 代理规则？
 
 ---
 
-## 组件概览
+## 网络架构概览
+
+基础设施遵循 [AGENTS.md](../../AGENTS.md) 的 4 层设计 (L1-L4)。本层负责核心 DNS 解析、TLS 证书自动化及 Ingress 路由基础。
+
+### 组件概览
 
 | 组件 | 职责 | 代码位置 |
 |------|------|----------|
-| **Cloudflare DNS** | 域名解析 | `bootstrap/3.dns_and_cert.tf` |
-| **cert-manager** | TLS 证书 | `bootstrap/3.dns_and_cert.tf` |
+| **Cloudflare DNS** | 域名解析 | [3.dns_and_cert.tf](../../bootstrap/3.dns_and_cert.tf) |
+| **cert-manager** | TLS 证书 (Let's Encrypt) | [3.dns_and_cert.tf](../../bootstrap/3.dns_and_cert.tf) |
+| **Traefik Ingress** | K3s 默认 Ingress 控制器 | K3s 内置 |
+
 
 ---
 

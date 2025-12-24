@@ -2,11 +2,11 @@
 # Data Import Script - Shared logic for importing existing Data layer resources into Terraform state
 # Used by Atlantis (atlantis.yaml) for Data resource state synchronization
 #
-# Usage: ./0.tools/data-import.sh <namespace> [terragrunt_command]
+# Usage: ./tools/data-import.sh <namespace> [terragrunt_command]
 #
 # Examples:
-#   ./0.tools/data-import.sh "data-prod" "terragrunt"
-#   ./0.tools/data-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
+#   ./tools/data-import.sh "data-prod" "terragrunt"
+#   ./tools/data-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
 
 set -euo pipefail
 

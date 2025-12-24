@@ -47,10 +47,10 @@ graph TD
 
 ## Python CI 模块
 
-核心逻辑在 `0.tools/ci/`：
+核心逻辑在 `tools/ci/`：
 
 ```
-0.tools/ci/
+tools/ci/
 ├── __main__.py      # CLI 入口
 ├── config.py        # 层级定义
 ├── commands/        # 命令处理器

@@ -14,24 +14,65 @@ from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
+# Try to extract CI secret schema for consistency (read file directly to avoid import issues)
+CI_MAPPING = {}
+try:
+    import re
+    infra_root = Path(__file__).parent.parent
+    loader_path = infra_root / "tools" / "ci_load_secrets.py"
+    if loader_path.exists():
+        content = loader_path.read_text()
+        # Simple regex to extract MAPPING dict entries (matches "KEY": "VALUE", or 'KEY': 'VALUE')
+        mapping_match = re.search(r"MAPPING = \{(.*?)\}", content, re.DOTALL)
+        if mapping_match:
+            # Handle both single and double quotes for flexibility
+            entries = re.findall(r'[\'"]([^\'"]+)[\'"]:\s*[\'"]([^\'"]+)[\'"]', mapping_match.group(1))
+            CI_MAPPING = dict(entries)
+except Exception:
+    # Silent fail, fallback to defaults in TestConfig
+    pass
+
+
+def get_env_required(name: str) -> str:
+    """Get environment variable or raise error."""
+    val = os.getenv(name)
+    if not val:
+        raise RuntimeError(f"Required environment variable '{name}' is not set. Check your CI/local .env file.")
+    return val
+
 
 class TestConfig:
     """Test configuration from environment variables."""
 
-    # Portal & SSO
-    PORTAL_URL = os.getenv("PORTAL_URL", "https://home.zitian.party")
-    SSO_URL = os.getenv("SSO_URL", "https://sso.zitian.party")
-    TEST_USERNAME = os.getenv("TEST_USERNAME", "admin")
-    TEST_PASSWORD = os.getenv("TEST_PASSWORD", "")
+    # Domains (Required)
+    BASE_DOMAIN = get_env_required("BASE_DOMAIN")
+    INTERNAL_DOMAIN = os.getenv("INTERNAL_DOMAIN", BASE_DOMAIN)
 
-    # Platform Services
-    VAULT_URL = os.getenv("VAULT_URL", "https://secrets.zitian.party")
-    DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://kdashboard.zitian.party")
-    KUBERO_URL = os.getenv("KUBERO_URL", "https://i-kcloud.truealpha.club")
-    SIGNOZ_URL = os.getenv("SIGNOZ_URL", "https://i-signoz.truealpha.club")
-    K3S_URL = os.getenv("K3S_URL", "https://i-k3s.truealpha.club:6443")
+    # Portal & SSO (Strictly derived or overridden)
+    PORTAL_URL = os.getenv("PORTAL_URL", f"https://home.{INTERNAL_DOMAIN}")
+    SSO_URL = os.getenv("SSO_URL", f"https://sso.{INTERNAL_DOMAIN}")
+    
+    # Credentials (Use names defined in ci_load_secrets schema if possible)
+    _user_var = CI_MAPPING.get("E2E_TEST_USERNAME", "E2E_TEST_USERNAME")
+    _pass_var = CI_MAPPING.get("E2E_TEST_PASSWORD", "E2E_TEST_PASSWORD")
+    
+    E2E_TEST_USERNAME = os.getenv(_user_var, "admin")
+    E2E_TEST_PASSWORD = get_env_required(_pass_var)
 
-    # Test Configuration
+    # Platform Services (Strictly derived or overridden)
+    VAULT_URL = os.getenv("VAULT_URL", f"https://secrets.{INTERNAL_DOMAIN}")
+    DASHBOARD_URL = os.getenv("DASHBOARD_URL", f"https://kdashboard.{INTERNAL_DOMAIN}")
+    DIGGER_URL = os.getenv("DIGGER_URL", f"https://digger.{INTERNAL_DOMAIN}")
+    KUBERO_URL = os.getenv("KUBERO_URL", f"https://kcloud.{INTERNAL_DOMAIN}")
+    SIGNOZ_URL = os.getenv("SIGNOZ_URL", f"https://signoz.{INTERNAL_DOMAIN}")
+    K3S_URL = os.getenv("K3S_URL", f"https://k3s.{INTERNAL_DOMAIN}:6443")
+
+    # K8s Resource Identifiers
+    class K8sResources:
+        PLATFORM_PG_NAME = "platform-pg"
+        CNPG_CLUSTER_TYPE = "clusters.postgresql.cnpg.io"
+
+    # Test Configuration (Sensible defaults for execution)
     HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
     TIMEOUT_MS = int(os.getenv("TIMEOUT_MS", "30000"))
     SLOW_MO = int(os.getenv("SLOW_MO", "0"))

@@ -46,7 +46,7 @@ resource "restapi_object" "provider_github" {
   lifecycle {
     precondition {
       condition     = var.github_oauth_client_id != "" && var.github_oauth_client_secret != ""
-      error_message = "GitHub OAuth credentials are missing. Check ATLANTIS_GH_CLIENT_ID/SECRET."
+      error_message = "GitHub OAuth credentials are missing. Check TF_VAR_github_oauth_client_id/secret."
     }
   }
 }

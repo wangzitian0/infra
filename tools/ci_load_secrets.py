@@ -13,10 +13,11 @@ OP_CONTRACT = {
     "Infra-VPS": ["VPS_HOST", "VPS_USER", "VPS_SSH_PORT", "VPS_SSH_KEY"],
     "Infra-R2": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_ACCOUNT_ID"],
     "Infra-Cloudflare": ["BASE_DOMAIN", "CLOUDFLARE_ZONE_ID", "INTERNAL_DOMAIN", "INTERNAL_ZONE_ID", "CLOUDFLARE_API_TOKEN"],
-    "Infra-Atlantis": ["ATLANTIS_WEBHOOK_SECRET", "ATLANTIS_WEB_PASSWORD", "ATLANTIS_GH_APP_ID", "ATLANTIS_GH_APP_KEY"],
+    "Infra-Flash": ["INFRA_FLASH_APP_ID", "INFRA_FLASH_APP_KEY", "INFRA_FLASH_WEBHOOK_SECRET"],
     "Infra-Digger": ["DIGGER_BEARER_TOKEN", "DIGGER_WEBHOOK_SECRET", "DIGGER_HTTP_PASSWORD"],
     "Infra-Vault": ["VAULT_ROOT_TOKEN", "VAULT_POSTGRES_PASSWORD", "VAULT_UNSEAL_KEY"],
     "Infra-OAuth": ["GH_OAUTH_CLIENT_ID", "GH_OAUTH_CLIENT_SECRET", "ENABLE_CASDOOR_OIDC", "ENABLE_PORTAL_SSO_GATE", "GH_PAT", "GH_ACCOUNT"],
+    "Infra-E2E": ["E2E_TEST_USERNAME", "E2E_TEST_PASSWORD"],
 }
 
 # Mapping: GitHub Secret Name -> Terraform Variable Name
@@ -39,11 +40,13 @@ MAPPING = {
     "INTERNAL_DOMAIN": "TF_VAR_internal_domain",
     "INTERNAL_ZONE_ID": "TF_VAR_internal_zone_id",
     "GH_PAT": "TF_VAR_github_token",
-    "ATLANTIS_WEBHOOK_SECRET": "TF_VAR_atlantis_webhook_secret",
-    "ATLANTIS_GH_APP_ID": "TF_VAR_github_app_id",
-    "ATLANTIS_GH_APP_KEY": "TF_VAR_github_app_key",
-    "ATLANTIS_WEB_PASSWORD": "TF_VAR_atlantis_web_password",
+    "INFRA_FLASH_APP_ID": "TF_VAR_infra_flash_app_id",
+    "INFRA_FLASH_APP_KEY": "TF_VAR_infra_flash_app_key",
+    "INFRA_FLASH_WEBHOOK_SECRET": "TF_VAR_digger_webhook_secret",
     "VAULT_POSTGRES_PASSWORD": "TF_VAR_vault_postgres_password",
+    # E2E Test Schema
+    "E2E_TEST_USERNAME": "E2E_TEST_USERNAME",
+    "E2E_TEST_PASSWORD": "E2E_TEST_PASSWORD",
     "GH_OAUTH_CLIENT_ID": "TF_VAR_github_oauth_client_id",
     "GH_OAUTH_CLIENT_SECRET": "TF_VAR_github_oauth_client_secret",
     "ENABLE_CASDOOR_OIDC": "TF_VAR_enable_casdoor_oidc",

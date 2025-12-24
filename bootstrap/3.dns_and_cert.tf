@@ -23,7 +23,7 @@ locals {
 # Define "cert-manager" namespace explicitly so we can put secrets in it
 resource "kubernetes_namespace" "cert_manager" {
   metadata {
-    name = "cert-manager"
+    name = local.k8s.ns_cert_manager
   }
 }
 
@@ -55,6 +55,13 @@ resource "helm_release" "cert_manager" {
   }
 
   depends_on = [kubernetes_namespace.cert_manager]
+
+  lifecycle {
+    postcondition {
+      condition     = self.status == "deployed"
+      error_message = "cert-manager helm release failed to deploy."
+    }
+  }
 }
 
 # 4. ClusterIssuer (Let's Encrypt Production)

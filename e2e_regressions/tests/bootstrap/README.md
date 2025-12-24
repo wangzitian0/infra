@@ -4,9 +4,9 @@
 
 ## SSOT 参考
 
-- [bootstrap.compute.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/bootstrap.compute.md)
-- [bootstrap.storage.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/bootstrap.storage.md)
-- [bootstrap.network.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/bootstrap.network.md)
+- [bootstrap.compute.md](../../../docs/ssot/bootstrap.compute.md)
+- [bootstrap.storage.md](../../../docs/ssot/bootstrap.storage.md)
+- [bootstrap.network.md](../../../docs/ssot/bootstrap.network.md)
 
 ## 测试结构
 

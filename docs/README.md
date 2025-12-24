@@ -70,7 +70,7 @@
 
 ### Layer 文档
 
-- [Tools](../0.tools/README.md) - CI 工具和脚本
+- [Tools](../tools/README.md) - CI 工具和脚本
 - [Bootstrap](../1.bootstrap/README.md) - 集群引导层
 - [Platform](../2.platform/README.md) - 平台服务层
 - [Data](../3.data/README.md) - 数据层

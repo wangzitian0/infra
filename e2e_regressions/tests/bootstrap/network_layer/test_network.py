@@ -37,6 +37,7 @@ async def test_dns_resolution_all_services(config: TestConfig):
         config.SSO_URL,
         config.VAULT_URL,
         config.DASHBOARD_URL,
+        config.DIGGER_URL,
     ]
     
     failed_resolutions = []
@@ -125,6 +126,7 @@ async def test_certificates_https_enabled(config: TestConfig):
         config.SSO_URL,
         config.VAULT_URL,
         config.DASHBOARD_URL,
+        config.DIGGER_URL,
     ]
     
     for url in services:
@@ -140,6 +142,7 @@ async def test_certificates_valid_or_self_signed(config: TestConfig):
             config.PORTAL_URL,
             config.SSO_URL,
             config.VAULT_URL,
+            config.DIGGER_URL,
         ]
         
         for url in services:

@@ -4,7 +4,7 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 
 ## Responsibilities
 
-1. **Secret Loading**: Uses `0.tools/ci_load_secrets.py` to parse GitHub Secrets and map them to `TF_VAR_` variables.
+1. **Secret Loading**: Uses `tools/ci_load_secrets.py` to parse GitHub Secrets and map them to `TF_VAR_` variables.
 2. **SSH Setup**: Configures SSH keys for VPS access (inherited from loader).
 3. **Terraform Init**: Initializes Terraform with R2 backend configuration.
 4. **Kubeconfig Fetch**: Retrieves kubeconfig from VPS for Helm provider.
