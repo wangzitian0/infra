@@ -77,5 +77,8 @@ The CI loader (`tools/secrets/ci_load_secrets.py`) ensures the following are pas
 - **Architecture**: Separated Bootstrap CI from Digger via `bootstrap-deploy.yml`.
 - **Database**: Added `digger` database to Platform PostgreSQL (CNPG).
 
+### 2025-12-25: Digger HTTPS Guard Fix
+- **Guardrail**: Fixed HTTPS postcondition check for Digger ingress to avoid false plan failures.
+
 ---
 *Last updated: 2025-12-25*

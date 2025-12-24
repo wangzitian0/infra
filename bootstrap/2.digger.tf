@@ -106,6 +106,13 @@ resource "helm_release" "digger" {
       condition     = var.digger_bearer_token != ""
       error_message = "digger_bearer_token is required for API authentication."
     }
+    postcondition {
+      condition = (
+        try(yamldecode(self.values[0]).digger.ingress.enabled, false) &&
+        try(yamldecode(self.values[0]).digger.ingress.tls.secretName, "") != ""
+      )
+      error_message = "Digger ingress must be configured with HTTPS."
+    }
   }
 }
 
