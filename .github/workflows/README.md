@@ -112,6 +112,13 @@ graph TD
 
 ```
 
+## 即时响应
+- 当 PR 评论中包含 `/plan` `/apply` `/health` `/e2e` `/review` `/help` 时，会自动触发 CI。
+- CI 触发之后，应该要有 emoji 反馈 或者 PR Dashboard 更新 或者 新增评论。
+- 耗时任务也应该先评论，后更新
+- push 驱动的时间，使用 GitHub Actions 的默认账号
+- 评论和更新，使用 infra-flash 账号
+
 ---
 
 *Last updated: 2025-12-24*

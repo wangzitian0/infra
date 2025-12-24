@@ -146,7 +146,7 @@ resource "helm_release" "casdoor" {
           image = "busybox:1.36"
           command = [
             "sh", "-c",
-            "timeout=120; elapsed=0; until nc -z postgresql-rw.platform.svc.cluster.local 5432; do echo \"waiting for PostgreSQL... ($elapsed/$timeout s)\"; sleep 2; elapsed=$((elapsed+2)); if [ $elapsed -ge $timeout ]; then echo 'TIMEOUT: PostgreSQL not available'; exit 1; fi; done"
+            "timeout=120; elapsed=0; until nc -z platform-pg-rw.platform.svc.cluster.local 5432; do echo \"waiting for PostgreSQL... ($elapsed/$timeout s)\"; sleep 2; elapsed=$((elapsed+2)); if [ $elapsed -ge $timeout ]; then echo 'TIMEOUT: PostgreSQL not available'; exit 1; fi; done"
           ]
         }
       ]
@@ -165,7 +165,7 @@ copyrequestbody = true
 
 # Database configuration
 driverName = postgres
-dataSourceName = user=postgres password=${var.vault_postgres_password} host=postgresql-rw.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=disable
+dataSourceName = user=simpleuser password=${var.vault_postgres_password} host=platform-pg-rw.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=require
 dbName = casdoor
 EOT
 

@@ -14,8 +14,8 @@
 # Docs: https://cloudnative-pg.io
 
 locals {
-  # CNPG uses -rw suffix for read-write service
-  platform_pg_host = "postgresql-rw.platform.svc.cluster.local"
+  # CNPG uses -rw suffix for read-write service of 'platform-pg' cluster
+  platform_pg_host = "platform-pg-rw.platform.svc.cluster.local"
 }
 
 # Create/manage platform namespace in Bootstrap (before Platform layer Vault deployment)
@@ -155,3 +155,5 @@ output "platform_pg_ready" {
   description = "Platform PostgreSQL cluster is ready for connections"
   depends_on  = [time_sleep.wait_for_platform_pg]
 }
+
+

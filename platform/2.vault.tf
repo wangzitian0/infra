@@ -20,7 +20,8 @@ data "kubernetes_namespace" "platform" {
 
 locals {
   # PostgreSQL connection string for Vault storage backend (CNPG uses -rw suffix)
-  vault_pg_connection = "postgres://postgres:${var.vault_postgres_password}@postgresql-rw.platform.svc.cluster.local:5432/vault?sslmode=disable"
+  # Uses 'simpleuser' with password from 1Password via TF_VAR_vault_postgres_password
+  vault_pg_connection = "postgres://simpleuser:${var.vault_postgres_password}@platform-pg-rw.platform.svc.cluster.local:5432/vault?sslmode=require"
 
   vault_config = <<-EOT
     ui = true
@@ -72,7 +73,7 @@ resource "helm_release" "vault" {
             image = "busybox:1.36"
             command = [
               "sh", "-c",
-              "timeout=120; elapsed=0; until nc -z postgresql-rw.platform.svc.cluster.local 5432; do echo \"waiting for PostgreSQL... ($elapsed/$timeout s)\"; sleep 2; elapsed=$((elapsed+2)); if [ $elapsed -ge $timeout ]; then echo 'TIMEOUT: PostgreSQL not available'; exit 1; fi; done"
+              "timeout=120; elapsed=0; until nc -z platform-pg-rw.platform.svc.cluster.local 5432; do echo \"waiting for PostgreSQL... ($elapsed/$timeout s)\"; sleep 2; elapsed=$((elapsed+2)); if [ $elapsed -ge $timeout ]; then echo 'TIMEOUT: PostgreSQL not available'; exit 1; fi; done"
             ]
           }
         ]
@@ -103,9 +104,17 @@ resource "helm_release" "vault" {
           path    = "/v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204"
         }
         livenessProbe = {
-          enabled             = true
-          path                = "/v1/sys/health?standbyok=true"
-          initialDelaySeconds = 60
+          enabled = true
+          httpGet = {
+            path   = "/v1/sys/health?standbyok=true"
+            port   = 8200
+            scheme = "HTTP"
+          }
+          initialDelaySeconds = 600
+          periodSeconds       = 10
+          successThreshold    = 1
+          timeoutSeconds      = 5
+          failureThreshold    = 3
         }
       }
       injector = {

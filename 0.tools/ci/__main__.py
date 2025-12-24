@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from .commands import plan, apply, verify, parse, init, update
+from .commands import plan, apply, verify, parse, init, update, check_vault
 
 
 def main():
@@ -62,6 +62,10 @@ def main():
     update_parser.add_argument("--stage", required=True, help="Stage key")
     update_parser.add_argument("--status", required=True, help="Status (success, failure, etc)")
     update_parser.add_argument("--link", help="Link to details")
+
+    # check-vault (pre-flight check)
+    check_vault_parser = subparsers.add_parser("check-vault", help="Check Vault seal status")
+
     args = parser.parse_args()
 
     # Dispatch to command handler
@@ -72,6 +76,7 @@ def main():
         "parse": parse.run,
         "init": init.run,
         "update": update.run,
+        "check-vault": check_vault.run,
     }
 
     handler = handlers.get(args.command)

@@ -64,7 +64,20 @@ op item get "Infra-GHA-Secrets" --vault="my_cloud" --format json |
 | `Infra-GHA-Secrets` | `api_key` | `GEMINI_API_KEY` | - |
 | `GitHub PAT` | `token` | `GH_PAT` | `github_token` |
 
-### 2. 运行时默认变量 (Loader 自动处理)
+### 3. Terraform 生成密钥 (Managed Secrets)
+
+某些密钥不适合在 1Password 长期存储（如解决兼容性问题生成的随机密码），直接由 Terraform `random_password` 生成并存入 Kubernetes Secret。
+
+**案例**: `platform-pg-simpleuser` (Vault/Casdoor 连接 Platform PG 用)
+
+*   **生成**: Bootstrap 层 TF `random_password` 资源。
+*   **存储**: TF State (R2) + K8s Secret (`platform/platform-pg-simpleuser`)。
+*   **读取**:
+    *   **Runtime**: Pod 挂载/读取 Secret。
+    *   **Terraform**: Platform 层 `data "kubernetes_secret"` 读取。
+*   **灾难恢复**:
+    *   **Secret 丢失**: 重新运行 `terraform apply -target=module.bootstrap`。
+    *   **密码泄露**: Taint 资源 `terraform taint random_password.simpleuser` -> Apply -> 手动 `ALTER USER` 同步数据库。
 
 以下变量由 `ci_load_secrets.py` 在缺失时自动填充默认值：
 - `VPS_USER`: `root`
