@@ -63,6 +63,9 @@ resource "kubectl_manifest" "platform_pg" {
       # Single instance for platform services
       instances = 1
 
+      # Enable superuser access so CNPG syncs password from superuserSecret
+      enableSuperuserAccess = true
+
       # Bootstrap with Vault and Casdoor databases
       bootstrap = {
         initdb = {
