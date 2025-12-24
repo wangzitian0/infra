@@ -183,9 +183,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
+          PYTHONPATH: ${{ github.workspace }}/0.tools
         run: |
-          cd 0.tools
-          
           CMD="${{ needs.parse.outputs.command }}"
           LAYERS="${{ needs.parse.outputs.layers }}"
           PR="${{ needs.parse.outputs.pr_number }}"

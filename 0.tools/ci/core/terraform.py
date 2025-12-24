@@ -33,7 +33,22 @@ class TerraformRunner:
 
     def __init__(self, layer: Layer, repo_root: str | None = None):
         self.layer = layer
-        self.repo_root = repo_root or os.getcwd()
+        # Determine repo root: GITHUB_WORKSPACE > git root > cwd
+        if repo_root:
+            self.repo_root = repo_root
+        elif os.environ.get("GITHUB_WORKSPACE"):
+            self.repo_root = os.environ["GITHUB_WORKSPACE"]
+        else:
+            # Try to find git root
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ["git", "rev-parse", "--show-toplevel"],
+                    capture_output=True, text=True
+                )
+                self.repo_root = result.stdout.strip() if result.returncode == 0 else os.getcwd()
+            except Exception:
+                self.repo_root = os.getcwd()
         self.work_dir = os.path.join(self.repo_root, layer.path)
 
     def _run(
