@@ -214,7 +214,7 @@ output "arangodb_port" {
 }
 
 output "arangodb_vault_path" {
-  value       = "${data.terraform_remote_state.l2_platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["arangodb"]}"
+  value       = "${data.terraform_remote_state.platform.outputs.vault_kv_mount}/data/${data.terraform_remote_state.platform.outputs.vault_db_secrets["arangodb"]}"
   description = "Vault KV path for ArangoDB credentials"
 }
 
