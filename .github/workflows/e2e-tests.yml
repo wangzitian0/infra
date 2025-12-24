@@ -166,7 +166,7 @@ jobs:
         if: always() && (inputs.pr_number || github.event.pull_request.number)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHONPATH: ${{ github.workspace }}/0.tools
+          PYTHONPATH: ${{ github.workspace }}/tools
         run: |
           PR="${{ inputs.pr_number || github.event.pull_request.number }}"
           STATUS="${{ job.status }}"

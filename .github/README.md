@@ -78,7 +78,7 @@ Terraform 以 layer 目录为单位运行：`1.bootstrap/2.platform/3.data/4.app
 ├── AGENTS.md                          # [SSOT] AI Agent 行为准则
 ├── 0.check_now.md                     # [SSOT] 当前待办（5W1H + 验证）
 ├── apps/                              # [SSOT] 业务代码 (Submodule)
-├── 0.tools/                           # [SSOT] 本地工具/脚本
+├── tools/                           # [SSOT] 本地工具/脚本
 ├── 1.bootstrap/                       # [SSOT] L1 Bootstrap
 ├── 2.platform/                        # [SSOT] L2 Platform
 ├── 3.data/                            # [SSOT] L3 Data

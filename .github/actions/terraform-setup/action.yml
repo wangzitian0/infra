@@ -44,7 +44,7 @@ runs:
       shell: bash
       env:
         INPUT_SECRETS_JSON: ${{ inputs.secrets_json }}
-      run: python3 0.tools/ci_load_secrets.py
+      run: python3 tools/ci_load_secrets.py
 
     - name: Fail-Fast Env Check
       shell: bash
