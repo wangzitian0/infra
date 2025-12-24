@@ -3,7 +3,7 @@
 Time-ordered history of completed work. Each entry is an immutable snapshot (named `YYYY-MM-DD.*.md`). `0.check_now.md` points to the active context; when a sprint/topic closes, its notes move here as a dated log.
 
 ## Recent Entries
-- [2025-12-25: Reconcile Bootstrap Drift in Post-Merge CI (Adopt Existing Resources + Digger Chart Pin)](./2025-12-25.bootstrap_drift_reconcile.md)
+- [2025-12-25: Reconcile Bootstrap Drift in Post-Merge CI (Adopt Existing Resources + Digger Chart Pin + Helm Import Hardening)](./2025-12-25.bootstrap_drift_reconcile.md)
 - [2025-12-24: Data DB Operators for Redis and ClickHouse](./2025-12-24.data-db-operators.md)
 - [2025-12-22: L1 Bootstrap Provider Migration](./2025-12-22.l1_provider_migration.md)
 - [2025-12-22: Fix Data Layer CI and Clarify SSOT Responsibilities](./2025-12-22.fix_data_ci_and_docs.md)
