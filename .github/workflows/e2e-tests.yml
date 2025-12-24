@@ -49,6 +49,11 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 env:
   PORTAL_URL: https://home.zitian.party
   SSO_URL: https://sso.zitian.party
