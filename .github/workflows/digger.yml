@@ -33,4 +33,5 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: 0.68.4
         env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
