@@ -29,7 +29,7 @@ graph LR
         RND[random_password] --> KV[Vault KV]
         KV --> |VaultStaticSecret| VSO
         VSO --> |sync| K8S[K8s Secret]
-        K8S --> |existingSecret| HELM[DB Helm Charts]
+        K8S --> |existingSecret| OP[DB Operators]
         RND --> DB_CFG[database_secret_backend]
     end
     VM --> KV
@@ -44,7 +44,7 @@ graph LR
 1. `random_password` generates password on first deploy
 2. `vault_kv_secret_v2` stores in Vault (SSOT, with `ignore_changes`)
 3. `VaultStaticSecret` CR tells VSO to sync Vault → K8s Secret
-4. Helm chart uses `existingSecret` to read from K8s Secret
+4. Operator CR uses `existingSecret` to read from K8s Secret
 5. No more fragile `data.external` + kubectl exec workarounds
 
 ### Components
@@ -61,7 +61,7 @@ graph LR
 
 1. **Bootstrap**: k3s, Platform PostgreSQL
 2. **Platform**: Vault, vault_mount, VSO (Vault Secrets Operator)
-3. **Data**: Create Vault KV → VSO syncs to K8s Secret → Helm uses existingSecret
+3. **Data**: Create Vault KV → VSO syncs to K8s Secret → Operator CR uses existingSecret
 4. **Applications**: Get dynamic credentials via Vault Agent
 
 ### Credentials
@@ -101,16 +101,16 @@ The `data-staging` namespace is **owned by Data layer**. This follows the patter
 
 ### VSO Pattern Rationale
 
-Password flow: `random_password` → `Vault KV` → `VSO` → `K8s Secret` → `Helm existingSecret`
+Password flow: `random_password` → `Vault KV` → `VSO` → `K8s Secret` → `Operator CR existingSecret`
 
 | Location | Purpose | Justification |
 |----------|---------|---------------|
 | Vault KV (`secret/data/postgres`) | SSOT for all credentials | Single source of truth, supports rotation |
-| K8s Secret (via VSO sync) | Helm chart consumption | Helm `existingSecret` reads from K8s Secret |
+| K8s Secret (via VSO sync) | Operator CR consumption | Operator `existingSecret` reads from K8s Secret |
 | VaultStaticSecret CR | Automation | VSO watches Vault and auto-syncs to K8s |
 
 **Why VSO instead of Vault Agent Injector?**
-- Helm charts natively support `existingSecret` parameter
+- Operator CRs natively support existing Secrets (e.g., `redisSecret`)
 - VSO provides automatic sync (no sidecar needed for databases)
 - Cleaner than `data.external` + kubectl exec workarounds
 
@@ -132,7 +132,7 @@ kubectl exec -n "$NS" postgresql-0 -- psql -U postgres -d app < l3_backup.sql
 1. **Terraform State Lost** (VSO Pattern - Issue #351):
    - Vault KV secrets protected by `ignore_changes` (won't overwrite)
    - VSO auto-syncs existing Vault secrets to K8s Secrets
-   - Helm uses `existingSecret` → no password mismatch
+   - Operator CR uses `existingSecret` → no password mismatch
    - Database continues with same credentials
 2. **Data Loss**: Restore from pg_dump backup
 3. **Full Recreation**: Delete `data-<env>` namespace, re-apply L3
@@ -167,14 +167,14 @@ lifecycle {
 - ✅ **ClickHouse**: Password validation (16+ chars)
 - ✅ **ArangoDB**: Password validation (16+ chars) + JWT secret precondition
 
-### Helm Chart Configuration
+### Operator Configuration
 
 - **Timeout**: 300s (standardized across all releases)
 - **Wait**: `wait = true` ensures readiness before completion
 - **Lifecycle**: `prevent_destroy = true` on all database releases
 - **Storage**: follow [ops.storage.md](../docs/ssot/ops.storage.md) (`local-path-retain`, reclaim policy, /data conventions)
 
-**Note**: initContainer and other Pod-level health checks are configured via Helm chart defaults, not in Terraform values per SSOT guidelines.
+**Note**: initContainer and other Pod-level health checks are configured via operator defaults, not in Terraform values per SSOT guidelines.
 Scalability for MVP:
 - **Redis**: Master-only (no replicas)
 - **ClickHouse**: Single shard, no ZooKeeper

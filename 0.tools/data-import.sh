@@ -2,11 +2,11 @@
 # Data Import Script - Shared logic for importing existing Data layer resources into Terraform state
 # Used by Atlantis (atlantis.yaml) for Data resource state synchronization
 #
-# Usage: ./0.tools/l3-import.sh <namespace> [terragrunt_command]
+# Usage: ./0.tools/data-import.sh <namespace> [terragrunt_command]
 #
 # Examples:
-#   ./0.tools/l3-import.sh "data-prod" "terragrunt"
-#   ./0.tools/l3-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
+#   ./0.tools/data-import.sh "data-prod" "terragrunt"
+#   ./0.tools/data-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
 
 set -euo pipefail
 
@@ -30,9 +30,8 @@ fi
 
 # Import helm releases if they exist but not in state
 declare -A HELM_RELEASES=(
-  ["helm_release.postgresql"]="postgresql"
-  ["helm_release.redis"]="redis"
-  ["helm_release.clickhouse"]="clickhouse"
+  ["helm_release.redis_operator"]="redis-operator"
+  ["helm_release.clickhouse_operator"]="clickhouse-operator"
   ["helm_release.arangodb_operator"]="arangodb-operator"
 )
 

@@ -7,7 +7,7 @@
 # - VaultStaticSecret syncs Vault → K8s Secret (via VSO)
 # - Helm uses existingSecret to read from K8s Secret
 #
-# Pattern: Bitnami Helm chart
+# Pattern: Opstree Redis Operator + Redis CR (standalone)
 # Namespace: per-env (data-staging, data-prod)
 #
 # Note: Redis doesn't have a Vault Database Engine equivalent
@@ -80,55 +80,57 @@ resource "time_sleep" "wait_for_redis_secret" {
 }
 
 # =============================================================================
-# Redis via Bitnami Helm chart
+# Redis Operator (Opstree)
 # =============================================================================
 
-resource "helm_release" "redis" {
-  name             = "redis"
+resource "helm_release" "redis_operator" {
+  name             = "redis-operator"
   namespace        = local.namespace_name # Per-env: data-staging, data-prod
-  repository       = "oci://registry-1.docker.io/bitnamicharts"
-  chart            = "redis"
-  version          = "20.6.0"
+  repository       = "https://ot-container-kit.github.io/helm-charts/"
+  chart            = "redis-operator"
+  version          = "0.6.0"
   create_namespace = false
   timeout          = 300 # Consistent with PR #170 standard
   wait             = true
   wait_for_jobs    = true
 
   lifecycle {
-    prevent_destroy = true # Prevent accidental data loss
-
     postcondition {
       condition     = self.status == "deployed"
-      error_message = "Redis Helm release failed to deploy. Check pod logs and events."
+      error_message = "Redis operator Helm release failed to deploy. Check pod logs and events."
     }
   }
 
-  values = [
-    yamlencode({
-      # Bitnami deletes old tags; use latest + IfNotPresent to reduce drift
-      image = {
-        tag        = "latest"
-        pullPolicy = "IfNotPresent"
+  depends_on = [kubernetes_namespace.data]
+}
+
+# Wait for Redis Operator CRD to be established
+resource "time_sleep" "wait_for_redis_crd" {
+  create_duration = "30s"
+
+  depends_on = [helm_release.redis_operator]
+}
+
+# =============================================================================
+# Redis Standalone CR
+# =============================================================================
+
+resource "kubectl_manifest" "redis" {
+  yaml_body = yamlencode({
+    apiVersion = "redis.redis.opstreelabs.in/v1beta2"
+    kind       = "Redis"
+    metadata = {
+      name      = "redis-master"
+      namespace = local.namespace_name
+      labels = {
+        module = "data"
+        env    = local.env_name
       }
-      auth = {
-        # Use existingSecret created by VSO (synced from Vault KV)
-        existingSecret            = "redis-credentials"
-        existingSecretPasswordKey = "password"
-      }
-      master = {
-        persistence = {
-          enabled      = true
-          storageClass = "local-path-retain"
-          size         = "2Gi"
-        }
-        # Enhanced persistence configuration
-        configuration = <<-EOT
-          appendonly yes
-          appendfsync everysec
-          save 900 1
-          save 300 10
-          save 60 10000
-        EOT
+    }
+    spec = {
+      kubernetesConfig = {
+        image           = "quay.io/opstree/redis:v7.0.15"
+        imagePullPolicy = "IfNotPresent"
         resources = {
           limits = {
             cpu    = "200m"
@@ -139,14 +141,46 @@ resource "helm_release" "redis" {
             memory = "64Mi"
           }
         }
+        redisSecret = {
+          name = "redis-credentials"
+          key  = "password"
+        }
+        service = {
+          additional = {
+            enabled = false
+          }
+        }
       }
-      replica = {
-        replicaCount = 0 # Single VPS MVP: no replicas (can scale later)
+      redisConfig = {
+        additionalRedisConfig = <<-EOT
+          appendonly yes
+          appendfsync everysec
+          save 900 1
+          save 300 10
+          save 60 10000
+        EOT
       }
-    })
-  ]
+      storage = {
+        keepAfterDelete = true
+        volumeClaimTemplate = {
+          spec = {
+            storageClassName = "local-path-retain"
+            accessModes      = ["ReadWriteOnce"]
+            resources = {
+              requests = {
+                storage = "2Gi"
+              }
+            }
+          }
+        }
+      }
+    }
+  })
 
-  depends_on = [time_sleep.wait_for_redis_secret]
+  depends_on = [
+    time_sleep.wait_for_redis_secret,
+    time_sleep.wait_for_redis_crd
+  ]
 }
 
 # =============================================================================
@@ -154,7 +188,7 @@ resource "helm_release" "redis" {
 # =============================================================================
 
 output "redis_host" {
-  value       = "${helm_release.redis.name}-master.${local.namespace_name}.svc.cluster.local"
+  value       = "redis-master.${local.namespace_name}.svc.cluster.local"
   description = "Redis K8s service DNS for L4 applications"
 }
 
