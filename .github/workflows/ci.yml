@@ -92,8 +92,17 @@ jobs:
           if [[ "$COMMENT" == *"/health"* ]]; then
             python -m ci health --pr $PR
           elif [[ "$COMMENT" == *"/e2e"* ]]; then
-            gh workflow run e2e-tests.yml --ref ${{ github.head_ref }}
-            gh pr comment $PR --body "🧪 E2E tests triggered."
+            echo "🔍 Fetching branch for PR #$PR..."
+            PR_BRANCH=$(gh pr view $PR --repo ${{ github.repository }} --json headRefName --jq .headRefName)
+            echo "✅ Found branch: $PR_BRANCH"
+            
+            if [[ -z "$PR_BRANCH" ]]; then
+              echo "❌ Failed to determine branch name."
+              exit 1
+            fi
+            
+            gh workflow run e2e-tests.yml --ref "$PR_BRANCH"
+            gh pr comment $PR --body "🧪 E2E tests triggered for branch \`$PR_BRANCH\`."
           elif [[ "$COMMENT" == *"/review"* ]]; then
             gh pr comment $PR --body "🔍 AI Review not yet implemented."
           elif [[ "$COMMENT" == *"/help"* ]]; then

@@ -75,21 +75,41 @@ graph TD
 | data-prod | `envs/prod/data/` | terragrunt | 4 |
 
 ## Dashboard 格式
-
+每个 commit 在 push 之后，都应该创建一个 dashboard comment，内容如下：
 ```markdown
-## ⚙️ Commit `abc1234` Pipeline
-
+## ⚙️ Commit Dashboard `abc1234`
+### Stages
 | Stage | Status | Output | Time |
 |:---|:---:|:---|:---|
-| CI Validate | ✅ | [View](#) | 12:34 |
-| Plan: bootstrap | ✅ | [View](#) | 12:35 |
-| Plan: platform | ⏳ | Running... | - |
-| Apply | ⏭️ | - | - |
-| AI Review | ⏭️ | - | - |
+| /validate | ✅ | [View](#job-link1) | 12:34 |
+| /plan | ✅ | [View](#job-link1) | 12:35 |
+| /apply | ⏳ | Running... | - |
+| /e2e | ❌ | - | - |
+| /review | ⏳ | - | - |
 
-<!-- next-step -->
-⏳ Waiting for plan...
-<!-- /next-step -->
+<details><summary>📜 Action History</summary>
+
+| Action | Trigger | Output | Time |
+|:---|:---|:---|:---|
+| Plan | [@infra-flash](https://github.com/wangzitian0/infra/pull/340#issuecomment-3681291634) 👀 | [result](https://github.com/wangzitian0/infra/pull/340#issuecomment-3681292008) | 09:51 UTC |
+<!-- history-rows -->
+
+</details>
+
+<details><summary>📖 Available Infra Commands</summary>
+### Commands
+| 命令 | 作用 |
+|:---|:---|
+| `/plan` | 预览所有层变更 |
+| `/plan bootstrap` | 预览指定层 |
+| `/apply` | 部署所有层 |
+| `/apply platform` | 部署指定层 |
+| `/health` | 健康检查 |
+| `/e2e` | E2E 测试 |
+| `/review` | AI 审查 |
+| `/help` | 显示帮助 |
+</details>
+
 ```
 
 ---
