@@ -1,52 +1,66 @@
 # 告警 SSOT
 
-> **核心问题**：告警从哪来？谁配置？怎么通知？如何分级？
-
-## 告警来源
-
-| 类型 | 工具/位置 | 说明 |
-|------|-----------|------|
-| **应用指标/链路** | SigNoz Alerts | 基于 metrics/traces 的阈值与 SLO |
-| **应用日志** | SigNoz Log Alerts | 基于日志过滤/频次 |
-| **集群事件** | SigNoz / K8s Events（未来） | 关键 node/pod 异常 |
-
-## 告警分级（MVP）
-
-| 级别 | 触发条件示例 | 行为 |
-|------|--------------|------|
-| **P0** | 全站不可用、关键 DB down | 立即通知（多通道） |
-| **P1** | 错误率持续升高、延迟超阈 | 立即通知（单通道） |
-| **P2** | 资源水位预警、慢查询 | 工作时间通知 |
-
-## 通知通道
-
-> **MVP**：优先使用 SigNoz 内置通知（Email / Webhook）。后续可接入自托管推送（如 `ntfy`）或聊天机器人。
-
-| 通道 | 配置位置 | 适用级别 |
-|------|----------|----------|
-| Email | SigNoz UI | P0/P1 |
-| Webhook（自定义） | SigNoz UI | P0/P1/P2 |
-
-## 值班与责任
-
-- **配置责任**：每个 L4 App 对自己的 SLO/阈值负责。
-- **全局规则**：平台/数据库类告警由 Infra-Ops 维护。
-- **环境**：仅 staging/prod 开启，test/ci/dev 默认关闭。
-
-> TODO(alerting): 配置 SigNoz Alert Rules
-> TODO(alerting): 配置通知通道 (Email/Webhook)
-
-## 实施状态
-
-| 项目 | 状态 |
-|------|------|
-| SigNoz Alert Rules | ⏳ 未配置 |
-| 通知通道 | ⏳ 未配置 |
-
-## 相关文件
-
-- 可观测性选型：[ops.observability.md](./ops.observability.md)
-- 域名规则：[platform.network.md](./platform.network.md)
+> **SSOT Key**: `ops.alerting`
+> **核心定义**: 定义告警规则、严重等级分级及通知渠道。
 
 ---
 
+## 1. 真理来源 (The Source)
+
+本话题的配置和状态由以下物理位置唯一确定：
+
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **规则定义** | **SigNoz Alert Manager** | 告警规则配置 |
+| **通知渠道** | **Slack / Email** | 接收端 |
+
+---
+
+## 2. 告警分级 (Severity)
+
+| 等级 | 颜色 | 响应时效 | 定义 |
+|------|------|----------|------|
+| **P0 (Critical)** | 🔴 Red | 立即 (24x7) | 核心服务不可用 (Vault, SSO, DB Down) |
+| **P1 (Error)** | 🟠 Orange | 30分钟 | 部分功能受损，核心链路仍通 |
+| **P2 (Warning)** | 🟡 Yellow | 工作日 | 资源使用率高，非关键错误 |
+
+---
+
+## 3. 设计约束 (Dos & Don'ts)
+
+### ✅ 推荐模式 (Whitelist)
+
+- **模式 A**: 告警必须包含 Actionable 的信息（Runbook 链接）。
+- **模式 B**: 尽量聚合告警，避免风暴。
+
+### ⛔ 禁止模式 (Blacklist)
+
+- **反模式 A**: **禁止** 为波动频繁的指标（如 CPU 瞬间峰值）设置 P0 告警。
+- **反模式 B**: **禁止** 忽略 Critical 告警。
+
+---
+
+## 4. 标准操作程序 (Playbooks)
+
+### SOP-001: 响应 P0 告警
+
+- **触发条件**: 收到 PagerDuty/电话通知
+- **步骤**:
+    1. 确认故障影响范围。
+    2. 如果是基础设施故障，参考 [**Recovery SSOT**](./ops.recovery.md)。
+    3. 在状态页更新 Incident。
+
+---
+
+## 5. 验证与测试 (The Proof)
+
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **告警通道连通性** | `test_alert_channel.py` (Pending) | ⏳ Planned |
+
+---
+
+## Used by
+
+- [docs/ssot/README.md](./README.md)
+- [docs/ssot/ops.observability.md](./ops.observability.md)

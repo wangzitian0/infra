@@ -1,160 +1,100 @@
-# 基础设施核心 SSOT
+# 核心架构 SSOT
 
-> **核心问题**：架构如何组织？环境如何隔离？变量如何配置？网络如何规划？
-
----
-
-## 1. 三层架构
-
-```mermaid
-flowchart TB
-    Bootstrap["Bootstrap<br/>bootstrap/<br/>K3s, Atlantis, DNS/Cert, Platform PG"]
-    Platform["Platform<br/>platform/<br/>Vault, SSO, Observability, PaaS Controller"]
-    Data["Data<br/>envs/{env}/data/<br/>业务数据库 (per-env, N 份)"]
-
-    Bootstrap --> Platform --> Data
-```
-
-| 模块 | 核心职责 | 部署份数 | 关键组件 |
-|------|----------|---------|----------|
-| **Bootstrap** | Trust Anchor + 基础运行环境 | **1 套** | K3s, Atlantis, DNS, Storage |
-| **Platform** | 控制面中心 (密钥/认证/PaaS) | **1 套** | Vault, Casdoor, Kubero, SigNoz |
-| **Data** | 数据面 (业务数据库) | **N 套** | PostgreSQL, Redis, ClickHouse |
-
-> 详细技术配置见：[bootstrap.*.md](./README.md#bootstrap---引导层)、[platform.*.md](./README.md#platform---平台层)
-
-### 拓扑依赖
-
-1. **Bootstrap → Platform**: Platform 运行在 Bootstrap 的 K8s 集群上
-2. **Platform → Data**: Data 层依赖 Platform 的 Vault 认证
+> **SSOT Key**: `core`
+> **核心定义**: 定义基础设施的整体分层架构、环境隔离模型及模块间依赖关系。
 
 ---
 
-## 2. 目录结构
+## 1. 真理来源 (The Source)
+
+> **原则**：目录结构即架构 (Directory Structure as Architecture)。
+
+本话题的配置和状态由以下物理位置唯一确定：
+
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **目录结构** | [`docs/ssot/core.dir.md`](./core.dir.md) | 物理文件布局 |
+| **层级定义** | [`.`](../../) (Root Directory) | Bootstrap, Platform, Envs |
+| **变量契约** | [`variables.tf`](../../variables.tf) | 全局变量定义 |
+
+### Code as SSOT 索引
+
+- **全局变量**：参见 [`variables.tf`](../../variables.tf)
+- **环境定义**：参见 [`envs/README.md`](../../envs/README.md)
+
+---
+
+## 2. 架构模型
 
 ```mermaid
 flowchart TB
-    Root["root/"]
-    Root --> Agents["AGENTS.md<br/>(!) AI 行为准则"]
-    Root --> AtlantisYaml["atlantis.yaml<br/>(!) GitOps 配置"]
+    Bootstrap["L1 Bootstrap<br/>(Trust Anchor)"]
+    Platform["L2 Platform<br/>(Control Plane)"]
+    Data["L3 Data<br/>(Stateful Services)"]
+    Apps["L4 Apps<br/>(Business Logic)"]
 
-    Root --> BootstrapDir["bootstrap/<br/>Bootstrap 层"]
-    BootstrapDir --> B1["1.k3s.tf"]
-    BootstrapDir --> B2["2.atlantis.tf"]
-    BootstrapDir --> B3["3.dns_and_cert.tf"]
-
-    Root --> PlatformDir["platform/<br/>Platform 层"]
-    PlatformDir --> P1["2.secret.tf (Vault)"]
-    PlatformDir --> P2["5.casdoor.tf (SSO)"]
-
-    Root --> EnvsDir["envs/<br/>环境配置层"]
-    EnvsDir --> EnvsStaging["staging/data/"]
-    EnvsDir --> EnvsProd["prod/data/"]
+    Bootstrap -->|Provides K3s| Platform
+    Platform -->|Provides Vault| Data
+    Data -->|Provides DBs| Apps
+    Platform -->|Provides SSO| Apps
 ```
 
-### Namespace 规则
+### 层级定义
 
-| 模块 | Namespace | 组件 |
+| 层级 | 目录 | 职责 | 部署份数 |
+|------|------|------|----------|
+| **L1 Bootstrap** | `bootstrap/` | 启动集群，建立 Trust Anchor | 1 (Global) |
+| **L2 Platform** | `platform/` | 提供公共服务 (Vault, SSO) | 1 (Global) |
+| **L3 Data** | `envs/<env>/data/` | 提供数据服务 (DB, Redis) | N (Per-env) |
+| **L4 Apps** | `apps/` | 业务应用 | N (Per-env) |
+
+---
+
+## 3. 设计约束 (Dos & Don'ts)
+
+### ✅ 推荐模式 (Whitelist)
+
+- **模式 A**: 上层模块只能依赖下层模块提供的 Output (通过 `terraform_remote_state` 或 Vault)。
+- **模式 B**: 环境之间 (Staging vs Prod) 必须在 Data 层及以上进行物理隔离。
+
+### ⛔ 禁止模式 (Blacklist)
+
+- **反模式 A**: **禁止** 循环依赖 (如 Bootstrap 依赖 Platform 的 Vault)。
+- **反模式 B**: **禁止** 跨环境直接访问数据库 (如 Prod App 连 Staging DB)。
+
+---
+
+## 4. 环境变量规范
+
+### 命名空间 (Namespace)
+
+| 模块 | Namespace | 用途 |
 |------|-----------|------|
-| Bootstrap | `kube-system`, `bootstrap` | 系统组件, Atlantis |
-| Platform | `platform`, `kubero`, `observability` | Vault, SSO, SigNoz |
-| Data | `data-staging`, `data-prod` | 业务数据库 |
-
----
-
-## 3. 环境隔离
-
-### 设计原则
-
-- **统一基座**: Staging 和 Prod 共享同一个 K3s 集群
-- **Workspace 隔离**: Data 层通过目录路径区分 State
-- **Namespace 隔离**: Kubernetes Namespace 作为环境隔离的硬边界
-
-### 模块与多环境映射
-
-| 模块 | 份数 | 多环境策略 |
-|:---|:---:|:---|
-| **Bootstrap** | 1 套 | 全局单例 |
-| **Platform** | 1 套 | 全局单例 |
-| **Data** | N 套 | Per-env (staging/prod) |
+| Bootstrap | `kube-system`, `bootstrap` | 系统组件 |
+| Platform | `platform`, `observability` | 平台服务 |
+| Data | `data-staging`, `data-prod` | 数据服务 |
+| Apps | `apps-staging`, `apps-prod` | 业务应用 |
 
 ### 域名规则
 
 | 环境 | 域名模式 | 示例 |
 |:---|:---|:---|
-| **基建/Platform** | `<service>.<internal_domain>` | `secrets.zitian.party` |
+| **Platform** | `<service>.<internal_domain>` | `sso.zitian.party` |
 | **Staging** | `x-staging.<base_domain>` | `x-staging.truealpha.club` |
 | **Prod** | `<base_domain>` | `truealpha.club` |
 
 ---
 
-## 4. 变量规范
+## 5. 验证与测试 (The Proof)
 
-### 分类
-
-| 类别 | 示例 | 定义位置 | 注入方式 |
-|------|------|----------|----------|
-| **TF 变量** | `base_domain`, `vps_host` | `variables.tf` | TF_VAR_* |
-| **Feature Flags** | `enable_observability` | `variables.tf` | tfvars |
-| **Helm Values** | chart versions | `variables.tf` | TF → Helm |
-
-### Bootstrap 变量
-
-| 变量 | 必填 | 默认值 | 用途 |
-|------|------|--------|------|
-| `vps_host` | ✅ | - | VPS IP |
-| `cluster_name` | ❌ | `truealpha-k3s` | K3s 集群名 |
-| `base_domain` | ✅ | `truealpha.club` | 生产域名 |
-| `internal_domain` | ❌ | (同 base) | 内部域名 |
-
-### Platform 变量
-
-| 变量 | 必填 | 默认值 | 用途 |
-|------|------|--------|------|
-| `vault_chart_version` | ❌ | `0.31.0` | Vault Helm 版本 |
-| `vault_image_tag` | ❌ | `1.20.4` | Vault 镜像版本 |
-
-### Feature Flags
-
-| Flag | 层级 | 默认值 | 作用 |
-|------|------|--------|------|
-| `enable_infra` | Bootstrap | `true` | 部署共享基础设施 |
-| `enable_observability` | Bootstrap | `false` | 部署 SigNoz |
-| `enable_ssl` | Bootstrap | `true` | 启用 TLS |
-
----
-
-## 5. 网络规则
-
-### Cloudflare 配置
-
-| 模式 | 代理 | 用途 | 示例 |
-|------|------|------|------|
-| `<service>.<internal_domain>` | ✅ Orange | 内部平台 | `atlantis.zitian.party` |
-| `k3s.<internal_domain>` | ❌ Grey | K3s API | `k3s.zitian.party:6443` |
-| `<base_domain>` | ✅ Orange | 生产 | `truealpha.club` |
-
-### 服务域名映射
-
-| 服务 | 域名 | 层级 |
-|------|------|------|
-| Atlantis | `atlantis.<internal_domain>` | Bootstrap |
-| Vault | `secrets.<internal_domain>` | Platform |
-| Casdoor | `sso.<internal_domain>` | Platform |
-| Kubero | `kcloud.<internal_domain>` | Platform |
-
-### TLS 证书
-
-cert-manager + Let's Encrypt:
-```yaml
-annotations:
-  cert-manager.io/cluster-issuer: "letsencrypt-prod"
-```
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **目录结构完整性** | `test_structure.py` (Pending) | ⏳ Planned |
+| **DNS 规则一致性** | [`test_network.py`](../../e2e_regressions/tests/bootstrap/network_layer/test_network.py) | ✅ Critical |
 
 ---
 
 ## Used by
 
-- [docs/README.md](../README.md)
-- [bootstrap.*.md](./README.md#bootstrap---引导层)
-- [platform.*.md](./README.md#platform---平台层)
+- [docs/ssot/README.md](./README.md)
+- [docs/README.md](../../docs/README.md)

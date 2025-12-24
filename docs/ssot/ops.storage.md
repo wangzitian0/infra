@@ -1,66 +1,82 @@
-# 存储与文件系统 SSOT
+# 存储与备份 SSOT
 
-> **核心问题**：状态放哪？PV/对象存储怎么选？备份如何同步到本地或 Cloudflare？
+> **SSOT Key**: `ops.storage`
+> **核心定义**: 定义全系统的持久化策略 (StorageClass)、数据落盘位置及异地备份机制。
 
-## 存储类型
+---
 
-| 类型 | SSOT 文件/位置 | 用途 | 特点 |
-|------|----------------|------|------|
-| **本地 PVC (`local-path`)** | K3s 内置 | 无状态/临时数据 | 删除即回收 |
-| **本地 PVC (`local-path-retain`)** | `1.bootstrap/4.storage.tf` | 有状态服务 | PV Retain，需人工清理 |
-| **对象存储（Cloudflare R2）** | `1.bootstrap/backend.tf` | TF state / 备份归档 | S3 兼容、低成本 |
+## 1. 真理来源 (The Source)
 
-## 层级数据落点
+本话题的配置和状态由以下物理位置唯一确定：
 
-| 层级 | 数据 | 存储位置 | 备份 |
-|------|------|----------|------|
-| **L1 Bootstrap** | k3s/平台 PG/Vault 等持久卷 | VPS `/data` → PVC | `pg_dump` 到 `/data/backups` |
-| **L3 Data** | 业务 PG/Redis/ArangoDB/ClickHouse | PVC (`local-path-retain`) | 按库定时 dump |
-| **L4 Apps** | 应用容器 | 默认无状态 | 通过 L3 或 R2 持久化 |
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **StorageClass** | [`bootstrap/4.storage.tf`](../../bootstrap/4.storage.tf) | K8s 存储类定义 |
+| **备份归档** | **Cloudflare R2** | 异地冷备 |
+| **本地快照** | **VPS `/data`** | 快速恢复快照 |
 
-> 目录与持久化职责见 `docs/ssot/core.dir.md`。
+---
 
-## 备份与同步策略（MVP）
+## 2. 架构模型
 
-### 1. Terraform State
+| 存储类型 | StorageClass | Reclaim Policy | 适用场景 |
+|----------|--------------|----------------|----------|
+| **Ephemeral** | `local-path` | Delete | 缓存 (Redis), 临时构建 |
+| **Persistent** | `local-path-retain` | Retain | 数据库 (PG, CH, Vault) |
+| **HostPath** | `hostpath` | Retain | Platform PG (L1) |
 
-- **SSOT**：Cloudflare R2（已落地）。
-- **路径**：`{env}/terraform.tfstate`
+### 数据落盘目录
 
-### 2. 数据库备份
+所有持久化数据最终映射到宿主机的 `/data` 目录：
+- `/data/postgres` (L1)
+- `/data/local-path-provisioner` (L2/L3 PVCs)
+- `/data/backups` (Dump Files)
 
-1. 定时 `pg_dump` / `arangodump` / `redis-cli --rdb` 到 VPS `/data/backups/{service}/`。
-2. **同步到 R2**（计划）：用 `restic` 或 `rclone` 推送到 `r2://backups/{env}/`。
+---
 
-### 3. SSOT 文档快照
+## 3. 设计约束 (Dos & Don'ts)
 
-- **Git** 是唯一真源；为了灾备，可定期把 `docs/ssot/` 目录打包同步到 R2。
-- 计划在 `tools/` 增加 `ssot-sync.sh`（未落地）。
+### ✅ 推荐模式 (Whitelist)
 
-## 恢复流程（摘要）
+- **模式 A**: 有状态服务**必须**使用 `local-path-retain`，防止 Helm Uninstall 误删数据。
+- **模式 B**: 必须配置定期 CronJob 将 `/data/backups` 同步到 R2。
 
-| 场景 | 恢复 |
-|------|------|
-| PVC 误删 | PV 仍保留（Retain）→ 重新绑定 PVC |
-| VPS /data 丢失 | 从 R2 备份恢复 → 重新 apply Helm |
-| 单机容量不足 | 扩容 PVC 或拆分到独立 VPS |
+### ⛔ 禁止模式 (Blacklist)
 
-## 实施状态
+- **反模式 A**: **禁止** 直接在 Pod 中使用 `emptyDir` 存储重要数据。
+- **反模式 B**: **严禁** 手动删除 `/data` 下的文件，除非你清楚后果。
 
-| 项目 | 状态 |
-|------|------|
-| `/data` + StorageClass | ✅ L1 已落地 |
-| 数据库定时备份 | ⏳ 未落地 |
-| R2 备份同步 | ⏳ 未落地 |
+---
 
-## 相关文件
+## 4. 标准操作程序 (Playbooks)
 
-- 存储类：[core.dir.md](./core.dir.md)
-- 数据落点：[db.overview.md](./db.overview.md)
-- R2 backend：`1.bootstrap/backend.tf`
+### SOP-001: 扩容 PVC
+
+- **触发条件**: 数据库磁盘已满
+- **步骤**:
+    1. 修改 Terraform/Helm 中的 `persistence.size`。
+    2. Apply 变更。
+    3. (对于不支持在线扩容的 StorageClass) 可能需要手动迁移数据。
+
+### SOP-002: 恢复误删的 PVC
+
+- **触发条件**: Helm Release 被删除，但数据还在 (Retain)
+- **步骤**:
+    1. 找到残留的 PV: `kubectl get pv`
+    2. 移除 PV 的 ClaimRef: `kubectl patch pv <pv-name> -p '{"spec":{"claimRef": null}}'`
+    3. 重新部署应用，手动绑定该 PV。
+
+---
+
+## 5. 验证与测试 (The Proof)
+
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **StorageClass 定义** | [`test_storage.py`](../../e2e_regressions/tests/bootstrap/storage_layer/test_storage.py) | ✅ Critical |
 
 ---
 
 ## Used by
 
 - [docs/ssot/README.md](./README.md)
+- [bootstrap/README.md](../../bootstrap/README.md)
