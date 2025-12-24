@@ -77,18 +77,15 @@ tools/ci/
 ## Dashboard 格式
 每个 commit 在 push 之后，都应该创建一个 dashboard comment，内容如下：
 ```markdown
-## 🚀 infra-flash
-
+## ⚙️ Commit Dashboard `abc1234`
+### Stages
 | Stage | Status | Output | Time |
 |:---|:---:|:---|:---|
-| CI Validate | ⏳ | - | - |
-| Plan: bootstrap | ✅ | [View](#) | 18:19 UTC |
-| Plan: platform | ✅ | [View](#) | 18:19 UTC |
-| Plan: data-staging | ✅ | [View](#) | 18:19 UTC |
-| Plan: data-prod | ✅ | [View](#) | 18:19 UTC |
-| Apply | ⏳ | - | - |
-| E2E Tests | ⏳ | - | - |
-| AI Review | ⏳ | - | - |
+| /validate | ✅ | [View](#job-link1) | 12:34 |
+| /plan | ✅ | [View](#job-link1) | 12:35 |
+| /apply | ⏳ | Running... | - |
+| /e2e | ❌ | - | - |
+| /review | ⏳ | - | - |
 
 <details><summary>📜 Action History</summary>
 

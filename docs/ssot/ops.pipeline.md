@@ -93,16 +93,10 @@ flowchart TD
 <!-- infra-flash -->
 ## 🚀 infra-flash
 
-| Stage | Status | Output | Time |
-|:---|:---:|:---|:---|
-| CI Validate | ⏳ | - | - |
-| Plan: bootstrap | ✅ | [View](#) | 18:19 UTC |
-| Plan: platform | ✅ | [View](#) | 18:19 UTC |
-| Plan: data-staging | ✅ | [View](#) | 18:19 UTC |
-| Plan: data-prod | ✅ | [View](#) | 18:19 UTC |
-| Apply | ⏳ | - | - |
-| E2E Tests | ⏳ | - | - |
-| AI Review | ⏳ | - | - |
+| Stage | Status | Details |
+|:---|:---:|:---|
+| Plan | ✅ | [View](#run-link) |
+| Apply | ⏳ | Waiting... |
 
 <!-- next-step -->
 👉 Plan 完成，评论 `/apply` 部署
