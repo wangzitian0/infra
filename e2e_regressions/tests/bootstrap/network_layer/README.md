@@ -4,7 +4,7 @@
 
 ## SSOT 参考
 
-- [bootstrap.network.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/bootstrap.network.md)
+- [bootstrap.network.md](../../../../docs/ssot/bootstrap.network.md)
 
 ## 测试矩阵
 

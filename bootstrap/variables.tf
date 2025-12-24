@@ -54,12 +54,22 @@ variable "vps_user" {
   description = "SSH user on the VPS"
   type        = string
   default     = "root"
+
+  validation {
+    condition     = length(var.vps_user) > 0
+    error_message = "vps_user must be non-empty."
+  }
 }
 
 variable "ssh_port" {
   description = "SSH port on the VPS"
   type        = number
   default     = 22
+
+  validation {
+    condition     = var.ssh_port > 0 && var.ssh_port <= 65535
+    error_message = "ssh_port must be in range 1-65535."
+  }
 }
 
 variable "ssh_private_key" {
@@ -68,7 +78,7 @@ variable "ssh_private_key" {
   sensitive   = true
 
   validation {
-    condition     = length(var.ssh_private_key) > 100 && can(regex("-----BEGIN", var.ssh_private_key))
+    condition     = length(var.ssh_private_key) > 100 && can(regex("PRIVATE KEY", var.ssh_private_key))
     error_message = "ssh_private_key must be a valid PEM private key."
   }
 }
@@ -77,6 +87,11 @@ variable "cluster_name" {
   description = "Logical name for this k3s cluster"
   type        = string
   default     = "truealpha-k3s"
+
+  validation {
+    condition     = can(regex("^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$", var.cluster_name))
+    error_message = "cluster_name must be a valid Kubernetes-style name (dns-1035/dns-1123 label)."
+  }
 }
 
 variable "api_endpoint" {
@@ -123,13 +138,13 @@ variable "base_domain" {
   default     = "truealpha.club"
 
   validation {
-    condition     = trimspace(var.base_domain) != ""
-    error_message = "base_domain must be non-empty (set TF_VAR_base_domain or BASE_DOMAIN secret)."
+    condition     = trimspace(var.base_domain) != "" && can(regex("\\.[a-z]{2,}$", var.base_domain))
+    error_message = "base_domain must be a valid domain (e.g., example.com)."
   }
 }
 
 variable "internal_domain" {
-  description = "Domain used for infra hosts (e.g., truealpha.club -> atlantis.truealpha.club). Defaults to base_domain if empty."
+  description = "Domain used for infra hosts (e.g., truealpha.club -> digger.truealpha.club). Defaults to base_domain if empty."
   type        = string
   default     = ""
 }
@@ -212,7 +227,7 @@ variable "enable_ssl" {
   default     = true
 }
 
-# Digger Orchestrator (Terraform CI/CD)
+# Digger Orchestrator (CI/CD)
 variable "github_token" {
   description = "GitHub Personal Access Token (fallback if App not configured)"
   type        = string
@@ -224,12 +239,22 @@ variable "github_org" {
   description = "GitHub organization name"
   type        = string
   default     = "wangzitian0"
+
+  validation {
+    condition     = length(var.github_org) > 0
+    error_message = "github_org must be non-empty."
+  }
 }
 
 variable "github_user" {
   description = "GitHub username"
   type        = string
   default     = "wangzitian0"
+
+  validation {
+    condition     = length(var.github_user) > 0
+    error_message = "github_user must be non-empty."
+  }
 }
 
 variable "digger_webhook_secret" {
@@ -239,15 +264,20 @@ variable "digger_webhook_secret" {
   default     = ""
 }
 
-# GitHub App Configuration (required for Digger)
-variable "github_app_id" {
-  description = "GitHub App ID for Digger"
+# GitHub App Configuration (Infra-Flash)
+variable "infra_flash_app_id" {
+  description = "GitHub App ID for Infra-Flash (used by Digger)"
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.infra_flash_app_id == "" || can(regex("^[0-9]+$", var.infra_flash_app_id))
+    error_message = "infra_flash_app_id must be a numeric string."
+  }
 }
 
-variable "github_app_key" {
-  description = "GitHub App Private Key (PEM) for Digger"
+variable "infra_flash_app_key" {
+  description = "GitHub App Private Key (PEM) for Infra-Flash (used by Digger)"
   type        = string
   sensitive   = true
   default     = ""
@@ -277,6 +307,11 @@ variable "r2_account_id" {
   description = "Cloudflare R2 account ID"
   type        = string
   default     = ""
+
+  validation {
+    condition     = var.r2_account_id == "" || length(var.r2_account_id) == 32
+    error_message = "r2_account_id must be a 32-character hex string if provided."
+  }
 }
 
 variable "cloudflare_api_token" {
@@ -293,6 +328,11 @@ variable "cloudflare_api_token" {
 variable "cloudflare_zone_id" {
   description = "Cloudflare Zone ID for the domain"
   type        = string
+
+  validation {
+    condition     = length(var.cloudflare_zone_id) == 32
+    error_message = "cloudflare_zone_id must be a 32-character hex string."
+  }
 }
 
 variable "internal_zone_id" {
@@ -301,7 +341,7 @@ variable "internal_zone_id" {
   default     = ""
 }
 
-# OAuth2-Proxy (GitHub OAuth for Dashboard/Atlantis protection)
+# OAuth2-Proxy (GitHub OAuth for Dashboard protection)
 variable "github_oauth_client_id" {
   description = "GitHub OAuth App Client ID for OAuth2-Proxy"
   type        = string
@@ -324,9 +364,9 @@ variable "casdoor_admin_password" {
   default     = ""
 }
 
-# Atlantis IP Allowlist (Admin Access)
-variable "atlantis_allowed_admin_ips" {
-  description = "Additional IP CIDRs allowed to access Atlantis UI (e.g., office IPs, VPN). GitHub webhook IPs are always included."
+# Bootstrap Admin IP Allowlist
+variable "bootstrap_admin_ips" {
+  description = "Additional IP CIDRs allowed to access Infrastructure UIs (e.g., office IPs, VPN). GitHub webhook IPs are always included where applicable."
   type        = list(string)
   default     = []
 }

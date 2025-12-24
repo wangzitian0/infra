@@ -4,7 +4,7 @@
 
 ## SSOT 参考
 
-- [bootstrap.storage.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/bootstrap.storage.md)
+- [bootstrap.storage.md](../../../../docs/ssot/bootstrap.storage.md)
 
 ## 测试矩阵
 

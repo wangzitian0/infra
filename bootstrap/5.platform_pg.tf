@@ -13,15 +13,12 @@
 # Pattern: CloudNativePG Cluster CR (professional operator)
 # Docs: https://cloudnative-pg.io
 
-locals {
-  # CNPG uses -rw suffix for read-write service of 'platform-pg' cluster
-  platform_pg_host = "platform-pg-rw.platform.svc.cluster.local"
-}
+# No local locals needed here, moved to centralized locals.tf
 
 # Create/manage platform namespace in Bootstrap (before Platform layer Vault deployment)
 resource "kubernetes_namespace" "platform" {
   metadata {
-    name = "platform"
+    name = local.k8s.ns_platform
     labels = {
       layer = "Platform"
     }
@@ -56,7 +53,7 @@ resource "kubectl_manifest" "platform_pg" {
     apiVersion = "postgresql.cnpg.io/v1"
     kind       = "Cluster"
     metadata = {
-      name      = "postgresql"
+      name      = local.k8s.platform_pg_name
       namespace = kubernetes_namespace.platform.metadata[0].name
       labels = {
         layer = "Platform"
@@ -132,11 +129,18 @@ resource "kubectl_manifest" "platform_pg" {
 resource "time_sleep" "wait_for_platform_pg" {
   create_duration = "60s"
   depends_on      = [kubectl_manifest.platform_pg]
+
+  lifecycle {
+    postcondition {
+      condition     = strcontains(local.k8s.platform_pg_host, "svc.cluster.local")
+      error_message = "platform_pg_host must follow standard K8s internal DNS pattern."
+    }
+  }
 }
 
 # Output for Platform layer to consume
 output "platform_pg_host" {
-  value       = local.platform_pg_host
+  value       = local.k8s.platform_pg_host
   description = "Platform PostgreSQL service hostname (CNPG read-write service)"
 }
 

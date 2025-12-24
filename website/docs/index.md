@@ -42,7 +42,7 @@
 **目标**：模块驱动，设计和维护指南
 
 **分层架构文档**：
-- [L0 Tools](./repo/0.tools/README.md) - 工具和脚本
+- [L0 Tools](./repo/tools/README.md) - 工具和脚本
 - [L1 Bootstrap](./repo/1.bootstrap/README.md) - 集群引导
 - [L2 Platform](./repo/2.platform/README.md) - 平台服务
 - [L3 Data](./repo/3.data/README.md) - 数据层

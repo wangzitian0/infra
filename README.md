@@ -14,6 +14,7 @@
 ## 模块化架构 (Terragrunt)
 
 本仓库使用 **Terragrunt** 管理配置，按职责分工：
+- **[tools/](./tools)**: Shared infrastructure scripts, CI pipelines, and automation tools.
 - **Bootstrap**: 基础集群与 GitOps 引导（k3s, Atlantis, DNS/Cert）。
 - **Platform**: 统一控制面（Vault, SSO, PaaS Controller, Observability）。
 - **Data**: 业务数据库面（Per-env, 依赖 Platform 认证）。

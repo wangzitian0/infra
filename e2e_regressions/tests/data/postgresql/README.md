@@ -27,5 +27,5 @@ uv run pytest tests/data/postgresql/ -v
 ## SSOT 参考
 
 配置详见：
-- [db.business_pg.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.business_pg.md) - 业务数据库配置
-- [db.overview.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/db.overview.md) - 数据库架构概览
+- [db.business_pg.md](../../../../docs/ssot/db.business_pg.md) - 业务数据库配置
+- [db.overview.md](../../../../docs/ssot/db.overview.md) - 数据库架构概览

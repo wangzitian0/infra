@@ -77,6 +77,13 @@ resource "kubernetes_storage_class" "local_path_retain" {
   allow_volume_expansion = true
 
   depends_on = [null_resource.kubeconfig]
+
+  lifecycle {
+    postcondition {
+      condition     = self.reclaim_policy == "Retain"
+      error_message = "StorageClass reclaim_policy must be 'Retain'."
+    }
+  }
 }
 
 # Restart local-path-provisioner when any config field changes

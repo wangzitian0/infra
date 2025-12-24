@@ -59,14 +59,14 @@ Shared script for importing existing L3 resources (namespace, Helm releases, sec
 
 ### Usage
 ```bash
-./0.tools/data-import.sh <namespace> [terragrunt_command]
+./tools/data-import.sh <namespace> [terragrunt_command]
 ```
 
 ### Examples
 ```bash
 # Atlantis (atlantis.yaml)
-./0.tools/data-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
-./0.tools/data-import.sh "data-prod" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
+./tools/data-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
+./tools/data-import.sh "data-prod" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
 ```
 
 ### Resources Imported

@@ -12,7 +12,7 @@
 |:---|:---|
 | **Digger** | Self-hosted Orchestrator 执行 Terraform (替代 Atlantis) |
 | **ci.yml** | 统一入口，路由命令到 Digger 或自定义 Job |
-| **Python (0.tools/ci/)** | Dashboard 更新、Vault 检查、解析辅助 |
+| **Python (tools/ci/)** | Dashboard 更新、Vault 检查、解析辅助 |
 
 ### 1.2 工作流触发器
 
@@ -114,8 +114,8 @@ flowchart TD
 
 Apply 前会自动检查 Vault 状态：
 
-```python
-# 0.tools/ci/commands/check_vault.py
+```python3 tools/ci_load_secrets.py
+ck_vault.py
 kubectl exec vault-0 -n platform -- vault status -format=json
 ```
 
@@ -136,7 +136,7 @@ kubectl exec vault-0 -n platform -- vault status -format=json
 └── actions/
     └── terraform-setup/    # Secrets 注入
 
-0.tools/ci/
+tools/ci/
 ├── __main__.py             # CLI: python -m ci <cmd>
 ├── commands/
 │   ├── init.py             # Dashboard 创建

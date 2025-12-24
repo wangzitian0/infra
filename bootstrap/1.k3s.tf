@@ -19,6 +19,17 @@ resource "local_sensitive_file" "ssh_key" {
   content         = var.ssh_private_key
   filename        = "/tmp/infra-k3s.id_rsa"
   file_permission = "0600"
+
+  lifecycle {
+    precondition {
+      condition     = length(var.ssh_private_key) > 100 && can(regex("PRIVATE KEY", var.ssh_private_key))
+      error_message = "ssh_private_key must be a valid PEM private key."
+    }
+    precondition {
+      condition     = var.vps_host != ""
+      error_message = "vps_host must be provided for K3s bootstrap."
+    }
+  }
 }
 
 resource "null_resource" "k3s_server" {
@@ -54,6 +65,13 @@ resource "null_resource" "k3s_server" {
       "sudo chmod +x /tmp/install-k3s.sh",
       "sudo /tmp/install-k3s.sh"
     ]
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !can(regex("^(127\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[0-1]))", var.vps_host))
+      error_message = "vps_host should be a public IP or DNS name, not a private/local address."
+    }
   }
 }
 

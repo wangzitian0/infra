@@ -22,11 +22,11 @@ Extract shared L3 import logic into a single source of truth to eliminate duplic
 
 ### 1. Created Shared Script
 
-**File**: `0.tools/l3-import.sh`
+**File**: `tools/l3-import.sh`
 
 ```bash
 #!/bin/bash
-# Usage: ./0.tools/l3-import.sh <namespace> [terragrunt_command]
+# Usage: ./tools/l3-import.sh <namespace> [terragrunt_command]
 
 NS="${1:-}"
 TG_CMD="${2:-terragrunt}"
@@ -60,7 +60,7 @@ TG_CMD="${2:-terragrunt}"
       ENV=$(...)
       NS="data-${ENV}"
       TG="TG_TF_PATH=... terragrunt"
-      ./0.tools/l3-import.sh "$NS" "$TG"
+      ./tools/l3-import.sh "$NS" "$TG"
     fi
 ```
 
@@ -79,14 +79,14 @@ run: |
 ```yaml
 run: |
   NS="data-prod"
-  ../../../0.tools/l3-import.sh "$NS" "terragrunt"
+  ../../../tools/l3-import.sh "$NS" "terragrunt"
 ```
 
 **Reduction**: 31 lines → 89% code reduction
 
 ### 4. Updated Documentation
 
-- **`0.tools/README.md`**: Added "L3 Import Script" section with usage examples
+- **`tools/README.md`**: Added "L3 Import Script" section with usage examples
 - **`docs/change_log/`**: This file
 
 ## Result

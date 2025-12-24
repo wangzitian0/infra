@@ -14,14 +14,14 @@
 ### 1. GH_ACCOUNT 自动分配 (PR #348)
 
 **代码改动**：
-- `0.tools/ci_load_secrets.py`: 添加 GH_ACCOUNT 到 OP_CONTRACT 和 MAPPING
+- `tools/ci_load_secrets.py`: 添加 GH_ACCOUNT 到 OP_CONTRACT 和 MAPPING
 - `2.platform/variables.tf`: 新增 `gh_account` 变量
 - `2.platform/91.casdoor-roles.tf`: 使用 `local.vault_admin_users` 自动分配用户
 - `docs/ssot/platform.auth.md`: 更新用户分配流程文档
 
 **配置流程**：
 1. 在 1Password `Infra-OAuth` 添加 `GH_ACCOUNT` 字段（值：`wangzitian0@gmail.com`）
-2. 运行 `python3 0.tools/sync_secrets.py` 同步到 GitHub Secrets
+2. 运行 `python3 tools/sync_secrets.py` 同步到 GitHub Secrets
 3. Terraform apply 时自动将 `built-in/${GH_ACCOUNT}` 添加到 vault-admin 角色
 
 ### 2. Homer Portal 部署 (PR #348)
@@ -98,5 +98,5 @@
 ## 相关文件
 - Code: `2.platform/{4.portal.tf,91.casdoor-roles.tf,variables.tf}`
 - Docs: `docs/ssot/platform.auth.md`
-- Tools: `0.tools/ci_load_secrets.py`
+- Tools: `tools/ci_load_secrets.py`
 - DNS: `1.bootstrap/3.dns_and_cert.tf`

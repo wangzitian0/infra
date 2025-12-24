@@ -4,7 +4,7 @@
 
 ## SSOT 参考
 
-- [bootstrap.compute.md](file:///Users/SP14016/zitian/cc_infra/docs/ssot/bootstrap.compute.md)
+- [bootstrap.compute.md](../../../../docs/ssot/bootstrap.compute.md)
 
 ## 测试矩阵
 

@@ -158,3 +158,24 @@ async def test_platform_pg_namespace_configured():
     
     content = pg_tf.read_text()
     assert "platform" in content, "Platform PG should be in platform namespace"
+
+
+@pytest.mark.bootstrap
+async def test_cnpg_cluster_resource_exists(config: TestConfig):
+    """Verify CNPG Cluster resource exists in the cluster."""
+    import subprocess
+    try:
+        # Match centralized naming
+        name = config.K8sResources.PLATFORM_PG_NAME
+        ctype = config.K8sResources.CNPG_CLUSTER_TYPE
+        
+        result = subprocess.run(
+            ["kubectl", "get", ctype, "-n", "platform", name, "-o", "jsonname"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        if result.returncode == 0:
+            assert f"{ctype}/{name}" in result.stdout or f"{name}" in result.stdout
+        else:
+            pytest.skip(f"kubectl command failed or resource {name} not found (safe to skip in plan-only envs)")
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")

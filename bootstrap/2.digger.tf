@@ -4,7 +4,7 @@
 
 resource "kubernetes_namespace" "bootstrap" {
   metadata {
-    name = "bootstrap"
+    name = local.k8s.ns_bootstrap
     labels = {
       "layer" = "L1"
     }
@@ -61,7 +61,7 @@ resource "helm_release" "digger" {
 
         # PostgreSQL configuration (use Platform CNPG)
         postgres = {
-          host     = local.platform_pg_host
+          host     = local.k8s.platform_pg_host
           database = "digger"
           user     = "postgres"
           password = var.vault_postgres_password
@@ -77,10 +77,10 @@ resource "helm_release" "digger" {
           bearerAuthToken       = var.digger_bearer_token
           hostname              = local.domains.digger
           githubOrg             = var.github_org
-          githubAppID           = var.github_app_id
+          githubAppID           = var.infra_flash_app_id
           githubAppClientID     = var.github_oauth_client_id
           githubAppClientSecret = var.github_oauth_client_secret
-          githubAppKeyFile      = base64encode(var.github_app_key)
+          githubAppKeyFile      = base64encode(var.infra_flash_app_key)
           githubWebhookSecret   = var.digger_webhook_secret
         }
       }
@@ -99,12 +99,16 @@ resource "helm_release" "digger" {
 
   lifecycle {
     precondition {
-      condition     = var.github_app_id != ""
-      error_message = "github_app_id is required for Digger GitHub integration."
+      condition     = var.infra_flash_app_id != ""
+      error_message = "infra_flash_app_id is required for Digger GitHub integration."
     }
     precondition {
       condition     = var.digger_bearer_token != ""
       error_message = "digger_bearer_token is required for API authentication."
+    }
+    postcondition {
+      condition     = can(regex("^https://", self.values[0]))
+      error_message = "Digger ingress must be configured with HTTPS."
     }
   }
 }

@@ -9,51 +9,36 @@
 
 ## Architecture
 
-This layer runs **first** and has no dependencies on other layers.
-It deploys the **Digger Orchestrator**, which is then used to manage all subsequent layers (L2-L4).
+This layer runs **first** and has no dependencies on other layers. It establishes the "Trust Anchor" by deploying the **Digger Orchestrator**, which manages all subsequent layers (L2-L4).
 
 > [!IMPORTANT]
-> To avoid circular dependencies, the `bootstrap` layer is managed by a **dedicated GitHub Actions workflow** (`bootstrap-deploy.yml`) using native Terraform, **not** by Digger itself.
+> To avoid circular dependencies, the `bootstrap` layer is managed by a **dedicated GitHub Actions workflow** (`bootstrap-deploy.yml`), not by Digger itself.
 
-### Components
+### Network & Domain Scheme
+
+Infrastructure uses two primary domain sets:
+- **Internal/Infra**: Uses `INTERNAL_DOMAIN` (e.g., `secrets.xxx`, `digger.xxx`).
+- **External/App**: Uses `BASE_DOMAIN` with `x-*` prefixes for dev/test (`x-staging.xxx`) or root for prod (`xxx`).
+
+Full DNS patterns, proxy rules, and proxy modes are defined in the **[Bootstrap Network SSOT](../docs/ssot/bootstrap.network.md)**.
+
+### Core Components
 
 | File | Component | Purpose |
 |------|-----------|---------|
 | `1.k3s.tf` | K3s Cluster | SSH-based VPS bootstrap |
 | `2.digger.tf` | Digger Orchestrator | Self-hosted backend for GitOps CI/CD |
-| `3.dns_and_cert.tf` | DNS + Certs | Cloudflare + cert-manager |
+| `3.dns_and_cert.tf` | DNS + Certs | Cloudflare + cert-manager. See **[Network SSOT](../docs/ssot/bootstrap.network.md)**. |
 | `5.platform_pg.tf` | Platform PostgreSQL | Trust anchor DB for Vault, Casdoor, and Digger |
 
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `backend.tf` | R2/S3 state backend config |
-| `providers.tf` | Provider definitions |
-| `variables.tf` | All Bootstrap variables |
-| `outputs.tf` | Kubeconfig + R2 credentials for Platform layer |
-
-## Domain Scheme
-
-- Infra uses the dedicated `INTERNAL_DOMAIN` without prefixes (e.g., `secrets.internal.org`, `digger.internal.org`); `k3s` stays DNS-only on :6443 (no Cloudflare proxy).
-- Env/test uses `x-*` on `BASE_DOMAIN` (proxied/orange): `x-staging`, `x-staging-api`, CI-managed `x-test*`.
-- Prod keeps root/no-prefix on `BASE_DOMAIN` (proxied/orange): `truealpha.club`, `api.truealpha.club`.
-- DNS inputs: `CLOUDFLARE_ZONE_ID` for `BASE_DOMAIN`; `INTERNAL_ZONE_ID` optionally overrides infra zone (falls back to `CLOUDFLARE_ZONE_ID`).
-- Certificates: Wildcard for `BASE_DOMAIN`; wildcard for `INTERNAL_DOMAIN` when distinct. Ingresses also request per-host certs via cert-manager ingress shim.
-
-SSOT:
-- [core.env.md](../docs/ssot/core.env.md) - IP/Domain assignments
-- [bootstrap.compute.md](../docs/ssot/bootstrap.compute.md) - K3s & Digger architecture
-- [secrets.md](../docs/ssot/secrets.md) - 1Password secret map
+---
 
 ## CI/CD Workflow
 
-The Bootstrap layer uses a dedicated workflow triggered by PR comments:
+Managed via the `/bootstrap` command in PR comments. Output is summarized for readability.
+- `/bootstrap plan`: Preview changes.
+- `/bootstrap apply`: Deploy changes.
 
-| Command | Action |
-|---------|--------|
-| `/bootstrap plan` | Preview changes to the bootstrap layer |
-| `/bootstrap apply` | Deploy changes to the bootstrap layer |
 
 Push to `main` for changes in `bootstrap/**` will also trigger an automatic plan/apply.
 
@@ -77,9 +62,11 @@ terraform apply
 | `r2_bucket` | State bucket name |
 | `r2_account_id` | R2 endpoint |
 
+- [tools/](./tools): Shared CI/CD scripts and formatting tools.
+
 ## Variable Passthrough
 
-The CI loader (`0.tools/ci_load_secrets.py`) ensures the following are passed to Digger:
+The CI loader (`tools/ci_load_secrets.py`) ensures the following are passed to Digger:
 
 | TF_VAR | Source |
 |--------|--------|

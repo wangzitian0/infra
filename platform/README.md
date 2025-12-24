@@ -102,7 +102,7 @@ Vault permissions are managed via **Identity Groups**, offering a "Login and For
 **Admin User Assignment**:
 - The `vault-admin` role automatically assigns the user specified by `TF_VAR_gh_account` (GitHub Secret: `GH_ACCOUNT`)
 - Format: Your GitHub email (e.g., `wangzitian0@gmail.com`), automatically prefixed with `built-in/` in Casdoor
-- Update via: `python3 0.tools/sync_secrets.py` after adding `GH_ACCOUNT` field to `Infra-OAuth` item in 1Password
+- Update via: `python3 tools/sync_secrets.py` after adding `GH_ACCOUNT` field to `Infra-OAuth` item in 1Password
 - See `platform/91.casdoor-roles.tf` for implementation details
 
 For detailed architecture and usage, see [platform.auth.md](../docs/ssot/platform.auth.md).

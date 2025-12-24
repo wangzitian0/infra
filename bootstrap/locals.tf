@@ -57,6 +57,17 @@ locals {
     "*.${local.internal_domain}"
   ]))
 
+  # Centralized K8s Resource Identifiers & Internal DNS
+  k8s = {
+    platform_pg_name = "platform-pg"
+    platform_pg_host = "platform-pg-rw.platform.svc.cluster.local"
+    pg_cluster_type  = "clusters.postgresql.cnpg.io"
+
+    # Namespaces
+    ns_bootstrap    = "bootstrap"
+    ns_platform     = "platform"
+    ns_cert_manager = "cert-manager"
+  }
 }
 
 data "cloudflare_zones" "internal" {
