@@ -58,40 +58,46 @@ jobs:
       - name: Parse Event
         id: parse
         # Minimal inline parsing to route to Digger vs Custom
+        # IMPORTANT: Use env vars for untrusted inputs to prevent script injection
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || 'false' }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || '' }}
+          INPUT_COMMAND: ${{ inputs.command }}
+          INPUT_LAYERS: ${{ inputs.layers }}
         run: |
-          EVENT="${{ github.event_name }}"
-          
-          if [[ "$EVENT" == "pull_request" ]]; then
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
             echo "command=plan" >> $GITHUB_OUTPUT
             echo "layers=all" >> $GITHUB_OUTPUT
-            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
             echo "should_run=true" >> $GITHUB_OUTPUT
           
-          elif [[ "$EVENT" == "push" ]]; then
+          elif [[ "$EVENT_NAME" == "push" ]]; then
             # Post-merge verify
             echo "command=verify" >> $GITHUB_OUTPUT
             echo "layers=all" >> $GITHUB_OUTPUT
             echo "should_run=true" >> $GITHUB_OUTPUT
           
-          elif [[ "$EVENT" == "issue_comment" ]]; then
-            if [[ -z "${{ github.event.issue.pull_request }}" ]]; then
+          elif [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            if [[ "$IS_PR_COMMENT" != "true" ]]; then
               echo "should_run=false" >> $GITHUB_OUTPUT
               exit 0
             fi
             
-            COMMENT="${{ github.event.comment.body }}"
             # Basic routing logic (SSOT is Python logic, but we map here for Job routing)
-            if [[ "$COMMENT" == *"/plan"* ]] || [[ "$COMMENT" == *"digger plan"* ]]; then
+            # COMMENT_BODY is safely passed via env var to prevent script injection
+            if [[ "$COMMENT_BODY" == *"/plan"* ]] || [[ "$COMMENT_BODY" == *"digger plan"* ]]; then
               echo "command=plan" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT" == *"/apply"* ]] || [[ "$COMMENT" == *"digger apply"* ]]; then
+            elif [[ "$COMMENT_BODY" == *"/apply"* ]] || [[ "$COMMENT_BODY" == *"digger apply"* ]]; then
               echo "command=apply" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT" == *"/verify"* ]]; then
+            elif [[ "$COMMENT_BODY" == *"/verify"* ]]; then
               echo "command=verify" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT" == *"/e2e"* ]]; then
+            elif [[ "$COMMENT_BODY" == *"/e2e"* ]]; then
               echo "command=e2e" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT" == *"/review"* ]]; then
+            elif [[ "$COMMENT_BODY" == *"/review"* ]]; then
               echo "command=review" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT" == *"/help"* ]]; then
+            elif [[ "$COMMENT_BODY" == *"/help"* ]]; then
               echo "command=help" >> $GITHUB_OUTPUT
             else
               echo "command=unknown" >> $GITHUB_OUTPUT
@@ -100,11 +106,11 @@ jobs:
             fi
             
             echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           
-          elif [[ "$EVENT" == "workflow_dispatch" ]]; then
-            echo "command=${{ inputs.command }}" >> $GITHUB_OUTPUT
-            echo "layers=${{ inputs.layers }}" >> $GITHUB_OUTPUT
+          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "command=$INPUT_COMMAND" >> $GITHUB_OUTPUT
+            echo "layers=$INPUT_LAYERS" >> $GITHUB_OUTPUT
             echo "should_run=true" >> $GITHUB_OUTPUT
           fi
 
