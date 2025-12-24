@@ -92,7 +92,8 @@ jobs:
           if [[ "$COMMENT" == *"/health"* ]]; then
             python -m ci health --pr $PR
           elif [[ "$COMMENT" == *"/e2e"* ]]; then
-            gh workflow run e2e-tests.yml --ref ${{ github.head_ref }}
+            PR_BRANCH=$(gh pr view $PR --json headRefName -q .headRefName)
+            gh workflow run e2e-tests.yml --ref "$PR_BRANCH"
             gh pr comment $PR --body "🧪 E2E tests triggered."
           elif [[ "$COMMENT" == *"/review"* ]]; then
             gh pr comment $PR --body "🔍 AI Review not yet implemented."
