@@ -139,10 +139,15 @@ class Dashboard:
             return True
         return False
 
-    def save(self) -> None:
-        """Save dashboard to PR comment."""
+    def save(self) -> bool:
+        """Save dashboard to PR comment. Returns True on success."""
         body = self.render()
-        if self.comment_id:
-            self.github.update_comment(self.comment_id, body)
-        else:
-            self.comment_id = self.github.create_comment(self.pr_number, body)
+        try:
+            if self.comment_id:
+                self.github.update_comment(self.comment_id, body)
+            else:
+                self.comment_id = self.github.create_comment(self.pr_number, body)
+            return True
+        except Exception as e:
+            print(f"⚠️ Dashboard save failed: {e}")
+            return False
