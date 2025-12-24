@@ -55,7 +55,7 @@ Run before `terraform apply` to catch common issues early (e.g., Helm URL valida
 
 **File**: `data-import.sh`
 
-Shared script for importing existing L3 resources (namespace, Helm releases, secrets) into Terraform state. Eliminates code duplication between Atlantis CI and GitHub Actions deploy workflows.
+Shared script for importing existing L3 resources (namespace, Helm releases, secrets) into Terraform state. Eliminates code duplication between Digger CI and GitHub Actions deploy workflows.
 
 ### Usage
 ```bash
@@ -64,9 +64,9 @@ Shared script for importing existing L3 resources (namespace, Helm releases, sec
 
 ### Examples
 ```bash
-# Atlantis (atlantis.yaml)
-./tools/data-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
-./tools/data-import.sh "data-prod" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
+# Digger / CI
+./tools/data-import.sh "data-staging" "terragrunt"
+./tools/data-import.sh "data-prod" "terragrunt"
 ```
 
 ### Resources Imported
