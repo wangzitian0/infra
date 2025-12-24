@@ -75,6 +75,62 @@ jobs:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Find Merged PR
+        id: find-pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Find PR associated with this merge commit
+            const commits = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha
+            });
+            
+            if (commits.data.length > 0) {
+              const pr = commits.data[0];
+              core.setOutput('pr_number', pr.number);
+              core.setOutput('pr_title', pr.title);
+              console.log(`Found PR #${pr.number}: ${pr.title}`);
+            } else {
+              console.log('No PR found for this commit');
+              core.setOutput('pr_number', '');
+            }
+
+      - name: Update Merged PR
+        if: always() && steps.find-pr.outputs.pr_number
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.find-pr.outputs.pr_number }};
+            const status = '${{ job.status }}';
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const commitSha = '${{ github.sha }}'.substring(0, 7);
+            
+            const statusIcon = status === 'success' ? '✅' : '❌';
+            const statusText = status === 'success' ? 'succeeded' : 'failed';
+            
+            const body = [
+              `## 🚀 Post-Merge Apply ${statusIcon}`,
+              '',
+              '| Field | Value |',
+              '|:---|:---|',
+              `| **Status** | ${statusText} |`,
+              `| **Commit** | \`${commitSha}\` |`,
+              `| **Run** | [View Logs](${runUrl}) |`,
+              '',
+              '> This PR has been merged and the changes have been applied to production.'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body
+            });
+            
+            console.log(`Posted status to PR #${prNumber}`);
+
       - name: Notify on Failure
         if: failure()
         uses: actions/github-script@v7
