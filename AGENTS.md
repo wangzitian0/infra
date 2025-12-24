@@ -1,56 +1,51 @@
-# 禁令
-- **禁止自动修改本文件**：除非明确指定，否则 AI 不可以自动修改本文件。
-- **禁止自动合并 PR**：AI 不可以执行合流操作。
+# 基础设施 AI Agent 行为准则
 
-# 原则
-- **一致性**：本地/CI 命令与变量一致，plan 输出一致，资源状态一致。
-- **完工自检**：完工前必须逐项检查本文件要求。
-- **README 优先**：修改任何文件前，必须阅读对应目录的 `README.md`；提交前必须更新相关 `README.md`。
-- **SSOT 导向**：所有技术真理应落在 `docs/ssot/`，README 仅作为导航。
-- **STAR 框架**：解决问题时使用 Situation, Task, Action, Result 结构分析。
-- **渐进式提交**：小步快跑，每一步都有日志校验。
+> **禁令**：除非明确指定，否则 AI 不可以自动修改本文件。AI 不可以执行合流 (Merge PR) 操作。
 
-# SSOT Architecture (The Truth)
+# 🚨 核心强制原则 (SSOT First)
 
-所有的基础设施定义、架构决策、环境变量契约及 SOP 请查阅：
+1.  **SSOT 为最高真理**：基础设施的架构、规则、SOP **唯一权威来源**是 `docs/ssot/`。
+2.  **强制前置检查 (Step 0)**：在执行任何代码修改或运维操作前，**必须**首先在 `docs/ssot/` 中搜索并阅读相关话题。
+    - *示例：若涉及数据库，必读 `db.overview.md`；若涉及密钥，必读 `platform.secrets.md`。*
+3.  **无 SSOT 不开工**：如果要引入一个新概念/组件，**必须**先在 `docs/ssot/` 创建对应的真理文件，严禁在 README 或代码中散落孤立的设计决策。
+4.  **禁止隐性漂移**：如果发现现实（代码/资源）与 SSOT 不符，**必须**立即修正 SSOT（若现实是正确的）或修正代码（若 SSOT 是正确的）。
 
-👉 **[SSOT Documentation Index (docs/ssot/README.md)](docs/ssot/README.md)**
+---
 
-## Module Quick Reference
+# 🛠️ 执行流程 (Execution Loop)
 
-| Module | Directory | Responsibility | SSOT Reference |
-|---|---|---|---|
-| **Root** | `.` | Scripts, CI, Docs | [`core.md`](docs/ssot/core.md) |
-| **Bootstrap** | [`bootstrap`](bootstrap/README.md) | K3s, DNS, Trust Anchor | [`bootstrap.compute.md`](docs/ssot/bootstrap.compute.md) |
-| **Platform** | [`platform`](platform/README.md) | Vault, SSO, PaaS | [`platform.auth.md`](docs/ssot/platform.auth.md) |
-| **Data** | [`envs/*/data`](envs/README.md) | Business DBs | [`db.overview.md`](docs/ssot/db.overview.md) |
+## 第一步：情境分析 (Situation Assessment)
+使用 **STAR Framework** 分析问题。在 Action 阶段，必须明确标注：“我将参考哪个 SSOT 文件”。
 
-# AI 协作 SOP
+## 第二步：真理对齐 (SSOT Alignment)
+- **搜索**：`grep -r <keyword> docs/ssot/`
+- **校验**：检查当前任务是否违反了 [**Ops Standards / Defensive Maintenance**](./docs/ssot/ops.standards.md#3-防御性运维守则-defensive-maintenance) 中的任何一条 Rule。
 
-## 1. 开发工作流 (Development Workflow)
-1. **读 README**：深入了解当前层的职责。
-2. **IaC Cycle**:
-    - 修改 `.tf` 代码。
-    - `terraform fmt -check`。
-    - `terraform plan` (或通过 PR 评论触发)。
-3. **更新文档**：更新 `README.md` 和 `change_log/`（如有重大变更）。
-4. **验证**：运行 `e2e_regressions/` 下的相关测试。
+## 第三步：IaC 循环 (Implementation)
+1. 修改 `.tf` 代码。
+2. `terraform fmt` 并执行 `terraform plan`。
+3. **关键同步**：更新受影响的 SSOT Playbooks 或 Constraints。
 
-## 2. 故障与状态处理
-- **Drift First**：优先使用 `data` source 或 `import` 块检测存量资源，避免 Apply 冲突。
-- **Break-glass**：紧急情况参考 [**Recovery SSOT**](docs/ssot/ops.recovery.md)。
-- **State Lock**：遇到状态锁使用 `atlantis unlock` (兼容 Digger 命令)。
+## 第四步：完工自检 (Self-Check)
+在宣布完工前，对照 [**0.check_now.md**](./0.check_now.md) 和相关 SSOT 的 **"The Proof"** 章节，确认测试已通过。
 
-## 3. 安全红线
-- **严禁提交敏感文件**：`*.tfvars`, `*.pem`, `*.key`, `.env`。
-- **SSOT 唯一性**：1Password 是静态密钥的唯一真理；禁止在 GitHub UI 手动修改 Secret。
+---
 
-# 文档职责划分
+# 知识库导航 (The Truth)
 
-| 类别 | 存储路径 | 内容性质 |
-|------|---------|---------|
-| **History** | `docs/change_log/` | 已完成的变更记录。 |
-| **Plan** | `docs/project/README.md` | 进行中/计划中的 BRN 项目。 |
-| **TRUTH (SSOT)** | `docs/ssot/` | **唯一权威参考**。架构、SOP、约束。 |
-| **Navigation** | `**/README.md` | 目录路标，指向 SSOT。 |
-| **Tutorials** | `docs/onboarding/` | 场景驱动的接入教程。 |
+👉 **[SSOT Documentation Index (docs/ssot/README.md)](./docs/ssot/README.md)**
+
+| 查阅内容 | 对应 SSOT 文件 / 章节 |
+|----------|----------------------|
+| **防御性运维/守则** | [**Ops Standards / Defensive Maintenance**](./docs/ssot/ops.standards.md#3-防御性运维守则-defensive-maintenance) |
+| **Provider 优先级** | [**Ops Standards / Provider Priority**](./docs/ssot/ops.standards.md#2-托管资源评估-sop-provider-priority) |
+| **密钥流转/契约** | [**Platform Secrets SSOT**](./docs/ssot/platform.secrets.md) |
+| **故障恢复 SOP** | [**Recovery SSOT**](./docs/ssot/ops.recovery.md) |
+| **流水线操作** | [**Pipeline SSOT**](./docs/ssot/ops.pipeline.md) |
+
+---
+
+# 安全与红线
+- **严禁**提交 `*.pem`, `*.key`, `.env`, `*.tfvars`。
+- **状态不一致处理**：Apply 冲突时必须执行 [**State Discrepancy Protocol**](./docs/ssot/ops.standards.md#rule-4-状态不一致协议-state-discrepancy-protocol)。
+- **密钥源头**：1Password 是静态密钥的唯一真源。
