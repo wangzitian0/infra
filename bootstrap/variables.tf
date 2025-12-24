@@ -212,62 +212,64 @@ variable "enable_ssl" {
   default     = true
 }
 
-# Atlantis (Terraform CI/CD)
+# Digger Orchestrator (Terraform CI/CD)
 variable "github_token" {
-  description = "GitHub Personal Access Token for Atlantis"
+  description = "GitHub Personal Access Token (fallback if App not configured)"
   type        = string
   sensitive   = true
   default     = ""
 }
 
 variable "github_org" {
-  description = "GitHub organization name for Atlantis allowlist"
+  description = "GitHub organization name"
   type        = string
   default     = "wangzitian0"
 }
 
 variable "github_user" {
-  description = "GitHub username for Atlantis"
+  description = "GitHub username"
   type        = string
   default     = "wangzitian0"
 }
 
-variable "atlantis_webhook_secret" {
-  description = "Webhook secret for GitHub -> Atlantis"
+variable "digger_webhook_secret" {
+  description = "Webhook secret for GitHub -> Digger"
   type        = string
   sensitive   = true
   default     = ""
 }
 
-# GitHub App Configuration (preferred over PAT for Atlantis)
+# GitHub App Configuration (required for Digger)
 variable "github_app_id" {
-  description = "GitHub App ID for Atlantis (optional)"
+  description = "GitHub App ID for Digger"
   type        = string
   default     = ""
 }
 
 variable "github_app_key" {
-  description = "GitHub App Private Key (PEM) for Atlantis (optional)"
+  description = "GitHub App Private Key (PEM) for Digger"
   type        = string
   sensitive   = true
   default     = ""
 }
 
-# Atlantis Web UI Authentication
-variable "atlantis_web_username" {
-  description = "Username for Atlantis Web UI Basic Auth"
-  type        = string
-  default     = "admin"
-}
-
-variable "atlantis_web_password" {
-  description = "Password for Atlantis Web UI Basic Auth (REQUIRED - no default for security)"
+# Digger Authentication
+variable "digger_bearer_token" {
+  description = "Bearer token for Digger API authentication (used by GitHub Actions)"
   type        = string
   sensitive   = true
+  default     = ""
+}
+
+variable "digger_http_password" {
+  description = "Password for Digger Web UI Basic Auth"
+  type        = string
+  sensitive   = true
+  default     = ""
 
   validation {
-    condition     = length(var.atlantis_web_password) >= 12
-    error_message = "atlantis_web_password must be at least 12 characters for security."
+    condition     = var.digger_http_password == "" || length(var.digger_http_password) >= 12
+    error_message = "digger_http_password must be at least 12 characters for security."
   }
 }
 

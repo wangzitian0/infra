@@ -2,12 +2,8 @@
 # Handles terraform plan/apply via GitHub Actions
 # Reference: https://docs.digger.dev/
 
-# Projects to manage
+# Projects to manage (Bootstrap excluded - uses dedicated workflow)
 projects:
-  - name: bootstrap
-    dir: bootstrap
-    workflow: terraform
-    
   - name: platform
     dir: platform
     terragrunt: true

@@ -26,7 +26,7 @@ locals {
   # Domain map (i-* for infra, x-* via env_prefix for env traffic)
   domains = {
     # Infra (dedicated internal domain)
-    atlantis  = "atlantis.${local.internal_domain}"
+    digger    = "digger.${local.internal_domain}"
     k3s       = "k3s.${local.internal_domain}"
     dashboard = "kdashboard.${local.internal_domain}"
     vault     = "secrets.${local.internal_domain}"
