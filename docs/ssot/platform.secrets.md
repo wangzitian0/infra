@@ -1,211 +1,107 @@
 # 密钥管理 SSOT
 
-> **一句话**：所有密钥的 Single Source of Truth 在 1Password，GitHub Secrets 是部署缓存，CI 运行时通过 Python 加载器统一注入。
+> **SSOT Key**: `platform.secrets`
+> **核心定义**: 定义从 1Password (Master) 到 GitHub Secrets (Cache) 再到 Terraform/Vault (Runtime) 的密钥流转体系。
 
-## 信息流架构
+---
+
+## 1. 真理来源 (The Source)
+
+> **原则**：1Password 是唯一的 Master Record，GitHub Secrets 只是 CI/CD 的临时缓存。
+
+本话题的配置和状态由以下物理位置唯一确定：
+
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **Master Record** | **1Password** (`Infra-GHA-Secrets`) | 所有静态密钥的源头 |
+| **映射逻辑** | [`tools/secrets/ci_load_secrets.py`](../../tools/secrets/ci_load_secrets.py) | 将 GH Secrets 映射为 TF_VAR |
+| **运行时注入** | **Vault** (`secret/data/...`) | 动态/业务密钥的运行时真理 |
+| **部署缓存** | **GitHub Secrets** | 仅用于 CI 运行，不应人工维护 |
+
+### Code as SSOT 索引
+
+- **密钥映射字典**：参见 [`tools/secrets/ci_load_secrets.py`](../../tools/secrets/ci_load_secrets.py) (查看 `OP_CONTRACT` 和 `MAPPING`)
+- **L1 密钥注入**：参见 [`bootstrap/variables.tf`](../../bootstrap/variables.tf)
+
+---
+
+## 2. 架构模型
 
 ```mermaid
 graph LR
-    OP[1Password<br/>my_cloud vault] -->|"op + gh 脚本同步"| GH[GitHub Secrets]
-    GH -->|"toJSON(secrets)"| Loader["tools/secrets/ci_load_secrets.py<br/>(Python Loader)"]
-    Loader -->|导出 TF_VAR_*| TF[Terraform]
-    TF -->|Helm values| K8S[Kubernetes]
-    K8S -->|运行时注入| VAULT[Vault]
+    OP[1Password<br/>Master SSOT] -->|"sync script"| GH[GitHub Secrets<br/>Cache]
+    GH -->|"ci_load_secrets.py"| ENV[Env Vars<br/>TF_VAR_*]
+    ENV -->|Terraform Apply| INFRA[K8s/Vault<br/>Runtime]
+    
+    subgraph "L3/L4 Runtime"
+        TF_RANDOM[TF Random] -->|Write| VAULT[Vault]
+        VAULT -->|Inject| POD[App Pod]
+    end
 ```
 
-**核心逻辑**：
-- **存储**：1Password 是唯一的 master 记录。
-- **分发**：GitHub Secrets 仅作为中间缓存，不负责业务逻辑。
-- **注入**：`ci_load_secrets.py` 负责将 GitHub Secrets 映射为 IaC 环境所需的 `TF_VAR_` 变量，实现变量链条的 DRY（不重复）。
+### 关键决策 (Architecture Decision)
+
+- **1Password as Master**: 解决了“密钥去哪找”的问题，并提供审计历史。
+- **Python Loader**: 使用 `ci_load_secrets.py` 替代 GitHub Actions 的复杂 step，实现了跨工作流的 DRY (Don't Repeat Yourself)。
+- **Terraform Remote State**: L3/L4 不直接读取 L2 的 Secret，而是通过 `terraform_remote_state` 读取非敏感输出 (Output)，敏感信息走 Vault。
 
 ---
 
-## 密钥清单
+## 3. 设计约束 (Dos & Don'ts)
 
-### 1. 1Password → GitHub Secrets 映射
+### ✅ 推荐模式 (Whitelist)
 
-同步所有密钥到 GitHub 的一键命令：
+- **模式 A**: 静态密钥 (API Keys) -> 1Password -> GitHub Secrets -> TF_VAR。
+- **模式 B**: 动态密钥 (DB Passwords) -> `resource "random_password"` -> Vault -> App Pod。
 
+### ⛔ 禁止模式 (Blacklist)
+
+- **反模式 A**: **严禁** 在 Git 仓库中提交 `.env` 文件。
+- **反模式 B**: **禁止** 手动在 GitHub Settings 页面修改 Secret（必须通过 1Password 同步，否则会被覆盖）。
+- **反模式 C**: **禁止** L3/L4 读取 L1 的敏感 State（State 文件包含明文密码）。
+
+---
+
+## 4. 标准操作程序 (Playbooks)
+
+### SOP-001: 新增基础设施密钥
+
+- **触发条件**: 引入新 Provider (如 Cloudflare API Token)
+- **步骤**:
+    1. 在 1Password `Infra-GHA-Secrets` 条目中添加字段 (如 `CLOUDFLARE_API_TOKEN`)。
+    2. 在 `tools/secrets/ci_load_secrets.py` 的 `MAPPING` 中添加映射。
+    3. 运行同步脚本: `op item get ... | gh secret set ...` (详见脚本注释)。
+    4. 在 Terraform 中声明 `variable "cloudflare_api_token" {}`。
+
+### SOP-002: 轮换 GitHub Secrets
+
+- **触发条件**: 密钥泄露 / 定期轮换
+- **步骤**:
+    1. 在 1Password 中更新值。
+    2. 运行同步脚本刷新 GitHub Secrets。
+    3. 触发受影响层的 CI Pipeline (`/bootstrap plan` 或 `/plan`)。
+
+---
+
+## 5. 验证与测试 (The Proof)
+
+本文档描述的行为由以下测试用例守护：
+
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **密钥加载器逻辑** | [`test_secrets_loader.py`](../../tools/secrets/tests/test_secrets_loader.py) | ✅ Unit Test |
+| **Vault 读写验证** | [`test_secrets.py`](../../e2e_regressions/tests/platform/secrets/test_secrets.py) | ✅ Critical |
+
+**如何运行验证**:
 ```bash
-# 执行此命令前需 op signin
-op item get "Infra-GHA-Secrets" --vault="my_cloud" --format json |
-  jq -r '.fields[] | select(.value != null) | "\(.label) \(.value)"' |
-  while read -r key value; do
-    if [[ $key =~ ^[A-Z_]+$ ]]; then
-      echo "Syncing $key..."
-      gh secret set "$key" --body "$value"
-    fi
-  done
+python3 tools/secrets/tests/test_secrets_loader.py
+pytest e2e_regressions/tests/platform/secrets/ -v
 ```
-
-### 核心清单 (The Source of Truth)
-
-**请直接查看代码定义**: [tools/secrets/ci_load_secrets.py](../../tools/secrets/ci_load_secrets.py)
-
-该脚本中的 `OP_CONTRACT` 和 `MAPPING` 字典定义了所有有效的密钥映射关系。
-
-- **OP_CONTRACT**: 定义了哪些 Secret 存储在哪个 1Password Item 中。
-- **MAPPING**: 定义了 GitHub Secret 如何映射到 Terraform 变量 (`TF_VAR_...`)。
-
-> ⚠️ **注意**: 本文档不再维护手动列表，以避免与代码脱节。任何密钥的新增、修改、废弃，**必须** 以修改 `ci_load_secrets.py` 为准。
-
-#### 示例结构 (参考)
-
-```python
-# ci_load_secrets.py
-
-OP_CONTRACT = {
-    # 1Password Item Name: [Field Labels...]
-    "Infra-Flash": ["INFRA_FLASH_APP_ID", "INFRA_FLASH_APP_KEY", ...],
-}
-
-MAPPING = {
-    # GitHub Secret -> TF_VAR
-    "INFRA_FLASH_APP_ID": "TF_VAR_infra_flash_app_id",
-    ...
-}
-```
-
-### 3. Terraform 生成密钥 (Managed Secrets)
-
-某些密钥不适合在 1Password 长期存储（如解决兼容性问题生成的随机密码），直接由 Terraform `random_password` 生成并存入 Kubernetes Secret。
-
-**案例**: `platform-pg-simpleuser` (Vault/Casdoor 连接 Platform PG 用)
-
-*   **生成**: Bootstrap 层 TF `random_password` 资源。
-*   **存储**: TF State (R2) + K8s Secret (`platform/platform-pg-simpleuser`)。
-*   **读取**:
-    *   **Runtime**: Pod 挂载/读取 Secret。
-    *   **Terraform**: Platform 层 `data "kubernetes_secret"` 读取。
-*   **灾难恢复**:
-    *   **Secret 丢失**: 重新运行 `terraform apply -target=module.bootstrap`。
-    *   **密码泄露**: Taint 资源 `terraform taint random_password.simpleuser` -> Apply -> 手动 `ALTER USER` 同步数据库。
-
-以下变量由 `ci_load_secrets.py` 在缺失时自动填充默认值：
-- `VPS_USER`: `root`
-- `VPS_SSH_PORT`: `22`
-- `K3S_CLUSTER_NAME`: `truealpha-k3s`
-- `K3S_CHANNEL`: `stable`
 
 ---
 
-## 实施状态
+## Used by
 
-| 组件 | 状态 |
-|------|------|
-| 1Password SSOT | ✅ 已覆盖 24+ 核心字段 |
-| Python Loader | ✅ `tools/secrets/ci_load_secrets.py` 已上线 |
-| Workflow DRY | ✅ `deploy-L1-bootstrap.yml` 冗余减少 80% |
-| 变量链条 | ✅ 1Password -> GH -> Env -> TF 闭环 |
-
----
-
-## 维护 SOP
-
-### 1. 新增一个密钥
-1.  在 1Password 对应条目中增加字段（Label 建议大写）。
-2.  在 `tools/secrets/ci_load_secrets.py` 的 `MAPPING` 字典中增加一行映射。
-3.  运行同步脚本更新 GitHub Secrets。
-4.  在 Terraform `.tf` 文件中使用变量。
-
-### 2. 密钥泄露/轮换
-1.  在 1Password 中更新真值。
-2.  重新运行同步脚本。
-3.  重新触发 CI 流水线（`atlantis plan` / `push to main`）。
-
-### 3. 新增独立 GHA 密钥 (如 GEMINI_API_KEY)
-
-对于仅在工作流中使用、不参与 Terraform 的密钥：
-
-1.  在 1Password 的 `Infra-GHA-Secrets` 项目中新增一个字段（Label 为 `GEMINI_API_KEY`）。
-
-2.  运行一键同步脚本（见上文）将其推送到 GitHub。
-
-
-
-3.  在 `.github/workflows/*.yml` 中通过 `${{ secrets.GEMINI_API_KEY }}` 引用。
-
-
-
----
-
-## 层间依赖：terraform_remote_state (Issue #301)
-
-> **适用范围**：仅 L3 和 L4。L1/L2 不读取其他层的 state。
-
-### 架构
-
-```mermaid
-graph TD
-    L2[L2 Platform<br/>locals.tf] -->|outputs.tf| STATE[(R2: platform.tfstate)]
-    STATE -->|terraform_remote_state| L3[L3 Data<br/>locals.tf]
-    STATE -->|terraform_remote_state| L4[L4 Apps<br/>locals.tf]
-```
-
-### L3 如何读取 L2 Outputs
-
-```hcl
-# 3.data/locals.tf
-data "terraform_remote_state" "l2_platform" {
-  backend = "s3"
-  config = {
-    bucket   = var.r2_bucket
-    key      = "k3s/platform.tfstate"
-    region   = "auto"
-    endpoints = { s3 = "https://${var.r2_account_id}.r2.cloudflarestorage.com" }
-    ...
-  }
-}
-
-# 使用 L2 outputs
-data "vault_kv_secret_v2" "postgres" {
-  mount = data.terraform_remote_state.l2_platform.outputs.vault_kv_mount
-  name  = data.terraform_remote_state.l2_platform.outputs.vault_db_secrets["postgres"]
-}
-```
-
-### 安全边界
-
-| 信息类型 | 存储位置 | 敏感级别 |
-|----------|----------|----------|
-| Secret 路径/名字 | R2 state file | 🟡 中 (地址，非密码) |
-| 真正密码 | Vault | 🔴 高 (需 token) |
-| vault_root_token | GitHub Secrets → Env | 🔴 高 |
-| r2_bucket, r2_account_id | GitHub Secrets → Env | 🟢 低 |
-
-### Preconditions (防御性约定)
-
-L3/L4 应添加 precondition 确保 L2 outputs 存在：
-
-```hcl
-# 在 data sources 中添加
-lifecycle {
-  precondition {
-    condition     = can(data.terraform_remote_state.l2_platform.outputs.vault_db_secrets)
-    error_message = "L2 platform state missing vault_db_secrets output. Run L2 apply first."
-  }
-}
-```
-
-### 新增变量
-
-L3/L4 需要声明这些变量以读取 R2 state：
-
-```hcl
-# 3.data/variables.tf
-variable "r2_bucket" {
-  description = "R2 bucket name for Terraform state"
-  type        = string
-}
-
-variable "r2_account_id" {
-  description = "Cloudflare R2 account ID"
-  type        = string
-}
-```
-
-这些变量通过 Atlantis Pod 环境变量传递（`TF_VAR_r2_bucket`）。
-
----
-
-> 变更记录见 [change_log/](../change_log/README.md)
+- [docs/ssot/README.md](./README.md)
+- [docs/onboarding/04.secrets.md](../../docs/onboarding/04.secrets.md)
+- [bootstrap/README.md](../../bootstrap/README.md)
