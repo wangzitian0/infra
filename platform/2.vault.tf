@@ -20,7 +20,8 @@ data "kubernetes_namespace" "platform" {
 
 locals {
   # PostgreSQL connection string for Vault storage backend (CNPG uses -rw suffix)
-  vault_pg_connection = "postgres://${data.kubernetes_secret.platform_pg_simpleuser.data["username"]}:${data.kubernetes_secret.platform_pg_simpleuser.data["password"]}@platform-pg-rw.platform.svc.cluster.local:5432/vault?sslmode=require"
+  # Uses 'simpleuser' with password from 1Password via TF_VAR_vault_postgres_password
+  vault_pg_connection = "postgres://simpleuser:${var.vault_postgres_password}@platform-pg-rw.platform.svc.cluster.local:5432/vault?sslmode=require"
 
   vault_config = <<-EOT
     ui = true

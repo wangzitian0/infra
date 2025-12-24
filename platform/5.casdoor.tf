@@ -165,7 +165,7 @@ copyrequestbody = true
 
 # Database configuration
 driverName = postgres
-dataSourceName = user=${data.kubernetes_secret.platform_pg_simpleuser.data["username"]} password=${data.kubernetes_secret.platform_pg_simpleuser.data["password"]} host=platform-pg-rw.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=require
+dataSourceName = user=simpleuser password=${var.vault_postgres_password} host=platform-pg-rw.platform.svc.cluster.local port=5432 dbname=casdoor sslmode=require
 dbName = casdoor
 EOT
 
