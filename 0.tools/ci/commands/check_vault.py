@@ -3,7 +3,19 @@
 import sys
 import subprocess
 import json
-from ..core.log import print_error, print_info, print_warning
+
+
+def print_error(msg: str):
+    print(f"❌ {msg}", file=sys.stderr)
+
+
+def print_info(msg: str):
+    print(f"ℹ️  {msg}")
+
+
+def print_warning(msg: str):
+    print(f"⚠️  {msg}")
+
 
 def run(args=None) -> int:
     """Check if Vault is sealed.
@@ -49,7 +61,7 @@ def run(args=None) -> int:
         try:
             status = json.loads(output)
             if status.get("sealed") is True:
-                print_error("rw" * 20)
+                print_error("=" * 40)
                 print_error("⛔ CRITICAL: VAULT IS SEALED ⛔")
                 print_error("-" * 40)
                 print_error("CI cannot proceed because secrets cannot be injected.")
