@@ -189,17 +189,27 @@ jobs:
           LAYERS="${{ needs.parse.outputs.layers }}"
           PR="${{ needs.parse.outputs.pr_number }}"
           
-          ARGS=""
-          if [[ -n "$PR" ]]; then
-            ARGS="--pr $PR"
-          fi
-          
+          # Build command based on type
           if [[ "$CMD" == "verify" ]]; then
-            ARGS="$ARGS --apply"
+            # verify doesn't take layers, only --apply and --pr
+            CMD_ARGS=""
+            [[ -n "$PR" ]] && CMD_ARGS="--pr $PR"
+            CMD_ARGS="$CMD_ARGS --apply"
+            echo "🚀 Running: python -m ci verify $CMD_ARGS"
+            python -m ci verify $CMD_ARGS
+          elif [[ "$CMD" == "health" ]]; then
+            # health only takes --pr
+            CMD_ARGS=""
+            [[ -n "$PR" ]] && CMD_ARGS="--pr $PR"
+            echo "🚀 Running: python -m ci health $CMD_ARGS"
+            python -m ci health $CMD_ARGS
+          else
+            # plan/apply take layers and --pr
+            CMD_ARGS=""
+            [[ -n "$PR" ]] && CMD_ARGS="--pr $PR"
+            echo "🚀 Running: python -m ci $CMD $LAYERS $CMD_ARGS"
+            python -m ci $CMD $LAYERS $CMD_ARGS
           fi
-          
-          echo "🚀 Running: python -m ci $CMD $LAYERS $ARGS"
-          python -m ci $CMD $LAYERS $ARGS
 
   # =============================================================
   # Job 4: Post-Execute (E2E, Review)

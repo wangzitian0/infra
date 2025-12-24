@@ -6,7 +6,7 @@
 
 output "data_health_status" {
   value = {
-    postgres   = helm_release.postgresql.status
+    postgres   = "cnpg-cluster" # Using kubectl_manifest.postgresql_cluster
     redis      = helm_release.redis.status
     clickhouse = helm_release.clickhouse.status
     arangodb   = helm_release.arangodb_operator.status
