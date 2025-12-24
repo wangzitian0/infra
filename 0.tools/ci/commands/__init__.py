@@ -1,3 +1,5 @@
-from . import plan, apply, verify, parse, init, update
+"""Command handlers for CI pipeline."""
 
-__all__ = ["plan", "apply", "verify", "parse", "init", "update"]
+from . import plan, apply, verify, health, parse, init, update, check_vault
+
+__all__ = ["plan", "apply", "verify", "health", "parse", "init", "update", "check_vault"]

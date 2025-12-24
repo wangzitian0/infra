@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from .commands import plan, apply, verify, parse, init, update
+from .commands import plan, apply, verify, health, parse, init, update, check_vault
 
 
 def main():
@@ -46,6 +46,12 @@ def main():
         "--pr", type=int, help="Merged PR number for result posting"
     )
 
+    # /health
+    health_parser = subparsers.add_parser("health", help="Service health check")
+    health_parser.add_argument(
+        "--pr", type=int, help="PR number for dashboard update"
+    )
+
     # parse (internal: parse PR comment)
     parse_parser = subparsers.add_parser("parse", help="Parse PR comment")
     parse_parser.add_argument("comment", help="Comment body to parse")
@@ -62,6 +68,10 @@ def main():
     update_parser.add_argument("--stage", required=True, help="Stage key")
     update_parser.add_argument("--status", required=True, help="Status (success, failure, etc)")
     update_parser.add_argument("--link", help="Link to details")
+
+    # check-vault (pre-flight check)
+    check_vault_parser = subparsers.add_parser("check-vault", help="Check Vault seal status")
+
     args = parser.parse_args()
 
     # Dispatch to command handler
@@ -69,9 +79,11 @@ def main():
         "plan": plan.run,
         "apply": apply.run,
         "verify": verify.run,
+        "health": health.run,
         "parse": parse.run,
         "init": init.run,
         "update": update.run,
+        "check-vault": check_vault.run,
     }
 
     handler = handlers.get(args.command)

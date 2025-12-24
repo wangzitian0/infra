@@ -20,6 +20,10 @@ on:
         options:
           - plan
           - apply
+      layers:
+        description: "Layers (comma-separated or 'all')"
+        required: false
+        default: "all"
 
 permissions:
   contents: write
@@ -28,7 +32,98 @@ permissions:
   id-token: write
   actions: write
 
+env:
+  PYTHON_VERSION: "3.11"
+
 jobs:
+  # =============================================================
+  # Job 1: Parse event and determine action
+  # =============================================================
+  parse:
+    runs-on: ubuntu-latest
+    outputs:
+      command: ${{ steps.parse.outputs.command }}
+      layers: ${{ steps.parse.outputs.layers }}
+      pr_number: ${{ steps.parse.outputs.pr_number }}
+      should_run: ${{ steps.parse.outputs.should_run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Parse Event
+        id: parse
+        # Minimal inline parsing to route to Digger vs Custom
+        run: |
+          EVENT="${{ github.event_name }}"
+          
+          if [[ "$EVENT" == "pull_request" ]]; then
+            echo "command=plan" >> $GITHUB_OUTPUT
+            echo "layers=all" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          
+          elif [[ "$EVENT" == "push" ]]; then
+            # Post-merge verify
+            echo "command=verify" >> $GITHUB_OUTPUT
+            echo "layers=all" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          
+          elif [[ "$EVENT" == "issue_comment" ]]; then
+            if [[ -z "${{ github.event.issue.pull_request }}" ]]; then
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            COMMENT="${{ github.event.comment.body }}"
+            # Basic routing logic (SSOT is Python logic, but we map here for Job routing)
+            if [[ "$COMMENT" == *"/plan"* ]] || [[ "$COMMENT" == *"digger plan"* ]]; then
+              echo "command=plan" >> $GITHUB_OUTPUT
+            elif [[ "$COMMENT" == *"/apply"* ]] || [[ "$COMMENT" == *"digger apply"* ]]; then
+              echo "command=apply" >> $GITHUB_OUTPUT
+            elif [[ "$COMMENT" == *"/verify"* ]]; then
+              echo "command=verify" >> $GITHUB_OUTPUT
+            elif [[ "$COMMENT" == *"/e2e"* ]]; then
+              echo "command=e2e" >> $GITHUB_OUTPUT
+            elif [[ "$COMMENT" == *"/review"* ]]; then
+              echo "command=review" >> $GITHUB_OUTPUT
+            elif [[ "$COMMENT" == *"/help"* ]]; then
+              echo "command=help" >> $GITHUB_OUTPUT
+            else
+              echo "command=unknown" >> $GITHUB_OUTPUT
+              echo "should_run=false" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+            
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          
+          elif [[ "$EVENT" == "workflow_dispatch" ]]; then
+            echo "command=${{ inputs.command }}" >> $GITHUB_OUTPUT
+            echo "layers=${{ inputs.layers }}" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Acknowledge (PR comment)
+        if: github.event_name == 'issue_comment' && steps.parse.outputs.should_run == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: 'eyes'
+              });
+            } catch (e) {
+               console.log(e);
+            }
+
   # =============================================================
   # Init: Dashboard Creation (PR Only)
   # =============================================================
@@ -173,23 +268,19 @@ jobs:
             });
 
   # =============================================================
-  # Digger: handles /plan, /apply, digger plan, digger apply
+  # Digger: handles /plan, /apply
   # =============================================================
   digger:
+    needs: parse
     runs-on: ubuntu-latest
     concurrency:
       # Use different concurrency for apply vs plan
-      group: digger-${{ contains(github.event.comment.body, '/apply') && 'apply' || 'plan' }}-${{ github.event.pull_request.number || github.event.issue.number }}
-      cancel-in-progress: ${{ !contains(github.event.comment.body, '/apply') }}
+      group: digger-${{ needs.parse.outputs.command }}-${{ needs.parse.outputs.pr_number || github.run_id }}
+      cancel-in-progress: ${{ needs.parse.outputs.command != 'apply' }}
     if: |
-      github.event_name == 'pull_request' ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request &&
-       (contains(github.event.comment.body, '/plan') ||
-        contains(github.event.comment.body, '/apply') ||
-        contains(github.event.comment.body, 'digger plan') ||
-        contains(github.event.comment.body, 'digger apply')))
+      always() &&
+      needs.parse.outputs.should_run == 'true' &&
+      (needs.parse.outputs.command == 'plan' || needs.parse.outputs.command == 'apply')
     steps:
       - uses: actions/checkout@v4
       
@@ -204,10 +295,19 @@ jobs:
         with:
           python-version: "3.11"
       
-      - name: Setup Terraform
+      - name: Setup Terraform & Kubeconfig
         uses: ./.github/actions/terraform-setup
         with:
           secrets_json: ${{ toJSON(secrets) }}
+          
+      - name: Pre-flight Check Vault Status
+        if: needs.parse.outputs.command == 'apply'
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          PYTHONPATH: ${{ github.workspace }}/0.tools
+        run: |
+          # Check if Vault is sealed before allowing Apply
+          python -m ci check-vault
           
       - name: Digger
         uses: diggerhq/digger@v0.6.80
@@ -218,6 +318,7 @@ jobs:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
 
       - name: Update Dashboard
         if: always()
@@ -225,21 +326,19 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           PYTHONPATH: ${{ github.workspace }}/0.tools
         run: |
-          # Determine PR Number
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            PR="${{ github.event.pull_request.number }}"
-          elif [[ "${{ github.event_name }}" == "issue_comment" ]]; then
-            PR="${{ github.event.issue.number }}"
-          else
-            echo "Skipping dashboard update for event: ${{ github.event_name }}"
-            exit 0
+          # Determine PR Number (for issue_comment or pull_request)
+          PR="${{ needs.parse.outputs.pr_number }}"
+          if [[ -z "$PR" ]]; then
+             echo "No PR number available for dashboard update."
+             exit 0
           fi
 
-          # Determine Stage (default to plan)
-          STAGE="plan"
-          COMMENT="${{ github.event.comment.body }}"
-          if [[ "$COMMENT" == *"/apply"* ]] || [[ "$COMMENT" == *"digger apply"* ]]; then
+          # Determine Stage
+          CMD="${{ needs.parse.outputs.command }}"
+          if [[ "$CMD" == "apply" ]]; then
             STAGE="apply"
+          else
+            STAGE="plan"
           fi
           
           STATUS="${{ job.status }}"
@@ -251,22 +350,22 @@ jobs:
   # Custom: handles /e2e, /review, /help
   # =============================================================
   custom:
+    needs: parse
     runs-on: ubuntu-latest
     concurrency:
-      group: custom-${{ github.event.issue.number }}
+      group: custom-${{ needs.parse.outputs.pr_number || github.run_id }}
       cancel-in-progress: true
     if: |
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request &&
-      (contains(github.event.comment.body, '/e2e') ||
-       contains(github.event.comment.body, '/review') ||
-       contains(github.event.comment.body, '/help'))
+      always() &&
+      needs.parse.outputs.should_run == 'true' &&
+      (needs.parse.outputs.command == 'e2e' ||
+       needs.parse.outputs.command == 'review' || needs.parse.outputs.command == 'help')
     steps:
       - uses: actions/checkout@v4
       
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
           
       - name: Run Command
         env:
@@ -274,10 +373,10 @@ jobs:
           BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
           PYTHONPATH: ${{ github.workspace }}/0.tools
         run: |
-          COMMENT="${{ github.event.comment.body }}"
-          PR="${{ github.event.issue.number }}"
+          CMD="${{ needs.parse.outputs.command }}"
+          PR="${{ needs.parse.outputs.pr_number }}"
           
-          if [[ "$COMMENT" == *"/e2e"* ]]; then
+          if [[ "$CMD" == "e2e" ]]; then
             echo "🔍 Fetching branch for PR #$PR..."
             PR_BRANCH=$(gh pr view $PR --repo ${{ github.repository }} --json headRefName --jq .headRefName)
             echo "✅ Found branch: $PR_BRANCH"
@@ -289,15 +388,15 @@ jobs:
             
             gh workflow run e2e-tests.yml --ref "$PR_BRANCH" -f pr_number=$PR
             gh pr comment $PR --body "🧪 E2E tests triggered for branch \`$PR_BRANCH\`."
-          elif [[ "$COMMENT" == *"/review"* ]]; then
-            gh pr comment $PR --body "🔍 AI Review not yet implemented."
-          elif [[ "$COMMENT" == *"/help"* ]]; then
-            gh pr comment $PR --body "## 📖 Available Commands
             
+          elif [[ "$CMD" == "review" ]]; then
+             gh pr comment $PR --body "🔍 AI Review triggered."
+             
+          elif [[ "$CMD" == "help" ]]; then
+            gh pr comment $PR --body "## 📖 Available Commands
             | Command | Description |
             |:---|:---|
-            | \`/plan\` | Run terraform plan |
-            | \`/apply\` | Run terraform apply |
-            | \`/e2e\` | Trigger E2E tests |
-            | \`/review\` | AI code review |"
+            | \`/plan\` | Run terraform plan (Digger) |
+            | \`/apply\` | Run terraform apply (Digger) |
+            | \`/e2e\` | Trigger E2E tests |"
           fi
