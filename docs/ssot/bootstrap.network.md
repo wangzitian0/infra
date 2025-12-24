@@ -26,7 +26,7 @@
 
 | 模式 | 代理 | 用途 | 示例 |
 |------|------|------|------|
-| `<service>.<internal_domain>` | ✅ Orange (443) | 内部平台 | `atlantis.zitian.party` |
+| `<service>.<internal_domain>` | ✅ Orange (443) | 内部平台 | `digger.zitian.party` |
 | `k3s.<internal_domain>` | ❌ Grey (DNS-only) | K3s API | `k3s.zitian.party:6443` |
 | `<base_domain>` | ✅ Orange | 生产应用 | `truealpha.club` |
 | `x-staging.<base_domain>` | ✅ Orange | Staging 应用 | `x-staging.truealpha.club` |
@@ -76,7 +76,7 @@ annotations:
 
 | 服务 | 域名 | 层级 | Ingress |
 |------|------|------|---------|
-| Atlantis | `atlantis.<internal_domain>` | Bootstrap | ✅ |
+| Digger | `digger.<internal_domain>` | Bootstrap | ✅ |
 | Vault | `secrets.<internal_domain>` | Platform | ✅ |
 | Casdoor | `sso.<internal_domain>` | Platform | ✅ |
 | Kubero | `kcloud.<internal_domain>` | Platform | ✅ |
@@ -85,14 +85,6 @@ annotations:
 ---
 
 ## 安全加固
-
-### Atlantis IP 白名单
-
-仅允许 GitHub Webhook IP 访问：
-
-```yaml
-nginx.ingress.kubernetes.io/whitelist-source-range: "140.82.112.0/20,185.199.108.0/22,192.30.252.0/22"
-```
 
 ### Cloudflare 安全设置
 
@@ -105,7 +97,7 @@ nginx.ingress.kubernetes.io/whitelist-source-range: "140.82.112.0/20,185.199.108
 ## 相关文件
 
 - DNS 配置: [`bootstrap/3.dns_and_cert.tf`](../../bootstrap/3.dns_and_cert.tf)
-- Atlantis Ingress: [`bootstrap/2.atlantis.tf`](../../bootstrap/2.atlantis.tf)
+- Digger Ingress: [`bootstrap/2.digger.tf`](../../bootstrap/2.digger.tf)
 
 ---
 
