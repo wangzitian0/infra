@@ -61,7 +61,6 @@ class Dashboard:
                 "plan-data-staging": StageStatus("Plan: data-staging"),
                 "plan-data-prod": StageStatus("Plan: data-prod"),
                 "apply": StageStatus("Apply"),
-                "health": StageStatus("Health Check"),
                 "e2e": StageStatus("E2E Tests"),
                 "review": StageStatus("AI Review"),
             }
@@ -155,7 +154,6 @@ class Dashboard:
             "| `/plan <layer>` | 预览指定层 |",
             "| `/apply` | 部署所有层 |",
             "| `/apply <layer>` | 部署指定层 |",
-            "| `/health` | 健康检查 |",
             "| `/e2e` | E2E 测试 |",
             "| `/verify` | Drift Scan (Post-merge) |",
             "| `/review` | AI 审查 |",
@@ -219,7 +217,6 @@ class Dashboard:
                 action_map = {
                     "ci": "CI Validate",
                     "apply": "Terraform Apply",
-                    "health": "Health Check",
                     "e2e": "E2E Tests",
                     "review": "AI Review"
                 }

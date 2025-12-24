@@ -27,6 +27,9 @@ class TestConfig:
     # Platform Services
     VAULT_URL = os.getenv("VAULT_URL", "https://secrets.zitian.party")
     DASHBOARD_URL = os.getenv("DASHBOARD_URL", "https://kdashboard.zitian.party")
+    KUBERO_URL = os.getenv("KUBERO_URL", "https://i-kcloud.truealpha.club")
+    SIGNOZ_URL = os.getenv("SIGNOZ_URL", "https://i-signoz.truealpha.club")
+    K3S_URL = os.getenv("K3S_URL", "https://i-k3s.truealpha.club:6443")
 
     # Test Configuration
     HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"

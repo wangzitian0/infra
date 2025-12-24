@@ -17,6 +17,9 @@ async def test_http_connectivity(config: TestConfig):
         ("Vault", config.VAULT_URL),
         ("Dashboard", config.DASHBOARD_URL),
         ("Casdoor", config.SSO_URL),
+        ("Kubero", config.KUBERO_URL),
+        ("SigNoz", config.SIGNOZ_URL),
+        ("K3s", config.K3S_URL),
     ]
 
     async with httpx.AsyncClient(verify=False, timeout=10.0) as client:

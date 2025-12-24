@@ -149,8 +149,7 @@ jobs:
     if: |
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
-      (contains(github.event.comment.body, '/health') ||
-       contains(github.event.comment.body, '/e2e') ||
+      (contains(github.event.comment.body, '/e2e') ||
        contains(github.event.comment.body, '/review') ||
        contains(github.event.comment.body, '/help'))
     steps:
@@ -169,9 +168,7 @@ jobs:
           COMMENT="${{ github.event.comment.body }}"
           PR="${{ github.event.issue.number }}"
           
-          if [[ "$COMMENT" == *"/health"* ]]; then
-            python -m ci health --pr $PR
-          elif [[ "$COMMENT" == *"/e2e"* ]]; then
+          if [[ "$COMMENT" == *"/e2e"* ]]; then
             echo "🔍 Fetching branch for PR #$PR..."
             PR_BRANCH=$(gh pr view $PR --repo ${{ github.repository }} --json headRefName --jq .headRefName)
             echo "✅ Found branch: $PR_BRANCH"
@@ -192,7 +189,6 @@ jobs:
             |:---|:---|
             | \`/plan\` | Run terraform plan |
             | \`/apply\` | Run terraform apply |
-            | \`/health\` | Service health check |
             | \`/e2e\` | Trigger E2E tests |
             | \`/review\` | AI code review |"
           fi
