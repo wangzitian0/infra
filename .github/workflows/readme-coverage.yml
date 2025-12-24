@@ -17,5 +17,6 @@ jobs:
 
       - name: Run README coverage check
         run: |
-          chmod +x tools/check-readme-coverage.sh
-          BASE_REF="${{ github.event.pull_request.base.sha || github.ref_name || 'origin/main' }}" tools/check-readme-coverage.sh
+          chmod +x tools/checks/check-readme-coverage.sh
+          BASE_REF="${{ github.event.pull_request.base.sha || github.ref_name || 'origin/main' }}" tools/checks/check-readme-coverage.sh
+
