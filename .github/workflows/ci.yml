@@ -2,7 +2,7 @@ name: CI Pipeline
 
 # Unified entry point for all CI commands
 # /plan, /apply → Digger (plan/apply)
-# /health, /e2e, /review → Custom handlers
+# /e2e, /review → Custom handlers
 
 on:
   pull_request:
@@ -21,10 +21,6 @@ on:
           - plan
           - apply
 
-concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: write
   pull-requests: write
@@ -39,6 +35,9 @@ jobs:
   init-dashboard:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    concurrency:
+      group: init-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -57,6 +56,9 @@ jobs:
   post-merge:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: post-merge-apply
+      cancel-in-progress: false  # CRITICAL: Never cancel apply
     steps:
       - uses: actions/checkout@v4
       - name: Setup Terraform
@@ -64,21 +66,52 @@ jobs:
         with:
           secrets_json: ${{ toJSON(secrets) }}
       - name: Digger Apply
+        id: digger
         uses: diggerhq/digger@v0.6.80
         with:
           setup-terragrunt: true
           terragrunt-version: 0.68.4
-          # Digger treats push to default branch as apply if configured?
-          # Actually Digger CLI handles 'digger apply' but for push event we might need specific args
-          # For now, let's just run digger which usually auto-detects changes
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Notify on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const commitSha = '${{ github.sha }}'.substring(0, 7);
+            
+            // Create a commit status to mark failure
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: '${{ github.sha }}',
+              state: 'failure',
+              context: 'post-merge/apply',
+              description: 'Post-merge apply failed!',
+              target_url: runUrl
+            });
+            
+            // Also create an issue for visibility
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🚨 Post-merge apply failed for ${commitSha}`,
+              body: `The post-merge apply job failed.\n\n**Commit**: ${commitSha}\n**Run**: ${runUrl}\n\nPlease investigate immediately.`,
+              labels: ['bug', 'priority/high']
+            });
+
   # =============================================================
   # Digger: handles /plan, /apply, digger plan, digger apply
   # =============================================================
   digger:
     runs-on: ubuntu-latest
+    concurrency:
+      # Use different concurrency for apply vs plan
+      group: digger-${{ contains(github.event.comment.body, '/apply') && 'apply' || 'plan' }}-${{ github.event.pull_request.number || github.event.issue.number }}
+      cancel-in-progress: ${{ !contains(github.event.comment.body, '/apply') }}
     if: |
       github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
@@ -135,17 +168,16 @@ jobs:
           STATUS="${{ job.status }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
-          # Setup Python (Digger image might not have python? Digger runs on ubuntu-latest)
-          # We need to ensure python is setup. Steps above ran actions/setup-python?
-          # Wait, digger job does NOT run setup-python. I need to add it!
-          
           python -m ci update --pr "$PR" --stage "$STAGE" --status "$STATUS" --link "$RUN_URL"
 
   # =============================================================
-  # Custom: handles /health, /e2e, /review, /help
+  # Custom: handles /e2e, /review, /help
   # =============================================================
   custom:
     runs-on: ubuntu-latest
+    concurrency:
+      group: custom-${{ github.event.issue.number }}
+      cancel-in-progress: true
     if: |
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&

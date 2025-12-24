@@ -155,7 +155,6 @@ class Dashboard:
             "| `/apply` | 部署所有层 |",
             "| `/apply <layer>` | 部署指定层 |",
             "| `/e2e` | E2E 测试 |",
-            "| `/verify` | Drift Scan (Post-merge) |",
             "| `/review` | AI 审查 |",
             "| `/help` | 显示帮助 |",
             "</details>",
