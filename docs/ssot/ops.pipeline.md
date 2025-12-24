@@ -10,7 +10,7 @@
 
 | 组件 | 职责 |
 |:---|:---|
-| **Digger** | Terraform Plan/Apply 执行 (替代 Atlantis) |
+| **Digger** | Self-hosted Orchestrator 执行 Terraform (替代 Atlantis) |
 | **ci.yml** | 统一入口，路由命令到 Digger 或自定义 Job |
 | **Python (0.tools/ci/)** | Dashboard 更新、Vault 检查、解析辅助 |
 

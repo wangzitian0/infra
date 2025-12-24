@@ -56,10 +56,10 @@ op item get "Infra-GHA-Secrets" --vault="my_cloud" --format json |
 | | `GH_OAUTH_CLIENT_SECRET` | `GH_OAUTH_CLIENT_SECRET` | `github_oauth_client_secret` |
 | | `ENABLE_CASDOOR_OIDC` | `ENABLE_CASDOOR_OIDC` | `enable_casdoor_oidc` |
 | | `ENABLE_PORTAL_SSO_GATE` | `ENABLE_PORTAL_SSO_GATE` | `enable_portal_sso_gate` |
-| `Infra-Atlantis` | `ATLANTIS_WEBHOOK_SECRET` | `ATLANTIS_WEBHOOK_SECRET` | `atlantis_webhook_secret` |
-| | `ATLANTIS_WEB_PASSWORD` | `ATLANTIS_WEB_PASSWORD` | `atlantis_web_password` |
-| | `ATLANTIS_GH_APP_ID` | `ATLANTIS_GH_APP_ID` | `github_app_id` |
-| | `ATLANTIS_GH_APP_KEY` | `ATLANTIS_GH_APP_KEY` | `github_app_key` |
+| `Infra-Atlantis` | (Legacy) | - | - |
+| `Infra-Digger` | `DIGGER_BEARER_TOKEN` | `DIGGER_BEARER_TOKEN` | `digger_bearer_token` |
+| | `DIGGER_WEBHOOK_SECRET` | `DIGGER_WEBHOOK_SECRET` | `digger_webhook_secret` |
+| | `DIGGER_HTTP_PASSWORD` | `DIGGER_HTTP_PASSWORD` | `digger_http_password` |
 | `Infra-Vault` | `VAULT_ROOT_TOKEN` | `VAULT_ROOT_TOKEN` | `vault_root_token` |
 | `Infra-GHA-Secrets` | `api_key` | `GEMINI_API_KEY` | - |
 | `GitHub PAT` | `token` | `GH_PAT` | `github_token` |

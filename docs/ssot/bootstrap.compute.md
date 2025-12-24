@@ -1,6 +1,6 @@
 # Bootstrap 计算层 SSOT
 
-> **核心问题**：K3s 集群如何配置？Atlantis 如何认证和集成？
+> **核心问题**：K3s 集群如何配置？Digger Orchestrator 如何认证和集成？
 
 ---
 
@@ -9,7 +9,7 @@
 | 组件 | 职责 | 代码位置 | 认证方式 |
 |------|------|----------|----------|
 | **K3s** | Kubernetes 集群 | `bootstrap/1.k3s.tf` | Token (Kubeconfig) |
-| **Atlantis** | GitOps CI/CD | `bootstrap/2.atlantis.tf` | Basic Auth |
+| **Digger** | GitOps CI/CD 编排 | `bootstrap/2.digger.tf` | Bearer Token / Basic Auth |
 
 ---
 
@@ -39,45 +39,47 @@ ssh root@<vps_host> cat /etc/rancher/k3s/k3s.yaml
 
 ---
 
-## Atlantis CI
+## Digger Orchestrator
 
 ### 部署配置
 
 - **Namespace**: `bootstrap`
-- **URL**: `https://atlantis.<internal_domain>`
-- **认证方式**: Basic Auth（**不走 SSO**，避免循环依赖）
+- **URL**: `https://digger.<internal_domain>`
+- **数据库**: Platform PostgreSQL (专用 `digger` 数据库)
+- **认证方式**: 
+  - **API**: Bearer Token (用于 GitHub Actions)
+  - **Web UI**: Basic Auth (不走 SSO)
 
 ### 安全加固
 
-GitHub Webhook IP 白名单：
-```yaml
-nginx.ingress.kubernetes.io/whitelist-source-range: "140.82.112.0/20,185.199.108.0/22,192.30.252.0/22"
-```
+GitHub Webhook IP 白名单已在 Ingress 配置。
 
-### 项目定义
+### 部署逻辑
 
-见根目录 [`atlantis.yaml`](../../atlantis.yaml)：
+> [!IMPORTANT]
+> Digger 负责编排 L2-L4 层，但 **L1 Bootstrap 自身脱离 Digger 编排**。
 
-| 项目 | 路径 | 触发方式 |
-|------|------|----------|
-| `bootstrap` | `bootstrap/` | 手动 (`deploy-bootstrap.yml`) |
-| `platform` | `platform/` | Autoplan |
-| `data-staging` | `envs/staging/data/` | Autoplan |
-| `data-prod` | `envs/prod/data/` | Autoplan |
+| 层级 | 路径 | 编排工具 | 触发命令 |
+|------|------|----------|----------|
+| **L1 (Bootstrap)** | `bootstrap/` | GitHub Actions | `/bootstrap plan/apply` |
+| **L2 (Platform)** | `platform/` | Digger | `/plan`, `/apply` |
+| **L3 (Data)** | `envs/*/data/` | Digger | `/plan`, `/apply` |
 
 ### 工作流程
 
 ```mermaid
 sequenceDiagram
     participant Dev as Developer
-    participant GH as GitHub
-    participant ATL as Atlantis
+    participant GH as GitHub Actions
+    participant DIG as Digger Orchestrator
+    participant VPS as K3s Cluster
 
-    Dev->>GH: Push PR
-    GH->>ATL: Webhook
-    ATL->>GH: Comment (plan result)
-    Dev->>GH: Comment "atlantis apply"
-    ATL->>GH: Comment (apply result)
+    Dev->>GH: Push PR / Comment
+    GH->>DIG: Webhook (Digger Action)
+    DIG->>GH: Compute & Plan
+    GH->>Dev: Show Plan Output
+    Dev->>GH: Comment "/apply"
+    GH->>VPS: Execute Terraform Apply
 ```
 
 > Pipeline 详情见 [ops.pipeline.md](./ops.pipeline.md)
@@ -89,7 +91,7 @@ sequenceDiagram
 Bootstrap 计算层是 Trust Anchor，恢复策略见 [ops.recovery.md](./ops.recovery.md)。
 
 关键点：
-- Atlantis 使用 Basic Auth，不依赖 SSO（可独立恢复）
+- Digger 使用独立数据库和认证，不依赖 SSO（可独立恢复）
 - K3s 集群恢复需要 VPS 访问权限和 kubeconfig
 
 ---
