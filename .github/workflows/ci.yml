@@ -61,10 +61,19 @@ jobs:
       cancel-in-progress: false  # CRITICAL: Never cancel apply
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+      
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
         with:
           secrets_json: ${{ toJSON(secrets) }}
+          
       - name: Digger Apply
         id: digger
         uses: diggerhq/digger@v0.6.80
@@ -73,12 +82,13 @@ jobs:
           terragrunt-version: 0.68.4
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
       
       - name: Find Merged PR
         id: find-pr
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             // Find PR associated with this merge commit
             const commits = await github.rest.repos.listPullRequestsAssociatedWithCommit({
@@ -101,6 +111,7 @@ jobs:
         if: always() && steps.find-pr.outputs.pr_number
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const prNumber = ${{ steps.find-pr.outputs.pr_number }};
             const status = '${{ job.status }}';
@@ -135,6 +146,7 @@ jobs:
         if: failure()
         uses: actions/github-script@v7
         with:
+          github-token: ${{ steps.app-token.outputs.token }}
           script: |
             const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
             const commitSha = '${{ github.sha }}'.substring(0, 7);
