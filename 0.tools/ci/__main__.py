@@ -68,7 +68,6 @@ def main():
     update_parser.add_argument("--stage", required=True, help="Stage key")
     update_parser.add_argument("--status", required=True, help="Status (success, failure, etc)")
     update_parser.add_argument("--link", help="Link to details")
-
     args = parser.parse_args()
 
     # Dispatch to command handler
