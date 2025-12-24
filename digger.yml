@@ -1,0 +1,52 @@
+# Digger Configuration
+# Handles terraform plan/apply via GitHub Actions
+# Reference: https://docs.digger.dev/
+
+# Projects to manage
+projects:
+  - name: bootstrap
+    dir: bootstrap
+    workflow: terraform
+    
+  - name: platform
+    dir: platform
+    terragrunt: true
+    workflow: terragrunt
+    
+  - name: data-staging
+    dir: envs/staging/data
+    terragrunt: true
+    workflow: terragrunt
+    
+  - name: data-prod
+    dir: envs/prod/data
+    terragrunt: true
+    workflow: terragrunt
+
+# Auto-merge when all checks pass
+auto_merge: false
+
+# Comment options
+comment_render_mode: basic
+
+# Workflows
+workflows:
+  terraform:
+    plan:
+      steps:
+        - init
+        - plan
+    apply:
+      steps:
+        - init
+        - apply
+        
+  terragrunt:
+    plan:
+      steps:
+        - run: terragrunt init -no-color
+        - run: terragrunt plan -no-color -out=plan.tfplan
+    apply:
+      steps:
+        - run: terragrunt init -no-color
+        - run: terragrunt apply -no-color -auto-approve plan.tfplan
