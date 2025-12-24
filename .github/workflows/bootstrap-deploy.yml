@@ -1,0 +1,188 @@
+# Bootstrap Layer Deployment
+# Purpose: Independent Terraform workflow for Bootstrap (L1) layer
+# 
+# Why separate from Digger?
+# Bootstrap contains the Digger Orchestrator itself - can't use Digger to deploy Digger.
+# This workflow runs native Terraform directly.
+
+name: Bootstrap Deploy
+
+on:
+  # Post-merge: auto apply
+  push:
+    branches: [main]
+    paths:
+      - 'bootstrap/**'
+      - '.github/workflows/bootstrap-deploy.yml'
+  
+  # PR comment commands
+  issue_comment:
+    types: [created]
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  TF_VERSION: "1.11.0"
+  WORKING_DIR: bootstrap
+
+jobs:
+  # =============================================================
+  # Command Handler: /bootstrap plan, /bootstrap apply
+  # =============================================================
+  command:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      (contains(github.event.comment.body, '/bootstrap plan') ||
+       contains(github.event.comment.body, '/bootstrap apply'))
+    outputs:
+      action: ${{ steps.parse.outputs.action }}
+      pr_number: ${{ github.event.issue.number }}
+    steps:
+      - name: Parse Command
+        id: parse
+        run: |
+          if [[ "${{ github.event.comment.body }}" == *"/bootstrap apply"* ]]; then
+            echo "action=apply" >> $GITHUB_OUTPUT
+          else
+            echo "action=plan" >> $GITHUB_OUTPUT
+          fi
+
+      - name: React to Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
+
+  # =============================================================
+  # Terraform Plan/Apply
+  # =============================================================
+  terraform:
+    runs-on: ubuntu-latest
+    needs: [command]
+    if: |
+      always() &&
+      (github.event_name == 'push' ||
+       github.event_name == 'workflow_dispatch' ||
+       (needs.command.result == 'success'))
+    concurrency:
+      group: bootstrap-${{ github.event_name == 'push' && 'apply' || needs.command.outputs.action || github.event.inputs.action }}
+      cancel-in-progress: false  # Never cancel infrastructure operations
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', needs.command.outputs.pr_number) || github.ref }}
+
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+
+      - name: Terraform Init
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform init -input=false
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ env.WORKING_DIR }}
+        run: |
+          terraform plan -input=false -no-color -out=tfplan 2>&1 | tee plan.txt
+          echo "plan_output<<EOF" >> $GITHUB_OUTPUT
+          cat plan.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post Plan to PR
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const planOutput = `${{ steps.plan.outputs.plan_output }}`.substring(0, 60000);
+            const body = `### 🔧 Bootstrap Terraform Plan
+            
+            \`\`\`hcl
+            ${planOutput}
+            \`\`\`
+            
+            > To apply: comment \`/bootstrap apply\``;
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ needs.command.outputs.pr_number }},
+              body: body
+            });
+
+      - name: Determine if Apply
+        id: should-apply
+        run: |
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            echo "apply=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.action }}" == "apply" ]]; then
+            echo "apply=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.command.outputs.action }}" == "apply" ]]; then
+            echo "apply=true" >> $GITHUB_OUTPUT
+          else
+            echo "apply=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Terraform Apply
+        if: steps.should-apply.outputs.apply == 'true'
+        working-directory: ${{ env.WORKING_DIR }}
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Post Apply Result
+        if: steps.should-apply.outputs.apply == 'true' && github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ needs.command.outputs.pr_number }},
+              body: '### ✅ Bootstrap Apply Complete\n\nTerraform apply finished successfully.'
+            });
+
+      - name: Notify on Failure
+        if: failure() && github.event_name == 'push'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Bootstrap deploy failed',
+              body: `Bootstrap layer deployment failed after merge.\n\n**Run**: ${runUrl}`,
+              labels: ['bug', 'priority/high']
+            });
