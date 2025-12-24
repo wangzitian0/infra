@@ -4,31 +4,31 @@
 
 # 🛠️ 问题解决框架 (STAR Framework)
 
-在处理任何任务前，AI 必须使用以下结构进行分析：
+在处理任务前，AI 必须使用以下级联结构进行深度分析：
 
 ### 1. Situation (情境评估)
-- **现状分析**：描述当前系统状态。
-- **真理检查 (Step 0)**：**必须**搜索并阅读 `docs/ssot/` 中的相关话题。
-    - *示例：“当前 Situation 涉及数据库变更，我已查阅 `db.overview.md` 确认了 VSO 模式。”*
+- **现状分析**：描述当前系统状态及问题影响。
+- **真理检查 (Step 0)**：搜索并阅读 `docs/ssot/` 中的相关话题，明确“现状”与“理想真理”的差距。
 
-### 2. Task (任务拆解)
-- **目标定义**：明确高优先级目标。
-- **模块分拆**：将任务精确拆分到对应的层级 (L1-L4) 和目录。
+### 2. Tasks (多维任务拆解)
+- **目标分拆**：根据 Situation 拆解出多个子任务。
+- **按层归位**：将 Tasks 精确分发到对应的基础设施层级。
+    - *示例：Task 1 (L1): 扩容磁盘；Task 2 (L3): 迁移数据。*
 
-### 3. Action (执行过程)
-- **SSOT 对齐**：操作必须符合 [**Ops Standards**](./docs/ssot/ops.standards.md) 中的防御性运维守则。
-- **IaC 循环**：修改 `.tf` 代码 -> `terraform fmt` -> `terraform plan`。
-- **同步更新**：如果有新的 SOP 或架构变更，**必须**同步更新对应的 SSOT 文件。
+### 3. Actions (具体执行步骤)
+- **原子操作**：为每一个 Task 制定具体的 Action 序列。
+- **SSOT 对齐**：Actions 必须符合 [**Ops Standards**](./docs/ssot/ops.standards.md) 的防御性守则。
+- **闭环变更**：Actions 必须包含：修改代码 -> 更新 SSOT -> 验证生效。
 
 ### 4. Result (结果验证)
 - **完工自检**：对照 [**0.check_now.md**](./0.check_now.md) 进行 Checklist 检查。
-- **证据闭环**：运行相关 SSOT 文档 "The Proof" 章节定义的测试。
+- **证据闭环**：通过相关 SSOT 文档 "The Proof" 章节定义的测试来证明结果。
 
 ---
 
 # 🚨 核心强制原则 (SSOT First)
 
-1.  **SSOT 为最高真理**：基础设施的 **唯一权威来源** 是 `docs/ssot/`。README 仅作为导航入口。
+1.  **SSOT 为最高真理**：基础设施的 **唯一权威来源** 是 `docs/ssot/`。README 仅作为导航。
 2.  **无 SSOT 不开工**：引入新组件前，必须先在 `docs/ssot/` 定义其真理（架构、约束、SOP）。
 3.  **禁止隐性漂移**：发现代码与 SSOT 不符时，必须立即同步修正，严禁让 SSOT 腐烂。
 
