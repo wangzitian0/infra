@@ -1,8 +1,9 @@
-name: CI Pipeline
+# Unified CI Pipeline
+#
+# This is a thin YAML layer that routes all CI events to Python handlers.
+# All complex logic lives in tools/ci/
 
-# Unified entry point for all CI commands
-# /plan, /apply → Digger (plan/apply)
-# /e2e, /review → Custom handlers
+name: CI Pipeline
 
 on:
   pull_request:
@@ -20,15 +21,25 @@ on:
         options:
           - plan
           - apply
+          - verify
+          - bootstrap
       layers:
         description: "Layers (comma-separated or 'all')"
         required: false
         default: "all"
+      action:
+        description: "Bootstrap action (if command=bootstrap)"
+        required: false
+        type: choice
+        options:
+          - plan
+          - apply
 
 permissions:
   contents: write
   pull-requests: write
   issues: write
+  statuses: write
   id-token: write
   actions: write
 
@@ -36,373 +47,53 @@ env:
   PYTHON_VERSION: "3.11"
 
 jobs:
-  # =============================================================
-  # Job 1: Parse event and determine action
-  # =============================================================
-  parse:
+  ci:
     runs-on: ubuntu-latest
-    outputs:
-      command: ${{ steps.parse.outputs.command }}
-      layers: ${{ steps.parse.outputs.layers }}
-      pr_number: ${{ steps.parse.outputs.pr_number }}
-      should_run: ${{ steps.parse.outputs.should_run }}
+    # Skip if issue comment is not on a PR or doesn't contain a command
+    if: |
+      github.event_name != 'issue_comment' || 
+      (github.event.issue.pull_request && 
+       (contains(github.event.comment.body, '/plan') ||
+        contains(github.event.comment.body, '/apply') ||
+        contains(github.event.comment.body, '/bootstrap')))
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
+
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
+          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Parse Event
-        id: parse
-        # Minimal inline parsing to route to Digger vs Custom
-        # IMPORTANT: Use env vars for untrusted inputs to prevent script injection
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || 'false' }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || '' }}
-          INPUT_COMMAND: ${{ inputs.command }}
-          INPUT_LAYERS: ${{ inputs.layers }}
-        run: |
-          if [[ "$EVENT_NAME" == "pull_request" ]]; then
-            echo "command=plan" >> $GITHUB_OUTPUT
-            echo "layers=all" >> $GITHUB_OUTPUT
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-            echo "should_run=true" >> $GITHUB_OUTPUT
-          
-          elif [[ "$EVENT_NAME" == "push" ]]; then
-            # Post-merge verify
-            echo "command=verify" >> $GITHUB_OUTPUT
-            echo "layers=all" >> $GITHUB_OUTPUT
-            echo "should_run=true" >> $GITHUB_OUTPUT
-          
-          elif [[ "$EVENT_NAME" == "issue_comment" ]]; then
-            if [[ "$IS_PR_COMMENT" != "true" ]]; then
-              echo "should_run=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-            
-            # Basic routing logic (SSOT is Python logic, but we map here for Job routing)
-            # COMMENT_BODY is safely passed via env var to prevent script injection
-            if [[ "$COMMENT_BODY" == *"/plan"* ]] || [[ "$COMMENT_BODY" == *"digger plan"* ]]; then
-              echo "command=plan" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT_BODY" == *"/apply"* ]] || [[ "$COMMENT_BODY" == *"digger apply"* ]]; then
-              echo "command=apply" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT_BODY" == *"/verify"* ]]; then
-              echo "command=verify" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT_BODY" == *"/e2e"* ]]; then
-              echo "command=e2e" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT_BODY" == *"/review"* ]]; then
-              echo "command=review" >> $GITHUB_OUTPUT
-            elif [[ "$COMMENT_BODY" == *"/help"* ]]; then
-              echo "command=help" >> $GITHUB_OUTPUT
-            else
-              echo "command=unknown" >> $GITHUB_OUTPUT
-              echo "should_run=false" >> $GITHUB_OUTPUT
-              exit 0
-            fi
-            
-            echo "should_run=true" >> $GITHUB_OUTPUT
-            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          
-          elif [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            echo "command=$INPUT_COMMAND" >> $GITHUB_OUTPUT
-            echo "layers=$INPUT_LAYERS" >> $GITHUB_OUTPUT
-            echo "should_run=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Acknowledge (PR comment)
-        if: github.event_name == 'issue_comment' && steps.parse.outputs.should_run == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            try {
-              await github.rest.reactions.createForIssueComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: context.payload.comment.id,
-                content: 'eyes'
-              });
-            } catch (e) {
-               console.log(e);
-            }
-
-  # =============================================================
-  # Init: Dashboard Creation (PR Only)
-  # =============================================================
-  init-dashboard:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    concurrency:
-      group: init-${{ github.event.pull_request.number }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Init Dashboard
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHONPATH: ${{ github.workspace }}/tools
-        run: |
-          python -m ci init --pr ${{ github.event.pull_request.number }}
-
-  # =============================================================
-  # Post-Merge: Auto Apply (Push to Main)
-  # =============================================================
-  post-merge:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    concurrency:
-      group: post-merge-apply
-      cancel-in-progress: false  # CRITICAL: Never cancel apply
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
-          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
-      
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
         with:
           secrets_json: ${{ toJSON(secrets) }}
-          
-      - name: Digger Apply
-        id: digger
-        uses: diggerhq/digger@v0.6.80
-        with:
-          setup-terragrunt: true
-          terragrunt-version: 0.68.4
-        env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
-      
-      - name: Find Merged PR
-        id: find-pr
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            // Find PR associated with this merge commit
-            const commits = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha
-            });
-            
-            if (commits.data.length > 0) {
-              const pr = commits.data[0];
-              core.setOutput('pr_number', pr.number);
-              core.setOutput('pr_title', pr.title);
-              console.log(`Found PR #${pr.number}: ${pr.title}`);
-            } else {
-              console.log('No PR found for this commit');
-              core.setOutput('pr_number', '');
-            }
+          tf_state_key: k3s/terraform.tfstate
+          working_directory: bootstrap
 
-      - name: Update Merged PR
-        if: always() && steps.find-pr.outputs.pr_number
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const prNumber = ${{ steps.find-pr.outputs.pr_number }};
-            const status = '${{ job.status }}';
-            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
-            const commitSha = '${{ github.sha }}'.substring(0, 7);
-            
-            const statusIcon = status === 'success' ? '✅' : '❌';
-            const statusText = status === 'success' ? 'succeeded' : 'failed';
-            
-            const body = [
-              `## 🚀 Post-Merge Apply ${statusIcon}`,
-              '',
-              '| Field | Value |',
-              '|:---|:---|',
-              `| **Status** | ${statusText} |`,
-              `| **Commit** | \`${commitSha}\` |`,
-              `| **Run** | [View Logs](${runUrl}) |`,
-              '',
-              '> This PR has been merged and the changes have been applied to production.'
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: prNumber,
-              body: body
-            });
-            
-            console.log(`Posted status to PR #${prNumber}`);
-
-      - name: Notify on Failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ steps.app-token.outputs.token }}
-          script: |
-            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
-            const commitSha = '${{ github.sha }}'.substring(0, 7);
-            
-            // Create a commit status to mark failure
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: '${{ github.sha }}',
-              state: 'failure',
-              context: 'post-merge/apply',
-              description: 'Post-merge apply failed!',
-              target_url: runUrl
-            });
-            
-            // Also create an issue for visibility
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `🚨 Post-merge apply failed for ${commitSha}`,
-              body: `The post-merge apply job failed.\n\n**Commit**: ${commitSha}\n**Run**: ${runUrl}\n\nPlease investigate immediately.`,
-              labels: ['bug', 'priority/high']
-            });
-
-  # =============================================================
-  # Digger: handles /plan, /apply
-  # =============================================================
-  digger:
-    needs: parse
-    runs-on: ubuntu-latest
-    concurrency:
-      # Use different concurrency for apply vs plan
-      group: digger-${{ needs.parse.outputs.command }}-${{ needs.parse.outputs.pr_number || github.run_id }}
-      cancel-in-progress: ${{ needs.parse.outputs.command != 'apply' }}
-    if: |
-      always() &&
-      needs.parse.outputs.should_run == 'true' &&
-      (needs.parse.outputs.command == 'plan' || needs.parse.outputs.command == 'apply')
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
-          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
-      
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      
-      - name: Setup Terraform & Kubeconfig
-        uses: ./.github/actions/terraform-setup
-        with:
-          secrets_json: ${{ toJSON(secrets) }}
-          
-      - name: Pre-flight Check Vault Status
-        if: needs.parse.outputs.command == 'apply'
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          PYTHONPATH: ${{ github.workspace }}/tools
-        run: |
-          # Check if Vault is sealed before allowing Apply
-          python -m ci check-vault
-          
-      - name: Digger
-        uses: diggerhq/digger@v0.6.80
-        with:
-          setup-terragrunt: true
-          terragrunt-version: 0.68.4
-        env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-
-      - name: Update Dashboard
-        if: always()
+      - name: Run CI
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          PYTHONPATH: ${{ github.workspace }}/tools
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          # Workflow dispatch inputs
+          INPUT_COMMAND: ${{ inputs.command }}
+          INPUT_LAYERS: ${{ inputs.layers }}
+          INPUT_ACTION: ${{ inputs.action }}
         run: |
-          # Determine PR Number (for issue_comment or pull_request)
-          PR="${{ needs.parse.outputs.pr_number }}"
-          if [[ -z "$PR" ]]; then
-             echo "No PR number available for dashboard update."
-             exit 0
-          fi
-
-          # Determine Stage
-          CMD="${{ needs.parse.outputs.command }}"
-          if [[ "$CMD" == "apply" ]]; then
-            STAGE="apply"
-          else
-            STAGE="plan"
-          fi
-          
-          STATUS="${{ job.status }}"
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
-          python -m ci update --pr "$PR" --stage "$STAGE" --status "$STATUS" --link "$RUN_URL"
-
-  # =============================================================
-  # Custom: handles /e2e, /review, /help
-  # =============================================================
-  custom:
-    needs: parse
-    runs-on: ubuntu-latest
-    concurrency:
-      group: custom-${{ needs.parse.outputs.pr_number || github.run_id }}
-      cancel-in-progress: true
-    if: |
-      always() &&
-      needs.parse.outputs.should_run == 'true' &&
-      (needs.parse.outputs.command == 'e2e' ||
-       needs.parse.outputs.command == 'review' || needs.parse.outputs.command == 'help')
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          
-      - name: Run Command
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_DOMAIN: ${{ secrets.BASE_DOMAIN }}
-          PYTHONPATH: ${{ github.workspace }}/tools
-        run: |
-          CMD="${{ needs.parse.outputs.command }}"
-          PR="${{ needs.parse.outputs.pr_number }}"
-          
-          if [[ "$CMD" == "e2e" ]]; then
-            echo "🔍 Fetching branch for PR #$PR..."
-            PR_BRANCH=$(gh pr view $PR --repo ${{ github.repository }} --json headRefName --jq .headRefName)
-            echo "✅ Found branch: $PR_BRANCH"
-            
-            if [[ -z "$PR_BRANCH" ]]; then
-              echo "❌ Failed to determine branch name."
-              exit 1
-            fi
-            
-            gh workflow run e2e-tests.yml --ref "$PR_BRANCH" -f pr_number=$PR
-            gh pr comment $PR --body "🧪 E2E tests triggered for branch \`$PR_BRANCH\`."
-            
-          elif [[ "$CMD" == "review" ]]; then
-             gh pr comment $PR --body "🔍 AI Review triggered."
-             
-          elif [[ "$CMD" == "help" ]]; then
-            gh pr comment $PR --body "## 📖 Available Commands
-            | Command | Description |
-            |:---|:---|
-            | \`/plan\` | Run terraform plan (Digger) |
-            | \`/apply\` | Run terraform apply (Digger) |
-            | \`/e2e\` | Trigger E2E tests |"
-          fi
+          cd tools
+          python -m ci run
