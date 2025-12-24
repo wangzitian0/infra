@@ -2,32 +2,35 @@
 
 > **禁令**：除非明确指定，否则 AI 不可以自动修改本文件。AI 不可以执行合流 (Merge PR) 操作。
 
-# 🚨 核心强制原则 (SSOT First)
+# 🛠️ 问题解决框架 (STAR Framework)
 
-1.  **SSOT 为最高真理**：基础设施的架构、规则、SOP **唯一权威来源**是 `docs/ssot/`。
-2.  **强制前置检查 (Step 0)**：在执行任何代码修改或运维操作前，**必须**首先在 `docs/ssot/` 中搜索并阅读相关话题。
-    - *示例：若涉及数据库，必读 `db.overview.md`；若涉及密钥，必读 `platform.secrets.md`。*
-3.  **无 SSOT 不开工**：如果要引入一个新概念/组件，**必须**先在 `docs/ssot/` 创建对应的真理文件，严禁在 README 或代码中散落孤立的设计决策。
-4.  **禁止隐性漂移**：如果发现现实（代码/资源）与 SSOT 不符，**必须**立即修正 SSOT（若现实是正确的）或修正代码（若 SSOT 是正确的）。
+在处理任何任务前，AI 必须使用以下结构进行分析：
+
+### 1. Situation (情境评估)
+- **现状分析**：描述当前系统状态。
+- **真理检查 (Step 0)**：**必须**搜索并阅读 `docs/ssot/` 中的相关话题。
+    - *示例：“当前 Situation 涉及数据库变更，我已查阅 `db.overview.md` 确认了 VSO 模式。”*
+
+### 2. Task (任务拆解)
+- **目标定义**：明确高优先级目标。
+- **模块分拆**：将任务精确拆分到对应的层级 (L1-L4) 和目录。
+
+### 3. Action (执行过程)
+- **SSOT 对齐**：操作必须符合 [**Ops Standards**](./docs/ssot/ops.standards.md) 中的防御性运维守则。
+- **IaC 循环**：修改 `.tf` 代码 -> `terraform fmt` -> `terraform plan`。
+- **同步更新**：如果有新的 SOP 或架构变更，**必须**同步更新对应的 SSOT 文件。
+
+### 4. Result (结果验证)
+- **完工自检**：对照 [**0.check_now.md**](./0.check_now.md) 进行 Checklist 检查。
+- **证据闭环**：运行相关 SSOT 文档 "The Proof" 章节定义的测试。
 
 ---
 
-# 🛠️ 执行流程 (Execution Loop)
+# 🚨 核心强制原则 (SSOT First)
 
-## 第一步：情境分析 (Situation Assessment)
-使用 **STAR Framework** 分析问题。在 Action 阶段，必须明确标注：“我将参考哪个 SSOT 文件”。
-
-## 第二步：真理对齐 (SSOT Alignment)
-- **搜索**：`grep -r <keyword> docs/ssot/`
-- **校验**：检查当前任务是否违反了 [**Ops Standards / Defensive Maintenance**](./docs/ssot/ops.standards.md#3-防御性运维守则-defensive-maintenance) 中的任何一条 Rule。
-
-## 第三步：IaC 循环 (Implementation)
-1. 修改 `.tf` 代码。
-2. `terraform fmt` 并执行 `terraform plan`。
-3. **关键同步**：更新受影响的 SSOT Playbooks 或 Constraints。
-
-## 第四步：完工自检 (Self-Check)
-在宣布完工前，对照 [**0.check_now.md**](./0.check_now.md) 和相关 SSOT 的 **"The Proof"** 章节，确认测试已通过。
+1.  **SSOT 为最高真理**：基础设施的 **唯一权威来源** 是 `docs/ssot/`。README 仅作为导航入口。
+2.  **无 SSOT 不开工**：引入新组件前，必须先在 `docs/ssot/` 定义其真理（架构、约束、SOP）。
+3.  **禁止隐性漂移**：发现代码与 SSOT 不符时，必须立即同步修正，严禁让 SSOT 腐烂。
 
 ---
 
@@ -46,6 +49,6 @@
 ---
 
 # 安全与红线
-- **严禁**提交 `*.pem`, `*.key`, `.env`, `*.tfvars`。
+- **严禁** 提交任何敏感文件 (`*.pem`, `.env`, `*.tfvars`)。
 - **状态不一致处理**：Apply 冲突时必须执行 [**State Discrepancy Protocol**](./docs/ssot/ops.standards.md#rule-4-状态不一致协议-state-discrepancy-protocol)。
 - **密钥源头**：1Password 是静态密钥的唯一真源。
