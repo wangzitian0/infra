@@ -316,7 +316,7 @@ resource "vault_kv_secret_v2" "openpanel" {
     clickhouse_database = "openpanel_events"
   })
 
-  depends_on = [kubectl_manifest.postgresql_cluster, helm_release.redis, random_password.openpanel_clickhouse]
+  depends_on = [kubectl_manifest.postgresql_cluster, kubectl_manifest.redis, random_password.openpanel_clickhouse]
 
   lifecycle {
     # Don't overwrite existing credentials in Vault during state recovery

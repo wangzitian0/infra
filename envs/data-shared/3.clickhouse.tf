@@ -8,7 +8,7 @@
 # - Helm uses existingSecret to read from K8s Secret
 # - Provider uses random_password with ignore_changes for state recovery
 #
-# Pattern: Bitnami Helm chart
+# Pattern: Altinity ClickHouse Operator + ClickHouseInstallation CR
 # Namespace: per-env (data-staging, data-prod)
 #
 # Scalability:
@@ -77,7 +77,7 @@ resource "kubectl_manifest" "clickhouse_vault_secret" {
   depends_on = [vault_kv_secret_v2.clickhouse, kubectl_manifest.vault_auth]
 }
 
-# Wait for VSO to sync the secret before Helm tries to use it
+# Wait for VSO to sync the secret before ClickHouseInstallation uses it
 resource "time_sleep" "wait_for_clickhouse_secret" {
   create_duration = "15s"
   depends_on      = [kubectl_manifest.clickhouse_vault_secret]
@@ -87,8 +87,8 @@ resource "time_sleep" "wait_for_clickhouse_secret" {
 # ClickHouse Provider Configuration
 # =============================================================================
 # Note: Provider uses random_password directly. On state recovery, this may
-# cause auth errors until manually updated. The Helm release uses existingSecret
-# so it will work correctly after VSO syncs from Vault.
+# cause auth errors until manually updated. ClickHouseInstallation uses the same
+# password, while Vault/VSO remain the SSOT for apps.
 
 provider "clickhousedbops" {
   host     = var.clickhouse_host != "" ? var.clickhouse_host : "clickhouse.${local.namespace_name}.svc.cluster.local"
@@ -103,74 +103,152 @@ provider "clickhousedbops" {
 }
 
 # =============================================================================
-# ClickHouse via Bitnami Helm chart
+# ClickHouse Operator (Altinity)
 # =============================================================================
 
-resource "helm_release" "clickhouse" {
-  name             = "clickhouse"
+resource "helm_release" "clickhouse_operator" {
+  name             = "clickhouse-operator"
   namespace        = local.namespace_name # Per-env: data-staging, data-prod
-  repository       = "oci://registry-1.docker.io/bitnamicharts"
-  chart            = "clickhouse"
-  version          = "9.4.4" # Upgraded from 6.2.17 to resolve image availability issues
+  repository       = "https://altinity.github.io/clickhouse-operator/"
+  chart            = "altinity-clickhouse-operator"
+  version          = "0.25.6"
   create_namespace = false
   timeout          = 300 # Consistent with PR #170 standard (was 600s)
   wait             = true
   wait_for_jobs    = true
 
   lifecycle {
-    # Temporarily disabled to allow re-deployment after failed release
-    # TODO: Re-enable after initial deployment succeeds
-    prevent_destroy = false
-
     postcondition {
       condition     = self.status == "deployed"
-      error_message = "ClickHouse Helm release failed to deploy. Check pod logs and events."
+      error_message = "ClickHouse operator Helm release failed to deploy. Check pod logs and events."
     }
   }
 
-  values = [
-    yamlencode({
-      # Bitnami moved all images to bitnamilegacy repo (bitnami/ is empty)
-      image = {
-        registry   = "docker.io"
-        repository = "bitnamilegacy/clickhouse"
-        tag        = "25.7.5-debian-12-r0" # Matches Chart 9.4.4 default
-        pullPolicy = "IfNotPresent"
-      }
-      auth = {
-        # Use existingSecret created by VSO (synced from Vault KV)
-        existingSecret            = "clickhouse-credentials"
-        existingSecretPasswordKey = "password"
-      }
-      shards       = 1 # Single VPS MVP: single shard (can scale later)
-      replicaCount = 1 # Single VPS MVP: no replication (can scale later)
-      zookeeper = {
-        enabled = false # Disable external ZooKeeper
-      }
-      keeper = {
-        enabled = false # Disabled: Single node MVP doesn't need Keeper (saves 4500m CPU)
-      }
-      persistence = {
-        enabled      = true
-        storageClass = "local-path-retain"
-        size         = "10Gi"
-      }
-      resources = {
-        limits = {
-          cpu    = "1000m"
-          memory = "1Gi"
-        }
-        requests = {
-          cpu    = "200m"
-          memory = "256Mi"
-        }
-      }
-      # Note: Custom profiles/quotas removed for MVP stability
-      # TODO: Add custom configs via usersFiles if needed per Bitnami docs
-    })
-  ]
+  depends_on = [kubernetes_namespace.data]
+}
 
-  depends_on = [time_sleep.wait_for_clickhouse_secret]
+# Wait for ClickHouse Operator CRD to be established
+resource "time_sleep" "wait_for_clickhouse_crd" {
+  create_duration = "30s"
+
+  depends_on = [helm_release.clickhouse_operator]
+}
+
+# =============================================================================
+# ClickHouseInstallation CR (single shard/replica)
+# =============================================================================
+
+resource "kubectl_manifest" "clickhouse_installation" {
+  yaml_body = yamlencode({
+    apiVersion = "clickhouse.altinity.com/v1"
+    kind       = "ClickHouseInstallation"
+    metadata = {
+      name      = "clickhouse"
+      namespace = local.namespace_name
+      labels = {
+        module = "data"
+        env    = local.env_name
+      }
+    }
+    spec = {
+      configuration = {
+        users = {
+          "default/password"            = random_password.clickhouse.result
+          "default/password_sha256_hex" = sha256(random_password.clickhouse.result)
+          "default/networks/ip" = [
+            "0.0.0.0/0"
+          ]
+        }
+        clusters = [
+          {
+            name = "main"
+            layout = {
+              shardsCount   = 1
+              replicasCount = 1
+            }
+          }
+        ]
+      }
+      defaults = {
+        templates = {
+          podTemplate     = "clickhouse-pod"
+          serviceTemplate = "clickhouse-service"
+        }
+      }
+      templates = {
+        podTemplates = [
+          {
+            name = "clickhouse-pod"
+            spec = {
+              containers = [
+                {
+                  name            = "clickhouse"
+                  image           = "clickhouse/clickhouse-server:25.7.8"
+                  imagePullPolicy = "IfNotPresent"
+                  resources = {
+                    limits = {
+                      cpu    = "1000m"
+                      memory = "1Gi"
+                    }
+                    requests = {
+                      cpu    = "200m"
+                      memory = "256Mi"
+                    }
+                  }
+                  volumeMounts = [
+                    {
+                      name      = "clickhouse-data"
+                      mountPath = "/var/lib/clickhouse"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+        volumeClaimTemplates = [
+          {
+            name = "clickhouse-data"
+            spec = {
+              storageClassName = "local-path-retain"
+              accessModes      = ["ReadWriteOnce"]
+              resources = {
+                requests = {
+                  storage = "10Gi"
+                }
+              }
+            }
+          }
+        ]
+        serviceTemplates = [
+          {
+            name = "clickhouse-service"
+            metadata = {
+              name = "clickhouse"
+            }
+            spec = {
+              type = "ClusterIP"
+              ports = [
+                {
+                  name = "http"
+                  port = 8123
+                },
+                {
+                  name = "tcp"
+                  port = 9000
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  })
+
+  depends_on = [
+    time_sleep.wait_for_clickhouse_secret,
+    time_sleep.wait_for_clickhouse_crd
+  ]
 }
 
 # =============================================================================
@@ -180,7 +258,7 @@ resource "helm_release" "clickhouse" {
 # Wait for ClickHouse to be ready before creating users
 resource "time_sleep" "wait_for_clickhouse" {
   create_duration = "30s"
-  depends_on      = [helm_release.clickhouse]
+  depends_on      = [kubectl_manifest.clickhouse_installation]
 }
 
 # SigNoz password
@@ -198,7 +276,7 @@ resource "vault_kv_secret_v2" "signoz" {
   data_json = jsonencode({
     username = "signoz"
     password = random_password.signoz_clickhouse.result
-    host     = "${helm_release.clickhouse.name}.${local.namespace_name}.svc.cluster.local"
+    host     = "clickhouse.${local.namespace_name}.svc.cluster.local"
     port     = "9000"
     database = "signoz_traces"
   })
@@ -236,7 +314,7 @@ resource "clickhousedbops_database" "signoz_logs" {
 # =============================================================================
 
 output "clickhouse_host" {
-  value       = "${helm_release.clickhouse.name}.${local.namespace_name}.svc.cluster.local"
+  value       = "clickhouse.${local.namespace_name}.svc.cluster.local"
   description = "ClickHouse K8s service DNS for L4 applications"
 }
 
