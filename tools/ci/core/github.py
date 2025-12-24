@@ -55,7 +55,7 @@ class GitHubClient:
         )
         return PRInfo(
             number=data["number"],
-            head_sha=data["headRefOid"][:7],
+            head_sha=data["headRefOid"],  # Full SHA for commit status API
             head_ref=data["headRefName"],
             base_ref=data["baseRefName"],
             title=data["title"],
@@ -134,3 +134,42 @@ class GitHubClient:
                 f"content={reaction}",
             ]
         )
+
+    def react_to_comment(self, comment_id: int, reaction: str = "eyes") -> None:
+        """Alias for add_reaction for compatibility."""
+        self.add_reaction(comment_id, reaction)
+
+    def create_commit_status(
+        self,
+        sha: str,
+        state: str,
+        context: str = "CI",
+        description: str = "",
+        target_url: str = "",
+    ) -> None:
+        """Create a commit status.
+        
+        Args:
+            sha: Commit SHA (can be short or full)
+            state: pending, success, failure, error
+            context: Status context/name
+            description: Short description
+            target_url: URL to link to
+        """
+        args = [
+            "api",
+            f"/repos/{self.repo}/statuses/{sha}",
+            "-X",
+            "POST",
+            "-f",
+            f"state={state}",
+            "-f",
+            f"context={context}",
+        ]
+        if description:
+            args.extend(["-f", f"description={description}"])
+        if target_url:
+            args.extend(["-f", f"target_url={target_url}"])
+        
+        self._run_gh(args)
+

@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from .commands import plan, apply, verify, parse, init, update, check_vault
+from .commands import plan, apply, verify, parse, init, update, check_vault, bootstrap, run
 
 
 def main():
@@ -12,6 +12,20 @@ def main():
         description="Infrastructure CI/CD Pipeline",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # run (unified entry point for GitHub Actions)
+    run_parser = subparsers.add_parser("run", help="Unified entry point for CI (used by workflow)")
+
+    # bootstrap (plan/apply bootstrap layer)
+    bootstrap_parser = subparsers.add_parser("bootstrap", help="Bootstrap layer operations")
+    bootstrap_parser.add_argument(
+        "action",
+        choices=["plan", "apply"],
+        help="Action to perform",
+    )
+    bootstrap_parser.add_argument(
+        "--pr", type=int, help="PR number for result posting"
+    )
 
     # /plan
     plan_parser = subparsers.add_parser("plan", help="Run terraform plan")
@@ -70,6 +84,8 @@ def main():
 
     # Dispatch to command handler
     handlers = {
+        "run": run.run,
+        "bootstrap": bootstrap.run,
         "plan": plan.run,
         "apply": apply.run,
         "verify": verify.run,
