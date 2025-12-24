@@ -1,25 +1,28 @@
 # bootstrap (Bootstrap Layer)
 
-**Scope**: Zero-dependency infrastructure bootstrap.
+**Scope**: Zero-dependency infrastructure bootstrap and CI/CD Orchestrator.
 
 - **K3s Cluster**: VPS provisioning via SSH
-- **Atlantis CI**: GitOps workflow engine
+- **Digger Orchestrator**: Self-hosted CI/CD backend (OpenTaco)
 - **DNS/Cert**: Cloudflare DNS + Let's Encrypt
 - **Namespace**: `kube-system`, `bootstrap` (Bootstrap layer)
 
 ## Architecture
 
 This layer runs **first** and has no dependencies on other layers.
-Managed by **GitHub Actions only** (not Atlantis).
+It deploys the **Digger Orchestrator**, which is then used to manage all subsequent layers (L2-L4).
+
+> [!IMPORTANT]
+> To avoid circular dependencies, the `bootstrap` layer is managed by a **dedicated GitHub Actions workflow** (`bootstrap-deploy.yml`) using native Terraform, **not** by Digger itself.
 
 ### Components
 
 | File | Component | Purpose |
 |------|-----------|---------|
 | `1.k3s.tf` | K3s Cluster | SSH-based VPS bootstrap |
-| `2.atlantis.tf` | Atlantis | GitOps CI/CD for L2-L4 |
+| `2.digger.tf` | Digger Orchestrator | Self-hosted backend for GitOps CI/CD |
 | `3.dns_and_cert.tf` | DNS + Certs | Cloudflare + cert-manager |
-| `5.platform_pg.tf` | Platform PostgreSQL | Trust anchor DB for Vault/Casdoor (init Job via `kubectl_manifest`) |
+| `5.platform_pg.tf` | Platform PostgreSQL | Trust anchor DB for Vault, Casdoor, and Digger |
 
 ## Key Files
 
@@ -32,27 +35,37 @@ Managed by **GitHub Actions only** (not Atlantis).
 
 ## Domain Scheme
 
-- Infra uses the dedicated `INTERNAL_DOMAIN` without prefixes (e.g., `secrets.internal.org`, `atlantis.internal.org`); `k3s` stays DNS-only on :6443 (no Cloudflare proxy).
+- Infra uses the dedicated `INTERNAL_DOMAIN` without prefixes (e.g., `secrets.internal.org`, `digger.internal.org`); `k3s` stays DNS-only on :6443 (no Cloudflare proxy).
 - Env/test uses `x-*` on `BASE_DOMAIN` (proxied/orange): `x-staging`, `x-staging-api`, CI-managed `x-test*`.
 - Prod keeps root/no-prefix on `BASE_DOMAIN` (proxied/orange): `truealpha.club`, `api.truealpha.club`.
-- DNS inputs: `CLOUDFLARE_ZONE_ID` for `BASE_DOMAIN`; `INTERNAL_ZONE_ID` optionally overrides infra zone (falls back to `CLOUDFLARE_ZONE_ID`). Infra records are explicit A records with per-host proxy (443 services proxied, `k3s` DNS-only).
-- Certificates: wildcard for `BASE_DOMAIN`; wildcard for `INTERNAL_DOMAIN` when distinct (separate secret). Ingresses also request per-host certs via cert-manager ingress shim.
+- DNS inputs: `CLOUDFLARE_ZONE_ID` for `BASE_DOMAIN`; `INTERNAL_ZONE_ID` optionally overrides infra zone (falls back to `CLOUDFLARE_ZONE_ID`).
+- Certificates: Wildcard for `BASE_DOMAIN`; wildcard for `INTERNAL_DOMAIN` when distinct. Ingresses also request per-host certs via cert-manager ingress shim.
 
 SSOT:
 - [core.env.md](../docs/ssot/core.env.md) - IP/Domain assignments
+- [bootstrap.compute.md](../docs/ssot/bootstrap.compute.md) - K3s & Digger architecture
 - [secrets.md](../docs/ssot/secrets.md) - 1Password secret map
 
-## Troubleshooting
+## CI/CD Workflow
 
-### Metadata Retrieval Failure
-If the `1.bootstrap` layer fails to retrieve VPS metadata, ensure the `VPS_HOST` is accessible via SSH.
+The Bootstrap layer uses a dedicated workflow triggered by PR comments:
 
-## Bootstrap Command
+| Command | Action |
+|---------|--------|
+| `/bootstrap plan` | Preview changes to the bootstrap layer |
+| `/bootstrap apply` | Deploy changes to the bootstrap layer |
+
+Push to `main` for changes in `bootstrap/**` will also trigger an automatic plan/apply.
+
+## Bootstrap Command (Manual/Local)
 
 ```bash
 # First-time setup (run locally with credentials)
+export AWS_ACCESS_KEY_ID=...
+export AWS_SECRET_ACCESS_KEY=...
+# Load other variables from 1Password or use -var-file
 cd bootstrap
-terraform init
+terraform init -backend-config=backend.tfvars
 terraform apply
 ```
 
@@ -64,40 +77,27 @@ terraform apply
 | `r2_bucket` | State bucket name |
 | `r2_account_id` | R2 endpoint |
 
-## Atlantis TF_VAR Passthrough
+## Variable Passthrough
 
-Bootstrap Atlantis passes the following variables to Platform/Data:
+The CI loader (`0.tools/ci_load_secrets.py`) ensures the following are passed to Digger:
 
-| TF_VAR | Purpose | Source |
-|--------|---------|--------|
-| `vault_root_token` | Vault access for Platform database engine config | 1Password → GitHub Secret |
-| `casdoor_admin_password` | Casdoor SSO admin | 1Password → GitHub Secret |
-| `github_oauth_client_id` | OAuth2-Proxy | GitHub OAuth App |
-| `github_oauth_client_secret` | OAuth2-Proxy | GitHub OAuth App |
+| TF_VAR | Source |
+|--------|--------|
+| `digger_bearer_token` | 1Password (Infra-Digger) |
+| `vault_root_token` | 1Password (Infra-Vault) |
+| `github_oauth_*` | 1Password (Infra-OAuth) |
 
 ## Chart Repository Migration
 
-- **PostgreSQL Chart**: Migrated to OCI format (`oci://registry-1.docker.io/bitnamicharts`) as of 2025-12-11
+- **PostgreSQL Chart**: Migrated to OCI format (`oci://registry-1.docker.io/bitnamicharts`)
 - **Reason**: Bitnami deprecated HTTP chart repository in favor of OCI registry
-- **Image Pin**: Use the chart default image tag (pinned via chart version). Do **NOT** override to `latest` (breaks reproducibility).
 
 ## Recent Changes
 
-### 2025-12-23: Portal SSO Gate DNS Fix
-- **DNS**: Added `auth.internal.domain` for OAuth2-Proxy callback endpoint
-- **Purpose**: Required for Portal SSO Gate to function (redirect URI)
-- **Location**: Proxied DNS record (HTTPS via Cloudflare)
-
-### 2025-12-23: Homer Portal DNS Record
-- **DNS**: Added `home.internal.domain` subdomain for Homer Portal dashboard
-- **Purpose**: Unified landing page with quick links to all infrastructure services
-- **Protection**: SSO-protected via Casdoor OAuth2-Proxy (Portal SSO Gate)
-- **Location**: Proxied DNS record (HTTPS via Cloudflare)
-
-### 2025-12-22: OpenPanel Analytics Integration
-- **DNS**: Added `openpanel.internal.domain` subdomain for OpenPanel analytics platform
-- **Purpose**: Replaced PostHog with OpenPanel for product analytics and event tracking
-- **Location**: Uses internal domain (non-proxied) for L4 application layer
+### 2025-12-24: Digger Orchestrator Migration
+- **Component**: Replaced Atlantis with self-hosted Digger Orchestrator (OpenTaco).
+- **Architecture**: Separated Bootstrap CI from Digger via `bootstrap-deploy.yml`.
+- **Database**: Added `digger` database to Platform PostgreSQL (CNPG).
 
 ---
-*Last updated: 2025-12-23*
+*Last updated: 2025-12-25*
