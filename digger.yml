@@ -2,6 +2,10 @@
 # Handles terraform plan/apply via GitHub Actions
 # Reference: https://docs.digger.dev/
 
+# Global settings
+auto_merge: false
+comment_render_mode: basic
+
 # Projects to manage
 projects:
   - name: bootstrap
@@ -23,18 +27,13 @@ projects:
     terragrunt: true
     workflow: terragrunt
 
-# Auto-merge when all checks pass
-auto_merge: false
-
-# Post-merge behavior: apply changes when merged to default branch
-on_commit_to_default: apply
-
-# Comment options
-comment_render_mode: basic
-
-# Workflows
+# Workflows with proper event configuration
 workflows:
   terraform:
+    workflow_configuration:
+      on_pull_request_pushed: ["digger plan"]
+      on_pull_request_closed: ["digger unlock"]
+      on_commit_to_default: ["digger apply"]
     plan:
       steps:
         - init
@@ -45,6 +44,10 @@ workflows:
         - apply
         
   terragrunt:
+    workflow_configuration:
+      on_pull_request_pushed: ["digger plan"]
+      on_pull_request_closed: ["digger unlock"]
+      on_commit_to_default: ["digger apply"]
     plan:
       steps:
         - run: terragrunt init -no-color
