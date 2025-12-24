@@ -2,7 +2,7 @@
 
 locals {
   infra_dns_records = {
-    atlantis   = true  # HTTPS via proxy
+    digger     = true  # HTTPS via proxy
     secrets    = false # Vault - DNS only (avoid Cloudflare caching issues with OIDC)
     kdashboard = true  # HTTPS via proxy
     kcloud     = true  # HTTPS via proxy
@@ -216,48 +216,48 @@ resource "cloudflare_record" "x_staging" {
 # - x-testcommit-abc123-api (commit previews)
 
 # =============================================================================
-# 7. Post-Apply Validation (DNS + Cert + Atlantis Health)
+# 7. Post-Apply Validation (DNS + Cert + Digger Health)
 # =============================================================================
 
-# Validate DNS resolution for Atlantis host
-resource "time_sleep" "wait_for_atlantis_dns" {
+# Validate DNS resolution for Digger host
+resource "time_sleep" "wait_for_digger_dns" {
   create_duration = "60s"
   triggers = {
-    host   = local.domains.atlantis
+    host   = local.domains.digger
     vps_ip = var.vps_host
   }
   depends_on = [cloudflare_record.infra_records]
 }
 
-data "dns_a_record_set" "atlantis" {
-  host       = local.domains.atlantis
-  depends_on = [time_sleep.wait_for_atlantis_dns]
+data "dns_a_record_set" "digger" {
+  host       = local.domains.digger
+  depends_on = [time_sleep.wait_for_digger_dns]
 
   lifecycle {
     postcondition {
       condition     = length(self.addrs) > 0
-      error_message = "DNS resolution failed for ${local.domains.atlantis}."
+      error_message = "DNS resolution failed for ${local.domains.digger}."
     }
   }
 }
 
-# Validate HTTPS certificate + Atlantis health
-resource "time_sleep" "wait_for_atlantis_https" {
+# Validate HTTPS certificate + Digger health
+resource "time_sleep" "wait_for_digger_https" {
   create_duration = "120s"
   triggers = {
     # Use chart version instead of revision (revision changes during apply, causing TF error)
-    atlantis_version = helm_release.atlantis.version
-    domain           = local.domains.atlantis
+    digger_version = helm_release.digger.version
+    domain         = local.domains.digger
   }
   depends_on = [
     kubectl_manifest.wildcard_certificate_internal,
-    helm_release.atlantis
+    helm_release.digger
   ]
 }
 
-data "http" "atlantis_healthz" {
-  url        = "https://${local.domains.atlantis}/healthz"
-  depends_on = [time_sleep.wait_for_atlantis_https, data.dns_a_record_set.atlantis]
+data "http" "digger_health" {
+  url        = "https://${local.domains.digger}/health"
+  depends_on = [time_sleep.wait_for_digger_https, data.dns_a_record_set.digger]
 
   retry {
     attempts     = 5
@@ -268,7 +268,7 @@ data "http" "atlantis_healthz" {
   lifecycle {
     postcondition {
       condition     = self.status_code == 200
-      error_message = "Atlantis healthz not reachable at https://${local.domains.atlantis}/healthz after waiting."
+      error_message = "Digger health not reachable at https://${local.domains.digger}/health after waiting."
     }
   }
 }

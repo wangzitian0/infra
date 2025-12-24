@@ -122,10 +122,14 @@ jobs:
       - name: Post Plan to PR
         if: github.event_name == 'issue_comment'
         uses: actions/github-script@v7
+        env:
+          PLAN_OUTPUT: ${{ steps.plan.outputs.plan_output }}
+          PR_NUMBER: ${{ needs.command.outputs.pr_number }}
         with:
           github-token: ${{ steps.app-token.outputs.token }}
           script: |
-            const planOutput = `${{ steps.plan.outputs.plan_output }}`.substring(0, 60000);
+            const planOutput = (process.env.PLAN_OUTPUT || '').substring(0, 60000);
+            const prNumber = parseInt(process.env.PR_NUMBER, 10);
             const body = `### 🔧 Bootstrap Terraform Plan
             
             \`\`\`hcl
@@ -137,7 +141,7 @@ jobs:
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: ${{ needs.command.outputs.pr_number }},
+              issue_number: prNumber,
               body: body
             });
 
