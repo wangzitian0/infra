@@ -11,9 +11,6 @@ on:
   # Post-merge: auto apply
   push:
     branches: [main]
-    paths:
-      - 'bootstrap/**'
-      - '.github/workflows/bootstrap-deploy.yml'
   
   # PR comment commands
   issue_comment:
@@ -38,6 +35,7 @@ permissions:
 env:
   TF_VERSION: "1.11.0"
   WORKING_DIR: bootstrap
+  TF_STATE_KEY: "k3s/terraform.tfstate"
 
 jobs:
   # =============================================================
@@ -107,16 +105,21 @@ jobs:
         uses: ./.github/actions/terraform-setup
         with:
           secrets_json: ${{ toJSON(secrets) }}
-
-      - name: Terraform Init
-        working-directory: ${{ env.WORKING_DIR }}
-        run: terraform init -input=false
+          tf_state_key: ${{ env.TF_STATE_KEY }}
+          working_directory: ${{ env.WORKING_DIR }}
 
       - name: Terraform Plan
         id: plan
         working-directory: ${{ env.WORKING_DIR }}
         run: |
-          terraform plan -input=false -no-color -out=tfplan 2>&1 | tee plan.txt
+          set +e
+          terraform plan -input=false -no-color -detailed-exitcode -out=tfplan 2>&1 | tee plan.txt
+          PLAN_EXITCODE=${PIPESTATUS[0]}
+          set -e
+          if [ "$PLAN_EXITCODE" -eq 1 ]; then
+            exit 1
+          fi
+          echo "plan_exitcode=$PLAN_EXITCODE" >> $GITHUB_OUTPUT
           echo "plan_output<<EOF" >> $GITHUB_OUTPUT
           cat plan.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -158,7 +161,11 @@ jobs:
         id: should-apply
         run: |
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "apply=true" >> $GITHUB_OUTPUT
+            if [[ "${{ steps.plan.outputs.plan_exitcode }}" == "2" ]]; then
+              echo "apply=true" >> $GITHUB_OUTPUT
+            else
+              echo "apply=false" >> $GITHUB_OUTPUT
+            fi
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.action }}" == "apply" ]]; then
             echo "apply=true" >> $GITHUB_OUTPUT
           elif [[ "${{ needs.command.outputs.action }}" == "apply" ]]; then
