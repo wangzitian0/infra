@@ -85,8 +85,8 @@ def run(args) -> int:
         try:
             gh = GitHubClient()
             body = _build_table(results)
-            comment = gh.create_comment(args.pr, body)
-            comment_url = comment.get("html_url", "")
+            comment_id = gh.create_comment(args.pr, body)
+            comment_url = f"https://github.com/{gh.repo}/pull/{args.pr}#issuecomment-{comment_id}"
             print(f"\n📝 Posted results to PR #{args.pr}")
 
             # Update Dashboard
