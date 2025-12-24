@@ -1,82 +1,65 @@
 # ClickHouse SSOT
 
-> **核心问题**：ClickHouse 如何配置和使用？
-
-## 概述
-
-| 属性 | 值 |
-|------|------|
-| **SSOT Key** | `db.clickhouse` |
-| **层级** | L3 Data |
-| **命名空间** | `data-<env>` (staging/prod) |
-| **密码来源** | Vault (`secret/data/clickhouse`) |
-| **StorageClass** | `local-path-retain` |
-| **消费者** | L4 Apps (OLAP), SigNoz |
+> **SSOT Key**: `db.clickhouse`
+> **核心定义**: 用于 OLAP 分析和可观测性 (SigNoz) 的高性能列式数据库配置。
 
 ---
 
-## 用途
+## 1. 真理来源 (The Source)
 
-| 用例 | 说明 |
-|------|------|
-| **OLAP 分析** | 大数据量聚合查询 |
-| **日志存储** | SigNoz 后端 |
-| **时序数据** | 指标/事件存储 |
+本话题的配置和状态由以下物理位置唯一确定：
 
----
-
-## 端口
-
-| 端口 | 协议 | 用途 |
-|------|------|------|
-| 8123 | HTTP | REST API |
-| 9000 | Native | 高性能客户端 |
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **实例定义** | [`envs/data-shared/3.clickhouse.tf`](../../envs/data-shared/3.clickhouse.tf) | ClickHouse 集群定义 |
+| **运行时密钥** | **Vault** (`secret/data/clickhouse`) | 默认用户密码 |
 
 ---
 
-## 连接方式
+## 2. 架构模型
 
-**服务地址**：`clickhouse.data-<env>.svc.cluster.local`
-
-### Vault Agent 配置
-
-```yaml
-annotations:
-  vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-clickhouse: "secret/data/clickhouse"
-  vault.hashicorp.com/agent-inject-template-clickhouse: |
-    {{- with secret "secret/data/clickhouse" -}}
-    export CLICKHOUSE_PASSWORD="{{ .Data.data.password }}"
-    {{- end }}
-```
-
-### 直接连接
-
-```bash
-# Native 协议
-clickhouse-client --host clickhouse.data-<env>.svc.cluster.local \
-  --user default --password ${CLICKHOUSE_PASSWORD}
-
-# HTTP API
-curl "http://clickhouse.data-<env>.svc.cluster.local:8123/?query=SELECT%201"
+```mermaid
+graph TD
+    Apps -->|Ingest/Query| CH[(ClickHouse)]
+    SigNoz -->|Storage| CH
 ```
 
 ---
 
-## Vault Secrets 路径
+## 3. 设计约束 (Dos & Don'ts)
 
-| 路径 | 字段 |
-|------|------|
-| `secret/data/clickhouse` | `password` |
+### ✅ 推荐模式 (Whitelist)
+
+- **模式 A**: 批量写入数据（Buffer），避免频繁的小记录写入。
+- **模式 B**: 使用 `Native` 协议 (Port 9000) 进行高性能查询。
+
+### ⛔ 禁止模式 (Blacklist)
+
+- **反模式 A**: **禁止** 频繁执行 `UPDATE` 或 `DELETE`（ClickHouse 对此支持较弱）。
+- **反模式 B**: **禁止** 开启无密码的 HTTP 访问。
 
 ---
 
-## 相关文件
+## 4. 标准操作程序 (Playbooks)
 
-- [3.data/](../../3.data/)
-- [db.overview.md](./db.overview.md)
-- [ops.observability.md](./ops.observability.md) (SigNoz 使用 ClickHouse)
+### SOP-001: 检查磁盘占用
+
+- **触发条件**: 磁盘告警
+- **步骤**:
+    1. 连接数据库: `clickhouse-client`
+    2. 查询表大小:
+       ```sql
+       SELECT table, formatReadableSize(sum(data_compressed_bytes)) AS size 
+       FROM system.parts GROUP BY table ORDER BY sum(data_compressed_bytes) DESC;
+       ```
+
+---
+
+## 5. 验证与测试 (The Proof)
+
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **CH 连通性测试** | [`test_clickhouse.py`](../../e2e_regressions/tests/data/test_clickhouse.py) | ✅ Critical |
 
 ---
 

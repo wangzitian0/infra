@@ -1,144 +1,93 @@
 # 数据库总览 SSOT
 
-> **核心问题**：哪些 DB 属于哪个层？密码谁管？应用如何接入？
-
-## Vault 接入机制（Per-App Token）
-
-每个应用通过 **Kubernetes ServiceAccount** 获取独立的 Vault Token，实现最小权限和审计隔离：
-
-```mermaid
-graph LR
-    SA[App ServiceAccount] -->|K8s JWT| VKA[Vault K8s Auth]
-    VKA -->|验证 SA| ROLE[Vault Role]
-    ROLE -->|绑定| POLICY[Vault Policy]
-    POLICY -->|授权| SECRET[DB Secrets]
-    SECRET -->|Agent 注入| POD[App Pod]
-```
-
-**详细接入流程** → [db.vault-integration.md](./db.vault-integration.md)
+> **SSOT Key**: `db.overview`
+> **核心定义**: 定义全系统的数据库能力分布、层级依赖以及统一的凭据接入模型 (Vault Agent)。
 
 ---
 
-## 服务矩阵
+## 1. 真理来源 (The Source)
 
-| 数据库 | SSOT Key | 层级 | 命名空间 | 密码来源 | 消费者 | 详情 |
-|--------|----------|------|----------|----------|--------|------|
-| **Platform PG** | `db.platform_pg` | Bootstrap | `platform` | GitHub Secret | Vault, Casdoor | [db.platform_pg.md](./db.platform_pg.md) |
-| **Business PG** | `db.business_pg` | Data | `data-<env>` | Vault | Apps | [db.business_pg.md](./db.business_pg.md) |
-| **Redis** | `db.redis` | Data | `data-<env>` | Vault | Apps (Cache) | [db.redis.md](./db.redis.md) |
-| **ClickHouse** | `db.clickhouse` | Data | `data-<env>` | Vault | Apps, SigNoz | [db.clickhouse.md](./db.clickhouse.md) |
-| **ArangoDB** | `db.arangodb` | Data | `data-<env>` | Vault | Apps (Graph) | [db.arangodb.md](./db.arangodb.md) |
+> **原则**：基础设施定义数据库实体，Vault 定义访问凭据。
 
----
+本话题的配置和状态由以下物理位置唯一确定：
 
-## Quick Start
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **实例定义 (L1)** | [`bootstrap/5.platform_pg.tf`](../../bootstrap/5.platform_pg.tf) | 平台级数据库 |
+| **实例定义 (L3)** | [`envs/data-shared/`](../../envs/data-shared/) | 业务级数据库集群 |
+| **凭据管理** | [`platform/6.vault-database.tf`](../../platform/6.vault-database.tf) | Vault DB 引擎配置 |
+| **访问路径** | [`platform/locals.tf`](../../platform/locals.tf) | Vault KV 路径定义 |
 
-### PostgreSQL
+### Code as SSOT 索引
 
-| 属性 | 值 |
-|------|------|
-| **服务地址** | `postgresql.data-<env>.svc.cluster.local:5432` |
-| **Vault 静态密码** | `secret/data/postgres` |
-| **Vault 动态凭据** | `database/creds/app-readonly` / `app-readwrite` |
-
-```yaml
-# Pod annotations (使用 Vault Agent Injector)
-annotations:
-  vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-pg: "secret/data/postgres"
-  vault.hashicorp.com/agent-inject-template-pg: |
-    {{- with secret "secret/data/postgres" -}}
-    export PGPASSWORD="{{ .Data.data.password }}"
-    {{- end }}
-```
+- **数据库角色定义**：参见 [`platform/6.vault-database.tf`](../../platform/6.vault-database.tf) (搜索 `vault_database_secret_backend_role`)
+- **存储策略**：参见 [**存储层 SSOT**](./bootstrap.storage.md)
 
 ---
 
-### Redis
-
-| 属性 | 值 |
-|------|------|
-| **服务地址** | `redis-master.data-<env>.svc.cluster.local:6379` |
-| **Vault 路径** | `secret/data/redis` |
-
-```yaml
-annotations:
-  vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-redis: "secret/data/redis"
-  vault.hashicorp.com/agent-inject-template-redis: |
-    {{- with secret "secret/data/redis" -}}
-    export REDIS_PASSWORD="{{ .Data.data.password }}"
-    {{- end }}
-```
-
----
-
-### ClickHouse
-
-| 属性 | 值 |
-|------|------|
-| **服务地址** | `clickhouse.data-<env>.svc.cluster.local` |
-| **端口** | 8123 (HTTP) / 9000 (Native) |
-| **Vault 路径** | `secret/data/clickhouse` |
-
-```yaml
-annotations:
-  vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-ch: "secret/data/clickhouse"
-  vault.hashicorp.com/agent-inject-template-ch: |
-    {{- with secret "secret/data/clickhouse" -}}
-    export CLICKHOUSE_PASSWORD="{{ .Data.data.password }}"
-    {{- end }}
-```
-
----
-
-### ArangoDB
-
-| 属性 | 值 |
-|------|------|
-| **服务地址** | `arangodb.data-<env>.svc.cluster.local:8529` |
-| **Vault 路径** | `secret/data/arangodb` |
-| **字段** | `password` (root), `jwt_secret` |
-
-```yaml
-annotations:
-  vault.hashicorp.com/agent-inject: "true"
-  vault.hashicorp.com/role: "my-app"
-  vault.hashicorp.com/agent-inject-secret-arango: "secret/data/arangodb"
-  vault.hashicorp.com/agent-inject-template-arango: |
-    {{- with secret "secret/data/arangodb" -}}
-    export ARANGO_PASSWORD="{{ .Data.data.password }}"
-    {{- end }}
-```
-
----
-
-## 架构图
+## 2. 架构模型
 
 ```mermaid
 flowchart TB
-    B["Bootstrap — Platform PostgreSQL<br/>密码: GitHub Secret"]
-    P["Platform — Vault<br/>生成 Data 密码 → 存入 Vault KV<br/>配置 K8s Auth → 每个 App 独立 Role/Policy"]
-    D["Data — 业务数据库 (data-staging / data-prod)<br/>PostgreSQL | Redis | ClickHouse | ArangoDB<br/>密码: 从 Vault KV 读取部署"]
-    A["Apps — 应用层<br/>通过 Vault Agent Injector 获取 DB 凭据"]
+    B["L1 Bootstrap — Platform PostgreSQL<br/>(Trust Anchor)"]
+    P["L2 Platform — Vault<br/>(Credential Generator)"]
+    D["L3 Data — Business DBs<br/>(PostgreSQL, Redis, ClickHouse, ArangoDB)"]
+    A["L4 Apps — Business Services<br/>(Credential Consumer)"]
 
-    B -->|依赖| P
-    P -->|供给| D
-    D -->|消费| A
+    B -->|Storage Backend| P
+    P -->|Secret Injection| A
+    P -->|Dynamic Creds| D
+    D -->|Data Storage| A
 ```
+
+### 关键决策 (Architecture Decision)
+
+- **凭据分治**:
+    - **静态凭据 (Static)**: 存储在 `secret/data/<db>`，用于大多数应用，由 Terraform 生成。
+    - **动态凭据 (Dynamic)**: 存储在 `database/creds/<role>`，按需生成，TTL 极短（推荐用于高安全应用）。
+- **接入标准**: 统一通过 **Vault Agent Injector** 注入到 Pod 的 `/vault/secrets/` 目录，禁止应用代码直接持有长期 Root 密码。
 
 ---
 
-> 变更记录见 [change_log/](../change_log/README.md)
+## 3. 设计约束 (Dos & Don'ts)
+
+### ✅ 推荐模式 (Whitelist)
+
+- **模式 A**: 业务数据库**必须**部署在 `data-<env>` 命名空间。
+- **模式 B**: 所有应用**必须**通过独立的 Kubernetes ServiceAccount 接入 Vault。
+
+### ⛔ 禁止模式 (Blacklist)
+
+- **反模式 A**: **严禁** 不同应用共用同一个数据库用户。
+- **反模式 B**: **禁止** 在应用代码中硬编码数据库 IP，必须使用 K8s Service 域名。
+
+---
+
+## 4. 标准操作程序 (Playbooks)
+
+### SOP-001: 验证数据库可达性 (Whitebox Check)
+
+- **触发条件**: 应用反馈无法连接数据库
+- **步骤**:
+    1. 进入临时调试 Pod: `kubectl run -it --rm debug --image=postgres:alpine -n data-staging -- sh`
+    2. 测试 DNS: `nslookup postgresql.data-staging.svc.cluster.local`
+    3. 测试 TCP: `telnet postgresql 5432`
+    4. (可选) 获取 Vault 注入后的文件验证密码。
+
+---
+
+## 5. 验证与测试 (The Proof)
+
+本文档描述的行为由以下测试用例守护：
+
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **DB 连通性矩阵** | [`test_db_connectivity.py`](../../e2e_regressions/tests/data/test_db_connectivity.py) | ✅ Critical |
+| **Vault 注入验证** | [`test_vault_injection.py`](../../e2e_regressions/tests/platform/secrets/test_vault_injection.py) | ✅ Critical |
+
+---
 
 ## Used by
 
-- [docs/ssot/db.business_pg.md](./db.business_pg.md)
-- [docs/project/BRN-008.md](../project/BRN-008.md)
-
----
-
+- [docs/ssot/README.md](./README.md)
+- [envs/README.md](../../envs/README.md)
