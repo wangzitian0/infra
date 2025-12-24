@@ -147,7 +147,9 @@ class Dashboard:
         lines.extend([
             "",
             "<details><summary>📖 Available Infra Commands</summary>",
+            "",
             "### Commands",
+            "",
             "| 命令 | 作用 |",
             "|:---|:---|",
             "| `/plan` | 预览所有层变更 |",
@@ -157,6 +159,7 @@ class Dashboard:
             "| `/e2e` | E2E 测试 |",
             "| `/review` | AI 审查 |",
             "| `/help` | 显示帮助 |",
+            "",
             "</details>",
         ])
 
