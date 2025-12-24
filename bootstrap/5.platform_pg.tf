@@ -26,7 +26,10 @@ resource "kubernetes_namespace" "platform" {
 }
 
 # Superuser secret for CNPG (must exist before Cluster)
+# Type must be basic-auth for CNPG to use provided password on creation
 resource "kubernetes_secret" "platform_pg_superuser" {
+  type = "kubernetes.io/basic-auth"
+
   metadata {
     name      = "platform-pg-superuser"
     namespace = kubernetes_namespace.platform.metadata[0].name
