@@ -1,7 +1,7 @@
 # 数据库总览 SSOT
 
 > **SSOT Key**: `db.overview`
-> **核心定义**: 定义全系统的数据库能力分布、层级依赖以及统一的凭据接入模型 (Vault Agent)。
+> **核心定义**: 定义全系统的数据库能力分布、层级依赖以及统一的凭据接入模型 (Vault Agent / VSO)。
 
 ---
 
@@ -42,10 +42,22 @@ flowchart TB
 
 ### 关键决策 (Architecture Decision)
 
-- **凭据分治**:
-    - **静态凭据 (Static)**: 存储在 `secret/data/<db>`，用于大多数应用，由 Terraform 生成。
-    - **动态凭据 (Dynamic)**: 存储在 `database/creds/<role>`，按需生成，TTL 极短（推荐用于高安全应用）。
-- **接入标准**: 统一通过 **Vault Agent Injector** 注入到 Pod 的 `/vault/secrets/` 目录，禁止应用代码直接持有长期 Root 密码。
+#### 凭据分治 (Credentials Strategy)
+
+1.  **静态凭据 (Static)**: 
+    - **用途**: Operator 初始化 (existingSecret) 或不支持动态凭据的应用。
+    - **机制 (VSO Pattern)**: 
+      `random_password` (L3) → `Vault KV` → `Vault Secrets Operator` → `K8s Secret`
+    - **优点**: 避免了脆弱的 `data.external` 脚本，实现了 GitOps 友好的密码同步。
+
+2.  **动态凭据 (Dynamic)**: 
+    - **用途**: 高安全要求的业务应用。
+    - **机制**: `Vault Agent Injector` → `database/creds/<role>` (TTL 1h)。
+
+#### 接入标准
+
+- **所有应用**: 统一通过 **Vault Agent Injector** 注入到 Pod 的 `/vault/secrets/` 目录。
+- **所有 DB**: 必须配置 `precondition` 检查 Vault 中的密码是否存在且符合复杂度要求。
 
 ---
 
@@ -53,8 +65,15 @@ flowchart TB
 
 ### ✅ 推荐模式 (Whitelist)
 
-- **模式 A**: 业务数据库**必须**部署在 `data-<env>` 命名空间。
-- **模式 B**: 所有应用**必须**通过独立的 Kubernetes ServiceAccount 接入 Vault。
+- **模式 A (VSO Pattern)**: 使用 `VaultStaticSecret` CRD 将 Vault KV 同步为 K8s Secret，供 Operator 使用。
+- **模式 B (Lifecycle)**: 数据库资源必须配置 `lifecycle { prevent_destroy = true }`。
+- **模式 C (Validation)**: Terraform 中必须包含 `precondition` 检查密码强度。
+  ```hcl
+  precondition {
+    condition     = length(data.vault_kv_secret_v2.app.data["password"]) >= 16
+    error_message = "Password too weak"
+  }
+  ```
 
 ### ⛔ 禁止模式 (Blacklist)
 

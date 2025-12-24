@@ -1,44 +1,47 @@
-# CI Pipeline Module
+# CI Tools
 
-Python-driven CI/CD pipeline for infrastructure management.
+> **Role**: CI/CD Logic Implementation
+> **Dependencies**: Python 3.11+, GitHub Actions
 
-## Usage
+This python package (`tools.ci`) implements the core logic for the infrastructure pipeline.
+
+## 📚 SSOT References
+
+> [**Pipeline SSOT**](../../docs/ssot/ops.pipeline.md)
+
+## Architecture
+
+The CI system is event-driven and centers around the **Pull Request Dashboard**.
+
+```mermaid
+flowchart LR
+    Event[GitHub Event] --> Parse[parse.py]
+    Parse --> Command{Command?}
+    Command -->|/plan| Plan[Digger Plan]
+    Command -->|/apply| Apply[Digger Apply]
+    
+    Plan --> Dashboard[Update Dashboard]
+    Apply --> Dashboard
+```
+
+## Modules
+
+| Module | Purpose |
+|--------|---------|
+| `commands/` | **CLI Entrypoints**: Implements `plan`, `apply`, `verify` logic. |
+| `core/` | **Library**: Shared logic for GitHub API, Dashboard rendering, Terraform execution. |
+| `__main__.py` | **Router**: Dispatches CLI arguments to commands. |
+
+## Local Development
 
 ```bash
-# From repo root
-python -m tools.ci <command> [options]
+# Run tests
+uv run pytest tools/ci/tests/
 
-# Or via workflow
-# PR comment: /plan, /apply, /health, /e2e, /review
+# Manual execution (simulating CI)
+export GITHUB_TOKEN=...
+python3 -m tools.ci parse --event-file event.json
 ```
 
-## Commands
-
-| Command | Description |
-|:---|:---|
-| `plan` | Run terraform plan on specified layers |
-| `apply` | Run terraform apply on specified layers |
-| `verify` | Drift scan all layers (post-merge) |
-| `health` | Check service connectivity |
-| `parse` | Parse PR comment for slash commands |
-
-## Structure
-
-```
-ci/
-├── __init__.py
-├── __main__.py          # CLI entry point
-├── config.py            # Layer definitions
-├── commands/
-│   ├── __init__.py
-│   ├── plan.py
-│   ├── apply.py
-│   ├── verify.py
-│   ├── health.py
-│   └── parse.py
-└── core/
-    ├── __init__.py
-    ├── terraform.py     # TF/Terragrunt wrapper
-    ├── github.py        # GitHub API client
-    └── dashboard.py     # PR Dashboard CRUD
-```
+---
+*Last updated: 2025-12-25*

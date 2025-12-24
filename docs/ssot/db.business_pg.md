@@ -54,6 +54,20 @@ graph LR
        psql -h postgresql.data-staging.svc.cluster.local -U <username> -d business
        ```
 
+### SOP-002: 数据库备份与恢复
+
+- **触发条件**: 数据迁移 / 灾难恢复
+- **步骤**:
+    1. **备份**:
+       ```bash
+       NS="data-staging" # or data-prod
+       kubectl exec -n "$NS" postgresql-0 -- pg_dump -U postgres app > l3_backup.sql
+       ```
+    2. **恢复**:
+       ```bash
+       kubectl exec -n "$NS" postgresql-0 -- psql -U postgres -d app < l3_backup.sql
+       ```
+
 ---
 
 ## 5. 验证与测试 (The Proof)

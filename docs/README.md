@@ -31,8 +31,6 @@
 5. **[接入 SSO](./onboarding/05.sso.md)** - Casdoor OIDC
 6. **[监控和分析](./onboarding/06.observability.md)** - SigNoz + OpenPanel
 
-**推荐路径**：按顺序阅读 1 → 2 → 根据需求选择 3-6
-
 ---
 
 ## 📖 SSOT - 技术参考手册
@@ -41,26 +39,7 @@
 
 ### [SSOT 话题索引](./ssot/README.md)
 
-话题式组织的单一信息源：
-
-**Core（核心）**：
-- [目录结构](./ssot/core.dir.md) - 项目布局和 Namespace 规则
-- [环境模型](./ssot/core.env.md) - Workspace/Namespace/域名映射
-- [变量清单](./ssot/core.vars.md) - TF_VAR 列表和 Feature Flags
-
-**Platform（平台层）**：
-- [认证与授权](./ssot/platform.auth.md) - SSO/OIDC/Portal Gate
-- [密钥管理](./ssot/platform.secrets.md) - 1Password/Vault 流程
-- [网络与域名](./ssot/platform.network.md) - DNS/Ingress 规则
-
-**Data（数据层）**：
-- [数据库总览](./ssot/db.overview.md) - 各数据库连接信息
-- [Vault 接入详解](./ssot/db.vault-integration.md) - Per-App Token 机制
-
-**Ops（运维）**：
-- [流程汇总](./ssot/ops.pipeline.md) - CI/CD 工作流
-- [故障恢复](./ssot/ops.recovery.md) - 紧急恢复手册
-- [可观测性](./ssot/ops.observability.md) - SigNoz/OpenPanel 架构
+👉 **[Go to SSOT Documentation Index](./ssot/README.md)**
 
 ---
 
@@ -71,21 +50,17 @@
 ### Layer 文档
 
 - [Tools](../tools/README.md) - CI 工具和脚本
-- [Bootstrap](../1.bootstrap/README.md) - 集群引导层
-- [Platform](../2.platform/README.md) - 平台服务层
-- [Data](../3.data/README.md) - 数据层
-- [Apps](../4.apps/README.md) - 应用层
+- [Bootstrap](../bootstrap/README.md) - 集群引导层 (L1)
+- [Platform](../platform/README.md) - 平台服务层 (L2)
+- [Data](../envs/README.md) - 数据层 (L3)
+- [Apps](../apps/README.md) - 业务应用层 (L4)
 
-### 设计文档
+### 项目治理
 
 - [Project Status](./project/README.md) - 进行中的任务 (BRNs)
-- [Current Context](../0.check_now.md) - 当前上下文
 - [Change Log](./change_log/) - 变更历史
-- [Env & EaaS Design (BRN-004)](./project/BRN-004.md)
 - [Deep Dives](./deep_dives/) - 深度技术决策文档
-  - [DD-001: Secrets & CI](./deep_dives/DD-001.secret_and_ci_practices.md)
-  - [DD-002: Why Atlantis](./deep_dives/DD-002.why_atlantis.md)
+- [AGENTS.md](../AGENTS.md) - AI 行为准则
 
 ---
-*Last updated: 2025-12-16*
-
+*Last updated: 2025-12-25*
