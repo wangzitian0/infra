@@ -1,38 +1,45 @@
-# Engineering Standards (运维标准规范)
+# 运维标准 SSOT
 
-> **SSOT 状态**：本文件定义了组件接入集群的“准入标准”。
-
----
-
-## 1. 健康检查分层规范
-
-所有部署在集群内的 L2-L4 组件必须满足以下覆盖度要求：
-
-| 检查类型 | 适用场景 | 强制 | 说明 |
-|----------|----------|------|------|
-| **initContainer** | 有外部依赖 (DB/Vault) | ✅ 必须 | 建议 120s 超时，使用 `nc` 或专用 check 脚本 |
-| **Probes** | 长期运行的 Pod | ✅ 必须 | 必须包含 Readiness 和 Liveness |
-| **validation** | TF 敏感变量 | ✅ 必须 | 在 `variables.tf` 中定义正则表达式校验 |
-| **precondition** | 强依赖资源 | ✅ 必须 | 在 `resource` 或 `data` 中定义生命周期前置检查 |
-| **Helm timeout** | Helm Release | ✅ 必须 | 默认 300s，防止 Apply 过程中出现死锁 |
+> **SSOT Key**: `ops.standards`
+> **核心定义**: 定义基础设施的命名规范、标签策略及资源配额标准。
 
 ---
 
-## 2. 覆盖度矩阵 (L1-L4)
+## 1. 命名规范 (Naming Convention)
 
-| 层级 | 组件 | initContainer | Probes | validation | precondition | timeout |
-|------|------|---------------|--------|------------|--------------|---------|
-| **L1** | Atlantis | N/A | ✅ R+L | ✅ | ✅ | 300s |
-| **L1** | DNS/Cert | N/A | N/A | ✅ | N/A | 300s |
-| **L2** | Vault | ✅ 120s | ✅ R+L | ✅ | ✅ | 300s |
-| **L2** | Casdoor | ✅ 120s | ✅ S+R+L | ✅ | ✅ | 300s |
-| **L3** | Databases | ✅ 120s | ✅ Helm | ✅ | ✅ | 300s |
-| **L4** | Kubero | N/A | ✅ R+L | N/A | N/A | 300s |
+| 资源类型 | 格式 | 示例 |
+|----------|------|------|
+| **Namespace** | `<layer>[-<env>]` | `platform`, `data-staging` |
+| **Service** | `<app>[-<role>]` | `redis-master`, `casdoor` |
+| **Domain** | `<service>.<scope_domain>` | `sso.zitian.party` |
+| **Secret** | `<app>-<type>` | `postgres-creds` |
 
 ---
 
-## 3. 防御性配置要求 (Defensive Rules)
+## 2. 标签策略 (Tagging)
 
-- **Propagation Delay**: 所有的 Ingress/DNS 变更必须伴随 `time_sleep` 资源（参考 `AGENTS.md` SOP Rule 5）。
-- **Identity Consistency**: 所有的自动评论必须由 `infra-flash` 身份发出。
-- **No Shadowing**: 严禁在 Composite Action 中混用 GitHub Env 和 Shell Vars。
+所有 Kubernetes 资源应包含以下标准标签：
+
+```yaml
+metadata:
+  labels:
+    app.kubernetes.io/name: "myapp"
+    app.kubernetes.io/instance: "myapp-staging"
+    app.kubernetes.io/part-of: "cc-infra"
+    app.kubernetes.io/managed-by: "terraform"
+```
+
+---
+
+## 3. 资源配额 (Quotas)
+
+| 环境 | CPU Request | Memory Request | Limit |
+|------|-------------|----------------|-------|
+| **Staging** | 10m | 64Mi | 2x Request |
+| **Prod** | 100m | 256Mi | 2x Request |
+
+---
+
+## Used by
+
+- [docs/ssot/README.md](./README.md)

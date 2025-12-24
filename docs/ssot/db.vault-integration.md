@@ -1,16 +1,25 @@
-# Vault 数据库接入指南
+# Vault 数据库接入详解 SSOT
 
-> **核心问题**：应用如何通过 Vault 安全地获取数据库凭据？
+> **SSOT Key**: `db.vault`
+> **核心定义**: 定义应用如何通过 Kubernetes ServiceAccount 自动获取数据库凭据的“无感注入”机制。
 
-## Per-App Token 机制
+---
 
-每个应用使用独立的 Vault Token，通过 Kubernetes ServiceAccount 自动获取，实现：
+## 1. 真理来源 (The Source)
 
-- **隔离**：App A 无法读取 App B 的密钥
-- **审计**：每个 Token 可追溯到具体应用
-- **最小权限**：Policy 精确控制可访问的 Secret 路径
+> **原则**：认证走 K8s，授权走 Vault，交付走 Agent。
 
-### 认证链路
+本话题的配置和状态由以下物理位置唯一确定：
+
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **K8s Auth 配置** | [`platform/91.vault-auth-kubernetes.tf`](../../platform/91.vault-auth-kubernetes.tf) | 信任 K8s 集群的配置 |
+| **应用 Role 定义** | [`platform/92.vault-myapp.tf`](../../platform/92.vault-myapp.tf) | 应用与 Policy 的绑定 |
+| **注入规范** | [`platform/6.vault-database.tf`](../../platform/6.vault-database.tf) | 数据库密码存放路径 |
+
+---
+
+## 2. 架构模型
 
 ```mermaid
 graph TD
@@ -37,157 +46,55 @@ graph TD
 
 ---
 
-## 新应用接入流程
+## 3. 设计约束 (Dos & Don'ts)
 
-### 1. 创建 Vault Role 和 Policy（Terraform）
+### ✅ 推荐模式 (Whitelist)
 
-在 `2.platform/` 创建应用的 Vault 配置：
+- **模式 A**: 使用 `vault.hashicorp.com/agent-inject-template` 格式化输出为应用原生支持的格式（如 `.env` 或 `export`）。
+- **模式 B**: 始终设置 `vault.hashicorp.com/role` 以明确标识身份。
 
-```hcl
-# 2.platform/92.vault-myapp.tf
+### ⛔ 禁止模式 (Blacklist)
 
-# 1. Policy: 定义可访问的 Secret 路径
-resource "vault_policy" "myapp" {
-  name = "myapp"
-
-  policy = <<-EOT
-    path "secret/data/postgres" {
-      capabilities = ["read"]
-    }
-    path "secret/data/redis" {
-      capabilities = ["read"]
-    }
-  EOT
-}
-
-# 2. Role: 绑定 K8s ServiceAccount
-resource "vault_kubernetes_auth_backend_role" "myapp" {
-  backend                          = vault_auth_backend.kubernetes.path
-  role_name                        = "myapp"
-  bound_service_account_names      = ["myapp"]
-  bound_service_account_namespaces = ["apps-staging", "apps-prod"]
-  token_policies                   = ["myapp"]
-  token_ttl                        = 3600  # 1h
-}
-```
-
-### 2. 创建 Kubernetes ServiceAccount
-
-```yaml
-# 4.apps/myapp/serviceaccount.yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: myapp
-  namespace: apps-staging
-```
-
-### 3. 配置 Pod Vault Agent 注解
-
-```yaml
-# Deployment spec
-spec:
-  serviceAccountName: myapp
-  template:
-    metadata:
-      annotations:
-        vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "myapp"
-        # PostgreSQL
-        vault.hashicorp.com/agent-inject-secret-pg: "secret/data/postgres"
-        vault.hashicorp.com/agent-inject-template-pg: |
-          {{- with secret "secret/data/postgres" -}}
-          export PGHOST="{{ .Data.data.host }}"
-          export PGPORT="{{ .Data.data.port }}"
-          export PGUSER="{{ .Data.data.username }}"
-          export PGPASSWORD="{{ .Data.data.password }}"
-          export PGDATABASE="{{ .Data.data.database }}"
-          {{- end }}
-```
-
-### 4. 应用读取注入的 Secret
-
-Vault Agent 将 Secret 写入 `/vault/secrets/` 目录：
-
-```bash
-# 在容器启动脚本中
-source /vault/secrets/pg
-psql -c "SELECT 1"
-```
+- **反模式 A**: **禁止** 直接在 Pod 环境变量中写死 Vault Token。
+- **反模式 B**: **禁止** 将不同环境 (staging/prod) 的 ServiceAccount 绑定到同一个具备读写权限的 Vault Role。
 
 ---
 
-## 静态凭据 vs 动态凭据
+## 4. 标准操作程序 (Playbooks)
 
-| 类型 | Vault 路径 | TTL | 使用场景 |
-|------|-----------|-----|---------|
-| **静态** | `secret/data/<db>` | 永久（直到 L2 重新 apply） | 大多数应用 |
-| **动态** | `database/creds/app-readonly` | 1h（可续期） | 高安全要求场景 |
+### SOP-001: 接入一个新应用
 
-### 动态凭据（PostgreSQL, Redis, ClickHouse）
+- **触发条件**: 开发者需要数据库访问权限
+- **步骤**:
+    1. **定义 Policy**: 在 `2.platform/` 下创建 `.tf` 文件定义应用所需的路径权限。
+    2. **定义 Role**: 绑定该应用的 `ServiceAccount` 和 `Namespace`。
+    3. **更新 Pod 注解**:
+       ```yaml
+       vault.hashicorp.com/agent-inject: "true"
+       vault.hashicorp.com/role: "myapp"
+       vault.hashicorp.com/agent-inject-secret-pg: "secret/data/postgres"
+       ```
 
-```yaml
-annotations:
-  vault.hashicorp.com/agent-inject-secret-pg-dynamic: "database/creds/postgres-readonly"
-  vault.hashicorp.com/agent-inject-template-pg-dynamic: |
-    {{- with secret "database/creds/postgres-readonly" -}}
-    export PGUSER="{{ .Data.username }}"
-    export PGPASSWORD="{{ .Data.password }}"
-    {{- end }}
-```
+### SOP-002: 排查“Permission Denied”
 
-> [!NOTE]
-> 动态凭据已启用：PostgreSQL、Redis、ClickHouse。ArangoDB 暂时仅支持静态凭据。
-
----
-
-## 故障排查
-
-### Error: permission denied
-
-**原因**：Policy 未授权该路径
-
-```bash
-# 检查 Role 绑定的 Policy
-vault read auth/kubernetes/role/myapp
-
-# 检查 Policy 内容
-vault policy read myapp
-```
-
-### Error: service account not allowed
-
-**原因**：Role 的 `bound_service_account_names` 不匹配
-
-```bash
-# 确认 Pod 使用的 SA
-kubectl get pod <pod> -o jsonpath='{.spec.serviceAccountName}'
-
-# 与 Vault Role 配置对比
-vault read auth/kubernetes/role/myapp
-```
-
-### Secret 文件为空
-
-**原因**：Vault Agent 启动失败或路径错误
-
-```bash
-# 查看 Vault Agent logs
-kubectl logs <pod> -c vault-agent-init
-kubectl logs <pod> -c vault-agent
-
-# 验证 Secret 路径是否存在
-vault kv get secret/data/postgres
-```
+- **触发条件**: Pod 启动失败或无法读取密钥
+- **步骤**:
+    1. 检查 Role 绑定: `vault read auth/kubernetes/role/myapp`
+    2. 检查 Policy 权限: `vault policy read myapp`
+    3. 检查 K8s SA 是否存在: `kubectl get sa myapp -n my-namespace`
 
 ---
 
-## 相关文件
+## 5. 验证与测试 (The Proof)
 
-- [91.vault-auth-kubernetes.tf](../../2.platform/91.vault-auth-kubernetes.tf) — K8s Auth Backend
-- [92.vault-kubero.tf](../../2.platform/92.vault-kubero.tf) — Per-App Role 示例（Kubero）
-- [6.vault-database.tf](../../2.platform/6.vault-database.tf) — DB 密码生成 + 动态凭据配置
-- [platform.auth.md](./platform.auth.md) — 整体认证架构
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **K8s Auth 认证流** | [`test_vault_auth.py`](../../e2e_regressions/tests/platform/secrets/test_vault_auth.py) | ✅ Critical |
+| **Agent 注入文件存在性** | [`test_agent_injection.py`](../../e2e_regressions/tests/platform/secrets/test_agent_injection.py) | ✅ Critical |
 
 ---
 
+## Used by
+
+- [docs/ssot/db.overview.md](./db.overview.md)
+- [docs/onboarding/03.database.md](../../docs/onboarding/03.database.md)

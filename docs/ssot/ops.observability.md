@@ -1,78 +1,87 @@
-# 可观测性（日志/监控）SSOT
+# 可观测性 SSOT
 
-> **核心问题**：日志、指标、链路追踪怎么收？用什么工具？落在哪一层？
+> **SSOT Key**: `ops.obs`
+> **核心定义**: 定义日志、指标、链路追踪的统一采集、存储与展示架构。
 
-## 架构概览
+---
+
+## 1. 真理来源 (The Source)
+
+本话题的配置和状态由以下物理位置唯一确定：
+
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **SigNoz 部署** | [`platform/11.signoz.tf`](../../platform/11.signoz.tf) | 观测平台 Helm 定义 |
+| **存储后端** | **ClickHouse** (L3) | 所有的 Trace/Log/Metric 数据 |
+| **采集配置** | **OTel Collector** | 统一采集策略 |
+
+---
+
+## 2. 架构模型
 
 ```mermaid
 flowchart TB
-    Apps["L4 Apps / observability ns<br/>Apps (OTel SDK)"]
-    Collector["OTel Collector"]
-    SigNoz["SigNoz"]
-    ClickHouse["ClickHouse (PV, retain)"]
-
-    Apps -->|traces/metrics/logs| Collector
-    Collector --> SigNoz
-    SigNoz --> ClickHouse
+    Apps[L4 Apps] -->|OTLP gRPC| Collector[OTel Collector]
+    Collector -->|Batch| SigNoz[SigNoz Query Service]
+    SigNoz -->|Storage| CH[(ClickHouse)]
+    
+    User -->|UI| SigNozFrontend
+    SigNozFrontend -->|Query| SigNoz
 ```
 
-## 组件矩阵
+### 关键决策 (Architecture Decision)
 
-| 组件 | 层级 | 命名空间 | 作用 | 部署方式 | 数据落盘 |
-|------|------|----------|------|----------|----------|
-| **SigNoz** | L4 | `observability` | APM + Logs + Metrics UI/存储 | Helm (未来 TF) | ClickHouse PVC (`local-path-retain`) |
-| **OpenTelemetry Collector** | L4 | `observability` | 统一接入、采样、export | Helm (随 SigNoz) | 无状态 |
+- **ClickHouse 原生**: 使用 ClickHouse 作为统一存储后端，利用其高压缩比和列式查询性能。
+- **OTel Native**: 全面拥抱 OpenTelemetry 标准，应用只需配置 OTel SDK 即可接入，无供应商锁定。
 
-## Feature Flag
+---
 
-| Flag | 层级 | 默认值 | 说明 |
-|------|------|--------|------|
-| `enable_observability` | L1 | `false` | 仅 staging/prod 部署 SigNoz/Collector |
+## 3. 设计约束 (Dos & Don'ts)
 
-## 域名与访问
+### ✅ 推荐模式 (Whitelist)
 
-| 服务 | 域名 | 备注 |
-|------|------|------|
-| SigNoz UI | `https://signoz.<internal_domain>` | 通过 Cloudflare proxy + cert-manager |
+- **模式 A**: 应用**必须**设置 `OTEL_SERVICE_NAME` 环境变量以标识自身。
+- **模式 B**: 生产环境建议开启 `parentbased_traceidratio=0.1` 采样，避免数据量过大。
 
-> 域名 SSOT 见 [platform.network.md](./platform.network.md)。
-> 告警 SSOT 见 [ops.alerting.md](./ops.alerting.md)。
+### ⛔ 禁止模式 (Blacklist)
 
-## 接入规范（Apps → OTel）
+- **反模式 A**: **禁止** 在日志中打印敏感信息 (PII, Secrets)。
+- **反模式 B**: **禁止** 使用非结构化日志（推荐 JSON 格式）。
 
-1. **统一用 OTel SDK**（语言各自官方发行版）。
-2. **Service 名**：`{app}-{env}`（如 `cms-staging`）。
-3. **Exporter**：OTLP gRPC → `otel-collector.observability.svc:4317`。
-4. **采样**：MVP 默认 `parentbased_traceidratio=0.1`，按服务调。
+---
 
-## 数据保留与容量
+## 4. 标准操作程序 (Playbooks)
 
-- ClickHouse 数据在单 VPS 上，**PV reclaimPolicy=Retain**，避免误删。
-- 建议从 7 天留存起步，按实际日志/trace 量调大 PV。
-- 超过单机容量时，独立 ClickHouse 或迁移到独立 VPS（见 BRN-004 长期路径）。
+### SOP-001: 接入新服务
 
-> TODO(observability): 落地 SigNoz Helm/TF 模块
-> TODO(observability): Apps OTel SDK 接入
+- **触发条件**: 新微服务上线
+- **步骤**:
+    1. 在应用中集成 OTel SDK。
+    2. 设置环境变量:
+       ```yaml
+       OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc:4317"
+       OTEL_SERVICE_NAME: "my-service"
+       ```
+    3. 部署并验证 SigNoz 界面是否有数据。
 
-## 实施状态
+### SOP-002: 清理历史数据
 
-| 项目 | 状态 |
-|------|------|
-| SigNoz Helm/TF 模块 | ⏳ 未落地 |
-| Apps OTel 接入 | ⏳ 未落地 |
+- **触发条件**: 磁盘告警
+- **步骤**:
+    1. 修改 SigNoz 配置中的 TTL (Retention Policy)。
+    2. 手动执行 ClickHouse `ALTER TABLE ... DELETE WHERE date < ...`。
 
-## 相关文件
+---
 
-- 选型：`docs/project/BRN-004.md`
-- Feature flags：[core.vars.md](./core.vars.md)
-- 域名规则：[platform.network.md](./platform.network.md)
-- 告警：[ops.alerting.md](./ops.alerting.md)
+## 5. 验证与测试 (The Proof)
+
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **SigNoz UI 可达性** | `test_signoz_health.py` (Pending) | ⏳ Planned |
 
 ---
 
 ## Used by
 
-- [docs/ssot/ops.pipeline.md](./ops.pipeline.md)
-
----
-
+- [docs/ssot/README.md](./README.md)
+- [docs/ssot/db.clickhouse.md](./db.clickhouse.md)

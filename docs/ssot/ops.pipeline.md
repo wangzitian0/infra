@@ -1,189 +1,109 @@
 # Pipeline SSOT (运维流水线)
 
-> **核心原则**：Digger 执行 Terraform；Python 处理辅助逻辑；语义化斜杠命令。
+> **SSOT Key**: `ops.pipeline`
+> **核心定义**: 定义基于 Digger Orchestrator 的 GitOps 工作流、自动化策略及手动介入流程。
 
 ---
 
-## 1. 架构概览
+## 1. 真理来源 (The Source)
 
-### 1.1 执行引擎
+> **原则**：CI 代码定义流程，GitHub Actions 负责调度，Digger 负责执行。
 
-| 组件 | 职责 |
-|:---|:---|
-| **Digger** | Self-hosted Orchestrator 执行 Terraform (替代 Atlantis) |
-| **ci.yml** | 统一入口，路由命令到 Digger 或自定义 Job |
-| **Python (tools/ci/)** | Dashboard 更新、Vault 检查、解析辅助 |
+本话题的配置和状态由以下物理位置唯一确定：
 
-### 1.2 工作流触发器
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **CI 入口** | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 统一入口，路由事件 |
+| **L1 流程** | [`.github/workflows/bootstrap-deploy.yml`](../../.github/workflows/bootstrap-deploy.yml) | Bootstrap 专用流程 |
+| **辅助逻辑** | [`tools/ci/`](../../tools/ci/) | Python 编写的 Dashboard/Vault 检查脚本 |
 
-```yaml
-on:
-  pull_request:     # PR 创建/更新 → 自动 Plan
-  push (main):      # Merge → 自动 Apply + 状态回报
-  issue_comment:    # /命令 → 路由到对应 Job
-  workflow_dispatch # 手动触发
-```
+### Code as SSOT 索引
+
+- **命令解析器**：参见 [`tools/ci/commands/parse.py`](../../tools/ci/commands/parse.py)
+- **Dashboard 渲染**：参见 [`tools/ci/commands/init.py`](../../tools/ci/commands/init.py)
 
 ---
 
-## 2. 斜杠命令
-
-### 2.1 PR 评论命令
-
-| 命令 | 作用 | 执行者 |
-|:---|:---|:---|
-| `/plan` | 预览所有层变更 | Digger |
-| `/apply` | 部署所有层变更 | Digger |
-| `/e2e` | 触发 E2E 测试 | Custom Job |
-| `/review` | AI 代码审查 | Custom Job |
-| `/help` | 显示可用命令 | Custom Job |
-
-> **注意**: `/health` 已移除，使用 `/e2e` 的 smoke test 替代。
-
-### 2.2 自动触发
-
-| 事件 | 动作 |
-|:---|:---|
-| PR 创建/更新 | Dashboard 初始化 + 自动 `/plan` |
-| Push to main | Digger Apply + 状态回报到原 PR |
-| `/apply` 评论 | Vault 解封检查 → Digger Apply |
-
----
-
-## 3. CI Pipeline 架构
+## 2. 架构模型
 
 ```mermaid
 flowchart TD
-    subgraph Trigger["触发事件"]
-        PR[pull_request]
-        Push[push to main]
-        Comment[issue_comment]
+    User((User)) -->|Comment /plan| PR[Pull Request]
+    PR -->|Webhook| GA[GitHub Actions]
+    
+    subgraph "CI Pipeline"
+        GA -->|Parse| Router{Router}
+        Router -->|L1| BS[Bootstrap Deploy]
+        Router -->|L2-L4| DG[Digger Orchestrator]
+        Router -->|/e2e| Test[E2E Tests]
     end
     
-    subgraph Parse["parse Job"]
-        P1[解析事件类型]
-        P2[提取命令/PR#]
-        P3[输出 should_run/command]
-    end
-    
-    subgraph Jobs["执行 Jobs"]
-        Init[init-dashboard]
-        Digger[digger Job]
-        PostMerge[post-merge Job]
-        Custom[custom Job]
-    end
-    
-    PR --> Parse
-    Push --> Parse
-    Comment --> Parse
-    
-    Parse --> Init
-    Parse -->|plan/apply| Digger
-    Parse -->|push| PostMerge
-    Parse -->|e2e/review/help| Custom
+    DG -->|Terraform Plan/Apply| Infra[Infrastructure]
+    Infra -->|Status| Dashboard[PR Dashboard]
 ```
 
----
+### 关键决策 (Architecture Decision)
 
-## 4. Dashboard 设计
-
-每个 PR 有一个 Dashboard Comment（由 `init-dashboard` Job 创建）：
-
-```markdown
-<!-- infra-flash -->
-## 🚀 infra-flash
-
-| Stage | Status | Details |
-|:---|:---:|:---|
-| Plan | ✅ | [View](#run-link) |
-| Apply | ⏳ | Waiting... |
-
-<!-- next-step -->
-👉 Plan 完成，评论 `/apply` 部署
-<!-- /next-step -->
-```
-
-**更新时机**:
-- `init-dashboard`: PR 创建时
-- `digger` Job 完成后: 更新 Plan/Apply 状态
-- `post-merge`: 在原 PR 添加部署结果
+- **分层执行**:
+    - **L1 Bootstrap**: 独立流程，避免“自己部署自己”的死锁。
+    - **L2-L4**: 统一由 Digger 编排，支持依赖图 (DAG)。
+- **Feedback Loop**: 使用 `infra-flash` 机器人更新 PR 顶部的 Dashboard，而不是刷屏评论。
 
 ---
 
-## 5. Vault 解封检查
+## 3. 设计约束 (Dos & Don'ts)
 
-Apply 前会自动检查 Vault 状态：
+### ✅ 推荐模式 (Whitelist)
 
-```python3 tools/secrets/ci_load_secrets.py
-ck_vault.py
-kubectl exec vault-0 -n platform -- vault status -format=json
-```
+- **模式 A**: 日常变更**必须**通过 PR 评论 `/plan` 和 `/apply` 触发。
+- **模式 B**: 涉及多层变更时，应等待下层 Apply 成功后再触发上层 Plan。
 
-| 状态 | CI 行为 |
-|:---|:---|
-| Unsealed | ✅ 继续 Apply |
-| Sealed | ❌ 失败，提示手动解封 |
-| Pod 不存在 | ⚠️ 跳过检查 (首次部署) |
+### ⛔ 禁止模式 (Blacklist)
+
+- **反模式 A**: **禁止** 在本地执行 `terraform apply` 更新 L2+ 资源（会导致 State Lock 和审计丢失）。
+- **反模式 B**: **禁止** 绕过 CI 直接修改线上资源（Drift 产生源）。
 
 ---
 
-## 6. 文件结构
+## 4. 标准操作程序 (Playbooks)
 
-```
-.github/
-├── workflows/
-│   └── ci.yml              # 唯一入口
-└── actions/
-    └── terraform-setup/    # Secrets 注入
+### SOP-001: 部署变更 (Standard GitOps)
 
-tools/ci/
-├── __main__.py             # CLI: python -m ci <cmd>
-├── commands/
-│   ├── init.py             # Dashboard 创建
-│   ├── update.py           # Dashboard 更新
-│   ├── parse.py            # 命令解析
-│   ├── check_vault.py      # Vault 状态检查
-│   └── verify.py           # Drift 扫描
-└── core/
-    ├── dashboard.py        # Dashboard CRUD
-    └── github.py           # GH API 封装
-```
+- **触发条件**: 代码合并前
+- **步骤**:
+    1. 提交代码，等待 CI 初始化 Dashboard。
+    2. 评论 `/plan`，检查 Digger 输出。
+    3. 评论 `/apply`，等待部署成功。
+    4. 合并 PR。
 
----
+### SOP-002: 触发 E2E 测试
 
-## 7. 即时反馈机制
+- **触发条件**: 需要验证部署效果
+- **步骤**:
+    1. 评论 `/e2e` (运行所有 smoke tests)。
+    2. 或评论 `/e2e full` (运行完整回归测试)。
+    3. 查看 Dashboard 链接的测试报告。
 
-| 阶段 | 反馈形式 | 执行账号 |
-|:---|:---|:---|
-| 命令收到 | 👀 Emoji Reaction | GITHUB_TOKEN |
-| Plan/Apply 完成 | Dashboard 更新 | infra-flash App |
-| Post-Merge | PR 评论 | infra-flash App |
-| 失败 | Issue 创建 | infra-flash App |
+### SOP-003: 紧急回滚
+
+- **触发条件**: 部署导致故障
+- **步骤**:
+    1. `git revert <commit-id>`。
+    2. 提交新 PR。
+    3. 快速执行 `/apply` (可跳过详细 Plan 审查)。
 
 ---
 
-## 8. 实现状态
+## 5. 验证与测试 (The Proof)
 
-| 能力 | 状态 |
-|:---|:---:|
-| Digger Plan/Apply | ✅ |
-| Dashboard 自动更新 | ✅ |
-| Vault 解封检查 | ✅ |
-| Post-Merge 状态回报 | ✅ |
-| /e2e 触发 | ✅ |
-| /review AI 审查 | ⏳ |
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **Pipeline 逻辑验证** | [`test_pipeline_parser.py`](../../tools/ci/tests/test_pipeline_parser.py) | ✅ Unit Test |
+| **Digger 集成验证** | [`test_digger_flow.py`](../../e2e_regressions/tests/bootstrap/compute/test_digger.py) | ⚠️ Pending |
 
 ---
 
-## 9. 故障排查
+## Used by
 
-| 问题 | 解决方案 |
-|:---|:---|
-| `/apply` 无响应 | 检查 `issue_comment` 事件是否触发 CI (Actions 页面) |
-| Vault Sealed 报错 | 手动解封: `kubectl exec vault-0 -n platform -- vault operator unseal` |
-| Dashboard 未更新 | 检查 `infra-flash` App Token 权限 |
-| Plan 失败 | 查看 Digger 日志详细错误 |
-
----
-
-*Last Updated: 2025-12-25*
+- [docs/ssot/README.md](./README.md)
+- [bootstrap/README.md](../../bootstrap/README.md)
