@@ -76,8 +76,13 @@ REQUIRED = [
 def clean_value(val):
     if val is None: return None
     s = str(val).strip()
-    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'" ) and s.endswith("'")):
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
         s = s[1:-1].strip()
+    
+    # Critical: SSH keys MUST end with a newline for libcrypto/OpenSSL
+    if "PRIVATE KEY-----" in s and not s.endswith("\n"):
+        s += "\n"
+        
     return s
 
 def export_to_github_env(name, value):

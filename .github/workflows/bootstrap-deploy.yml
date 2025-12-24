@@ -56,8 +56,10 @@ jobs:
     steps:
       - name: Parse Command
         id: parse
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          if [[ "${{ github.event.comment.body }}" == *"/bootstrap apply"* ]]; then
+          if [[ "$COMMENT_BODY" == *"/bootstrap apply"* ]]; then
             echo "action=apply" >> $GITHUB_OUTPUT
           else
             echo "action=plan" >> $GITHUB_OUTPUT
