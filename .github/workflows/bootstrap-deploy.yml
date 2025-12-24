@@ -137,18 +137,26 @@ jobs:
             const planOutput = (process.env.PLAN_OUTPUT || '').substring(0, 60000);
             const prNumber = parseInt(process.env.PR_NUMBER, 10);
             const action = process.env.ACTION;
-            
-            let body = `### 🔧 Bootstrap Terraform Plan
-            
-            \`\`\`hcl
-            ${planOutput}
-            \`\`\``;
-            
+
+            const bodyLines = [
+              '### 🔧 Bootstrap Terraform Plan',
+              '',
+              '<details>',
+              '<summary>点击展开 Plan 输出</summary>',
+              '',
+              '```hcl',
+              planOutput,
+              '```',
+              '</details>',
+            ];
+
             if (action === 'plan') {
-              body += `\n\n> To apply: comment \`/bootstrap apply\``;
+              bodyLines.push('', '> To apply: comment `/bootstrap apply`');
             } else {
-              body += `\n\n> **Applying changes...** ⏳`;
+              bodyLines.push('', '> **Applying changes...** ⏳');
             }
+
+            const body = bodyLines.join('\n');
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -178,6 +186,42 @@ jobs:
         if: steps.should-apply.outputs.apply == 'true'
         working-directory: ${{ env.WORKING_DIR }}
         run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Post Apply Verify (DNS/HTTPS)
+        if: steps.should-apply.outputs.apply == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          DOMAIN="${INTERNAL_DOMAIN:-$BASE_DOMAIN}"
+          if [ -z "$DOMAIN" ]; then
+            echo "::error::INTERNAL_DOMAIN or BASE_DOMAIN is required for health checks."
+            exit 1
+          fi
+
+          HOST="digger.${DOMAIN}"
+          echo "🔎 Checking DNS for ${HOST}..."
+          for i in $(seq 1 30); do
+            if getent hosts "${HOST}" >/dev/null 2>&1; then
+              echo "✅ DNS resolved for ${HOST}"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "::error::DNS resolution failed for ${HOST}"
+              exit 1
+            fi
+            sleep 2
+          done
+
+          echo "🔎 Checking HTTPS health..."
+          for i in $(seq 1 15); do
+            if curl -fsS --max-time 5 "https://${HOST}/health" >/dev/null; then
+              echo "✅ Digger health OK"
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "::error::Digger health not reachable at https://${HOST}/health"
+          exit 1
 
       - name: Post Apply Result
         if: steps.should-apply.outputs.apply == 'true' && github.event_name == 'issue_comment'
