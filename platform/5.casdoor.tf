@@ -268,7 +268,7 @@ EOT
   ]
 
   # NOTE: Casdoor database is created by L1 (1.bootstrap/5.platform_pg.tf)
-  # because Atlantis pod doesn't have kubectl. L1 CI runner does.
+  # L1 CI runner has kubectl access.
   depends_on = [data.kubernetes_namespace.platform]
 
   lifecycle {

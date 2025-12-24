@@ -60,14 +60,6 @@ locals {
             target   = "_blank"
           },
           {
-            name     = "Atlantis"
-            logo     = "https://avatars.githubusercontent.com/u/36257322?s=200&v=4"
-            subtitle = "Terraform Automation (PR comments)"
-            tag      = "iac"
-            url      = "https://atlantis.${local.internal_domain}"
-            target   = "_blank"
-          },
-          {
             name     = "Casdoor Admin"
             logo     = "https://cdn.casbin.org/img/casbin.svg"
             subtitle = "User & role management"

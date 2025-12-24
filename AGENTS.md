@@ -57,7 +57,7 @@ Core Principle: **Infrastructure as Code (IaC) is the Truth.**
     - NEVER hardcode secrets in `.tf` (use `random_password` or vars).
 
 ## 3. Secret & Variable Pipeline (The Variable Chain)
-- **Variable Changes**: When adding/changing a variable in any `variables.tf`, you MUST update the mapping in `tools/ci_load_secrets.py`. CI will fail if they are not aligned (Variable Guard).
+- **Variable Changes**: When adding/changing a variable in any `variables.tf`, you MUST update the mapping in `tools/secrets/ci_load_secrets.py`. CI will fail if they are not aligned (Variable Guard).
 - **1Password Alignment**: 
     - 1Password is the master SSOT. GitHub Secrets are just a cache.
     - NEVER manually set secrets in GitHub Web UI.

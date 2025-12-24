@@ -8,7 +8,7 @@ variable "environment" {
 }
 
 variable "kubeconfig_path" {
-  description = "Path to kubeconfig file (set via TF_VAR_kubeconfig_path in Atlantis)"
+  description = "Path to kubeconfig file"
   type        = string
   default     = ""
 }
@@ -73,7 +73,7 @@ variable "namespaces" {
 }
 
 variable "vps_host" {
-  description = "VPS host IP for DNS records (set via TF_VAR_vps_host in Atlantis)"
+  description = "VPS host IP for DNS records"
   type        = string
   default     = ""
 }
@@ -188,7 +188,7 @@ variable "vault_root_token" {
 }
 
 variable "vault_address" {
-  description = "Vault server address. Default is internal K8s DNS for Atlantis. Set to http://localhost:8200 for GitHub Actions with port-forward."
+  description = "Vault server address. Default is internal K8s DNS. Set to http://localhost:8200 for GitHub Actions with port-forward."
   type        = string
   default     = "http://vault.platform.svc.cluster.local:8200"
 }

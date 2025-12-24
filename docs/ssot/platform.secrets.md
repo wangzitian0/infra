@@ -7,7 +7,7 @@
 ```mermaid
 graph LR
     OP[1Password<br/>my_cloud vault] -->|"op + gh 脚本同步"| GH[GitHub Secrets]
-    GH -->|"toJSON(secrets)"| Loader["tools/ci_load_secrets.py<br/>(Python Loader)"]
+    GH -->|"toJSON(secrets)"| Loader["tools/secrets/ci_load_secrets.py<br/>(Python Loader)"]
     Loader -->|导出 TF_VAR_*| TF[Terraform]
     TF -->|Helm values| K8S[Kubernetes]
     K8S -->|运行时注入| VAULT[Vault]
@@ -94,7 +94,7 @@ MAPPING = {
 | 组件 | 状态 |
 |------|------|
 | 1Password SSOT | ✅ 已覆盖 24+ 核心字段 |
-| Python Loader | ✅ `tools/ci_load_secrets.py` 已上线 |
+| Python Loader | ✅ `tools/secrets/ci_load_secrets.py` 已上线 |
 | Workflow DRY | ✅ `deploy-L1-bootstrap.yml` 冗余减少 80% |
 | 变量链条 | ✅ 1Password -> GH -> Env -> TF 闭环 |
 
@@ -104,7 +104,7 @@ MAPPING = {
 
 ### 1. 新增一个密钥
 1.  在 1Password 对应条目中增加字段（Label 建议大写）。
-2.  在 `tools/ci_load_secrets.py` 的 `MAPPING` 字典中增加一行映射。
+2.  在 `tools/secrets/ci_load_secrets.py` 的 `MAPPING` 字典中增加一行映射。
 3.  运行同步脚本更新 GitHub Secrets。
 4.  在 Terraform `.tf` 文件中使用变量。
 

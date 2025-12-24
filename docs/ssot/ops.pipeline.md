@@ -114,7 +114,7 @@ flowchart TD
 
 Apply 前会自动检查 Vault 状态：
 
-```python3 tools/ci_load_secrets.py
+```python3 tools/secrets/ci_load_secrets.py
 ck_vault.py
 kubectl exec vault-0 -n platform -- vault status -format=json
 ```

@@ -40,7 +40,7 @@ uv run pytest tests/bootstrap/ -m smoke -v
 | 组件 | 测试 | 验证 |
 |------|------|------|
 | K3s | `test_k3s_api_accessible` | API 可达 |
-| Digger | `test_atlantis_config_exists` | 配置存在 |
+| Digger | `test_digger_endpoint_accessible` | 服务可达 |
 | Traefik | `test_traefik_routes_traffic` | 路由功能 |
 | StorageClass | `test_storage_class_local_path_retain_defined` | 定义存在 |
 | Platform PG | `test_platform_pg_config_exists` | 配置存在 |

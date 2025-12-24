@@ -7,7 +7,7 @@
 #
 # Categories:
 # - Bootstrap Variables
-# Trigger CI: oauth deployment verify, DNS, Atlantis
+# Trigger CI: oauth deployment verify, DNS
 # - Platform: Vault, Dashboard, Kubero
 # - Data/Apps Runtime: Accessed via Vault, not declared here
 # ============================================================
