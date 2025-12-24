@@ -61,6 +61,8 @@ class TerraformRunner:
         env = os.environ.copy()
         env["TF_IN_AUTOMATION"] = "true"
         env["TF_INPUT"] = "false"
+        # Terragrunt non-interactive mode via env var (not CLI flag)
+        env["TERRAGRUNT_NON_INTERACTIVE"] = "true"
 
         try:
             result = subprocess.run(
@@ -107,8 +109,6 @@ class TerraformRunner:
     def init(self) -> ExecutionResult:
         """Run init."""
         cmd = [self._get_base_cmd(), "init", "-no-color"]
-        if self.layer.engine == "terragrunt":
-            cmd.append("--terragrunt-non-interactive")
         return self._run(cmd)
 
     def plan(self, detailed_exitcode: bool = True) -> ExecutionResult:
@@ -116,8 +116,6 @@ class TerraformRunner:
         cmd = [self._get_base_cmd(), "plan", "-no-color"]
         if detailed_exitcode:
             cmd.append("-detailed-exitcode")
-        if self.layer.engine == "terragrunt":
-            cmd.append("--terragrunt-non-interactive")
         return self._run(cmd, detailed_exitcode=detailed_exitcode)
 
     def apply(self, auto_approve: bool = True) -> ExecutionResult:
@@ -125,8 +123,6 @@ class TerraformRunner:
         cmd = [self._get_base_cmd(), "apply", "-no-color"]
         if auto_approve:
             cmd.append("-auto-approve")
-        if self.layer.engine == "terragrunt":
-            cmd.append("--terragrunt-non-interactive")
         return self._run(cmd)
 
     def validate(self) -> ExecutionResult:
