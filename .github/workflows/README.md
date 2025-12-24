@@ -12,12 +12,14 @@ For the authoritative pipeline architecture and logic, refer to:
 
 ## Workflows
 
-| File | Trigger | Purpose |
-|------|---------|---------|
-| `ci.yml` | `pull_request`, `issue_comment`, `push` | **Unified Entrypoint**. Routes commands to Digger or custom jobs. |
-| `bootstrap-deploy.yml` | `workflow_dispatch`, `push` | **L1 Bootstrap**. Deploys the Trust Anchor layer. |
-| `e2e-tests.yml` | `workflow_dispatch` | **Verification**. Runs E2E regression suite. |
-| `readme-coverage.yml` | `pull_request` | **Documentation**. Ensures README coverage. |
+| Workflow | 触发器 | 职责 |
+|:---|:---|:---|
+| `ci.yml` | PR / Push / Comment / Dispatch | **统一入口**：解析命令、执行 plan/apply/verify |
+| `bootstrap-deploy.yml` | Push(main) / Comment / Dispatch | **L1 Bootstrap**：post-merge drift 追平 + 资源导入（基于 Helm secret 定位 namespace） + `/bootstrap plan/apply` + post-apply DNS/HTTPS 校验 |
+| `claude.yml` | `@claude` 评论 | AI 编码/审计任务 |
+| `docs-site.yml` | `.md` 文件变动 | 文档站构建部署 |
+| `e2e-tests.yml` | Push to main / Dispatch | E2E 回归测试 |
+| `readme-coverage.yml` | PR / Push | README 覆盖率检查 |
 | `ops-drift-fix.yml` | `schedule` | **Maintenance**. Auto-fix drift (e.g., Vault tokens). |
 
 ---

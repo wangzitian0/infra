@@ -28,8 +28,12 @@ For authoritative architecture, configuration rules, and SOPs, refer to the **Si
     - Comment `/bootstrap apply` on PR
     - Push to `main` (Auto Apply)
 
+Push to `main` will trigger an automatic drift scan/apply for the Bootstrap layer (post-merge reconciliation).
+
 ### Local Deployment (Emergency)
 > See [**Compute SSOT / Constraints**](../docs/ssot/bootstrap.compute.md#设计约束-dos--donts) for when this is allowed.
+
+**Bootstrap Command (Manual/Local)**
 
 ```bash
 cd bootstrap
@@ -68,10 +72,23 @@ The CI loader (`tools/secrets/ci_load_secrets.py`) ensures the following are pas
 
 ## Recent Changes
 
+### 2025-12-25: Digger Helm Chart Pin Fix
+- **Issue**: `digger-backend` chart version `0.1.0` removed from upstream repo.
+- **Change**: Bumped chart pin to `0.1.12` to restore bootstrap apply.
+
 ### 2025-12-24: Digger Orchestrator Migration
 - **Component**: Replaced Atlantis with self-hosted Digger Orchestrator (OpenTaco).
 - **Architecture**: Separated Bootstrap CI from Digger via `bootstrap-deploy.yml`.
 - **Database**: Added `digger` database to Platform PostgreSQL (CNPG).
+
+### 2025-12-25: Digger HTTPS Guard Fix
+- **Guardrail**: Fixed HTTPS postcondition check for Digger ingress to avoid false plan failures.
+
+### 2025-12-25: Bootstrap Health Checks Moved to CI
+- **E2E**: DNS/HTTPS checks for Digger moved out of Terraform and into post-apply CI.
+
+### 2025-12-25: Bootstrap Drift Adopt (Existing Resources)
+- **Import**: CI auto-imports existing Helm releases and secrets before apply.
 
 ---
 *Last updated: 2025-12-25*

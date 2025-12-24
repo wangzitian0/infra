@@ -11,7 +11,7 @@ inputs:
   tf_state_key:
     description: "Terraform state file key in R2 bucket"
     required: false
-    default: "terraform.tfstate"
+    default: "k3s/terraform.tfstate"
   working_directory:
     description: "Working directory for Terraform operations"
     required: false

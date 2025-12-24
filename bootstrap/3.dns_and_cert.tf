@@ -223,59 +223,6 @@ resource "cloudflare_record" "x_staging" {
 # - x-testcommit-abc123-api (commit previews)
 
 # =============================================================================
-# 7. Post-Apply Validation (DNS + Cert + Digger Health)
+# 7. Post-Apply Validation (DNS + Digger Health)
 # =============================================================================
-
-# Validate DNS resolution for Digger host
-resource "time_sleep" "wait_for_digger_dns" {
-  create_duration = "60s"
-  triggers = {
-    host   = local.domains.digger
-    vps_ip = var.vps_host
-  }
-  depends_on = [cloudflare_record.infra_records]
-}
-
-data "dns_a_record_set" "digger" {
-  host       = local.domains.digger
-  depends_on = [time_sleep.wait_for_digger_dns]
-
-  lifecycle {
-    postcondition {
-      condition     = length(self.addrs) > 0
-      error_message = "DNS resolution failed for ${local.domains.digger}."
-    }
-  }
-}
-
-# Validate HTTPS certificate + Digger health
-resource "time_sleep" "wait_for_digger_https" {
-  create_duration = "120s"
-  triggers = {
-    # Use chart version instead of revision (revision changes during apply, causing TF error)
-    digger_version = helm_release.digger.version
-    domain         = local.domains.digger
-  }
-  depends_on = [
-    kubectl_manifest.wildcard_certificate_internal,
-    helm_release.digger
-  ]
-}
-
-data "http" "digger_health" {
-  url        = "https://${local.domains.digger}/health"
-  depends_on = [time_sleep.wait_for_digger_https, data.dns_a_record_set.digger]
-
-  retry {
-    attempts     = 5
-    min_delay_ms = 1000
-    max_delay_ms = 5000
-  }
-
-  lifecycle {
-    postcondition {
-      condition     = self.status_code == 200
-      error_message = "Digger health not reachable at https://${local.domains.digger}/health after waiting."
-    }
-  }
-}
+# Moved to CI end-to-end checks to avoid apply-time DNS/HTTPS flakiness.
