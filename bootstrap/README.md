@@ -72,6 +72,10 @@ The CI loader (`tools/secrets/ci_load_secrets.py`) ensures the following are pas
 
 ## Recent Changes
 
+### 2025-12-25: Digger Helm Chart Pin Fix
+- **Issue**: `digger-backend` chart version `0.1.0` removed from upstream repo.
+- **Change**: Bumped chart pin to `0.1.12` to restore bootstrap apply.
+
 ### 2025-12-24: Digger Orchestrator Migration
 - **Component**: Replaced Atlantis with self-hosted Digger Orchestrator (OpenTaco).
 - **Architecture**: Separated Bootstrap CI from Digger via `bootstrap-deploy.yml`.

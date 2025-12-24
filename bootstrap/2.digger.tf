@@ -16,7 +16,7 @@ resource "helm_release" "digger" {
   namespace  = kubernetes_namespace.bootstrap.metadata[0].name
   repository = "https://diggerhq.github.io/helm-charts"
   chart      = "digger-backend"
-  version    = "0.1.0"
+  version    = "0.1.12"
   timeout    = 300
   wait       = true
 
