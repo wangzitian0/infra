@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from .commands import plan, apply, verify, health, parse, init, update
+from .commands import plan, apply, verify, parse, init, update
 
 
 def main():
@@ -46,12 +46,6 @@ def main():
         "--pr", type=int, help="Merged PR number for result posting"
     )
 
-    # /health
-    health_parser = subparsers.add_parser("health", help="Service health check")
-    health_parser.add_argument(
-        "--pr", type=int, help="PR number for dashboard update"
-    )
-
     # parse (internal: parse PR comment)
     parse_parser = subparsers.add_parser("parse", help="Parse PR comment")
     parse_parser.add_argument("comment", help="Comment body to parse")
@@ -75,7 +69,6 @@ def main():
         "plan": plan.run,
         "apply": apply.run,
         "verify": verify.run,
-        "health": health.run,
         "parse": parse.run,
         "init": init.run,
         "update": update.run,
