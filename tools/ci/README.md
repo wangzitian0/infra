@@ -4,6 +4,7 @@
 > **Dependencies**: Python 3.11+, GitHub Actions
 
 This python package (`tools.ci`) implements the core logic for the infrastructure pipeline.
+Workflows are thin YAML dispatchers; all complex logic lives here.
 
 ## 📚 SSOT References
 
@@ -11,36 +12,38 @@ This python package (`tools.ci`) implements the core logic for the infrastructur
 
 ## Architecture
 
-The CI system is event-driven and centers around the **Pull Request Dashboard**.
-
 ```mermaid
 flowchart LR
-    Event[GitHub Event] --> Parse[parse.py]
-    Parse --> Command{Command?}
-    Command -->|/plan| Plan[Digger Plan]
-    Command -->|/apply| Apply[Digger Apply]
+    Event[GitHub Event] --> Run[run.py]
+    Run --> |/plan, /apply| Plan[plan.py/apply.py]
+    Run --> |/bootstrap| BS[bootstrap.py]
+    Run --> |post-merge| Verify[verify.py]
     
-    Plan --> Dashboard[Update Dashboard]
-    Apply --> Dashboard
+    Plan --> Status[Commit Status API]
+    BS --> Status
 ```
 
 ## Modules
 
 | Module | Purpose |
 |--------|---------|
-| `commands/` | **CLI Entrypoints**: Implements `plan`, `apply`, `verify` logic. |
-| `core/` | **Library**: Shared logic for GitHub API, Dashboard rendering, Terraform execution. |
-| `__main__.py` | **Router**: Dispatches CLI arguments to commands. |
+| `commands/run.py` | **Entry Point**: Unified event handler for all CI |
+| `commands/bootstrap.py` | Bootstrap layer plan/apply logic |
+| `commands/plan.py` | L2/L3 Terraform plan |
+| `commands/apply.py` | L2/L3 Terraform apply |
+| `commands/verify.py` | Post-merge drift scan |
+| `core/github.py` | GitHub API client |
+| `core/dashboard.py` | PR Dashboard rendering |
 
-## Local Development
+## CLI
 
 ```bash
-# Run tests
-uv run pytest tools/ci/tests/
+# Unified entry (used by workflow)
+python -m ci run
 
-# Manual execution (simulating CI)
-export GITHUB_TOKEN=...
-python3 -m tools.ci parse --event-file event.json
+# Manual commands
+python -m ci bootstrap plan --pr 123
+python -m ci plan all --pr 123
 ```
 
 ---
