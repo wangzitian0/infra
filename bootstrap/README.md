@@ -28,8 +28,12 @@ For authoritative architecture, configuration rules, and SOPs, refer to the **Si
     - Comment `/bootstrap apply` on PR
     - Push to `main` (Auto Apply)
 
+Push to `main` will trigger an automatic drift scan/apply for the Bootstrap layer (post-merge reconciliation).
+
 ### Local Deployment (Emergency)
 > See [**Compute SSOT / Constraints**](../docs/ssot/bootstrap.compute.md#设计约束-dos--donts) for when this is allowed.
+
+**Bootstrap Command (Manual/Local)**
 
 ```bash
 cd bootstrap

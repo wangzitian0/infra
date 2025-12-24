@@ -24,9 +24,12 @@
 
 | Workflow | 职责 | 触发方式 |
 | :--- | :--- | :--- |
-| `ci.yml` | 统一入口，路由指令 | PR 创建 / `/plan` / `/apply` / `/e2e` |
-| `bootstrap-deploy.yml` | L1 Bootstrap 专用部署 | Push to main (bootstrap/) |
-| `readme-coverage.yml` | 文档完整性检查 | PR 更新 |
+| `ci.yml` | 统一入口：plan/apply/verify + 看板更新 | 合并后自动回报 |
+| `bootstrap-deploy.yml` | L1 Bootstrap 计划/部署 + post-merge drift 追平 | 保持 L1 与 IaC 一致 |
+| `claude.yml` | **AI 自动化审计** | 通过评论触发审计 |
+| `e2e-tests.yml` | E2E 回归测试 | 合并后健康检查 |
+| `docs-site.yml` | 文档站构建部署 | 文档可视化 |
+| `readme-coverage.yml` | README 覆盖率检查 | 防止文档漂移 |
 
 ---
 *Last updated: 2025-12-25*
