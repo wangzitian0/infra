@@ -27,7 +27,7 @@ projects:
 auto_merge: false
 
 # Comment options
-comment_render_mode: latest
+comment_render_mode: basic
 
 # Workflows
 workflows:
