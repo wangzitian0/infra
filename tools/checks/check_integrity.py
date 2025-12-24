@@ -3,12 +3,12 @@ import os
 import re
 import sys
 
-# Import mapping from loader
-sys.path.append(os.path.dirname(__file__))
+# Import mapping from loader (sibling directory: ../secrets)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../secrets")))
 try:
     from ci_load_secrets import MAPPING
 except ImportError:
-    print("::error::Could not import ci_load_secrets.py")
+    print("::error::Could not import ci_load_secrets.py from ../secrets/")
     sys.exit(1)
 
 def get_terraform_variables():

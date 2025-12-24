@@ -38,31 +38,33 @@ op item get "Infra-GHA-Secrets" --vault="my_cloud" --format json |
   done
 ```
 
-| 1Password 项目 | 字段（Label） | GitHub Secret | 映射后的 TF_VAR |
-|----------------|---------------------|---------------|-----------------|
-| `Infra-Cloudflare` | `BASE_DOMAIN` | `BASE_DOMAIN` | `base_domain` |
-| | `CLOUDFLARE_ZONE_ID` | `CLOUDFLARE_ZONE_ID` | `cloudflare_zone_id` |
-| | `INTERNAL_DOMAIN` | `INTERNAL_DOMAIN` | `internal_domain` |
-| | `INTERNAL_ZONE_ID` | `INTERNAL_ZONE_ID` | `internal_zone_id` |
-| | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_API_TOKEN` | `cloudflare_api_token` |
-| `Infra-R2` | `R2_BUCKET` | `R2_BUCKET` | `r2_bucket` |
-| | `R2_ACCOUNT_ID` | `R2_ACCOUNT_ID` | `r2_account_id` |
-| | `AWS_ACCESS_KEY_ID` | `AWS_ACCESS_KEY_ID` | `aws_access_key_id` |
-| | `AWS_SECRET_ACCESS_KEY` | `AWS_SECRET_ACCESS_KEY` | `aws_secret_access_key` |
-| `Infra-VPS` | `VPS_HOST` | `VPS_HOST` | `vps_host` |
-| | `VPS_SSH_KEY` | `VPS_SSH_KEY` | `ssh_private_key` |
-| `PostgreSQL (Platform)` | `VAULT_POSTGRES_PASSWORD` | `VAULT_POSTGRES_PASSWORD` | `vault_postgres_password` |
-| `Infra-OAuth` | `GH_OAUTH_CLIENT_ID` | `GH_OAUTH_CLIENT_ID` | `github_oauth_client_id` |
-| | `GH_OAUTH_CLIENT_SECRET` | `GH_OAUTH_CLIENT_SECRET` | `github_oauth_client_secret` |
-| | `ENABLE_CASDOOR_OIDC` | `ENABLE_CASDOOR_OIDC` | `enable_casdoor_oidc` |
-| | `ENABLE_PORTAL_SSO_GATE` | `ENABLE_PORTAL_SSO_GATE` | `enable_portal_sso_gate` |
-| `Infra-Atlantis` | (Legacy) | - | - |
-| `Infra-Digger` | `DIGGER_BEARER_TOKEN` | `DIGGER_BEARER_TOKEN` | `digger_bearer_token` |
-| | `DIGGER_WEBHOOK_SECRET` | `DIGGER_WEBHOOK_SECRET` | `digger_webhook_secret` |
-| | `DIGGER_HTTP_PASSWORD` | `DIGGER_HTTP_PASSWORD` | `digger_http_password` |
-| `Infra-Vault` | `VAULT_ROOT_TOKEN` | `VAULT_ROOT_TOKEN` | `vault_root_token` |
-| `Infra-GHA-Secrets` | `api_key` | `GEMINI_API_KEY` | - |
-| `GitHub PAT` | `token` | `GH_PAT` | `github_token` |
+### 核心清单 (The Source of Truth)
+
+**请直接查看代码定义**: [tools/secrets/ci_load_secrets.py](../../tools/secrets/ci_load_secrets.py)
+
+该脚本中的 `OP_CONTRACT` 和 `MAPPING` 字典定义了所有有效的密钥映射关系。
+
+- **OP_CONTRACT**: 定义了哪些 Secret 存储在哪个 1Password Item 中。
+- **MAPPING**: 定义了 GitHub Secret 如何映射到 Terraform 变量 (`TF_VAR_...`)。
+
+> ⚠️ **注意**: 本文档不再维护手动列表，以避免与代码脱节。任何密钥的新增、修改、废弃，**必须** 以修改 `ci_load_secrets.py` 为准。
+
+#### 示例结构 (参考)
+
+```python
+# ci_load_secrets.py
+
+OP_CONTRACT = {
+    # 1Password Item Name: [Field Labels...]
+    "Infra-Flash": ["INFRA_FLASH_APP_ID", "INFRA_FLASH_APP_KEY", ...],
+}
+
+MAPPING = {
+    # GitHub Secret -> TF_VAR
+    "INFRA_FLASH_APP_ID": "TF_VAR_infra_flash_app_id",
+    ...
+}
+```
 
 ### 3. Terraform 生成密钥 (Managed Secrets)
 
