@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from .commands import plan, apply, verify, health, parse
+from .commands import plan, apply, verify, health, parse, init
 
 
 def main():
@@ -56,6 +56,12 @@ def main():
     parse_parser = subparsers.add_parser("parse", help="Parse PR comment")
     parse_parser.add_argument("comment", help="Comment body to parse")
 
+    # init (dashboard initialization)
+    init_parser = subparsers.add_parser("init", help="Initialize dashboard")
+    init_parser.add_argument(
+        "--pr", type=int, required=True, help="PR number"
+    )
+
     args = parser.parse_args()
 
     # Dispatch to command handler
@@ -65,6 +71,7 @@ def main():
         "verify": verify.run,
         "health": health.run,
         "parse": parse.run,
+        "init": init.run,
     }
 
     handler = handlers.get(args.command)

@@ -41,6 +41,8 @@ class Dashboard:
                 "plan-data-staging": StageStatus("Plan: data-staging"),
                 "plan-data-prod": StageStatus("Plan: data-prod"),
                 "apply": StageStatus("Apply"),
+                "health": StageStatus("Health Check"),
+                "e2e": StageStatus("E2E Tests"),
                 "review": StageStatus("AI Review"),
             }
 

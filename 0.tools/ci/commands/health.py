@@ -85,8 +85,21 @@ def run(args) -> int:
         try:
             gh = GitHubClient()
             body = _build_table(results)
-            gh.create_comment(args.pr, body)
+            comment = gh.create_comment(args.pr, body)
+            comment_url = comment.get("html_url", "")
             print(f"\n📝 Posted results to PR #{args.pr}")
+
+            # Update Dashboard
+            pr_info = gh.get_pr(args.pr)
+            dashboard = Dashboard(args.pr, pr_info.head_sha, gh)
+            if dashboard.load():
+                status = "success" if healthy_count == len(results) else "failure"
+                dashboard.update_stage("health", status, link=comment_url)
+                dashboard.save()
+                print("✅ Dashboard updated.")
+            else:
+                print("⚠️ Dashboard not found, skipping update.")
+                
         except Exception as e:
             print(f"\n⚠️ Failed to post results: {e}")
 

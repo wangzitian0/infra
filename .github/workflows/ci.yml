@@ -7,6 +7,8 @@ name: CI Pipeline
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
   issue_comment:
     types: [created]
   workflow_dispatch:
@@ -30,6 +32,47 @@ permissions:
   id-token: write
 
 jobs:
+  # =============================================================
+  # Init: Dashboard Creation (PR Only)
+  # =============================================================
+  init-dashboard:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Init Dashboard
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/0.tools
+        run: |
+          python -m ci init --pr ${{ github.event.pull_request.number }}
+
+  # =============================================================
+  # Post-Merge: Auto Apply (Push to Main)
+  # =============================================================
+  post-merge:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+      - name: Digger Apply
+        uses: diggerhq/digger@v0.6.80
+        with:
+          setup-terragrunt: true
+          terragrunt-version: 0.68.4
+          # Digger treats push to default branch as apply if configured?
+          # Actually Digger CLI handles 'digger apply' but for push event we might need specific args
+          # For now, let's just run digger which usually auto-detects changes
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   # =============================================================
   # Digger: handles /plan, /apply, digger plan, digger apply
   # =============================================================
