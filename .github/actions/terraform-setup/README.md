@@ -4,7 +4,7 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 
 ## Responsibilities
 
-1. **Secret Loading**: Uses `tools/ci_load_secrets.py` to parse GitHub Secrets and map them to `TF_VAR_` variables.
+1. **Secret Loading**: Uses `tools/secrets/ci_load_secrets.py` to parse GitHub Secrets and map them to `TF_VAR_` variables.
 2. **SSH Setup**: Configures SSH keys for VPS access (inherited from loader).
 3. **Terraform Init**: Initializes Terraform with R2 backend configuration.
 4. **Kubeconfig Fetch**: Retrieves kubeconfig from VPS for Helm provider.
@@ -16,8 +16,8 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
 |-------|----------|-------------|
 | `secrets_json` | ✓ | All GitHub Secrets in JSON format (pass `${{ toJSON(secrets) }}`) |
 | `terraform_version` | ✗ | Terraform version (default: reads from `.terraform-version` file) |
-| `tf_state_key` | ✗ | State file key in bucket (default: terraform.tfstate) |
-| `working_directory` | ✗ | Directory for Terraform operations (default: 1.bootstrap) |
+| `tf_state_key` | ✗ | State file key in bucket (default: k3s/terraform.tfstate) |
+| `working_directory` | ✗ | Directory for Terraform operations (default: bootstrap) |
 
 ## Usage
 
@@ -26,16 +26,16 @@ A composite GitHub Action that sets up the Terraform environment for CI/CD workf
   with:
     secrets_json: ${{ toJSON(secrets) }}
     tf_state_key: "k3s/platform.tfstate"
-    working_directory: "2.platform"
+    working_directory: "platform"
 ```
 
 ## Variable Chain (Modern Flow)
 
 ```
-1Password (SSOT) → GitHub Secrets (Cache) → ci_load_secrets.py → TF_VAR_*
+1Password (SSOT) → GitHub Secrets (Cache) → tools/secrets/ci_load_secrets.py → TF_VAR_*
 ```
 
 See [action.yml](./action.yml) for full implementation.
 
 ---
-*Last updated: 2025-12-22*
+*Last updated: 2025-12-25*
