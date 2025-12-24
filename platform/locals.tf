@@ -26,3 +26,11 @@ locals {
     for k, v in local.vault_db_secrets : k => "${local.vault_kv_mount}/data/${v}"
   }
 }
+
+# Read 'simpleuser' credentials from Kubernetes Secret (managed by Bootstrap layer)
+data "kubernetes_secret" "platform_pg_simpleuser" {
+  metadata {
+    name      = "platform-pg-simpleuser"
+    namespace = data.kubernetes_namespace.platform.metadata[0].name
+  }
+}

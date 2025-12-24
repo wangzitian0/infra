@@ -14,8 +14,8 @@
 # Docs: https://cloudnative-pg.io
 
 locals {
-  # CNPG uses -rw suffix for read-write service
-  platform_pg_host = "postgresql-rw.platform.svc.cluster.local"
+  # CNPG uses -rw suffix for read-write service of 'platform-pg' cluster
+  platform_pg_host = "platform-pg-rw.platform.svc.cluster.local"
 }
 
 # Create/manage platform namespace in Bootstrap (before Platform layer Vault deployment)
@@ -154,4 +154,25 @@ output "platform_pg_ready" {
   value       = true
   description = "Platform PostgreSQL cluster is ready for connections"
   depends_on  = [time_sleep.wait_for_platform_pg]
+}
+
+# Random password for 'simpleuser' (used by Platform services to bypass SCRAM issues)
+resource "random_password" "simpleuser" {
+  length  = 24
+  special = false # Avoid special chars to prevent connection string parsing issues
+}
+
+# SimpleUser secret for CNPG (used by Vault/Casdoor)
+resource "kubernetes_secret" "platform_pg_simpleuser" {
+  metadata {
+    name      = "platform-pg-simpleuser"
+    namespace = kubernetes_namespace.platform.metadata[0].name
+  }
+
+  data = {
+    username = "simpleuser"
+    password = random_password.simpleuser.result
+  }
+
+  depends_on = [kubernetes_namespace.platform]
 }
