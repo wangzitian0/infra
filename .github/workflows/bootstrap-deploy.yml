@@ -101,6 +101,29 @@ jobs:
           app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
           private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
 
+      # Set PR commit status so workflow appears in PR checks
+      - name: Set PR Status (Pending)
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ needs.command.outputs.pr_number }}
+            });
+            
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: pr.data.head.sha,
+              state: 'pending',
+              context: 'Bootstrap Deploy',
+              description: '${{ needs.command.outputs.action }} in progress...',
+              target_url: `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
+
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
         with:
@@ -321,6 +344,29 @@ jobs:
               body: '### ✅ Bootstrap Apply Complete\n\nTerraform apply finished successfully.'
             });
 
+      # Set PR commit status on success
+      - name: Set PR Status (Success)
+        if: success() && github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ needs.command.outputs.pr_number }}
+            });
+            
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: pr.data.head.sha,
+              state: 'success',
+              context: 'Bootstrap Deploy',
+              description: '${{ needs.command.outputs.action }} completed',
+              target_url: `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+            });
+
       - name: Post Failure Result
         if: failure() && github.event_name == 'issue_comment'
         uses: actions/github-script@v7
@@ -335,6 +381,29 @@ jobs:
               body: `### ❌ Bootstrap Apply Failed
               
               Check the [Workflow Run](${runUrl}) for details.`
+            });
+
+      # Set PR commit status on failure
+      - name: Set PR Status (Failure)
+        if: failure() && github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ needs.command.outputs.pr_number }}
+            });
+            
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: pr.data.head.sha,
+              state: 'failure',
+              context: 'Bootstrap Deploy',
+              description: '${{ needs.command.outputs.action }} failed',
+              target_url: `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
             });
 
       - name: Notify on Failure
