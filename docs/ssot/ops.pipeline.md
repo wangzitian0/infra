@@ -1,240 +1,189 @@
 # Pipeline SSOT (运维流水线)
 
-> **核心原则**：所有变更可审计；Python 脚本驱动逻辑；YAML 极简化；语义化命令。
+> **核心原则**：Digger 执行 Terraform；Python 处理辅助逻辑；语义化斜杠命令。
 
 ---
 
-## 1. 设计理念
+## 1. 架构概览
 
-### 1.1 架构转型
+### 1.1 执行引擎
 
-| 维度 | 旧架构 (当前) | 新架构 (目标) |
-|:---|:---|:---|
-| **逻辑位置** | 分散在 12+ YAML 文件内 | 集中于 `0.tools/ci/` Python 模块 |
-| **YAML 职责** | 触发器 + 逻辑 + Dashboard 更新 | 纯触发器 + 调用 Python |
-| **命令语法** | 工具绑定 (`atlantis plan`) | 语义化 (`infra plan`) |
-| **执行引擎** | Atlantis Server (独立 Pod) | Digger CLI (无状态，CI 内跑) |
+| 组件 | 职责 |
+|:---|:---|
+| **Digger** | Terraform Plan/Apply 执行 (替代 Atlantis) |
+| **ci.yml** | 统一入口，路由命令到 Digger 或自定义 Job |
+| **Python (0.tools/ci/)** | Dashboard 更新、Vault 检查、解析辅助 |
 
-### 1.2 文件结构
+### 1.2 工作流触发器
 
-```
-.github/
-└── workflows/
-    ├── ci.yml              # 唯一入口：PR + Push + Comment + Dispatch
-    └── docs.yml            # 文档站构建（独立）
-
-0.tools/ci/
-├── __init__.py
-├── main.py                 # CLI 入口：python -m ci <command>
-├── commands/
-│   ├── plan.py             # infra plan
-│   ├── apply.py            # infra apply
-│   ├── verify.py           # infra verify (drift scan)
-│   ├── health.py           # infra health
-│   └── review.py           # infra review (AI)
-├── core/
-│   ├── terraform.py        # TF/Terragrunt 封装
-│   ├── dashboard.py        # PR Dashboard CRUD
-│   └── github.py           # GH API 封装
-└── config.py               # 层级定义、路径映射
+```yaml
+on:
+  pull_request:     # PR 创建/更新 → 自动 Plan
+  push (main):      # Merge → 自动 Apply + 状态回报
+  issue_comment:    # /命令 → 路由到对应 Job
+  workflow_dispatch # 手动触发
 ```
 
 ---
 
-## 2. 斜杠命令矩阵
+## 2. 斜杠命令
 
 ### 2.1 PR 评论命令
 
-| 命令 | 作用 | 示例 |
+| 命令 | 作用 | 执行者 |
 |:---|:---|:---|
-| `/plan` | 预览变更 (自动检测涉及的层) | `/plan` |
-| `/plan <layer>` | 预览指定层 | `/plan bootstrap` |
-| `/apply` | 部署变更 (需 plan 通过) | `/apply` |
-| `/apply <layer>` | 部署指定层 | `/apply platform` |
-| `/health` | 健康检查 (探测服务连通性) | `/health` |
-| `/e2e` | 运行 E2E 回归测试 | `/e2e smoke` |
-| `/review` | AI 代码审查 | `/review` |
-| `/help` | 显示可用命令 | `/help` |
+| `/plan` | 预览所有层变更 | Digger |
+| `/apply` | 部署所有层变更 | Digger |
+| `/e2e` | 触发 E2E 测试 | Custom Job |
+| `/review` | AI 代码审查 | Custom Job |
+| `/help` | 显示可用命令 | Custom Job |
 
-**Layer 参数**: `bootstrap`, `platform`, `data-staging`, `data-prod`, `all`
+> **注意**: `/health` 已移除，使用 `/e2e` 的 smoke test 替代。
 
 ### 2.2 自动触发
 
-| 事件 | 触发动作 |
+| 事件 | 动作 |
 |:---|:---|
-| PR 创建/更新 | CI Validate + Dashboard 创建 + 自动 `/plan` |
-| Push to main | `/verify` (全层 drift scan) + 顺序 apply + `/e2e` |
-| Merge 完成 | 在原 PR 评论部署结果汇总 |
+| PR 创建/更新 | Dashboard 初始化 + 自动 `/plan` |
+| Push to main | Digger Apply + 状态回报到原 PR |
+| `/apply` 评论 | Vault 解封检查 → Digger Apply |
 
 ---
 
-## 3. Dashboard 状态机
-
-Dashboard 是每个 Commit 的 SSOT 看板：
+## 3. CI Pipeline 架构
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Created: PR opened/updated
-    Created --> CI_Running: CI starts
-    CI_Running --> CI_Passed: lint/fmt/validate ✅
-    CI_Running --> CI_Failed: errors found ❌
-    CI_Failed --> [*]: fix & push
-    CI_Passed --> Plan_Running: auto plan
-    Plan_Running --> Plan_Ready: no changes
-    Plan_Running --> Plan_Diff: changes detected
-    Plan_Running --> Plan_Failed: errors ❌
-    Plan_Diff --> Apply_Waiting: review plan
-    Apply_Waiting --> Apply_Running: infra apply
-    Apply_Running --> Apply_Done: ✅
-    Apply_Running --> Apply_Failed: ❌
-    Apply_Done --> Review_Running: auto review
-    Review_Running --> Ready_Merge: ✅ all passed
-    Plan_Ready --> Ready_Merge: no changes
+flowchart TD
+    subgraph Trigger["触发事件"]
+        PR[pull_request]
+        Push[push to main]
+        Comment[issue_comment]
+    end
+    
+    subgraph Parse["parse Job"]
+        P1[解析事件类型]
+        P2[提取命令/PR#]
+        P3[输出 should_run/command]
+    end
+    
+    subgraph Jobs["执行 Jobs"]
+        Init[init-dashboard]
+        Digger[digger Job]
+        PostMerge[post-merge Job]
+        Custom[custom Job]
+    end
+    
+    PR --> Parse
+    Push --> Parse
+    Comment --> Parse
+    
+    Parse --> Init
+    Parse -->|plan/apply| Digger
+    Parse -->|push| PostMerge
+    Parse -->|e2e/review/help| Custom
 ```
 
 ---
 
-## 4. Dashboard Schema
+## 4. Dashboard 设计
+
+每个 PR 有一个 Dashboard Comment（由 `init-dashboard` Job 创建）：
 
 ```markdown
-<!-- infra-dashboard:abc1234 -->
-## ⚙️ Commit `abc1234` Pipeline
+<!-- infra-flash -->
+## 🚀 infra-flash
 
-| Stage | Status | Output | Time |
-|:---|:---:|:---|:---|
-| CI Validate | ✅ | [Log](#) | 12:34 |
-| Plan: bootstrap | ✅ | [View](#) | 12:35 |
-| Plan: platform | ⏳ | Running... | - |
-| Plan: data-staging | ⏭️ | - | - |
-| Apply | ⏭️ | - | - |
-| AI Review | ⏭️ | - | - |
+| Stage | Status | Details |
+|:---|:---:|:---|
+| Plan | ✅ | [View](#run-link) |
+| Apply | ⏳ | Waiting... |
 
 <!-- next-step -->
-⏳ Waiting for plan...
+👉 Plan 完成，评论 `/apply` 部署
 <!-- /next-step -->
 ```
 
----
-
-## 5. Post-Merge 流程
-
-```mermaid
-sequenceDiagram
-    participant PR as Merged PR
-    participant CI as ci.yml
-    participant Py as 0.tools/ci/
-    participant K8s as Cluster
-
-    PR->>CI: push to main
-    CI->>Py: python -m ci verify --all
-    
-    par Parallel Drift Scan
-        Py->>K8s: plan bootstrap
-        Py->>K8s: plan platform
-        Py->>K8s: plan data-staging
-        Py->>K8s: plan data-prod
-    end
-    
-    Py->>CI: Report drift status
-    
-    alt Has Drift
-        loop Sequential Apply
-            Py->>K8s: apply bootstrap
-            Py->>K8s: apply platform
-            Py->>K8s: apply data (staging → prod)
-        end
-    end
-    
-    Py->>PR: Post summary comment
-```
+**更新时机**:
+- `init-dashboard`: PR 创建时
+- `digger` Job 完成后: 更新 Plan/Apply 状态
+- `post-merge`: 在原 PR 添加部署结果
 
 ---
 
-## 6. 层级定义
+## 5. Vault 解封检查
+
+Apply 前会自动检查 Vault 状态：
 
 ```python
-# 0.tools/ci/config.py
-LAYERS = {
-    "bootstrap": {
-        "path": "bootstrap",
-        "engine": "terraform",  # native TF
-        "state_key": "k3s/terraform.tfstate",
-        "order": 1,
-    },
-    "platform": {
-        "path": "platform",
-        "engine": "terragrunt",
-        "order": 2,
-    },
-    "data-staging": {
-        "path": "envs/staging/data",
-        "engine": "terragrunt",
-        "order": 3,
-    },
-    "data-prod": {
-        "path": "envs/prod/data",
-        "engine": "terragrunt",
-        "order": 4,
-    },
-}
+# 0.tools/ci/commands/check_vault.py
+kubectl exec vault-0 -n platform -- vault status -format=json
+```
+
+| 状态 | CI 行为 |
+|:---|:---|
+| Unsealed | ✅ 继续 Apply |
+| Sealed | ❌ 失败，提示手动解封 |
+| Pod 不存在 | ⚠️ 跳过检查 (首次部署) |
+
+---
+
+## 6. 文件结构
+
+```
+.github/
+├── workflows/
+│   └── ci.yml              # 唯一入口
+└── actions/
+    └── terraform-setup/    # Secrets 注入
+
+0.tools/ci/
+├── __main__.py             # CLI: python -m ci <cmd>
+├── commands/
+│   ├── init.py             # Dashboard 创建
+│   ├── update.py           # Dashboard 更新
+│   ├── parse.py            # 命令解析
+│   ├── check_vault.py      # Vault 状态检查
+│   └── verify.py           # Drift 扫描
+└── core/
+    ├── dashboard.py        # Dashboard CRUD
+    └── github.py           # GH API 封装
 ```
 
 ---
 
-## 7. 迁移路径
+## 7. 即时反馈机制
 
-### Phase 1: Python 核心 (Week 1)
-- [ ] 创建 `0.tools/ci/` 目录结构
-- [ ] 实现 `dashboard.py` (Dashboard CRUD)
-- [ ] 实现 `terraform.py` (plan/apply 封装)
-- [ ] 实现 `main.py` CLI 入口
-
-### Phase 2: 命令迁移 (Week 2)
-- [ ] `infra plan` 替代 `atlantis plan`
-- [ ] `infra apply` 替代 `atlantis apply`
-- [ ] `infra health` 替代 `infra dig`
-- [ ] `infra review` 替代 `@claude`
-
-### Phase 3: YAML 精简 (Week 3)
-- [ ] 合并所有 workflow 到 `ci.yml`
-- [ ] 删除 Atlantis Server Pod
-- [ ] 删除旧 workflow 文件
-
-### Phase 4: 验收 (Week 4)
-- [ ] E2E 测试覆盖新命令
-- [ ] 文档更新
-- [ ] 团队培训
+| 阶段 | 反馈形式 | 执行账号 |
+|:---|:---|:---|
+| 命令收到 | 👀 Emoji Reaction | GITHUB_TOKEN |
+| Plan/Apply 完成 | Dashboard 更新 | infra-flash App |
+| Post-Merge | PR 评论 | infra-flash App |
+| 失败 | Issue 创建 | infra-flash App |
 
 ---
 
-## 8. 兼容性过渡
+## 8. 实现状态
 
-迁移期间支持旧命令别名：
-
-```python
-# 0.tools/ci/commands/parse.py
-ALIASES = {
-    "atlantis plan": "/plan",
-    "atlantis apply": "/apply",
-    "infra dig": "/health",
-    "infra e2e": "/e2e",
-    "@claude": "/review",
-}
-```
+| 能力 | 状态 |
+|:---|:---:|
+| Digger Plan/Apply | ✅ |
+| Dashboard 自动更新 | ✅ |
+| Vault 解封检查 | ✅ |
+| Post-Merge 状态回报 | ✅ |
+| /e2e 触发 | ✅ |
+| /review AI 审查 | ⏳ |
 
 ---
 
-## 9. 实现状态
+## 9. 故障排查
 
-| 能力 | 目标 | 当前 |
-|:---|:---|:---:|
-| Python 驱动 | 所有逻辑在 Python | ❌ |
-| 语义化命令 | `infra plan/apply/health/review` | ❌ |
-| 单一 YAML | `ci.yml` 为唯一入口 | ❌ |
-| Dashboard SSOT | 每 commit 一个看板 | ✅ |
-| Post-Merge Verify | 自动 drift scan | ✅ |
-| Digger 替代 Atlantis | 无状态 CLI | ❌ |
+| 问题 | 解决方案 |
+|:---|:---|
+| `/apply` 无响应 | 检查 `issue_comment` 事件是否触发 CI (Actions 页面) |
+| Vault Sealed 报错 | 手动解封: `kubectl exec vault-0 -n platform -- vault operator unseal` |
+| Dashboard 未更新 | 检查 `infra-flash` App Token 权限 |
+| Plan 失败 | 查看 Digger 日志详细错误 |
 
 ---
 
-*Last Updated: 2025-12-24*
+*Last Updated: 2025-12-25*
