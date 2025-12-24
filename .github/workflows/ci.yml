@@ -181,7 +181,7 @@ jobs:
               exit 1
             fi
             
-            gh workflow run e2e-tests.yml --ref "$PR_BRANCH"
+            gh workflow run e2e-tests.yml --ref "$PR_BRANCH" -f pr_number=$PR
             gh pr comment $PR --body "🧪 E2E tests triggered for branch \`$PR_BRANCH\`."
           elif [[ "$COMMENT" == *"/review"* ]]; then
             gh pr comment $PR --body "🔍 AI Review not yet implemented."
