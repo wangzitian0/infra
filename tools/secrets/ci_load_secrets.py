@@ -55,7 +55,6 @@ MAPPING = {
     "VAULT_ROOT_TOKEN": "TF_VAR_vault_root_token",
     # Digger Orchestrator
     "DIGGER_BEARER_TOKEN": "TF_VAR_digger_bearer_token",
-    "DIGGER_WEBHOOK_SECRET": "TF_VAR_digger_webhook_secret",
     "DIGGER_HTTP_PASSWORD": "TF_VAR_digger_http_password",
 }
 

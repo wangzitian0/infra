@@ -13,10 +13,7 @@
 | **K3s** | `test_k3s_api_accessible` | smoke | API 可达性 |
 | **K3s** | `test_k3s_namespaces_exist` | - | Namespace 结构 |
 | **K3s** | `test_k3s_core_services_running` | - | 核心服务运行 |
-| **Digger** | `test_atlantis_config_exists` | smoke | 配置文件存在 |
-| **Digger** | `test_atlantis_config_valid` | - | 配置内容有效 |
-| **Digger** | `test_atlantis_projects_defined` | - | 项目定义完整 |
-| **Digger** | `test_atlantis_endpoint_accessible` | - | Webhook 端点可达 |
+| **Digger** | `test_digger_endpoint_accessible` | - | Webhook 端点可达 |
 | **Traefik** | `test_traefik_routes_traffic` | smoke | 路由功能 |
 | **Traefik** | `test_traefik_https_redirect` | - | HTTPS 重定向 |
 | **Traefik** | `test_traefik_preserves_headers` | - | Header 保留 |
