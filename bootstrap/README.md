@@ -66,7 +66,7 @@ terraform apply
 
 ## Variable Passthrough
 
-The CI loader (`tools/ci_load_secrets.py`) ensures the following are passed to Digger:
+The CI loader (`tools/secrets/ci_load_secrets.py`) ensures the following are passed to Digger:
 
 | TF_VAR | Source |
 |--------|--------|

@@ -49,7 +49,7 @@ def check_integrity():
 
     if missing_in_loader:
         print("\n❌ INTEGRITY ERROR: Variables defined in Terraform but missing from Python Loader!")
-        print("Add these to tools/ci_load_secrets.py MAPPING:")
+        print("Add these to tools/secrets/ci_load_secrets.py MAPPING:")
         for v in sorted(missing_in_loader):
             print(f"  - {v}")
         return False
