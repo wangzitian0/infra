@@ -2,9 +2,10 @@
 
 验证 K3s 集群、Digger CI 和 Traefik Ingress 的健康状态。
 
-## SSOT 参考
+## 📚 SSOT References
 
-- [bootstrap.compute.md](../../../../docs/ssot/bootstrap.compute.md)
+本测试套件是以下文档的 **Test Anchor**：
+> [**Bootstrap Compute SSOT**](../../../../docs/ssot/bootstrap.compute.md#5-验证与测试-the-proof)
 
 ## 测试矩阵
 
@@ -28,12 +29,3 @@ uv run pytest tests/bootstrap/compute/ -v
 # Smoke 测试
 uv run pytest tests/bootstrap/compute/ -m smoke -v
 ```
-
-## 环境变量
-
-| 变量 | 必需 | 说明 |
-|------|------|------|
-| `DASHBOARD_URL` | ✅ | K8s Dashboard URL |
-| `PORTAL_URL` | ✅ | Portal URL |
-| `VAULT_URL` | ✅ | Vault URL |
-| `ATLANTIS_URL` | ❌ | Digger URL (可选) |

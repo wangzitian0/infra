@@ -1,78 +1,52 @@
 # Bootstrap 网络层 SSOT
 
-> [!NOTE]
-> 核心问题：DNS 如何配置？TLS 证书如何颁发？Cloudflare 代理规则？
+> **SSOT Key**: `bootstrap.network`
+> **核心定义**: 定义全局 DNS 解析规则、TLS 证书颁发机制以及 Ingress 流量入口。
 
 ---
 
-## 网络架构概览
+## 1. 真理来源 (The Source)
 
-基础设施遵循 [AGENTS.md](../../AGENTS.md) 的 4 层设计 (L1-L4)。本层负责核心 DNS 解析、TLS 证书自动化及 Ingress 路由基础。
+> **原则**：网络层负责流量的“寻址”和“加密”，是所有服务的入口。
 
-### 组件概览
+本话题的配置和状态由以下物理位置唯一确定：
 
-| 组件 | 职责 | 代码位置 |
-|------|------|----------|
-| **Cloudflare DNS** | 域名解析 | [3.dns_and_cert.tf](../../bootstrap/3.dns_and_cert.tf) |
-| **cert-manager** | TLS 证书 (Let's Encrypt) | [3.dns_and_cert.tf](../../bootstrap/3.dns_and_cert.tf) |
-| **Traefik Ingress** | K3s 默认 Ingress 控制器 | K3s 内置 |
+| 维度 | 物理位置 (SSOT) | 说明 |
+|------|----------------|------|
+| **DNS 记录** | [`bootstrap/3.dns_and_cert.tf`](../../bootstrap/3.dns_and_cert.tf) | Cloudflare 记录定义 |
+| **TLS 证书** | [`bootstrap/3.dns_and_cert.tf`](../../bootstrap/3.dns_and_cert.tf) | cert-manager ClusterIssuer |
+| **Ingress 规则** | 各层 `ingress.tf` | 具体的路由规则分散在各应用定义中 |
 
+### Code as SSOT 索引
 
----
-
-## DNS 配置
-
-### Cloudflare 记录类型
-
-| 模式 | 代理 | 用途 | 示例 |
-|------|------|------|------|
-| `<service>.<internal_domain>` | ✅ Orange (443) | 内部平台 | `digger.zitian.party` |
-| `k3s.<internal_domain>` | ❌ Grey (DNS-only) | K3s API | `k3s.zitian.party:6443` |
-| `<base_domain>` | ✅ Orange | 生产应用 | `truealpha.club` |
-| `x-staging.<base_domain>` | ✅ Orange | Staging 应用 | `x-staging.truealpha.club` |
-
-### 变量
-
-| 变量 | 用途 | 示例 |
-|------|------|------|
-| `internal_domain` | 内部平台域名 | `zitian.party` |
-| `base_domain` | 业务应用域名 | `truealpha.club` |
+- **ClusterIssuer 定义**：参见 [`bootstrap/3.dns_and_cert.tf`](../../bootstrap/3.dns_and_cert.tf) (搜索 `ClusterIssuer`)
+- **Digger 入口**：参见 [`bootstrap/2.digger.tf`](../../bootstrap/2.digger.tf)
 
 ---
 
-## TLS 证书
+## 2. 架构模型
 
-### cert-manager 配置
-
-使用 Let's Encrypt 自动签发：
-
-```yaml
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: admin@example.com
-    privateKeySecretRef:
-      name: letsencrypt-prod
-    solvers:
-    - http01:
-        ingress:
-          class: traefik
+```mermaid
+flowchart TB
+    Internet --> CF[Cloudflare Proxy]
+    Internet --> DNS_Only[Cloudflare DNS Only]
+    
+    CF -->|HTTPS/443| Ingress[Traefik Ingress]
+    DNS_Only -->|TCP/6443| K3s_API[K3s API Server]
+    
+    Ingress --> Digger
+    Ingress --> Vault
+    Ingress --> Apps
 ```
 
-### Ingress 使用
+### 关键决策 (Architecture Decision)
 
-```yaml
-annotations:
-  cert-manager.io/cluster-issuer: "letsencrypt-prod"
-```
+- **Cloudflare 模式**: 
+    - **Orange Cloud (Proxy)**: 默认用于 Web 服务 (443)，提供 DDoS 保护和 CDN。
+    - **Grey Cloud (DNS Only)**: 必须用于非 HTTP 端口服务 (如 K3s API 6443)，因为 Cloudflare 免费版不代理这些端口。
+- **证书管理**: 使用 `cert-manager` + Let's Encrypt。避免手动管理证书过期。
 
----
-
-## 服务域名映射
+### 域名映射 (Domain Mapping)
 
 | 服务 | 域名 | 层级 | Ingress |
 |------|------|------|---------|
@@ -84,20 +58,60 @@ annotations:
 
 ---
 
-## 安全加固
+## 3. 设计约束 (Dos & Don'ts)
 
-### Cloudflare 安全设置
+### ✅ 推荐模式 (Whitelist)
 
-- **SSL/TLS**: Full (strict)
+- **模式 A**: 内部管理服务使用 `internal_domain` (`zitian.party`)。
+- **模式 B**: 业务应用使用 `base_domain` (`truealpha.club`) 或其子域。
+- **模式 C**: 所有 HTTP 服务 **必须** 启用 TLS (Redirect Scheme: HTTPS)。
+
+### ⛔ 禁止模式 (Blacklist)
+
+- **反模式 A**: **禁止** K3s API (`k3s.xxx`) 开启 Cloudflare Proxy，会导致 kubectl 无法连接。
+- **反模式 B**: **严禁** 在 Ingress 中硬编码证书 Secret 名称，应统一使用 `cert-manager.io/cluster-issuer` 注解。
+
+### 安全设置 (Security Hardening)
+
+- **Cloudflare SSL/TLS**: Full (strict)
 - **Always Use HTTPS**: On
 - **Minimum TLS Version**: 1.2
 
 ---
 
-## 相关文件
+## 4. 标准操作程序 (Playbooks)
 
-- DNS 配置: [`bootstrap/3.dns_and_cert.tf`](../../bootstrap/3.dns_and_cert.tf)
-- Digger Ingress: [`bootstrap/2.digger.tf`](../../bootstrap/2.digger.tf)
+### SOP-001: 新增 DNS 记录
+
+- **触发条件**: 部署新应用
+- **步骤**:
+    1. 在 `bootstrap/3.dns_and_cert.tf` 中添加 `cloudflare_record` 资源。
+    2. 提交 PR 并合并 (Apply L1)。
+    3. 验证解析: `dig +short myapp.example.com`
+
+### SOP-002: 证书排错
+
+- **触发条件**: 浏览器提示证书过期 / 访问不安全
+- **步骤**:
+    1. 检查 Certificate 资源: `kubectl get certificate -A`
+    2. 检查 Challenge 状态: `kubectl get challeng -A`
+    3. 查看 cert-manager 日志: `kubectl logs -n cert-manager -l app=cert-manager`
+
+---
+
+## 5. 验证与测试 (The Proof)
+
+本文档描述的行为由以下测试用例守护：
+
+| 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
+|----------|-----------------------|--------|
+| **DNS 解析验证** | [`test_network.py`](../../e2e_regressions/tests/bootstrap/network_layer/test_network.py) | ✅ Critical |
+| **Ingress 路由验证** | [`test_ingress.py`](../../e2e_regressions/tests/bootstrap/network_layer/test_ingress.py) | ✅ Critical |
+
+**如何运行验证**:
+```bash
+pytest e2e_regressions/tests/bootstrap/network_layer/ -v
+```
 
 ---
 

@@ -23,68 +23,65 @@
 
 ## Core - 核心 (必读)
 
-| 文件 | 核心问题 | 关键内容 |
+| 文件 | SSOT Key | 关键内容 |
 |------|----------|----------|
-| [core.md](./core.md) | 架构 + 目录 + 环境 + 变量 + 网络 | 三层模型、拓扑依赖、Namespace、域名规则 |
+| [core.md](./core.md) | `core` | 架构 + 目录 + 环境 + 变量 + 网络 |
 
 ---
 
 ## Bootstrap - 引导层
 
-| 文件 | 核心问题 | 关键内容 |
+| 文件 | SSOT Key | 关键内容 |
 |------|----------|----------|
-| [bootstrap.compute.md](./bootstrap.compute.md) | 计算层 | K3s 集群、Atlantis CI |
-| [bootstrap.storage.md](./bootstrap.storage.md) | 存储层 | Platform PG、StorageClass、PVC |
-| [bootstrap.network.md](./bootstrap.network.md) | 网络层 | DNS、Cloudflare、TLS 证书 |
+| [bootstrap.compute.md](./bootstrap.compute.md) | `bootstrap.compute` | K3s 集群、Digger Orchestrator (L1 CI) |
+| [bootstrap.storage.md](./bootstrap.storage.md) | `bootstrap.storage` | Platform PG、StorageClass、PVC |
+| [bootstrap.network.md](./bootstrap.network.md) | `bootstrap.network` | Cloudflare DNS、TLS 证书、Ingress |
 
 ---
 
 ## Platform - 平台层
 
-| 文件 | 核心问题 | 关键内容 |
+| 文件 | SSOT Key | 关键内容 |
 |------|----------|----------|
-| [platform.auth.md](./platform.auth.md) | 统一认证 | Casdoor SSO、Vault RBAC |
-| [platform.secrets.md](./platform.secrets.md) | 密钥管理 | 四层模型、1Password 清单 |
-| [platform.ai.md](./platform.ai.md) | AI 接入 | OpenRouter、变量/密钥 |
+| [platform.auth.md](./platform.auth.md) | `platform.auth` | Casdoor SSO、Vault RBAC |
+| [platform.secrets.md](./platform.secrets.md) | `platform.secrets` | 密钥管理、四层模型、1Password |
+| [platform.ai.md](./platform.ai.md) | `platform.ai` | AI 接入、OpenRouter |
 
 ---
 
 ## Data - 数据层
 
-| 文件 | 核心问题 | 关键内容 |
+| 文件 | SSOT Key | 关键内容 |
 |------|----------|----------|
-| [db.overview.md](./db.overview.md) | 数据库总览 + Quick Start | 各库快速接入、Vault 机制概述 |
-| [db.vault-integration.md](./db.vault-integration.md) | Vault 接入详解 | Per-App Token、新应用接入流程、故障排查 |
-| [db.platform_pg.md](./db.platform_pg.md) | Platform PG | Vault/Casdoor 后端 |
-| [db.business_pg.md](./db.business_pg.md) | Business PG | 业务应用数据库 |
-| [db.redis.md](./db.redis.md) | Redis | 缓存、消息队列 |
-| [db.clickhouse.md](./db.clickhouse.md) | ClickHouse | OLAP、SigNoz |
-| [db.arangodb.md](./db.arangodb.md) | ArangoDB | 图数据库 |
-
-> DB SSOT Key 约定：`db.platform_pg` / `db.business_pg` / `db.redis` / `db.clickhouse` / `db.arangodb`（跨文档引用时统一使用）。
+| [db.overview.md](./db.overview.md) | `db.overview` | 数据库总览、Vault 机制 |
+| [db.vault-integration.md](./db.vault-integration.md) | `db.vault` | Per-App Token、故障排查 |
+| [db.platform_pg.md](./db.platform_pg.md) | `db.platform_pg` | Platform PG (L1) |
+| [db.business_pg.md](./db.business_pg.md) | `db.business_pg` | Business PG (L3) |
+| [db.redis.md](./db.redis.md) | `db.redis` | Redis 缓存 |
+| [db.clickhouse.md](./db.clickhouse.md) | `db.clickhouse` | ClickHouse OLAP |
+| [db.arangodb.md](./db.arangodb.md) | `db.arangodb` | ArangoDB Graph |
 
 ---
 
 ## Ops - 运维
 
-| 文件 | 核心问题 | 关键内容 |
+| 文件 | SSOT Key | 关键内容 |
 |------|----------|----------|
-| [ops.pipeline.md](./ops.pipeline.md) | 流程汇总 | PR CI + Atlantis (Platform/Data) + deploy-bootstrap (手动) |
-| [ops.e2e-regressions.md](./ops.e2e-regressions.md) | 部署验证 | E2E 自动化测试、烟雾测试、CI 架构讨论 |
-| [ops.recovery.md](./ops.recovery.md) | 故障恢复 | Secrets 恢复、Vault Token、State Lock |
-| [ops.storage.md](./ops.storage.md) | 存储与备份 | /data、StorageClass、R2 备份与同步 |
-| [ops.observability.md](./ops.observability.md) | 日志与监控 | SigNoz、OTel、数据保留 |
-| [ops.alerting.md](./ops.alerting.md) | 告警 | 规则分级、通知通道、值班策略 |
+| [ops.pipeline.md](./ops.pipeline.md) | `ops.pipeline` | CI/CD 流程、GitOps |
+| [ops.e2e-regressions.md](./ops.e2e-regressions.md) | `ops.e2e` | 部署验证、E2E 测试 |
+| [ops.recovery.md](./ops.recovery.md) | `ops.recovery` | 故障恢复、Vault Unseal |
+| [ops.storage.md](./ops.storage.md) | `ops.storage` | 备份策略、R2 同步 |
+| [ops.observability.md](./ops.observability.md) | `ops.obs` | SigNoz、日志、监控 |
+| [ops.alerting.md](./ops.alerting.md) | `ops.alerting` | 告警规则、值班 |
 
 ---
 
-## 维护约定（SSOT → Wikipedia 风格）
+## 维护约定 (Template)
 
-- **固定格式**：每个 SSOT 页面最后包含 `Used by（反向链接）`，用于双向链接（类似 "What links here"）。
-- **避免漂移**：一处信息 SSOT 化后，其他文档只保留摘要并链接到该 SSOT 页面。
-- **稳定链接**：如需调整路径，优先保留旧路径的入口页（redirect），避免外部引用 404。
-- **连接信息**：DB 连接参数/示例尽量内联在各 `db.*.md` 页面，避免单独的“连接汇总页”造成重复维护与 404 风险。
-- **TODO 标注**：未完成事项使用 `> TODO(module): 描述` 格式标注。
+请参考 [**SSOT 模板**](./template.md) 进行文档编写。
+
+- **Used by**：由 MkDocs 自动维护。
+- **引用**：使用标准 Markdown 链接指向 SSOT 文件的特定章节或 Anchor。
 
 ---
 
@@ -92,7 +89,7 @@
 
 ```mermaid
 flowchart TB
-    B["Bootstrap<br/>Trust Anchor<br/>• K3s Cluster<br/>• Platform PostgreSQL<br/>• Atlantis CI<br/>密钥来源：GitHub Secrets"]
+    B["Bootstrap<br/>Trust Anchor<br/>• K3s Cluster<br/>• Platform PostgreSQL<br/>• Digger CI<br/>密钥来源：GitHub Secrets"]
     P["Platform<br/>(Vault, SSO, PaaS, Obs)<br/>依赖: Bootstrap"]
     D["Data<br/>(业务数据库)<br/>依赖: Platform (Vault)"]
 
@@ -112,14 +109,4 @@ flowchart TB
 
 ---
 
-*Last updated: 2025-12-22 (Updated Auth SSOT with responsibility model)*
-
-## Used by
-
-- [docs/README.md](../README.md)
-- [docs/onboarding/](../onboarding/) - 各场景指南引用 SSOT 技术细节
-- [e2e_regressions/](../../e2e_regressions/) - 自动化测试框架
-- [.github/workflows/](../../.github/workflows/) - CI/CD 工作流
-
----
-
+*Last updated: 2025-12-25*
