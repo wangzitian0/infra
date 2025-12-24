@@ -1,0 +1,36 @@
+name: Digger
+
+on:
+  pull_request:
+    branches: [main]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+concurrency:
+  group: digger-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  digger:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+          
+      - name: Digger
+        uses: diggerhq/digger@v0.6.80
+        with:
+          setup-terragrunt: true
+          terragrunt-version: 0.68.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
