@@ -100,8 +100,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
-          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
+          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
 
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
