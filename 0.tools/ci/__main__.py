@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from .commands import plan, apply, verify, health, parse, init
+from .commands import plan, apply, verify, health, parse, init, update
 
 
 def main():
@@ -62,6 +62,12 @@ def main():
         "--pr", type=int, required=True, help="PR number"
     )
 
+    # update (dashboard status update)
+    update_parser = subparsers.add_parser("update", help="Update dashboard status")
+    update_parser.add_argument("--pr", type=int, required=True, help="PR number")
+    update_parser.add_argument("--stage", required=True, help="Stage key")
+    update_parser.add_argument("--status", required=True, help="Status (success, failure, etc)")
+    update_parser.add_argument("--link", help="Link to details")
     args = parser.parse_args()
 
     # Dispatch to command handler
@@ -72,6 +78,7 @@ def main():
         "health": health.run,
         "parse": parse.run,
         "init": init.run,
+        "update": update.run,
     }
 
     handler = handlers.get(args.command)

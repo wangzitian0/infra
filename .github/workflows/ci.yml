@@ -30,6 +30,7 @@ permissions:
   pull-requests: write
   issues: write
   id-token: write
+  actions: write
 
 jobs:
   # =============================================================
@@ -90,6 +91,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
         with:
@@ -103,6 +108,38 @@ jobs:
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Dashboard
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/0.tools
+        run: |
+          # Determine PR Number
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            PR="${{ github.event.pull_request.number }}"
+          elif [[ "${{ github.event_name }}" == "issue_comment" ]]; then
+            PR="${{ github.event.issue.number }}"
+          else
+            echo "Skipping dashboard update for event: ${{ github.event_name }}"
+            exit 0
+          fi
+
+          # Determine Stage (default to plan)
+          STAGE="plan"
+          COMMENT="${{ github.event.comment.body }}"
+          if [[ "$COMMENT" == *"/apply"* ]] || [[ "$COMMENT" == *"digger apply"* ]]; then
+            STAGE="apply"
+          fi
+          
+          STATUS="${{ job.status }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          # Setup Python (Digger image might not have python? Digger runs on ubuntu-latest)
+          # We need to ensure python is setup. Steps above ran actions/setup-python?
+          # Wait, digger job does NOT run setup-python. I need to add it!
+          
+          python -m ci update --pr "$PR" --stage "$STAGE" --status "$STATUS" --link "$RUN_URL"
 
   # =============================================================
   # Custom: handles /health, /e2e, /review, /help

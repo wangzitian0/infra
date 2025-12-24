@@ -49,6 +49,11 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 env:
   PORTAL_URL: https://home.zitian.party
   SSO_URL: https://sso.zitian.party
@@ -157,54 +162,16 @@ jobs:
           app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
           private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
 
-      - name: Update commit status and dashboard
+      - name: Update Dashboard (CI)
         if: always() && (inputs.pr_number || github.event.pull_request.number)
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ steps.app_token.outputs.token }}
-          script: |
-            const prNumber = parseInt('${{ inputs.pr_number }}' || context.payload.pull_request?.number);
-            const sha = ('${{ inputs.commit_sha }}' || context.sha).substring(0, 7);
-            const status = '${{ job.status }}' === 'success' ? 'success' : 'failure';
-            const icon = status === 'success' ? '✅' : '❌';
-            const timestamp = new Date().toISOString().slice(11, 16) + ' UTC';
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            const MARKER = `<!-- infra-flash-commit:${sha} -->`;
-
-            // 1. Update Commit Status (Check List)
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: '${{ inputs.commit_sha }}' || context.sha,
-              state: status,
-              context: 'e2e/smoke-test',
-              description: `E2E tests ${status}`,
-              target_url: runUrl
-            });
-
-            // 2. Update Dashboard Comment
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: prNumber, per_page: 100
-            });
-            const flashComment = comments.find(c => c.body.includes(MARKER));
-            if (flashComment) {
-              let body = flashComment.body;
-              body = body.replace(
-                /\| E2E Tests \| .* \| .* \| .* \|/,
-                `| E2E Tests | ${icon} | [View](${runUrl}) | ${timestamp} |`
-              );
-              
-              // If success and was waiting, update next step
-              if (status === 'success' && body.includes('Ready to merge')) {
-                // keep it
-              }
-
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner, repo: context.repo.repo,
-                comment_id: flashComment.id, body: body
-              });
-            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/0.tools
+        run: |
+          PR="${{ inputs.pr_number || github.event.pull_request.number }}"
+          STATUS="${{ job.status }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          python -m ci update --pr "$PR" --stage e2e --status "$STATUS" --link "$RUN_URL"
 
       - name: Post result summary
         if: always()
