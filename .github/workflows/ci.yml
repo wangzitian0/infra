@@ -192,6 +192,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ATLANTIS_GH_APP_ID }}
+          private-key: ${{ secrets.ATLANTIS_GH_APP_KEY }}
+      
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -208,12 +215,12 @@ jobs:
           terragrunt-version: 0.68.4
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Update Dashboard
         if: always()
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           PYTHONPATH: ${{ github.workspace }}/0.tools
         run: |
           # Determine PR Number
