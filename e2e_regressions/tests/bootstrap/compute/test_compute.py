@@ -1,7 +1,7 @@
 """
 Bootstrap Compute Layer E2E Tests.
 
-Tests K3s cluster health, Atlantis CI, and Traefik ingress.
+Tests K3s cluster health and Traefik ingress.
 """
 import pytest
 import httpx

@@ -2,14 +2,14 @@
 
 > **定位**：部署后的自动化验证系统
 > **存储**：`e2e_regressions/` (项目根目录)
-> **触发**：Atlantis apply 成功后
+> **触发**：Digger apply 成功后
 
 ## 架构
 
 ```
 部署流程:
-├── Atlantis plan ✓
-├── Atlantis apply ✓
+├── Digger plan ✓
+├── Digger apply ✓
 └── E2E 回归测试 ← 仅当 apply 成功时运行
     ├── 烟雾测试 (1-2 min)
     ├── 功能测试 (10-20 min)
@@ -144,7 +144,7 @@ on:
 ### 问题：当前 CI 和命令体系脱节
 
 **现状**：
-- Atlantis apply 成功 ≠ 部署成功
+- Digger apply 成功 ≠ 部署成功
 - E2E 测试依赖手动触发或定时任务
 - 没有 feedback 机制告诉用户"部署实际成功了吗"
 
@@ -153,7 +153,7 @@ on:
 #### 1. 定义"部署完全成功"的条件
 
 ```
-Atlantis apply ✓ (基础设施同步)
+Digger apply ✓ (基础设施同步)
     ↓
 等待资源就绪 (Kubernetes 健康检查)
     ↓

@@ -12,7 +12,7 @@
 
 | 层级 | 目录 | 测试数 | 覆盖内容 |
 |------|------|--------|----------|
-| **计算** | `compute/` | 11 | K3s, Atlantis, Traefik |
+| **计算** | `compute/` | 11 | K3s, Digger, Traefik |
 | **存储** | `storage_layer/` | 8 | StorageClass, Platform PG |
 | **网络** | `network_layer/` | 10 | DNS, TLS Certificates |
 
@@ -40,7 +40,7 @@ uv run pytest tests/bootstrap/ -m smoke -v
 | 组件 | 测试 | 验证 |
 |------|------|------|
 | K3s | `test_k3s_api_accessible` | API 可达 |
-| Atlantis | `test_atlantis_config_exists` | 配置存在 |
+| Digger | `test_atlantis_config_exists` | 配置存在 |
 | Traefik | `test_traefik_routes_traffic` | 路由功能 |
 | StorageClass | `test_storage_class_local_path_retain_defined` | 定义存在 |
 | Platform PG | `test_platform_pg_config_exists` | 配置存在 |

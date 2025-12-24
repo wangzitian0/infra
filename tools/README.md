@@ -12,79 +12,52 @@ This project supports unified infrastructure commands directly from PR comments.
 
 Utility scripts for infrastructure management, CI/CD, and secret synchronization.
 
-## Secret Loader
+## 📂 Tools Layout
 
-**File**: `ci_load_secrets.py`
-
-The central engine for CI variable injection. It parses the GitHub `secrets` context and maps them to Terraform variables.
-
-### Features
-- **Clean Values**: Automatically strips surrounding quotes and whitespace from 1Password exports.
-- **PEM Handling**: Correctly handles multiline RSA private keys for SSH and GitHub Apps.
-- **Derived Logic**: Automatically推导 derived variables（如 `TF_VAR_vault_address`）。
-- **Feature Flags**: Loads boolean toggles (e.g., `ENABLE_CASDOOR_OIDC`, `ENABLE_PORTAL_SSO_GATE`) into `TF_VAR_*` for CI applies.
-- **User Assignment**: Maps `GH_ACCOUNT` (GitHub email) to `TF_VAR_gh_account` for automatic Vault admin role assignment.
-
----
-
-## Integrity Check
-
-**File**: `check_integrity.py`
-
-A shift-left guard that ensures all variables defined in `.tf` files are correctly mapped in the Python Loader. This runs automatically in CI.
+- **`ci/`**: Python CI logic package
+- **`secrets/`**:
+    - `ci_load_secrets.py`: CI variable injection
+    - `sync_secrets.py`: 1Password <-> GitHub Sync
+- **`checks/`**:
+    - `check_integrity.py`: Variable definition validation
+    - `check_images.py`: Container image scanner
+    - `check-readme-coverage.sh`: Documentation coverage
+    - `preflight-check.sh`: Deploy safety checks
+- **`ops/`**:
+    - `data-import.sh`: L3 Resource import helper
+    - `migrate-state.sh`: Terraform state migration
 
 ---
 
-## Sync Secrets (Standardized)
+## Secret Loader (secrets/)
+**File**: `tools/secrets/ci_load_secrets.py`
+...
 
-**File**: `sync_secrets.py`
+## Integrity Check (checks/)
+**File**: `tools/checks/check_integrity.py`
+...
 
-The authoritative tool for syncing 1Password secrets to GitHub. It uses a predefined **Contract** to ensure consistency. It also performs local RSA key validation to prevent corrupted secrets from reaching CI.
+## Sync Secrets (secrets/)
+**File**: `tools/secrets/sync_secrets.py`
+...
 
----
+## Pre-flight Check (checks/)
+**File**: `tools/checks/preflight-check.sh`
+...
 
-## Pre-flight Check
-
-**File**: `preflight-check.sh`
-
-Run before `terraform apply` to catch common issues early (e.g., Helm URL validation).
-
----
-
-## L3 Import Script
-
-**File**: `data-import.sh`
-
-Shared script for importing existing L3 resources (namespace, Helm releases, secrets) into Terraform state. Eliminates code duplication between Atlantis CI and GitHub Actions deploy workflows.
-
-### Usage
+## L3 Import Script (ops/)
+**File**: `tools/ops/data-import.sh`
+...
 ```bash
-./tools/data-import.sh <namespace> [terragrunt_command]
+./tools/ops/data-import.sh <namespace> [terragrunt_command]
 ```
-
 ### Examples
 ```bash
-# Atlantis (atlantis.yaml)
-./tools/data-import.sh "data-staging" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
-./tools/data-import.sh "data-prod" "TG_TF_PATH=/atlantis-data/bin/terraform1.11.0 terragrunt"
+# Digger / CI
+./tools/ops/data-import.sh "data-staging" "terragrunt"
+./tools/ops/data-import.sh "data-prod" "terragrunt"
 ```
 
-### Resources Imported
-- `kubernetes_namespace.data`
-- `helm_release.{redis_operator,clickhouse_operator,arangodb_operator}`
-- `kubernetes_secret.arangodb_jwt`
-
----
-
-## README Coverage Check
-
-**File**: `check-readme-coverage.sh`
-
-CI guard that ensures READMEs are updated when code in a directory changes. Outputs:
-- ✅ READMEs updated (directories that have README changes)
-- ❌ READMEs need update (directories missing README changes)
-
-Threshold: 60% of changed directories must have corresponding README updates.
-
----
-*Last updated: 2025-12-24 (Updated Data import script references and resources)*
+## README Coverage Check (checks/)
+**File**: `tools/checks/check-readme-coverage.sh`
+...

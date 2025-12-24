@@ -8,8 +8,6 @@ CommandType = Literal["plan", "apply", "health", "e2e", "review", "help", "unkno
 
 # Compatibility aliases for old commands
 ALIASES = {
-    "atlantis plan": "/plan",
-    "atlantis apply": "/apply",
     "infra dig": "/health",
     "infra e2e": "/e2e",
     "@claude": "/review",

@@ -19,7 +19,7 @@ CI_MAPPING = {}
 try:
     import re
     infra_root = Path(__file__).parent.parent
-    loader_path = infra_root / "tools" / "ci_load_secrets.py"
+    loader_path = infra_root / "tools" / "secrets" / "ci_load_secrets.py"
     if loader_path.exists():
         content = loader_path.read_text()
         # Simple regex to extract MAPPING dict entries (matches "KEY": "VALUE", or 'KEY': 'VALUE')

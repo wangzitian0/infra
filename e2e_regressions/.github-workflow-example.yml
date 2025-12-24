@@ -6,7 +6,7 @@
 name: E2E Regression Tests
 
 on:
-  # 触发时机：merge 到 main 后（此时 Atlantis apply 已完成）
+  # 触发时机：merge 到 main 后（此时 Digger apply 已完成）
   push:
     branches: [main]
     paths:
@@ -28,7 +28,7 @@ env:
 
 jobs:
   # 🟨 Layer 2: Readiness (资源就绪检查)
-  # 触发时机：merge 到 main 时，此时 Atlantis apply 已完成
+  # 触发时机：merge 到 main 时，此时 Digger apply 已完成
   post-apply-readiness:
     name: Wait for Resources Ready
     runs-on: ubuntu-latest
