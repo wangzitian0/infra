@@ -83,5 +83,8 @@ The CI loader (`tools/secrets/ci_load_secrets.py`) ensures the following are pas
 ### 2025-12-25: Bootstrap Health Checks Moved to CI
 - **E2E**: DNS/HTTPS checks for Digger moved out of Terraform and into post-apply CI.
 
+### 2025-12-25: Bootstrap Drift Adopt (Existing Resources)
+- **Import**: CI auto-imports existing Helm releases and secrets before apply.
+
 ---
 *Last updated: 2025-12-25*
