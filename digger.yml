@@ -26,6 +26,9 @@ projects:
 # Auto-merge when all checks pass
 auto_merge: false
 
+# Post-merge behavior: apply changes when merged to default branch
+on_commit_to_default: apply
+
 # Comment options
 comment_render_mode: basic
 
