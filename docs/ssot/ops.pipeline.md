@@ -57,6 +57,7 @@ flowchart TD
 
 - **模式 A**: 日常变更**必须**通过 PR 评论 `/plan` 和 `/apply` 触发。
 - **模式 B**: 涉及多层变更时，应等待下层 Apply 成功后再触发上层 Plan。
+- **模式 C**: 可选使用 `/review` 或 `@copilot` 触发 AI code review（手动触发）。
 
 ### ⛔ 禁止模式 (Blacklist)
 
@@ -91,6 +92,19 @@ flowchart TD
     1. `git revert <commit-id>`。
     2. 提交新 PR。
     3. 快速执行 `/apply` (可跳过详细 Plan 审查)。
+
+### SOP-004: AI Code Review (可选)
+
+- **触发条件**: 需要 AI 辅助审查代码变更
+- **步骤**:
+    1. 在 PR 评论中输入 `@copilot please review` 或 `/review`。
+    2. 等待 GitHub Copilot 分析并回复。
+    3. 根据建议修改代码或标记为已阅。
+- **注意**:
+    - **手动触发**: 不会自动运行，需主动请求。
+    - **权限要求**: 需要 Copilot 订阅或组织授权。
+    - **Dashboard**: Copilot 原生 review 不会更新 PR Dashboard。
+    - **详细指南**: 参见 [`docs/project/active/ai_code_review.md`](../project/active/ai_code_review.md)。
 
 ---
 
