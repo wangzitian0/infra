@@ -246,22 +246,87 @@ jobs:
   # Action 6: e2e
   # ================================================================
   e2e:
-    name: E2E Tests
+    name: E2E Tests (post-merge)
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request &&
-       contains(github.event.comment.body, '/e2e'))
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Depends on bootstrap-apply and apply (Digger handles both on push)
     needs: [bootstrap-apply, apply]
     runs-on: ubuntu-latest
     steps:
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
+          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
+
+      - name: Resolve E2E Dispatch Inputs
+        id: dispatch
+        run: |
+          set -euo pipefail
+          echo "pr_number=" >> "$GITHUB_OUTPUT"
+          echo "scope=all" >> "$GITHUB_OUTPUT"
+          echo "head_ref=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          echo "head_sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
       - name: Trigger E2E Workflow
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           echo "🧪 Triggering E2E tests..."
-          gh workflow run e2e-tests.yml || true
+          gh workflow run e2e-tests.yml \
+            --ref "${{ steps.dispatch.outputs.head_ref }}" \
+            -f test_scope="${{ steps.dispatch.outputs.scope }}" \
+            -f pr_number="${{ steps.dispatch.outputs.pr_number }}" \
+            -f commit_sha="${{ steps.dispatch.outputs.head_sha }}"
+          echo "✅ E2E triggered"
+
+  e2e-command:
+    name: E2E Tests (/e2e)
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/e2e')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
+          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
+
+      - name: Resolve E2E Dispatch Inputs
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          PR_NUMBER="${{ github.event.issue.number }}"
+          HEAD_REF="$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.ref')"
+          HEAD_SHA="$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.sha')"
+          COMMENT_BODY="${{ github.event.comment.body }}"
+          if echo "$COMMENT_BODY" | grep -qiE "/e2e[[:space:]]+full"; then
+            SCOPE="all"
+          else
+            SCOPE="smoke"
+          fi
+
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "scope=$SCOPE" >> "$GITHUB_OUTPUT"
+          echo "head_ref=$HEAD_REF" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger E2E Workflow
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "🧪 Triggering E2E tests..."
+          gh workflow run e2e-tests.yml \
+            --ref "${{ steps.dispatch.outputs.head_ref }}" \
+            -f test_scope="${{ steps.dispatch.outputs.scope }}" \
+            -f pr_number="${{ steps.dispatch.outputs.pr_number }}" \
+            -f commit_sha="${{ steps.dispatch.outputs.head_sha }}"
           echo "✅ E2E triggered"
 
   # ================================================================
