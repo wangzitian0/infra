@@ -60,9 +60,13 @@ def main():
         "--pr", type=int, help="Merged PR number for result posting"
     )
 
-    # parse (internal: parse PR comment)
-    parse_parser = subparsers.add_parser("parse", help="Parse PR comment")
-    parse_parser.add_argument("comment", help="Comment body to parse")
+    # Parse command
+    parser_parse = subparsers.add_parser("parse", help="Parse GitHub event")
+    parser_parse.set_defaults(func=lambda args: parse.run(args))
+
+    # Run command
+    parser_run = subparsers.add_parser("run", help="Unified CI run")
+    parser_run.set_defaults(func=lambda args: run.run(args))
 
     # init (dashboard initialization)
     init_parser = subparsers.add_parser("init", help="Initialize dashboard")
