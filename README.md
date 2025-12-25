@@ -20,16 +20,37 @@
 
 ## 🤖 自动化工作流 (CI/CD)
 
-基于 **Digger Orchestrator** 与 **infra-flash 看板**。详见 [**Pipeline SSOT**](./docs/ssot/ops.pipeline.md)。
+基于 **双轨 CI 架构**：自动 CI checks + 手动 Digger 命令。详见 [**Pipeline SSOT**](./docs/ssot/ops.pipeline.md)。
 
-| Workflow | 职责 | 触发方式 |
-| :--- | :--- | :--- |
-| `ci.yml` | 统一入口：plan/apply/verify + 看板更新 | 合并后自动回报 |
-| `bootstrap-deploy.yml` | L1 Bootstrap 计划/部署 + post-merge drift 追平 | 保持 L1 与 IaC 一致 |
-| `claude.yml` | **AI 自动化审计** | 通过评论触发审计 |
-| `e2e-tests.yml` | E2E 回归测试 | 合并后健康检查 |
-| `docs-site.yml` | 文档站构建部署 | 文档可视化 |
-| `readme-coverage.yml` | README 覆盖率检查 | 防止文档漂移 |
+### 快速命令
+
+| 命令 | 触发方式 | 用途 |
+|:-----|:---------|:-----|
+| 自动 plan | PR 创建 | 自动运行 terraform plan (CI check) |
+| 自动 apply | PR 合并到 main | 自动部署所有变更 (CI check) |
+| `/plan` | PR 评论 | 手动触发 plan (Digger 编排) |
+| `/apply` | PR 评论 | 手动触发 apply (Digger 编排) |
+| `digger plan -p platform` | PR 评论 | Plan 指定项目 |
+| `digger apply -p platform` | PR 评论 | Apply 指定项目 |
+| `/bootstrap plan\|apply` | PR 评论 | L1 层管理 |
+| `/e2e` | PR 评论 | 触发 E2E 测试 |
+| `/help` | PR 评论 | 显示帮助 |
+
+### 工作流程
+
+**标准 PR 流程**：
+```
+1. 创建 PR → 自动 terraform-plan (CI check)
+2. Review plan 输出
+3. (可选) /apply 提前测试某个项目
+4. Approve & Merge → 自动 terraform-apply
+```
+
+**紧急单项目修复**：
+```
+评论: digger apply -p platform
+→ 只 apply 指定项目，不影响其他
+```
 
 ---
 *Last updated: 2025-12-25*

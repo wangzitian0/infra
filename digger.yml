@@ -1,5 +1,10 @@
-# Digger Configuration
-# Handles terraform plan/apply via GitHub Actions
+# Digger Configuration (OSS Mode)
+# Purpose: Manual project-specific operations via PR comments
+# 
+# Architecture:
+# - Auto CI: Native terragrunt plan/apply (terraform-plan, terraform-apply jobs)
+# - Manual: Digger orchestration for selective operations
+# 
 # Reference: https://docs.digger.dev/
 
 # Projects to manage (Bootstrap excluded - uses dedicated workflow)
@@ -26,11 +31,13 @@ projects:
     include_patterns:
       - "**/*"
 
-# Auto-merge when all checks pass
+# Auto-merge: disabled (use manual /apply)
 auto_merge: false
 
-# Post-merge behavior: apply changes when merged to default branch
-on_commit_to_default: apply
+# Post-merge: handled by terraform-apply job (not Digger)
+# Note: Digger OSS doesn't support push events
+# Auto-apply after merge is done by terraform-apply job using GITHUB_TOKEN
+on_commit_to_default: noop
 
 # Comment options
 comment_render_mode: basic

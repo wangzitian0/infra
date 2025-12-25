@@ -1,90 +1,96 @@
 # Pipeline SSOT (运维流水线)
 
 > **SSOT Key**: `ops.pipeline`
-> **核心定义**: 基于 Digger 原生功能的简化 GitOps 工作流。
+> **核心定义**: 双轨 CI 架构 - 自动 CI checks + 手动 Digger 命令。
 
 ---
 
 ## 1. 真理来源 (The Source)
 
-> **原则**：依赖 Digger 原生能力，最小化自定义代码。
-
 本话题的配置和状态由以下物理位置唯一确定：
 
 | 维度 | 物理位置 (SSOT) | 说明 |
 |------|----------------|------|
-| **Workflow 设计** | [`.github/workflows/DESIGN.md`](../../.github/workflows/DESIGN.md) | 简化架构、Job 职责、命令路由 |
-| **CI 入口** | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 4 个独立 jobs，简单 if 条件 |
-| **Bootstrap 脚本** | [`tools/ci/bootstrap.py`](../../tools/ci/bootstrap.py) | L1 层管理（150 lines） |
-| **Digger 配置** | [`digger.yml`](../../digger.yml) | Projects 定义、drift detection |
-
-### 重大变更 (2025-12-25)
-
-**删除**：
-- Dashboard 系统 (dashboard.py, init.py, update.py, parse.py, run.py)
-- 复杂路由逻辑 (parse job → digger/pyci)
-
-**保留**：
-- 所有命令 (/plan, /apply, /bootstrap, /e2e, /help)
-- 用户体验完全一致
-
-**简化**：
-- 从 1609 lines → 291 lines (-82%)
-- 使用 Digger 原生评论
-- 简单 workflow if 条件
+| **CI 入口** | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 双轨 CI: terraform-plan/apply + digger |
+| **Bootstrap 脚本** | [`tools/ci/bootstrap.py`](../../tools/ci/bootstrap.py) | L1 层管理 |
+| **Digger 配置** | [`digger.yml`](../../digger.yml) | Projects 定义、OSS 配置 |
+| **测试防护** | [`tests/conftest.py`](../../tests/conftest.py) | Precondition checks |
 
 ---
 
-## 2. 架构模型
+## 2. 架构模型 (Dual-Track)
 
 ```mermaid
 flowchart TD
-    User((User)) -->|Comment /plan| PR[Pull Request]
-    PR -->|Webhook| GA[GitHub Actions]
+    PR[Pull Request] -->|自动| AutoPlan[terraform-plan]
+    AutoPlan -->|GITHUB_TOKEN| PlanExec[terragrunt plan]
+    PlanExec -->|infra-flash| Comment1[发布结果到 PR]
     
-    subgraph "Simplified CI"
-        GA -->|if /plan or /apply| Digger[Digger Job]
-        GA -->|if /bootstrap| Bootstrap[Bootstrap Job]
-        GA -->|if /e2e| E2E[E2E Job]
-        GA -->|if /help| Help[Help Job]
-    end
+    Merge[Merge to Main] -->|自动| AutoApply[terraform-apply]
+    AutoApply -->|GITHUB_TOKEN| ApplyExec[terragrunt apply]
     
-    Digger -->|Native Comment| PR
-    Bootstrap -->|Result Comment| PR
-    E2E -->|Trigger Workflow| Tests
-    Help -->|Help Comment| PR
+    User((User)) -->|/plan or /apply| Manual[Digger Job]
+    Manual -->|infra-flash| DiggerExec[Digger 编排]
+    DiggerExec -->|infra-flash| Comment2[发布结果到 PR]
 ```
 
 ### 关键决策 (Architecture Decision)
 
-- **Dashboard-First**:
-    - **每个 commit 一个 Dashboard**：通过 `<!-- infra-dashboard:{sha} -->` marker 标识
-    - **原地更新，不刷屏**：所有状态变更更新同一条评论
-    - **Everything is Linked**：每个状态都有 workflow run 链接
-- **分层执行**:
-    - **L1 Bootstrap**: 独立流程（`pyci` job），避免"自己部署自己"的死锁
-    - **L2-L4**: 统一由 Digger 编排（`digger` job），支持依赖图 (DAG)
+**为什么双轨？**
+- **自动 CI checks**: 使用 GITHUB_TOKEN，显示在 PR checks，可设为 required
+- **手动命令**: 使用 infra-flash App，支持 Digger 项目级控制和高级功能
+- **Digger OSS 限制**: 不支持 push 事件，必须用原生 terragrunt 实现自动 apply
+
+**Token 策略**:
+- **执行任务** (terraform/terragrunt) → `GITHUB_TOKEN`
+- **PR 交互** (评论/回复/label) → `infra-flash` App token
 
 ---
 
-## 3. 设计约束 (Dos & Don'ts)
+## 3. 事件与 Token 映射
+
+| Event | Job | 执行 | 交互 | CI Check |
+|-------|-----|------|------|----------|
+| `pull_request` | `terraform-plan` | `GITHUB_TOKEN` | `infra-flash` | ✅ |
+| `push` (main) | `terraform-apply` | `GITHUB_TOKEN` | - | ✅ |
+| `/plan` comment | `digger` | `infra-flash` | `infra-flash` | ❌ |
+| `/apply` comment | `digger` | `infra-flash` | `infra-flash` | ❌ |
+| `digger -p xxx` | `digger` | `infra-flash` | `infra-flash` | ❌ |
+| `/bootstrap` | `bootstrap` | `GITHUB_TOKEN` | `infra-flash` | ❌ |
+| `/e2e` | `e2e` | `GITHUB_TOKEN` | `infra-flash` | ❌ |
+
+### Token 选择逻辑
+
+```
+需要显示在 CI checks？
+  ├─ Yes → GITHUB_TOKEN 执行
+  │        infra-flash 发布结果
+  │        (terraform-plan, terraform-apply)
+  │
+  └─ No → infra-flash 全流程
+           (digger, bootstrap, e2e)
+```
+
+---
+
+## 4. 设计约束 (Dos & Don'ts)
 
 ### ✅ 推荐模式 (Whitelist)
 
-- **模式 A**: 日常变更**必须**通过 PR 评论 `/plan` 和 `/apply` 触发。
-- **模式 B**: 涉及多层变更时，应等待下层 Apply 成功后再触发上层 Plan。
-- **模式 C**: Dashboard 更新必须使用 `dashboard.save()` 或 `python -m ci update`。
-- **模式 D**: 可选使用 `/review` 或 `@copilot` 触发 AI code review（手动触发）。
+- **模式 A**: PR 创建后自动 plan，review 输出，merge 后自动 apply
+- **模式 B**: 需要单独 apply 某项目时，用 `digger apply -p <project>`
+- **模式 C**: Bootstrap 变更通过 `/bootstrap apply`
+- **模式 D**: 重大变更前先 `/e2e` 验证
 
 ### ⛔ 禁止模式 (Blacklist)
 
-- **反模式 A**: **禁止** 在本地执行 `terraform apply` 更新 L2+ 资源（会导致 State Lock 和审计丢失）。
-- **反模式 B**: **禁止** 绕过 CI 直接修改线上资源（Drift 产生源）。
-- **反模式 C**: **禁止** 创建新评论更新状态（应更新 Dashboard 评论）。
+- **反模式 A**: **禁止** 在本地执行 `terraform apply` 更新 L2+ 资源
+- **反模式 B**: **禁止** 绕过 CI 直接修改线上资源
+- **反模式 C**: **禁止** 直接 push 到 main (repository rule 保护)
 
 ---
 
-## 4. 标准操作程序 (Playbooks)
+## 5. 标准操作程序 (Playbooks)
 
 ### SOP-001: 部署变更 (Standard GitOps)
 
