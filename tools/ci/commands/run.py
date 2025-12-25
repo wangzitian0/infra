@@ -57,6 +57,15 @@ def parse_command(comment: str) -> tuple[Optional[str], list[str]]:
         layers = parts[idx + 1:] if idx >= 0 and idx + 1 < len(parts) else ["all"]
         return ("apply", layers)
     
+    if "/e2e" in comment:
+        return ("e2e", [])
+        
+    if "/review" in comment:
+        return ("review", [])
+        
+    if "/help" in comment:
+        return ("help", [])
+    
     return (None, [])
 
 
@@ -190,6 +199,41 @@ def run(args) -> int:
             elif command == "bootstrap-apply":
                 cmd_args = Args(action="apply", pr=pr_number)
                 exit_code = bootstrap.run(cmd_args)
+                
+            elif command == "e2e":
+                print("🔍 Triggering E2E tests...")
+                import subprocess
+                pr = gh.get_pr(pr_number)
+                if not pr.head_ref:
+                    print("❌ Could not determine PR branch")
+                    exit_code = 1
+                else:
+                    cmd = ["gh", "workflow", "run", "e2e-tests.yml", "--ref", pr.head_ref, "-f", f"pr_number={pr_number}"]
+                    res = subprocess.run(cmd, capture_output=True, text=True)
+                    if res.returncode == 0:
+                        gh.create_comment(pr_number, f"🧪 E2E tests triggered for branch `{pr.head_ref}`.")
+                    else:
+                        print(f"❌ Trigger failed: {res.stderr}")
+                        gh.create_comment(pr_number, f"❌ Failed to trigger E2E tests: {res.stderr}")
+                        exit_code = 1
+
+            elif command == "review":
+                print("🔍 UI Review triggered...")
+                # Placeholder for AI review logic
+                gh.create_comment(pr_number, "🔍 AI Review triggered (Placeholder).")
+
+            elif command == "help":
+                help_text = """## 📖 Available Commands
+| Command | Description |
+|:---|:---|
+| `/plan` | Run terraform plan (Digger) |
+| `/apply` | Run terraform apply (Digger) |
+| `/bootstrap plan` | Run bootstrap plan |
+| `/bootstrap apply` | Run bootstrap apply |
+| `/e2e` | Trigger E2E tests |
+| `/review` | Trigger AI Code Review |
+"""
+                gh.create_comment(pr_number, help_text)
             
         except Exception as e:
             print(f"❌ Command failed: {e}")
