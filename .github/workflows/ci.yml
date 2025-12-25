@@ -7,6 +7,18 @@ on:
     branches: [main]
   issue_comment:
     types: [created]
+  # Digger Orchestrator triggers via workflow_dispatch
+  workflow_dispatch:
+    inputs:
+      id:
+        description: 'Digger run id'
+        required: false
+      job:
+        description: 'Job name'
+        required: false
+      comment_id:
+        description: 'Comment id'
+        required: false
 
 permissions:
   contents: write
@@ -136,15 +148,54 @@ jobs:
           echo "✅ Bootstrap apply completed"
 
   # ================================================================
-  # Note: Digger Plan/Apply handled by Orchestrator
+  # Action 4: digger (plan/apply for L2-L4)
+  # Triggered by:
+  # - Orchestrator via workflow_dispatch (PR auto-plan, post-merge apply)
+  # - Manual /plan or /apply comment
   # ================================================================
-  # Platform Terraform (L2-L4) plan/apply is managed by:
-  # - digger-workflow.yml (triggered by Orchestrator via workflow_dispatch)
-  # - Orchestrator receives GitHub webhooks and coordinates runs
-  # See: digger.yml for project configuration
+  digger:
+    name: Digger
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       (contains(github.event.comment.body, '/plan') || 
+        contains(github.event.comment.body, '/apply')))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+      
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
+          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
+      
+      - name: Digger Run
+        uses: diggerhq/digger@v0.6.80
+        with:
+          setup-terragrunt: true
+          terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
+          # Self-hosted: no digger-hostname or digger-token needed
+        env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
 
   # ================================================================
-  # Action 4: e2e
+  # Action 5: e2e
   # ================================================================
   e2e:
     name: E2E Tests
@@ -187,16 +238,12 @@ jobs:
           | \`/check\` | Format & Validate (TF + Terragrunt) |
           | \`/bootstrap-plan\` | Plan Bootstrap layer (L1) |
           | \`/bootstrap-apply\` | Apply Bootstrap layer (L1) |
+          | \`/plan\` | Plan Platform layers (L2-L4) via Digger |
+          | \`/apply\` | Apply Platform layers (L2-L4) via Digger |
           | \`/e2e\` | Trigger E2E Tests |
           | \`/help\` | Show this message |
 
-          ### Digger Commands (via Orchestrator)
-          | Command | Description |
-          |:--------|:------------|
-          | \`digger plan\` | Plan Platform layers (L2-L4) |
-          | \`digger apply\` | Apply Platform layers (L2-L4) |
-
           ### Auto Triggers
-          - **PR open/update**: check, bootstrap-plan, digger plan
+          - **PR open/update**: check, bootstrap-plan, digger plan (via Orchestrator)
           - **Post-merge**: bootstrap-apply, digger apply (on_commit_to_default)
           "
