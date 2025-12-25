@@ -6,6 +6,7 @@ Tests StorageClass configuration and Platform PostgreSQL.
 import pytest
 import pathlib
 import os
+from conftest import TestConfig
 
 
 # =============================================================================
