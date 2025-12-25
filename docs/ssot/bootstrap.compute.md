@@ -52,6 +52,35 @@ sequenceDiagram
 - **Ingress Controller**: 使用 K3s 内置的 Traefik。
 - **K3s API**: 暴露在 `k3s.<internal_domain>:6443`，必须绕过 Cloudflare 代理 (Grey Cloud)，因为 Cloudflare 免费版不支持非标准端口代理。
 
+### Digger Orchestrator 自部署
+
+> **目标**: 实现 post-merge 自动 apply，统一 L2-L3 层 CI/CD 编排。
+
+```mermaid
+graph TD
+    GH[GitHub Webhook] -->|push/PR events| DO[Digger Orchestrator]
+    DO -->|Trigger workflow| GHA[GitHub Actions]
+    GHA -->|Execute TG| TG[Terragrunt]
+    DO -->|Read state| PG[(Platform PG)]
+    K8S[Traefik Ingress] -->|expose webhook| DO
+```
+
+**组件**:
+| 组件 | 位置 | 说明 |
+|------|------|------|
+| Digger Backend | `bootstrap/2.digger.tf` | Helm release |
+| PostgreSQL | Platform PG `digger` database | 复用，不独立部署 |
+| Webhook | `digger.<internal_domain>` | Traefik Ingress |
+| GitHub App | `infra-flash` | 复用现有 App |
+
+**配置要点** (`digger.yml`):
+```yaml
+workflows:
+  terragrunt:
+    workflow_configuration:
+      on_commit_to_default: [digger apply]  # Post-merge 自动 apply
+```
+
 ---
 
 ## 3. 设计约束 (Dos & Don'ts)

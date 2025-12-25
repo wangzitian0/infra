@@ -75,7 +75,27 @@ flowchart TB
 | Data | `data-staging`, `data-prod` | 数据服务 |
 | Apps | `apps-staging`, `apps-prod` | 业务应用 |
 
+### Service 命名规范
+
+> **原则**：统一后缀，便于多实例扩展。
+
+| 服务类型 | 后缀 | 示例 |
+|:---|:---|:---|
+| PostgreSQL (读写) | `-rw` | `platform-pg-rw`, `postgresql-rw` |
+| PostgreSQL (只读) | `-ro` | `platform-pg-ro` |
+| Redis 主节点 | `-master` | `redis-master` |
+| Redis 副本 | `-replica` | `redis-replica` |
+| 单实例服务 | (无后缀) | `clickhouse`, `arangodb`, `vault` |
+
+**完整 DNS 格式**: `<service>-<suffix>.<namespace>.svc.cluster.local`
+
+**示例**:
+- `platform-pg-rw.platform.svc.cluster.local`
+- `redis-master.data-staging.svc.cluster.local`
+- `vault.platform.svc.cluster.local`
+
 ### 域名规则
+
 
 | 环境 | 域名模式 | 示例 |
 |:---|:---|:---|
