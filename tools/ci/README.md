@@ -14,20 +14,22 @@ Workflows are thin YAML dispatchers; all complex logic lives here.
 
 ```mermaid
 flowchart LR
-    Event[GitHub Event] --> Run[run.py]
-    Run --> |/plan, /apply| Plan[plan.py/apply.py]
+    Event[GitHub Event] --> Parse[parse.py]
+    Parse --> |mode:digger| Digger[Digger Action]
+    Parse --> |mode:python| Run[run.py]
+    
     Run --> |/bootstrap| BS[bootstrap.py]
     Run --> |post-merge| Verify[verify.py]
     
-    Plan --> Status[Commit Status API]
-    BS --> Status
+    BS --> Status[Commit Status API]
 ```
 
 ## Modules
 
 | Module | Purpose |
 |--------|---------|
-| `commands/run.py` | **Entry Point**: Unified event handler for all CI |
+| `commands/run.py` | **Entry Point**: Unified event handler for pyci job |
+| `commands/parse.py` | **Routing**: Determines whether to use Digger or Python |
 | `commands/bootstrap.py` | Bootstrap layer plan/apply logic |
 | `commands/plan.py` | L2/L3 Terraform plan |
 | `commands/apply.py` | L2/L3 Terraform apply |
@@ -38,7 +40,10 @@ flowchart LR
 ## CLI
 
 ```bash
-# Unified entry (used by workflow)
+# Determine execution mode (used by parse job)
+python -m ci parse
+
+# Unified entry (used by pyci job)
 python -m ci run
 
 # Manual commands

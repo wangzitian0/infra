@@ -15,7 +15,7 @@ For the authoritative pipeline architecture and logic, refer to:
 
 | Workflow | 触发器 | 职责 |
 |:---|:---|:---|
-| `ci.yml` | PR / Push / Comment / Dispatch | **统一入口**：路由到 Python 处理 plan/apply/verify/bootstrap |
+| `ci.yml` | PR / Push / Comment / Dispatch | **统一入口**：路由(parse) -> Digger/PyCI 调度 |
 | `claude.yml` | `@claude` 评论 | AI 编码/审计任务 |
 | `docs-site.yml` | `.md` 文件变动 | 文档站构建部署 |
 | `e2e-tests.yml` | Push to main / Dispatch | E2E 回归测试 |
