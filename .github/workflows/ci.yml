@@ -21,6 +21,16 @@ on:
         description: "Action (for bootstrap: plan/apply)"
         required: false
         default: "plan"
+      digger_apply:
+        description: "Trigger Digger apply for L2/L3 (set to true by bootstrap-apply)"
+        type: boolean
+        required: false
+        default: false
+      run_e2e:
+        description: "Run E2E tests after Digger apply"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -195,13 +205,44 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/tools
         run: python -m ci bootstrap apply
 
+      - name: Trigger Digger Apply (L2/L3)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -e
+          echo "Triggering Digger apply for L2/L3 layers..."
+          
+          # Trigger workflow
+          gh workflow run ci.yml -f digger_apply=true -f run_e2e=true
+          
+          echo "Workflow triggered. Waiting for it to start..."
+          sleep 10
+          
+          # Get the latest workflow run ID for this workflow
+          run_id=$(gh run list --workflow=ci.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+          
+          if [ -z "$run_id" ]; then
+            echo "::error::Failed to get triggered workflow run ID"
+            exit 1
+          fi
+          
+          echo "Watching workflow run: $run_id"
+          
+          # Wait for Digger apply to complete
+          gh run watch $run_id --exit-status --interval 30 || {
+            echo "::error::Digger apply failed or timed out"
+            exit 1
+          }
+          
+          echo "✅ Digger apply and E2E tests completed successfully"
+
   # =============================================================
-  # Post-Merge: Digger Apply (L2/L3)
+  # Digger Apply (L2/L3) - triggered via workflow_dispatch
+  # Note: Cannot run on push events (GitHub blocks recursive triggers)
   # =============================================================
   digger-apply:
-    needs: [parse, bootstrap-apply]
-    if: needs.parse.outputs.mode == 'post-merge'
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.digger_apply == true
     steps:
       - uses: actions/checkout@v4
       
@@ -234,11 +275,11 @@ jobs:
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
 
   # =============================================================
-  # E2E: Post-Merge Verification (Chained)
+  # E2E: Post-Apply Verification (triggered after Digger apply)
   # =============================================================
   e2e-tests:
-    needs: [parse, digger-apply]
-    if: needs.parse.outputs.mode == 'post-merge'
+    needs: [digger-apply]
+    if: github.event_name == 'workflow_dispatch' && inputs.run_e2e == true
     uses: ./.github/workflows/e2e-tests.yml
     with:
       test_scope: 'all'
