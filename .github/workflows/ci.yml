@@ -154,7 +154,7 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           digger-hostname: https://digger.zitian.party
-          # Self-hosted: no digger-token needed (uses GitHub App auth)
+          digger-token: ${{ secrets.DIGGER_BEARER_TOKEN }}
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -236,7 +236,7 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           digger-hostname: https://digger.zitian.party
-          # Self-hosted: no digger-token needed (uses GitHub App auth)
+          digger-token: ${{ secrets.DIGGER_BEARER_TOKEN }}
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
