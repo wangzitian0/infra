@@ -141,6 +141,7 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           no-backend: true
+          disable-locking: true
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -221,6 +222,7 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           no-backend: true
+          disable-locking: true
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
