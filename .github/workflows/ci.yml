@@ -2,104 +2,48 @@ name: CI Pipeline
 
 on:
   pull_request:
-    branches: [main]
-  push:
-    branches: [main]
   issue_comment:
     types: [created]
-  workflow_dispatch:
-    inputs:
-      command:
-        description: "Command (plan, apply, bootstrap, e2e)"
-        required: true
-        default: "plan"
-      layers:
-        description: "Layers (comma-separated or 'all')"
-        required: false
-        default: "all"
-      action:
-        description: "Action (for bootstrap: plan/apply)"
-        required: false
-        default: "plan"
-      digger_apply:
-        description: "Trigger Digger apply for L2/L3 (set to true by bootstrap-apply)"
-        type: boolean
-        required: false
-        default: false
-      run_e2e:
-        description: "Run E2E tests after Digger apply"
-        type: boolean
-        required: false
-        default: false
+  push:
+    branches: [main]
 
 permissions:
   contents: write
   pull-requests: write
   issues: write
-  id-token: write
-  actions: write
   statuses: write
+  actions: write
+  id-token: write
 
 env:
-  TERRAGRUNT_VERSION: "0.68.4"
+  PYTHON_VERSION: '3.11'
+  TERRAGRUNT_VERSION: '0.68.4'
+  KUBECONFIG_PATH: ${{ github.workspace }}/bootstrap/output/k3s-kubeconfig.yaml
 
 jobs:
-  # =============================================================
-  # Parse: Determine execution mode
-  # =============================================================
-  parse:
-    runs-on: ubuntu-latest
-    outputs:
-      mode: ${{ steps.parse.outputs.mode }}
-      command: ${{ steps.parse.outputs.command }}
-      layers: ${{ steps.parse.outputs.layers }}
-      pr_number: ${{ steps.parse.outputs.pr_number }}
-      should_run: ${{ steps.parse.outputs.should_run }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-      
-      - name: Parse Event
-        id: parse
-        env:
-          PYTHONPATH: ${{ github.workspace }}/tools
-        run: uv run python -m ci parse
-
-      - name: Acknowledge (PR comment)
-        if: github.event_name == 'issue_comment' && steps.parse.outputs.should_run == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            try {
-              await github.rest.reactions.createForIssueComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: context.payload.comment.id,
-                content: 'eyes'
-              });
-            } catch (e) {}
-
-      - name: Init Dashboard
-        if: steps.parse.outputs.pr_number != ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHONPATH: ${{ github.workspace }}/tools
-        run: uv run python -m ci init --pr ${{ steps.parse.outputs.pr_number }}
-
-  # =============================================================
-  # Digger: Standard Plan/Apply (L2/L3)
-  # =============================================================
+  # =========================================================
+  # Digger: Terraform plan/apply (Digger native)
+  # Handles: /plan, /apply, auto-plan on PR
+  # =========================================================
   digger:
-    needs: parse
-    if: needs.parse.outputs.mode == 'digger' && needs.parse.outputs.should_run == 'true'
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       (contains(github.event.comment.body, 'digger') ||
+        contains(github.event.comment.body, '/plan') ||
+        contains(github.event.comment.body, '/apply')))
+    
     runs-on: ubuntu-latest
     concurrency:
-      group: digger-${{ needs.parse.outputs.pr_number || github.run_id }}
-      cancel-in-progress: ${{ needs.parse.outputs.command != 'apply' }}
+      group: digger-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+      cancel-in-progress: ${{ !contains(github.event.comment.body, 'apply') }}
+    
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
       
       - name: Generate App Token
         id: app-token
@@ -107,14 +51,17 @@ jobs:
         with:
           app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
           private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
         with:
           secrets_json: ${{ toJSON(secrets) }}
-
+      
       - name: Digger
-        id: digger
         uses: diggerhq/digger@v0.6.80
         with:
           setup-terragrunt: true
@@ -125,189 +72,157 @@ jobs:
           DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
 
-      - name: Update Dashboard
-        if: always() && needs.parse.outputs.pr_number != ''
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          PYTHONPATH: ${{ github.workspace }}/tools
-        run: |
-          # Determine stage from command
-          STAGE="plan-platform"
-          COMMAND="${{ needs.parse.outputs.command }}"
-          
-          if [[ "$COMMAND" == "apply" ]]; then
-            STAGE="apply"
-          elif [[ "$COMMAND" == *"bootstrap"* ]]; then
-            STAGE="plan-bootstrap"
-          fi
-          
-          # Map job outcome to status
-          OUTCOME="${{ steps.digger.outcome }}"
-          STATUS="pending"
-          case "$OUTCOME" in
-            success) STATUS="success" ;;
-            failure) STATUS="failure" ;;
-            cancelled) STATUS="skipped" ;;
-            *) STATUS="failure" ;;
-          esac
-          
-          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
-          python -m ci update \
-            --pr ${{ needs.parse.outputs.pr_number }} \
-            --stage "$STAGE" \
-            --status "$STATUS" \
-            --link "$RUN_URL"
-
-  # =============================================================
-  # PyCI: Unified Python Runner (Bootstrap, Verify, Custom)
-  # =============================================================
-  pyci:
-    needs: parse
-    if: needs.parse.outputs.mode == 'python' && needs.parse.outputs.should_run == 'true'
+  # =========================================================
+  # Bootstrap: L1 layer management
+  # Handles: /bootstrap plan, /bootstrap apply
+  # =========================================================
+  bootstrap:
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/bootstrap')
+    
     runs-on: ubuntu-latest
     concurrency:
-      group: pyci-${{ needs.parse.outputs.pr_number || github.run_id }}
+      group: bootstrap-${{ github.event.issue.number }}
       cancel-in-progress: false
+    
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', needs.parse.outputs.pr_number) || github.ref }}
+          ref: refs/pull/${{ github.event.issue.number }}/head
       
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
-          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
-
-      - uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-
-      - name: Setup Terraform
-        # Always run setup as bootstrap/verify need it. Cheap for others.
-        uses: ./.github/actions/terraform-setup
-        with:
-          secrets_json: ${{ toJSON(secrets) }}
-          # Bootstrap needs tf_state_key override? 
-          # bootstrap.py handles its own init backend config usually? 
-          # Actually bootstrap.py calls terraform init.
-          # The terraform-setup action mainly writes credentials.
-          
-      - name: Run CI
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          PYTHONPATH: ${{ github.workspace }}/tools
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          # Pass specific inputs for manual dispatch
-          INPUT_ACTION: ${{ inputs.action }} 
-        run: uv run python -m ci run
-
-  # =============================================================
-  # Post-Merge: Bootstrap Apply (L1)
-  # =============================================================
-  bootstrap-apply:
-    needs: parse
-    if: needs.parse.outputs.mode == 'post-merge'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-      
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
-          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
-
-      - name: Setup Terraform
-        uses: ./.github/actions/terraform-setup
-        with:
-          secrets_json: ${{ toJSON(secrets) }}
-
-      - name: Bootstrap Apply
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          PYTHONPATH: ${{ github.workspace }}/tools
-        run: uv run python -m ci bootstrap apply
-
-      - name: Trigger Digger Apply (L2/L3)
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+      - name: React to comment
         run: |
-          set -e
-          echo "Triggering Digger apply for L2/L3 layers..."
+          gh api repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions \
+            -f content=eyes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+      
+      - name: Determine action
+        id: action
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          if [[ "$COMMENT" == *"apply"* ]]; then
+            echo "action=apply" >> $GITHUB_OUTPUT
+          else
+            echo "action=plan" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run Bootstrap
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tools
+        run: |
+          python tools/ci/bootstrap.py ${{ steps.action.outputs.action }}
+      
+      - name: Comment result
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          ACTION="${{ steps.action.outputs.action }}"
           
-          # Trigger workflow
-          gh workflow run ci.yml -f digger_apply=true -f run_e2e=true
-          
-          echo "Workflow triggered. Waiting for it to start..."
-          sleep 10
-          
-          # Get the latest workflow run ID for this workflow
-          run_id=$(gh run list --workflow=ci.yml --limit 1 --json databaseId --jq '.[0].databaseId')
-          
-          if [ -z "$run_id" ]; then
-            echo "::error::Failed to get triggered workflow run ID"
-            exit 1
+          if [[ "$STATUS" == "success" ]]; then
+            EMOJI="✅"
+            MSG="completed successfully"
+          else
+            EMOJI="❌"
+            MSG="failed"
           fi
           
-          echo "Watching workflow run: $run_id"
+          gh pr comment ${{ github.event.issue.number }} --body "
+          ## $EMOJI Bootstrap $ACTION $MSG
           
-          # Wait for Digger apply to complete
-          gh run watch $run_id --exit-status --interval 30 || {
-            echo "::error::Digger apply failed or timed out"
-            exit 1
-          }
-          
-          echo "✅ Digger apply and E2E tests completed successfully"
-
-  # =============================================================
-  # Digger Apply (L2/L3) - triggered via workflow_dispatch
-  # Note: Cannot run on push events (GitHub blocks recursive triggers)
-  # =============================================================
-  digger-apply:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && inputs.digger_apply == true
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
-          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
-
-      - name: Setup Terraform
-        uses: ./.github/actions/terraform-setup
-        with:
-          secrets_json: ${{ toJSON(secrets) }}
-
-      - name: Digger Apply
-        uses: diggerhq/digger@v0.6.80
-        with:
-          setup-terragrunt: true
-          terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
-          # Explicitly disable locks for apply if needed, or rely on Digger default
+          **Workflow**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          "
         env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # =============================================================
-  # E2E: Post-Apply Verification (triggered after Digger apply)
-  # =============================================================
-  e2e-tests:
-    needs: [digger-apply]
-    if: github.event_name == 'workflow_dispatch' && inputs.run_e2e == true
-    uses: ./.github/workflows/e2e-tests.yml
-    with:
-      test_scope: 'all'
-      commit_sha: ${{ github.sha }}
-    secrets: inherit
+  # =========================================================
+  # E2E: Trigger end-to-end tests
+  # Handles: /e2e
+  # =========================================================
+  e2e:
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/e2e')
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: React to comment
+        run: |
+          gh api repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions \
+            -f content=eyes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Trigger E2E workflow
+        run: |
+          gh workflow run e2e-tests.yml \
+            --ref refs/pull/${{ github.event.issue.number }}/head \
+            -f pr_number=${{ github.event.issue.number }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Comment result
+        run: |
+          gh pr comment ${{ github.event.issue.number }} --body "
+          ## 🧪 E2E Tests Triggered
+          
+          Check [E2E workflow runs](../../actions/workflows/e2e-tests.yml) for results.
+          "
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # =========================================================
+  # Help: Show available commands
+  # Handles: /help
+  # =========================================================
+  help:
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/help')
+    
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Comment help
+        run: |
+          gh pr comment ${{ github.event.issue.number }} --body "
+          ## 📖 Available Commands
+          
+          | Command | Description |
+          |:--------|:------------|
+          | \`digger plan\` or \`/plan\` | Run terraform plan for all projects |
+          | \`digger plan -p <project>\` | Run terraform plan for specific project |
+          | \`digger apply\` or \`/apply\` | Run terraform apply for all projects |
+          | \`digger apply -p <project>\` | Run terraform apply for specific project |
+          | \`/bootstrap plan\` | Plan bootstrap layer (L1) |
+          | \`/bootstrap apply\` | Apply bootstrap layer (L1) |
+          | \`/e2e\` | Trigger E2E test suite |
+          | \`@copilot review\` | Request AI code review |
+          | \`/help\` | Show this help message |
+          
+          ### Projects
+          - \`platform\`: Platform services (L2)
+          - \`data-staging\`: Staging data layer (L3)
+          - \`data-prod\`: Production data layer (L3)
+          
+          ### Notes
+          - Bootstrap (L1) uses dedicated job due to chicken-egg dependency
+          - All other layers use Digger orchestration
+          - Digger automatically detects changed projects on PR
+          "
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
