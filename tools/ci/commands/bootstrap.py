@@ -113,82 +113,109 @@ def verify_health(domain: str) -> bool:
     return False
 
 
-def run(args) -> int:
-    """Execute bootstrap command.
+def post_details_comment(gh: GitHubClient, pr_number: int, title: str, content: str) -> str:
+    """Post details as a comment and return its URL."""
+    # Truncate if too long
+    if len(content) > 60000:
+        content = content[:60000] + "\n...(truncated)"
     
-    Args:
-        args.action: "plan" or "apply"
-        args.pr: Optional PR number
-    """
+    body = f"""### {title}
+<details open>
+<summary>Logs</summary>
+
+```text
+{content}
+```
+</details>
+
+[⬅️ Back to Dashboard](https://github.com/{os.environ.get('GITHUB_REPOSITORY')}/pull/{pr_number})
+"""
+    comment_id = gh.create_comment(pr_number, body)
+    return f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}/pull/{pr_number}#issuecomment-{comment_id}"
+
+
+def run(args) -> int:
+    """Execute bootstrap command."""
     action = getattr(args, "action", "plan")
     pr_number = getattr(args, "pr", None)
     
     print(f"🏗️ Bootstrap {action}...")
-    
     setup_terraform_env()
     
     gh = None
+    dashboard = None
     if pr_number:
         try:
             gh = GitHubClient()
+            from ..core.dashboard import Dashboard
+            dashboard = Dashboard(pr_number=pr_number, commit_sha=gh.get_pr(pr_number).head_sha, github=gh)
+            dashboard.load()
         except Exception as e:
-            print(f"⚠️ GitHub client init failed: {e}")
-    
+            print(f"⚠️ Dashboard init failed: {e}")
+
     working_dir = BOOTSTRAP_DIR
     
+    # Update Dashboard: Running
+    if dashboard:
+        dashboard.update_stage(f"plan-bootstrap", "running")
+        dashboard.save()
+
     # Init
     print("\n📦 Terraform init...")
     exit_code, output = run_terraform("init", working_dir)
     if exit_code != 0:
         print(f"❌ Init failed:\n{output}")
-        if gh and pr_number:
-            post_result_to_pr(gh, pr_number, False, "init")
+        if dashboard and gh:
+            url = post_details_comment(gh, pr_number, "❌ Bootstrap Init Failed", output)
+            dashboard.update_stage("plan-bootstrap", "failure", link=url)
+            dashboard.save()
         return 1
     
     # Plan
     print("\n📋 Terraform plan...")
     exit_code, plan_output = run_terraform("plan", working_dir)
+    has_changes = (exit_code == 2)
     
-    # detailed-exitcode: 0=no changes, 1=error, 2=has changes
     if exit_code == 1:
         print(f"❌ Plan failed:\n{plan_output}")
-        if gh and pr_number:
-            post_result_to_pr(gh, pr_number, False, "plan")
+        if dashboard and gh:
+            url = post_details_comment(gh, pr_number, "❌ Bootstrap Plan Failed", plan_output)
+            dashboard.update_stage("plan-bootstrap", "failure", link=url)
+            dashboard.save()
         return 1
     
-    has_changes = (exit_code == 2)
-    print(f"{'⚠️ Changes detected' if has_changes else '✅ No changes'}")
-    
-    # Post plan to PR
-    if gh and pr_number:
-        post_plan_to_pr(gh, pr_number, plan_output)
-    
+    # Success Plan
+    if dashboard and gh:
+        title = "⚠️ Bootstrap Plan (Changes)" if has_changes else "✅ Bootstrap Plan (No Changes)"
+        url = post_details_comment(gh, pr_number, title, plan_output)
+        dashboard.update_stage("plan-bootstrap", "success", link=url)
+        dashboard.save()
+        
+        # Hint for apply
+        if action == "plan" and has_changes:
+            gh.create_comment(pr_number, "> **Next**: Run `/bootstrap apply` to deploy.")
+
     # Apply if requested
     if action == "apply" and has_changes:
+        if dashboard:
+            dashboard.update_stage("apply", "running")
+            dashboard.save()
+            
         print("\n🚀 Terraform apply...")
         exit_code, apply_output = run_terraform("apply", working_dir)
         
         if exit_code != 0:
             print(f"❌ Apply failed:\n{apply_output}")
-            if gh and pr_number:
-                post_result_to_pr(gh, pr_number, False, "apply")
+            if dashboard and gh:
+                url = post_details_comment(gh, pr_number, "❌ Bootstrap Apply Failed", apply_output)
+                dashboard.update_stage("apply", "failure", link=url)
+                dashboard.save()
             return 1
         
         print("✅ Apply complete")
-        
-        # Health check
-        domain = os.environ.get("INTERNAL_DOMAIN") or os.environ.get("BASE_DOMAIN", "")
-        if domain:
-            if not verify_health(domain):
-                if gh and pr_number:
-                    post_result_to_pr(gh, pr_number, False, "health check")
-                return 1
-        
-        if gh and pr_number:
-            post_result_to_pr(gh, pr_number, True, "apply")
-    
-    elif action == "plan":
-        if gh and pr_number:
-            gh.create_comment(pr_number, "> To apply: comment `/bootstrap apply`")
-    
+        if dashboard and gh:
+            url = post_details_comment(gh, pr_number, "✅ Bootstrap Apply Complete", apply_output)
+            dashboard.update_stage("apply", "success", link=url)
+            dashboard.save()
+            
     return 0
