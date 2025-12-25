@@ -187,49 +187,6 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # =========================================================
-  # Post-Merge: Drift detection after merge to main
-  # Runs Digger drift detection for all projects
-  # =========================================================
-  post-merge-drift:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Generate App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
-          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
-      
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-      
-      - name: Setup Terraform
-        uses: ./.github/actions/terraform-setup
-        with:
-          secrets_json: ${{ toJSON(secrets) }}
-      
-      - name: Drift Detection
-        run: |
-          echo "🔍 Running drift detection on main branch"
-          cd platform && terragrunt run-all plan -detailed-exitcode || true
-        continue-on-error: true
-      
-      - name: Post result
-        if: always()
-        run: |
-          echo "### 🔍 Post-Merge Drift Detection" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: \`main\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger**: Post-merge" >> $GITHUB_STEP_SUMMARY
-
-  # =========================================================
   # Help: Show available commands
   # Handles: /help
   # =========================================================

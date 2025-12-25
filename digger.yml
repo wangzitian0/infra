@@ -29,24 +29,11 @@ projects:
 # Auto-merge when all checks pass
 auto_merge: false
 
-# Post-merge behavior: apply changes when merged to default branch
-on_commit_to_default: apply
-
 # Comment options
 comment_render_mode: basic
 
 # Workflows
 workflows:
-  terraform:
-    plan:
-      steps:
-        - init
-        - plan
-    apply:
-      steps:
-        - init
-        - apply
-        
   terragrunt:
     plan:
       steps:
@@ -56,3 +43,11 @@ workflows:
       steps:
         - run: terragrunt init -no-color
         - run: terragrunt apply -no-color -auto-approve plan.tfplan
+    # Workflow triggers configuration
+    workflow_configuration:
+      on_pull_request_pushed:
+        - digger plan
+      on_pull_request_closed:
+        - digger unlock
+      on_commit_to_default:
+        - digger apply
