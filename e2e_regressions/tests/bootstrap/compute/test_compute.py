@@ -283,10 +283,10 @@ async def test_traefik_preserves_headers(config: TestConfig):
         # Check proxy headers if present
         proxy_headers = ['x-forwarded-for', 'x-forwarded-proto', 'x-real-ip']
         found_proxy_headers = [h for h in proxy_headers if h in headers_lower]
-        
-        # At least some proxy headers should be present or explicitly set
-        # (absence is acceptable if Traefik doesn't add them by default)
-        assert True, "Header validation passed"
+
+        if found_proxy_headers:
+            assert all(headers_lower[h] for h in found_proxy_headers), \
+                "Proxy headers should have non-empty values when present"
 
 
 @pytest.mark.bootstrap
