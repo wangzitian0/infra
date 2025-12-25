@@ -97,10 +97,6 @@ jobs:
         with:
           app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
           private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
-          
-      - uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
 
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
@@ -210,10 +206,6 @@ jobs:
         with:
           app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
           private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
-          
-      - uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
 
       - name: Setup Terraform
         uses: ./.github/actions/terraform-setup
