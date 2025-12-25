@@ -88,6 +88,9 @@ flowchart TB
 
 **Output**: Comment with workflow link
 
+**Notes**:
+- Uses `workflow_dispatch` with infra-flash App token to avoid bot comment suppression.
+
 #### 4. **help** - Command Help
 
 **Trigger**: Comment contains `/help`

@@ -93,6 +93,7 @@ RecoverabilityScore = 10 * (0.5 * AutoCleanupSuccessRate + 0.5 * RollbackOrRerun
 
 - **Issue**: `/e2e` comment did not trigger the E2E workflow
 - **Cause**: `issue_comment` event was triggered by a bot due to GitHub App token context
+- **Fix**: dispatch `e2e-tests.yml` via `workflow_dispatch` with the infra-flash App token
 
 ---
 *Last updated: 2025-12-26*

@@ -131,7 +131,7 @@ check
 | `/apply` comment | `digger` | `infra-flash` | `infra-flash` | ❌ |
 | `digger -p xxx` | `digger` | `infra-flash` | `infra-flash` | ❌ |
 | `/bootstrap` | `bootstrap` | `GITHUB_TOKEN` | `infra-flash` | ❌ |
-| `/e2e` | `e2e` | `GITHUB_TOKEN` | `infra-flash` | ❌ |
+| `/e2e` | `e2e` | `infra-flash` | `infra-flash` | ❌ |
 
 ### Token 选择逻辑
 
