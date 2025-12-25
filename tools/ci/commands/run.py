@@ -77,11 +77,19 @@ def get_pr_number(event: dict) -> Optional[int]:
     return None
 
 
+def get_run_url() -> str:
+    """Get URL to current workflow run."""
+    server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    return f"{server}/{repo}/actions/runs/{run_id}"
+
+
 def set_commit_status(gh: GitHubClient, pr_number: int, state: str, description: str, context: str = "CI"):
     """Set commit status on PR head."""
     try:
         pr = gh.get_pr(pr_number)
-        run_url = f"{os.environ.get('GITHUB_SERVER_URL', '')}/{os.environ.get('GITHUB_REPOSITORY', '')}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}"
+        run_url = get_run_url()
         gh.create_commit_status(
             sha=pr.head_sha,
             state=state,
@@ -142,7 +150,7 @@ def run(args) -> int:
         
         print(f"🎯 Command: {command}")
         
-        # Acknowledge comment
+        # Acknowledge comment with emoji
         try:
             comment_id = event_data.get("comment", {}).get("id")
             if comment_id:
@@ -150,9 +158,19 @@ def run(args) -> int:
         except Exception as e:
             print(f"⚠️ Failed to react: {e}")
         
-        # Set pending status
+        # Set pending status on PR
         if pr_number:
             set_commit_status(gh, pr_number, "pending", f"{command} in progress...", "CI")
+        
+        # Post instant "Running..." comment with job link
+        run_url = get_run_url()
+        user = event_data.get("comment", {}).get("user", {}).get("login", "user")
+        if pr_number:
+            try:
+                instant_body = f"⏳ **{command}** running...\n\n> Triggered by `/{command}` from @{user}\n> [View Job]({run_url})"
+                gh.create_comment(pr_number, instant_body)
+            except Exception as e:
+                print(f"⚠️ Failed to post instant comment: {e}")
         
         # Execute command
         exit_code = 0
