@@ -159,6 +159,8 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - uses: actions/checkout@v4
+      
       - name: React to comment
         run: |
           gh api repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions \
