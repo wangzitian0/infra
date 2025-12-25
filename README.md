@@ -54,3 +54,4 @@ check → bootstrap-plan + plan → bootstrap-apply + apply → e2e
 
 ---
 *Last updated: 2025-12-25*
+# Test Digger Integration
