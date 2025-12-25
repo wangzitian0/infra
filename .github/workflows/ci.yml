@@ -21,34 +21,140 @@ env:
   KUBECONFIG_PATH: ${{ github.workspace }}/bootstrap/output/k3s-kubeconfig.yaml
 
 jobs:
-  # =========================================================
-  # Digger: Terraform plan/apply (Digger native)
-  # Handles: /plan, /apply, auto-plan on PR
-  # =========================================================
-  digger:
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request &&
-       (contains(github.event.comment.body, 'digger') ||
-        contains(github.event.comment.body, '/plan') ||
-        contains(github.event.comment.body, '/apply')))
-    
+  # =================================================================
+  # AUTO CI CHECKS (使用 GITHUB_TOKEN)
+  # =================================================================
+  
+  # 自动 Plan - PR CI Check
+  terraform-plan:
+    if: github.event_name == 'pull_request'
+    name: Terraform Plan (Auto)
     runs-on: ubuntu-latest
-    concurrency:
-      group: digger-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
-      cancel-in-progress: ${{ !contains(github.event.comment.body, 'apply') }}
-    
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
       
-      # PRECONDITION: Validate environment before expensive operations
+      # PRECONDITION: Validate environment
       - name: Validate Environment
         run: |
           echo "🔍 Validating CI environment..."
           [ -z "${{ github.repository }}" ] && echo "❌ GITHUB_REPOSITORY missing" && exit 1
+          echo "✅ Environment validated"
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+      
+      - name: Run Terragrunt Plan (All Projects)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          set -e
+          echo "📋 Running plan for all projects..."
+          
+          PROJECTS=("platform" "envs/staging/data" "envs/prod/data")
+          
+          for project in "${PROJECTS[@]}"; do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📦 Project: $project"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            cd "${{ github.workspace }}/$project"
+            terragrunt init -no-color
+            terragrunt plan -no-color -out=tfplan || {
+              echo "❌ Plan failed for $project"
+              exit 1
+            }
+            
+            echo ""
+          done
+          
+          echo "✅ All projects planned successfully"
+  
+  # 自动 Apply - Post-merge
+  terraform-apply:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Terraform Apply (Auto)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # PRECONDITION: Validate environment
+      - name: Validate Environment
+        run: |
+          echo "🔍 Validating CI environment..."
+          [ -z "${{ github.repository }}" ] && echo "❌ GITHUB_REPOSITORY missing" && exit 1
+          [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && echo "❌ AWS_ACCESS_KEY_ID missing" && exit 1
+          echo "✅ Environment validated"
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+      
+      - name: Run Terragrunt Apply (All Projects)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          set -e
+          echo "🚀 Running apply for all projects..."
+          
+          PROJECTS=("platform" "envs/staging/data" "envs/prod/data")
+          
+          for project in "${PROJECTS[@]}"; do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📦 Project: $project"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            cd "${{ github.workspace }}/$project"
+            terragrunt init -no-color
+            terragrunt apply -no-color -auto-approve || {
+              echo "❌ Apply failed for $project"
+              exit 1
+            }
+            
+            echo ""
+          done
+          
+          echo "✅ All projects applied successfully"
+
+  # =================================================================
+  # MANUAL COMMANDS (使用 infra-flash App token)
+  # =================================================================
+  
+  # Digger 手动命令: /plan, /apply, digger plan -p xxx
+  digger:
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      (contains(github.event.comment.body, 'digger') ||
+       contains(github.event.comment.body, '/plan') ||
+       contains(github.event.comment.body, '/apply'))
+    name: Digger (Manual)
+    runs-on: ubuntu-latest
+    concurrency:
+      group: digger-${{ github.event.issue.number }}
+      cancel-in-progress: ${{ !contains(github.event.comment.body, 'apply') }}
+    steps:
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+      
+      # PRECONDITION: Validate App credentials
+      - name: Validate Environment
+        run: |
+          echo "🔍 Validating environment for manual commands..."
           [ -z "${{ secrets.INFRA_FLASH_APP_ID }}" ] && echo "❌ INFRA_FLASH_APP_ID missing" && exit 1
           [ -z "${{ secrets.INFRA_FLASH_APP_KEY }}" ] && echo "❌ INFRA_FLASH_APP_KEY missing" && exit 1
           echo "✅ Environment validated"
