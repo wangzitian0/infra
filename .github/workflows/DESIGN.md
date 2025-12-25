@@ -119,6 +119,12 @@ flowchart TB
 
 ## 🔧 Implementation Details
 
+### Command Feedback
+
+For `/check`, `/plan`, `/apply`, `/bootstrap-*`, and `/e2e`:
+- Post a "running" comment immediately with the run URL.
+- Update the same comment on completion with success/failure.
+
 ### Bootstrap Script
 
 **File**: `tools/ci/bootstrap.py`

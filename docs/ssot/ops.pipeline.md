@@ -121,7 +121,15 @@ check
 
 ---
 
-## 4. 事件与 Token 映射
+## 4. 指令回执 (Command Feedback)
+
+对于 `/check`、`/plan`、`/apply`、`/bootstrap-*`、`/e2e`：
+- **触发即回评**：立即生成一条 “running” 评论，附带 run 链接。
+- **结果回写**：CI 结束后更新同一条评论为 success/failure。
+
+---
+
+## 5. 事件与 Token 映射
 
 | Event | Job | 执行 | 交互 | CI Check |
 |-------|-----|------|------|----------|
@@ -147,7 +155,7 @@ check
 
 ---
 
-## 4. 设计约束 (Dos & Don'ts)
+## 6. 设计约束 (Dos & Don'ts)
 
 ### ✅ 推荐模式 (Whitelist)
 
@@ -164,7 +172,7 @@ check
 
 ---
 
-## 5. 标准操作程序 (Playbooks)
+## 7. 标准操作程序 (Playbooks)
 
 ### SOP-001: 部署变更 (Standard GitOps)
 
@@ -216,7 +224,7 @@ check
 
 ---
 
-## 5. 验证与测试 (The Proof)
+## 8. 验证与测试 (The Proof)
 
 | 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
 |----------|-----------------------|--------|
