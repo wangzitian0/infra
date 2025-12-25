@@ -1,4 +1,35 @@
-# BRN-008: Infrastructure SSOT Refactor
+# Infra-002: SSOT Refactor and Documentation Restructure
+
+**Status**: Archived  
+**Owner**: Infra  
+**Legacy Source**: BRN-008 (Infrastructure SSOT Refactor)
+
+## Summary
+Refactor documentation into SSOT topics, clarify secrets/pipeline/db ownership, and
+align infra documentation with L1 trust anchor principles.
+
+## PR Links
+- PR #120: https://github.com/wangzitian0/infra/pull/120
+- PR #121: https://github.com/wangzitian0/infra/pull/121
+- PR #122: https://github.com/wangzitian0/infra/pull/122
+- PR #123: https://github.com/wangzitian0/infra/pull/123
+- PR #124: https://github.com/wangzitian0/infra/pull/124
+- PR #309: https://github.com/wangzitian0/infra/pull/309
+- PR #287: https://github.com/wangzitian0/infra/pull/287
+- PR #280: https://github.com/wangzitian0/infra/pull/280
+- PR #260: https://github.com/wangzitian0/infra/pull/260
+
+## Change Log
+- [2025-12-12: BRN-008 P0 Infrastructure & SSOT Docs](../../change_log/2025-12-12.brn_008_infrastructure_ssot.md)
+- [2025-12-25: SSOT Refactor](../../change_log/2025-12-25.ssot_refactor.md)
+
+## Git Commits (Backtrace)
+- 01e253a docs: mermaid diagrams + ssot naming alignment (#309)
+- 7ba8ba9 Add Claude Code GitHub Workflow (#287)
+- 71c5225 feat(ci): replace Claude review with GitHub Copilot (#280)
+- a1ba21d fix: replace port-forward with kubectl exec for L3 health checks (#260)
+
+## Legacy Plan (BRN-008)
 
 > **项目目标**：重构 `docs/` 目录为 `docs/ssot/`，将话题式文档（变量、密钥、流程、数据库等）集中管理，与组件级 README 形成互补。同时重构 AGENTS.md，将"组件"、"能力"、"流程"拆分为三个独立章节。
 
