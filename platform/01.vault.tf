@@ -123,7 +123,7 @@ resource "helm_release" "vault" {
     })
   ]
 
-  depends_on = [data.kubernetes_namespace.platform]
+  # Data source dependency (data.kubernetes_namespace.platform) is implicit
 
   lifecycle {
     precondition {

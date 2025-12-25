@@ -269,7 +269,7 @@ EOT
 
   # NOTE: Casdoor database is created by L1 (1.bootstrap/5.platform_pg.tf)
   # L1 CI runner has kubectl access.
-  depends_on = [data.kubernetes_namespace.platform]
+  # Data source dependency (data.kubernetes_namespace.platform) is implicit.
 
   lifecycle {
     # Password validation: empty is allowed (uses default), but if set must be secure
