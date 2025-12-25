@@ -233,6 +233,11 @@ async def test_traefik_service_exists():
             pytest.skip("Traefik service not found")
     except FileNotFoundError:
         pytest.skip("kubectl not found in test environment")
+
+
+@pytest.mark.smoke
+@pytest.mark.bootstrap
+async def test_traefik_routes_traffic(config: TestConfig):
     """Verify Traefik successfully routes to services."""
     async with httpx.AsyncClient(verify=False) as client:
         services = [
