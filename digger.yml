@@ -22,8 +22,8 @@ projects:
 # Auto-merge when all checks pass
 auto_merge: false
 
-# Post-merge behavior: handled by direct terragrunt in ci.yml (terragrunt-apply job)
-# on_commit_to_default: apply  # Disabled - orchestrator mode doesn't support push events
+# Post-merge behavior: apply changes when merged to default branch
+on_commit_to_default: apply
 
 # Comment options
 comment_render_mode: basic

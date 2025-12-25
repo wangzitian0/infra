@@ -21,6 +21,10 @@ on:
         description: "Action (for bootstrap: plan/apply)"
         required: false
         default: "plan"
+      digger_apply:
+        description: "Trigger Digger apply for L2/L3 (set to 'true' by bootstrap-apply)"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -195,14 +199,20 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/tools
         run: python -m ci bootstrap apply
 
+      - name: Trigger Digger Apply (L2/L3)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          echo "Triggering Digger apply for L2/L3 layers..."
+          gh workflow run ci.yml -f digger_apply=true -f command=apply
+
   # =============================================================
-  # Post-Merge: Direct Terragrunt Apply (L2/L3)
-  # Note: Digger orchestrator doesn't support push events, so we use direct terragrunt
+  # Digger Apply (L2/L3) - triggered via workflow_dispatch
+  # Note: Cannot run on push events (GitHub blocks recursive triggers)
   # =============================================================
-  terragrunt-apply:
-    needs: [parse, bootstrap-apply]
-    if: needs.parse.outputs.mode == 'post-merge'
+  digger-apply:
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && inputs.digger_apply == 'true'
     steps:
       - uses: actions/checkout@v4
       
@@ -222,36 +232,24 @@ jobs:
         with:
           secrets_json: ${{ toJSON(secrets) }}
 
-      - name: Apply Platform Layer
-        working-directory: platform
+      - name: Digger Apply
+        uses: diggerhq/digger@v0.6.80
+        with:
+          setup-terragrunt: true
+          terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
+          # Explicitly disable locks for apply if needed, or rely on Digger default
         env:
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: |
-          terragrunt init -reconfigure
-          terragrunt apply -auto-approve -no-color
-
-      - name: Apply Data Staging
-        working-directory: envs/staging/data
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: |
-          terragrunt init -reconfigure
-          terragrunt apply -auto-approve -no-color
-
-      - name: Apply Data Prod
-        working-directory: envs/prod/data
-        env:
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: |
-          terragrunt init -reconfigure
-          terragrunt apply -auto-approve -no-color
 
   # =============================================================
-  # E2E: Post-Merge Verification (Chained)
+  # E2E: Post-Apply Verification (triggered after Digger apply)
   # =============================================================
   e2e-tests:
-    needs: [parse, terragrunt-apply]
-    if: needs.parse.outputs.mode == 'post-merge'
+    needs: [digger-apply]
+    if: github.event_name == 'workflow_dispatch' && inputs.digger_apply == 'true'
     uses: ./.github/workflows/e2e-tests.yml
     with:
       test_scope: 'all'
