@@ -142,11 +142,11 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           digger-hostname: https://digger.zitian.party
+          digger-token: ${{ secrets.DIGGER_BEARER_TOKEN }}
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
 
   # ================================================================
   # Action 4: bootstrap-apply
@@ -224,11 +224,11 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           digger-hostname: https://digger.zitian.party
+          digger-token: ${{ secrets.DIGGER_BEARER_TOKEN }}
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-          DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
 
   # ================================================================
   # Action 6: e2e
