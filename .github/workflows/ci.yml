@@ -68,7 +68,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          comment_id=$(gh api repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
           echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
@@ -127,7 +127,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
+          gh api repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 2: bootstrap-plan
@@ -164,7 +164,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          comment_id=$(gh api repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
           echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
@@ -213,7 +213,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
+          gh api repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 3: plan
@@ -250,7 +250,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          comment_id=$(gh api repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
           echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
@@ -311,7 +311,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
+          gh api repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 4: bootstrap-apply
@@ -349,7 +349,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          comment_id=$(gh api repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
           echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
@@ -398,7 +398,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
+          gh api repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 5: apply
@@ -434,7 +434,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          comment_id=$(gh api repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
           echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
@@ -495,7 +495,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
+          gh api repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 6: e2e
@@ -561,7 +561,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          comment_id=$(gh api repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
           echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - name: Generate App Token
         id: app-token
@@ -577,8 +577,8 @@ jobs:
         run: |
           set -euo pipefail
           PR_NUMBER="${{ github.event.issue.number }}"
-          HEAD_REF="$(gh api -R "${{ github.repository }}" pulls/$PR_NUMBER --jq '.head.ref')"
-          HEAD_SHA="$(gh api -R "${{ github.repository }}" pulls/$PR_NUMBER --jq '.head.sha')"
+          HEAD_REF="$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.ref')"
+          HEAD_SHA="$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.sha')"
           COMMENT_BODY="${{ github.event.comment.body }}"
           if echo "$COMMENT_BODY" | grep -qiE "/e2e[[:space:]]+full"; then
             SCOPE="all"
@@ -626,7 +626,7 @@ jobs:
           <!-- ci-command:${{ github.run_id }} -->
           EOF
           )
-          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
+          gh api repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Helper: /help command
