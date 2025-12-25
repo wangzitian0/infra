@@ -128,6 +128,11 @@ jobs:
 
       - name: Run E2E tests
         working-directory: e2e_regressions
+        env:
+          # E2E Test credentials (use dedicated test account in future)
+          E2E_DOMAIN: ${{ secrets.INTERNAL_DOMAIN }}
+          E2E_USERNAME: ${{ secrets.E2E_USERNAME || 'admin' }}
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD || secrets.CASDOOR_ADMIN_PASSWORD }}
         run: |
           SCOPE="${{ inputs.test_scope || 'all' }}"
           case $SCOPE in
