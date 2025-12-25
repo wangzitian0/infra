@@ -90,6 +90,7 @@ flowchart TB
 
 **Notes**:
 - Uses `workflow_dispatch` with infra-flash App token to avoid bot comment suppression.
+- `/e2e` uses a dedicated job without plan/apply dependencies; post-merge e2e remains gated by apply.
 
 #### 4. **help** - Command Help
 

@@ -85,7 +85,7 @@
 **触发**:
 - Auto: post-merge only
 - Manual: `/e2e`
-- **依赖**: bootstrap-apply, apply
+- **依赖**: post-merge 依赖 bootstrap-apply, apply；手动 `/e2e` 不依赖
 
 ---
 
@@ -131,7 +131,7 @@ check
 | `/apply` comment | `digger` | `infra-flash` | `infra-flash` | ❌ |
 | `digger -p xxx` | `digger` | `infra-flash` | `infra-flash` | ❌ |
 | `/bootstrap` | `bootstrap` | `GITHUB_TOKEN` | `infra-flash` | ❌ |
-| `/e2e` | `e2e` | `infra-flash` | `infra-flash` | ❌ |
+| `/e2e` | `e2e-command` | `infra-flash` | `infra-flash` | ❌ |
 
 ### Token 选择逻辑
 
