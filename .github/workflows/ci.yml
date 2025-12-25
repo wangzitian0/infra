@@ -50,6 +50,7 @@ jobs:
           secrets_json: ${{ toJSON(secrets) }}
       
       - name: Run Terragrunt Plan (All Projects)
+        id: plan
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
@@ -59,6 +60,9 @@ jobs:
           
           PROJECTS=("platform" "envs/staging/data" "envs/prod/data")
           
+          # Capture output
+          PLAN_OUTPUT=""
+          
           for project in "${PROJECTS[@]}"; do
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "📦 Project: $project"
@@ -66,15 +70,67 @@ jobs:
             
             cd "${{ github.workspace }}/$project"
             terragrunt init -no-color
-            terragrunt plan -no-color -out=tfplan || {
+            
+            # Run plan and capture
+            PLAN_RESULT=$(terragrunt plan -no-color -out=tfplan 2>&1) || {
               echo "❌ Plan failed for $project"
+              echo "$PLAN_RESULT"
               exit 1
             }
+            
+            # Append to output
+            PLAN_OUTPUT+="### 📦 $project\n\n"
+            PLAN_OUTPUT+="\`\`\`terraform\n"
+            PLAN_OUTPUT+="$PLAN_RESULT\n"
+            PLAN_OUTPUT+="\`\`\`\n\n"
             
             echo ""
           done
           
+          # Save to file for comment
+          echo -e "$PLAN_OUTPUT" > /tmp/plan_output.txt
+          
           echo "✅ All projects planned successfully"
+      
+      # Post plan results to PR using infra-flash
+      - name: Generate App Token for PR Comment
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.INFRA_FLASH_APP_ID }}
+          private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
+      
+      - name: Post Plan Results to PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          STATUS="${{ steps.plan.outcome }}"
+          
+          if [[ "$STATUS" == "success" ]]; then
+            EMOJI="✅"
+            TITLE="Terraform Plan Succeeded"
+          else
+            EMOJI="❌"
+            TITLE="Terraform Plan Failed"
+          fi
+          
+          # Read plan output
+          PLAN_CONTENT=$(cat /tmp/plan_output.txt 2>/dev/null || echo "Plan output not available")
+          
+          # Post comment
+          gh pr comment ${{ github.event.pull_request.number }} --body "
+          ## $EMOJI $TITLE
+          
+          **Workflow**: [${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          
+          <details>
+          <summary>📋 Plan Output</summary>
+          
+          $PLAN_CONTENT
+          
+          </details>
+          "
   
   # 自动 Apply - Post-merge
   terraform-apply:
@@ -145,7 +201,6 @@ jobs:
     concurrency:
       group: digger-${{ github.event.issue.number }}
       cancel-in-progress: ${{ !contains(github.event.comment.body, 'apply') }}
-    steps:
     steps:
       - uses: actions/checkout@v4
         with:

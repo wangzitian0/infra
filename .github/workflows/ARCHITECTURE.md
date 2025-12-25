@@ -15,23 +15,36 @@
 | `issue_comment` `/e2e` | 手动 | `e2e` | `GITHUB_TOKEN` | 触发 E2E 测试 | ❌ No |
 | `issue_comment` `/help` | 手动 | `help` | `GITHUB_TOKEN` | 显示帮助 | ❌ No |
 
-## 架构决策
+## Token 使用策略
 
-### 1. 为什么分离自动和手动？
+### 核心原则
+- **执行任务** → `GITHUB_TOKEN` (terraform/terragrunt 命令)
+- **PR 交互** → `infra-flash` App token (评论、回复、label)
 
-**自动 CI Checks (GITHUB_TOKEN)**:
-- ✅ 显示在 PR Checks 中
-- ✅ 可设置为 Required Status Check
-- ✅ 可以 block PR merge
-- ✅ 不依赖外部 App，更稳定
+### 详细映射
+
+| Event | 执行阶段 | Token | 交互阶段 | Token |
+|-------|---------|-------|---------|-------|
+| `pull_request` | terragrunt plan | `GITHUB_TOKEN` | 发布结果到 PR | `infra-flash` |
+| `push` (main) | terragrunt apply | `GITHUB_TOKEN` | (无 PR 交互) | - |
+| `/plan` comment | terragrunt plan | `GITHUB_TOKEN` | 响应 + 发布结果 | `infra-flash` |
+| `/apply` comment | terragrunt apply | `GITHUB_TOKEN` | 响应 + 发布结果 | `infra-flash` |
+| `/bootstrap` | bootstrap.py | `GITHUB_TOKEN` | 发布结果到 PR | `infra-flash` (已有) |
+| `/e2e` | 触发 workflow | `GITHUB_TOKEN` | 发布结果到 PR | `infra-flash` (已有) |
+
+### 为什么这样设计？
+
+**GITHUB_TOKEN 执行任务**:
+- ✅ 原生 CI 权限
 - ✅ 不消耗 App rate limit
+- ✅ 足够执行 terraform 命令
+- ✅ 显示在 CI checks 中
 
-**手动命令 (infra-flash App)**:
-- ✅ Digger 需要 write 权限（PR comments/labels）
-- ✅ 支持项目级控制（`digger plan -p platform`）
-- ✅ 支持 Digger 高级功能（drift detection）
-- ✅ 独立于 CI checks，不会 block merge
-- ✅ 更灵活的故障恢复
+**infra-flash PR 交互**:
+- ✅ 有 write 权限（创建/编辑 comment）
+- ✅ 有 PR 管理权限（label, status）
+- ✅ 可以响应 issue_comment 事件
+- ✅ 统一的 PR 交互界面
 
 ### 2. 为什么放弃 Digger 自动触发？
 
