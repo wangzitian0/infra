@@ -150,12 +150,14 @@ jobs:
   # ================================================================
   # Action 4: digger (plan/apply for L2-L4)
   # Triggered by:
-  # - Orchestrator via workflow_dispatch (PR auto-plan, post-merge apply)
+  # - PR open/push: auto-plan
+  # - Orchestrator via workflow_dispatch: post-merge apply
   # - Manual /plan or /apply comment
   # ================================================================
   digger:
     name: Digger
     if: |
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
