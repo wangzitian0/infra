@@ -47,6 +47,29 @@ jobs:
        contains(github.event.comment.body, '/check'))
     runs-on: ubuntu-latest
     steps:
+      - name: Comment Start (/check)
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/check')
+        id: command-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          pr="${{ github.event.issue.number }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body=$(
+            cat <<EOF
+          ### ⏳ /check started
+          - Trigger: @${{ github.event.comment.user.login }}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
@@ -77,6 +100,34 @@ jobs:
           terragrunt hclfmt --terragrunt-check || true
           echo "✓ Digger validate..."
           echo "✅ Digger checks OK"
+      
+      - name: Comment Result (/check)
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/check') &&
+          steps.command-comment.outputs.comment_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          comment_id="${{ steps.command-comment.outputs.comment_id }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          status="${{ job.status }}"
+          icon="✅"
+          if [ "$status" != "success" ]; then
+            icon="❌"
+          fi
+          body=$(
+            cat <<EOF
+          ### ${icon} /check ${status}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 2: bootstrap-plan
@@ -92,6 +143,29 @@ jobs:
     needs: [check]
     runs-on: ubuntu-latest
     steps:
+      - name: Comment Start (/bootstrap-plan)
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/bootstrap-plan')
+        id: command-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          pr="${{ github.event.issue.number }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body=$(
+            cat <<EOF
+          ### ⏳ /bootstrap-plan started
+          - Trigger: @${{ github.event.comment.user.login }}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
@@ -112,6 +186,34 @@ jobs:
           echo "📋 Running bootstrap plan..."
           python tools/ci/bootstrap.py plan
           echo "✅ Bootstrap plan completed"
+      
+      - name: Comment Result (/bootstrap-plan)
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/bootstrap-plan') &&
+          steps.command-comment.outputs.comment_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          comment_id="${{ steps.command-comment.outputs.comment_id }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          status="${{ job.status }}"
+          icon="✅"
+          if [ "$status" != "success" ]; then
+            icon="❌"
+          fi
+          body=$(
+            cat <<EOF
+          ### ${icon} /bootstrap-plan ${status}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 3: plan
@@ -127,6 +229,29 @@ jobs:
     needs: [check]
     runs-on: ubuntu-latest
     steps:
+      - name: Comment Start (/plan)
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/plan')
+        id: command-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          pr="${{ github.event.issue.number }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body=$(
+            cat <<EOF
+          ### ⏳ /plan started
+          - Trigger: @${{ github.event.comment.user.login }}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
@@ -159,6 +284,34 @@ jobs:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+      
+      - name: Comment Result (/plan)
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/plan') &&
+          steps.command-comment.outputs.comment_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          comment_id="${{ steps.command-comment.outputs.comment_id }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          status="${{ job.status }}"
+          icon="✅"
+          if [ "$status" != "success" ]; then
+            icon="❌"
+          fi
+          body=$(
+            cat <<EOF
+          ### ${icon} /plan ${status}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 4: bootstrap-apply
@@ -175,6 +328,29 @@ jobs:
     needs: [check, bootstrap-plan]
     runs-on: ubuntu-latest
     steps:
+      - name: Comment Start (/bootstrap-apply)
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/bootstrap-apply')
+        id: command-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          pr="${{ github.event.issue.number }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body=$(
+            cat <<EOF
+          ### ⏳ /bootstrap-apply started
+          - Trigger: @${{ github.event.comment.user.login }}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
@@ -195,6 +371,34 @@ jobs:
           echo "🚀 Running bootstrap apply..."
           python tools/ci/bootstrap.py apply
           echo "✅ Bootstrap apply completed"
+      
+      - name: Comment Result (/bootstrap-apply)
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/bootstrap-apply') &&
+          steps.command-comment.outputs.comment_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          comment_id="${{ steps.command-comment.outputs.comment_id }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          status="${{ job.status }}"
+          icon="✅"
+          if [ "$status" != "success" ]; then
+            icon="❌"
+          fi
+          body=$(
+            cat <<EOF
+          ### ${icon} /bootstrap-apply ${status}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 5: apply
@@ -209,6 +413,29 @@ jobs:
     needs: [check, bootstrap-plan, plan]
     runs-on: ubuntu-latest
     steps:
+      - name: Comment Start (/apply)
+        if: |
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/apply')
+        id: command-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          pr="${{ github.event.issue.number }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body=$(
+            cat <<EOF
+          ### ⏳ /apply started
+          - Trigger: @${{ github.event.comment.user.login }}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
@@ -241,6 +468,34 @@ jobs:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+      
+      - name: Comment Result (/apply)
+        if: |
+          always() &&
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request &&
+          contains(github.event.comment.body, '/apply') &&
+          steps.command-comment.outputs.comment_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          comment_id="${{ steps.command-comment.outputs.comment_id }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          status="${{ job.status }}"
+          icon="✅"
+          if [ "$status" != "success" ]; then
+            icon="❌"
+          fi
+          body=$(
+            cat <<EOF
+          ### ${icon} /apply ${status}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Action 6: e2e
@@ -289,6 +544,25 @@ jobs:
       contains(github.event.comment.body, '/e2e')
     runs-on: ubuntu-latest
     steps:
+      - name: Comment Start (/e2e)
+        id: command-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          pr="${{ github.event.issue.number }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body=$(
+            cat <<EOF
+          ### ⏳ /e2e started
+          - Trigger: @${{ github.event.comment.user.login }}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          comment_id=$(gh api -R "$repo" repos/$repo/issues/$pr/comments -f body="$body" --jq .id)
+          echo "comment_id=$comment_id" >> "$GITHUB_OUTPUT"
       - name: Generate App Token
         id: app-token
         uses: actions/create-github-app-token@v1
@@ -328,6 +602,31 @@ jobs:
             -f pr_number="${{ steps.dispatch.outputs.pr_number }}" \
             -f commit_sha="${{ steps.dispatch.outputs.head_sha }}"
           echo "✅ E2E triggered"
+      
+      - name: Comment Result (/e2e)
+        if: always() && steps.command-comment.outputs.comment_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${{ github.repository }}"
+          comment_id="${{ steps.command-comment.outputs.comment_id }}"
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          status="${{ job.status }}"
+          icon="✅"
+          if [ "$status" != "success" ]; then
+            icon="❌"
+          fi
+          body=$(
+            cat <<EOF
+          ### ${icon} /e2e ${status}
+          - Scope: ${{ steps.dispatch.outputs.scope }}
+          - Ref: ${{ steps.dispatch.outputs.head_ref }}
+          - Run: ${run_url}
+          <!-- ci-command:${{ github.run_id }} -->
+          EOF
+          )
+          gh api -R "$repo" repos/$repo/issues/comments/$comment_id -X PATCH -f body="$body"
 
   # ================================================================
   # Helper: /help command
@@ -344,7 +643,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr comment ${{ github.event.issue.number }} --body "
+          gh pr comment -R \"${{ github.repository }}\" ${{ github.event.issue.number }} --body "
           ## 📖 Available Commands (6 Actions)
           
           | Command | Description |
