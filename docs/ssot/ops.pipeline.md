@@ -13,14 +13,16 @@
 
 | 维度 | 物理位置 (SSOT) | 说明 |
 |------|----------------|------|
+| **Workflow 设计** | [`.github/workflows/DESIGN.md`](../../.github/workflows/DESIGN.md) | Dashboard 架构、Job 职责、已知问题 |
+| **CI 实现** | [`tools/ci/README.md`](../../tools/ci/README.md) | Python 实现、Dashboard API、集成模式 |
 | **CI 入口** | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 统一入口，路由事件 |
-| **L1 流程** | [`.github/workflows/bootstrap-deploy.yml`](../../.github/workflows/bootstrap-deploy.yml) | Bootstrap 专用流程 |
-| **辅助逻辑** | [`tools/ci/`](../../tools/ci/) | Python 编写的 Dashboard/Vault 检查脚本 |
+| **Dashboard 核心** | [`tools/ci/core/dashboard.py`](../../tools/ci/core/dashboard.py) | 数据模型、渲染逻辑 |
 
 ### Code as SSOT 索引
 
-- **命令解析器**：参见 [`tools/ci/commands/parse.py`](../../tools/ci/commands/parse.py)
-- **Dashboard 渲染**：参见 [`tools/ci/commands/init.py`](../../tools/ci/commands/init.py)
+- **命令解析器**：[`tools/ci/commands/parse.py`](../../tools/ci/commands/parse.py)
+- **命令路由**：[`tools/ci/commands/run.py`](../../tools/ci/commands/run.py)
+- **Dashboard 初始化**：[`tools/ci/commands/init.py`](../../tools/ci/commands/init.py)
 
 ---
 
@@ -32,22 +34,26 @@ flowchart TD
     PR -->|Webhook| GA[GitHub Actions]
     
     subgraph "CI Pipeline"
-        GA -->|Parse| Router{Router}
-        Router -->|L1| BS[Bootstrap Deploy]
-        Router -->|L2-L4| DG[Digger Orchestrator]
-        Router -->|/e2e| Test[E2E Tests]
+        GA -->|Parse| Router{parse job}
+        Router -->|Init| Dashboard[(Dashboard Comment)]
+        Router -->|mode=digger| DG[Digger Job]
+        Router -->|mode=python| PyCI[PyCI Job]
     end
     
-    DG -->|Terraform Plan/Apply| Infra[Infrastructure]
-    Infra -->|Status| Dashboard[PR Dashboard]
+    DG -->|Update| Dashboard
+    PyCI -->|Update| Dashboard
+    Dashboard -->|Render| Status[PR Status View]
 ```
 
 ### 关键决策 (Architecture Decision)
 
+- **Dashboard-First**:
+    - **每个 commit 一个 Dashboard**：通过 `<!-- infra-dashboard:{sha} -->` marker 标识
+    - **原地更新，不刷屏**：所有状态变更更新同一条评论
+    - **Everything is Linked**：每个状态都有 workflow run 链接
 - **分层执行**:
-    - **L1 Bootstrap**: 独立流程，避免“自己部署自己”的死锁。
-    - **L2-L4**: 统一由 Digger 编排，支持依赖图 (DAG)。
-- **Feedback Loop**: 使用 `infra-flash` 机器人更新 PR 顶部的 Dashboard，而不是刷屏评论。
+    - **L1 Bootstrap**: 独立流程（`pyci` job），避免"自己部署自己"的死锁
+    - **L2-L4**: 统一由 Digger 编排（`digger` job），支持依赖图 (DAG)
 
 ---
 
@@ -57,12 +63,14 @@ flowchart TD
 
 - **模式 A**: 日常变更**必须**通过 PR 评论 `/plan` 和 `/apply` 触发。
 - **模式 B**: 涉及多层变更时，应等待下层 Apply 成功后再触发上层 Plan。
-- **模式 C**: 可选使用 `/review` 或 `@copilot` 触发 AI code review（手动触发）。
+- **模式 C**: Dashboard 更新必须使用 `dashboard.save()` 或 `python -m ci update`。
+- **模式 D**: 可选使用 `/review` 或 `@copilot` 触发 AI code review（手动触发）。
 
 ### ⛔ 禁止模式 (Blacklist)
 
 - **反模式 A**: **禁止** 在本地执行 `terraform apply` 更新 L2+ 资源（会导致 State Lock 和审计丢失）。
 - **反模式 B**: **禁止** 绕过 CI 直接修改线上资源（Drift 产生源）。
+- **反模式 C**: **禁止** 创建新评论更新状态（应更新 Dashboard 评论）。
 
 ---
 
@@ -73,8 +81,8 @@ flowchart TD
 - **触发条件**: 代码合并前
 - **步骤**:
     1. 提交代码，等待 CI 初始化 Dashboard。
-    2. 评论 `/plan`，检查 Digger 输出。
-    3. 评论 `/apply`，等待部署成功。
+    2. 评论 `/plan`，检查 Digger 输出和 Dashboard 状态。
+    3. 评论 `/apply`，等待部署成功，Dashboard 显示 ✅。
     4. 合并 PR。
 
 ### SOP-002: 触发 E2E 测试
@@ -106,14 +114,25 @@ flowchart TD
     - **Dashboard**: Copilot 原生 review 不会更新 PR Dashboard。
     - **详细指南**: 参见 [`docs/project/active/ai_code_review.md`](../project/active/ai_code_review.md)。
 
+### SOP-005: Dashboard 故障排查
+
+- **症状**: Dashboard 不更新，所有状态 ⏳ pending
+- **排查步骤**:
+    1. 检查 workflow logs: `gh run view <run-id> --log | grep -i dashboard`
+    2. 验证 PR 评论中是否有 marker: `<!-- infra-dashboard:{sha} -->`
+    3. 检查 GitHub Token 权限（需要 `issues: write`）
+    4. 手动测试：`python -m ci update --pr <num> --stage apply --status success`
+- **常见原因**: 参见 [Workflow DESIGN.md 故障排查章节](../../.github/workflows/DESIGN.md#-known-issues--fixes)
+
 ---
 
 ## 5. 验证与测试 (The Proof)
 
 | 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
 |----------|-----------------------|--------|
-| **Pipeline 逻辑验证** | [`test_pipeline_parser.py`](../../tools/ci/tests/test_pipeline_parser.py) | ✅ Unit Test |
-| **Digger 集成验证** | [`test_digger_flow.py`](../../e2e_regressions/tests/bootstrap/compute/test_digger.py) | ⚠️ Pending |
+| **Dashboard 创建与更新** | Manual test: `python -m ci init/update` | ⚠️ Manual |
+| **Pipeline 逻辑验证** | [`tools/ci/tests/test_pipeline_parser.py`](../../tools/ci/tests/test_pipeline_parser.py) | ✅ Unit Test |
+| **Digger 集成验证** | [`e2e_regressions/tests/bootstrap/compute/test_digger.py`](../../e2e_regressions/tests/bootstrap/compute/test_digger.py) | ⏳ Pending |
 
 ---
 
@@ -121,3 +140,4 @@ flowchart TD
 
 - [docs/ssot/README.md](./README.md)
 - [bootstrap/README.md](../../bootstrap/README.md)
+- [.github/workflows/DESIGN.md](../../.github/workflows/DESIGN.md)

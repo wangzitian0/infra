@@ -114,6 +114,7 @@ jobs:
           secrets_json: ${{ toJSON(secrets) }}
 
       - name: Digger
+        id: digger
         uses: diggerhq/digger@v0.6.80
         with:
           setup-terragrunt: true
@@ -123,6 +124,40 @@ jobs:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+
+      - name: Update Dashboard
+        if: always() && needs.parse.outputs.pr_number != ''
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          PYTHONPATH: ${{ github.workspace }}/tools
+        run: |
+          # Determine stage from command
+          STAGE="plan-platform"
+          COMMAND="${{ needs.parse.outputs.command }}"
+          
+          if [[ "$COMMAND" == "apply" ]]; then
+            STAGE="apply"
+          elif [[ "$COMMAND" == *"bootstrap"* ]]; then
+            STAGE="plan-bootstrap"
+          fi
+          
+          # Map job outcome to status
+          OUTCOME="${{ steps.digger.outcome }}"
+          STATUS="pending"
+          case "$OUTCOME" in
+            success) STATUS="success" ;;
+            failure) STATUS="failure" ;;
+            cancelled) STATUS="skipped" ;;
+            *) STATUS="failure" ;;
+          esac
+          
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          python -m ci update \
+            --pr ${{ needs.parse.outputs.pr_number }} \
+            --stage "$STAGE" \
+            --status "$STATUS" \
+            --link "$RUN_URL"
 
   # =============================================================
   # PyCI: Unified Python Runner (Bootstrap, Verify, Custom)
