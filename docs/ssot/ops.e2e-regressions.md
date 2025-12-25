@@ -80,7 +80,15 @@ flowchart LR
 
 ---
 
-## 5. 验证与测试 (The Proof)
+## 5. 评分体系 (Scoring)
+
+> **权重**：按团队目标可调整。
+
+- **定义**：评分细则与可计算子指标参见 [`e2e_regressions/README.md`](../../e2e_regressions/README.md#-scoring)。
+
+---
+
+## 6. 验证与测试 (The Proof)
 
 | 行为描述 | 测试文件 (Test Anchor) | 覆盖率 |
 |----------|-----------------------|--------|
