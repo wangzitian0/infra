@@ -186,7 +186,7 @@ def run(args) -> int:
         
         # Update Dashboard to Running
         if pr_number:
-            dashboard.update_stage(status_key, "running", link=get_run_url())
+            dashboard.update_stage(status_key, "running")
             dashboard.save()
         
         # Execute command
@@ -255,8 +255,8 @@ def run(args) -> int:
             desc = f"{command} {'completed' if exit_code == 0 else 'failed'}"
             set_commit_status(gh, pr_number, state, desc, "CI")
             
-            # Update Dashboard Final Status
-            dashboard.update_stage(status_key, state, link=get_run_url())
+            # Update Dashboard Final Status (Preserves existing link)
+            dashboard.update_stage(status_key, state)
             dashboard.save()
         
         return exit_code

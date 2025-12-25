@@ -63,7 +63,7 @@ class TestRun(unittest.TestCase):
             
             # Verify Dashboard interactions
             mock_dashboard.return_value.update_stage.assert_any_call("e2e", "running", link=unittest.mock.ANY)
-            mock_dashboard.return_value.update_stage.assert_any_call("e2e", "success", link=unittest.mock.ANY)
+            mock_dashboard.return_value.update_stage.assert_any_call("e2e", "success")
             mock_dashboard.return_value.save.assert_called()
 
 if __name__ == "__main__":

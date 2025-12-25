@@ -113,38 +113,6 @@ def verify_health(domain: str) -> bool:
     return False
 
 
-def create_running_comment(gh: GitHubClient, pr_number: int, title: str) -> tuple[int, str]:
-    """Create a 'Running' comment and return (id, url)."""
-    body = f"""### ⏳ {title}
-*Work in progress...*
-
-[⬅️ Back to Dashboard](https://github.com/{os.environ.get('GITHUB_REPOSITORY')}/pull/{pr_number})
-"""
-    comment_id = gh.create_comment(pr_number, body)
-    url = f"https://github.com/{os.environ.get('GITHUB_REPOSITORY', '')}/pull/{pr_number}#issuecomment-{comment_id}"
-    return comment_id, url
-
-
-def update_result_comment(gh: GitHubClient, pr_number: int, comment_id: int, title: str, content: str, success: bool) -> None:
-    """Update existing comment with result."""
-    # Truncate if too long
-    if len(content) > 60000:
-        content = content[:60000] + "\n...(truncated)"
-    
-    icon = "✅" if success else "❌"
-    body = f"""### {icon} {title}
-<details open>
-<summary>Logs</summary>
-
-```text
-{content}
-```
-</details>
-
-[⬅️ Back to Dashboard](https://github.com/{os.environ.get('GITHUB_REPOSITORY')}/pull/{pr_number})
-"""
-    gh.update_comment(comment_id, body)
-
 
 def run(args) -> int:
     """Execute bootstrap command."""
@@ -175,7 +143,7 @@ def run(args) -> int:
     # 1. Create Running Comment & Update Dashboard
     if dashboard and gh:
         try:
-            comment_id, comment_url = create_running_comment(gh, pr_number, f"{title_action} Running...")
+            comment_id, comment_url = gh.create_running_comment(pr_number, f"{title_action} Running...")
             dashboard.update_stage(stage_key, "running", link=comment_url)
             dashboard.save()
         except Exception as e:
@@ -187,7 +155,7 @@ def run(args) -> int:
     if exit_code != 0:
         print(f"❌ Init failed:\n{output}")
         if dashboard and gh and comment_id:
-            update_result_comment(gh, pr_number, comment_id, f"{title_action} Init Failed", output, False)
+            gh.update_result_comment(comment_id, pr_number, f"{title_action} Init Failed", output, False)
             dashboard.update_stage(stage_key, "failure", link=comment_url)
             dashboard.save()
         return 1
@@ -200,7 +168,7 @@ def run(args) -> int:
     if exit_code == 1:
         print(f"❌ Plan failed:\n{plan_output}")
         if dashboard and gh and comment_id:
-            update_result_comment(gh, pr_number, comment_id, f"{title_action} Failed", plan_output, False)
+            gh.update_result_comment(comment_id, pr_number, f"{title_action} Failed", plan_output, False)
             dashboard.update_stage(stage_key, "failure", link=comment_url)
             dashboard.save()
         return 1
@@ -211,7 +179,7 @@ def run(args) -> int:
         # For Apply: We haven't run apply yet if this is just plan
         if action == "plan":
             title = f"{title_action} (Changes)" if has_changes else f"{title_action} (No Changes)"
-            update_result_comment(gh, pr_number, comment_id, title, plan_output, True)
+            gh.update_result_comment(comment_id, pr_number, title, plan_output, True)
             dashboard.update_stage(stage_key, "success", link=comment_url)
             dashboard.save()
             
@@ -245,14 +213,14 @@ def run(args) -> int:
         if exit_code != 0:
             print(f"❌ Apply failed:\n{apply_output}")
             if dashboard and gh and comment_id:
-                update_result_comment(gh, pr_number, comment_id, f"{title_action} Failed", apply_output, False)
+                gh.update_result_comment(comment_id, pr_number, f"{title_action} Failed", apply_output, False)
                 dashboard.update_stage(stage_key, "failure", link=comment_url)
                 dashboard.save()
             return 1
         
         print("✅ Apply complete")
         if dashboard and gh and comment_id:
-            update_result_comment(gh, pr_number, comment_id, f"{title_action} Complete", apply_output, True)
+            gh.update_result_comment(comment_id, pr_number, f"{title_action} Complete", apply_output, True)
             dashboard.update_stage(stage_key, "success", link=comment_url)
             dashboard.save()
             
