@@ -64,9 +64,7 @@ def main():
     parser_parse = subparsers.add_parser("parse", help="Parse GitHub event")
     parser_parse.set_defaults(func=lambda args: parse.run(args))
 
-    # Run command
-    parser_run = subparsers.add_parser("run", help="Unified CI run")
-    parser_run.set_defaults(func=lambda args: run.run(args))
+
 
     # init (dashboard initialization)
     init_parser = subparsers.add_parser("init", help="Initialize dashboard")
