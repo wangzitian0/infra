@@ -15,12 +15,19 @@ For the authoritative pipeline architecture and logic, refer to:
 
 | Workflow | 触发器 | 职责 |
 |:---|:---|:---|
-| `ci.yml` | PR / Push / Comment / Dispatch | **统一入口**：路由(parse) -> Digger/PyCI 调度 |
+| `ci.yml` | PR / Push / Comment / Dispatch | **统一入口**：路由(parse) → Digger/PyCI 调度 |
 | `claude.yml` | `@claude` 评论 | AI 编码/审计任务 |
 | `docs-site.yml` | `.md` 文件变动 | 文档站构建部署 |
 | `e2e-tests.yml` | Push to main / Dispatch | E2E 回归测试 |
 | `readme-coverage.yml` | PR / Push | README 覆盖率检查 |
 | `ops-drift-fix.yml` | `schedule` | Auto-fix drift (e.g., Vault tokens). |
+
+### Post-Merge Automation
+
+合并到 `main` 时自动触发：
+1. **bootstrap-apply**: L1 Bootstrap层自动应用
+2. **terragrunt-apply**: L2/L3 Platform + Data层自动应用（直接terragrunt，不使用Digger orchestrator）
+3. **e2e-tests**: E2E回归测试验证
 
 ---
 
@@ -50,7 +57,7 @@ For the authoritative pipeline architecture and logic, refer to:
 ### 双向链接
 
 | 从 | 到 | 内容 |
-|----|----|----|
+|----|----|----| 
 | PR 评论 | Workflow Run | `[View Job](actions/runs/xxx)` |
 | Workflow Run | PR | Commit Status (PR Checks) |
 | 失败 Issue | PR | `Triggered by: PR #123` |

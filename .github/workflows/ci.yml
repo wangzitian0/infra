@@ -196,9 +196,10 @@ jobs:
         run: python -m ci bootstrap apply
 
   # =============================================================
-  # Post-Merge: Digger Apply (L2/L3)
+  # Post-Merge: Direct Terragrunt Apply (L2/L3)
+  # Note: Digger orchestrator doesn't support push events, so we use direct terragrunt
   # =============================================================
-  digger-apply:
+  terragrunt-apply:
     needs: [parse, bootstrap-apply]
     if: needs.parse.outputs.mode == 'post-merge'
     runs-on: ubuntu-latest
@@ -221,23 +222,35 @@ jobs:
         with:
           secrets_json: ${{ toJSON(secrets) }}
 
-      - name: Digger Apply
-        uses: diggerhq/digger@v0.6.80
-        with:
-          setup-terragrunt: true
-          terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
-          # Explicitly disable locks for apply if needed, or rely on Digger default
+      - name: Apply Platform Layer
+        working-directory: platform
         env:
-          GITHUB_CONTEXT: ${{ toJSON(github) }}
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          terragrunt init -reconfigure
+          terragrunt apply -auto-approve -no-color
+
+      - name: Apply Data Staging
+        working-directory: envs/staging/data
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          terragrunt init -reconfigure
+          terragrunt apply -auto-approve -no-color
+
+      - name: Apply Data Prod
+        working-directory: envs/prod/data
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          terragrunt init -reconfigure
+          terragrunt apply -auto-approve -no-color
 
   # =============================================================
   # E2E: Post-Merge Verification (Chained)
   # =============================================================
   e2e-tests:
-    needs: [parse, digger-apply]
+    needs: [parse, terragrunt-apply]
     if: needs.parse.outputs.mode == 'post-merge'
     uses: ./.github/workflows/e2e-tests.yml
     with:
