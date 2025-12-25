@@ -8,16 +8,23 @@ projects:
     dir: platform
     terragrunt: true
     workflow: terragrunt
+    # Always run plan on every PR to detect drift
+    include_patterns:
+      - "**/*"
     
   - name: data-staging
     dir: envs/staging/data
     terragrunt: true
     workflow: terragrunt
+    include_patterns:
+      - "**/*"
     
   - name: data-prod
     dir: envs/prod/data
     terragrunt: true
     workflow: terragrunt
+    include_patterns:
+      - "**/*"
 
 # Auto-merge when all checks pass
 auto_merge: false
