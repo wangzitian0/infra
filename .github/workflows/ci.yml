@@ -163,3 +163,16 @@ jobs:
           # Pass specific inputs for manual dispatch
           INPUT_ACTION: ${{ inputs.action }} 
         run: python -m ci run
+
+  # =============================================================
+  # E2E: Post-Merge Verification (Chained)
+  # =============================================================
+  e2e-tests:
+    needs: [parse, pyci]
+    # Run only on post-merge to main, after Verify (pyci) succeeds
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/e2e-tests.yml
+    with:
+      test_scope: 'all'
+      commit_sha: ${{ github.sha }}
+    secrets: inherit
