@@ -105,7 +105,7 @@ jobs:
   # Action 3: plan
   # ================================================================
   plan:
-    name: Plan (TF + Digger)
+    name: Plan (Digger)
     if: |
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
@@ -128,24 +128,8 @@ jobs:
         with:
           secrets_json: ${{ toJSON(secrets) }}
       
-      # TF Plan
-      - name: Terragrunt Plan (All Projects)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: |
-          echo "📋 Running TF plan..."
-          PROJECTS=("platform" "envs/staging/data" "envs/prod/data")
-          for project in "${PROJECTS[@]}"; do
-            cd "${{ github.workspace }}/$project"
-            terragrunt init -no-color
-            terragrunt plan -no-color || true
-          done
-          echo "✅ TF plan completed"
-      
-      # Digger Plan (for manual /plan)
+      # Digger Plan - Platform + Data (L2-L4)
       - name: Generate App Token
-        if: github.event_name == 'issue_comment'
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
@@ -153,7 +137,6 @@ jobs:
           private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
       
       - name: Digger Plan
-        if: github.event_name == 'issue_comment'
         uses: diggerhq/digger@v0.6.80
         with:
           setup-terragrunt: true
@@ -201,7 +184,7 @@ jobs:
   # Action 5: apply
   # ================================================================
   apply:
-    name: Apply (TF + Digger)
+    name: Apply (Digger)
     if: |
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'issue_comment' && 
@@ -223,24 +206,8 @@ jobs:
         with:
           secrets_json: ${{ toJSON(secrets) }}
       
-      # TF Apply
-      - name: Terragrunt Apply (All Projects)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
-        run: |
-          echo "🚀 Running TF apply..."
-          PROJECTS=("platform" "envs/staging/data" "envs/prod/data")
-          for project in "${PROJECTS[@]}"; do
-            cd "${{ github.workspace }}/$project"
-            terragrunt init -no-color
-            terragrunt apply -no-color -auto-approve || true
-          done
-          echo "✅ TF apply completed"
-      
-      # Digger Apply (for manual /apply)
+      # Digger Apply - Platform + Data (L2-L4)
       - name: Generate App Token
-        if: github.event_name == 'issue_comment'
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
@@ -248,7 +215,6 @@ jobs:
           private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
       
       - name: Digger Apply
-        if: github.event_name == 'issue_comment'
         uses: diggerhq/digger@v0.6.80
         with:
           setup-terragrunt: true
