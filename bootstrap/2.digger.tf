@@ -28,6 +28,15 @@ resource "helm_release" "digger" {
           tag        = "v0.6.101"
         }
 
+        # Enable Bearer Token authentication (required for GitHub Actions)
+        # By default only HTTP_BASIC_AUTH is enabled
+        customEnv = [
+          {
+            name  = "BEARER_AUTH"
+            value = "1"
+          }
+        ]
+
         # Resource limits
         resources = {
           limits = {

@@ -7,6 +7,18 @@ on:
     branches: [main]
   issue_comment:
     types: [created]
+  # Digger Orchestrator triggers via workflow_dispatch for post-merge apply
+  workflow_dispatch:
+    inputs:
+      id:
+        description: 'Digger run id'
+        required: false
+      job:
+        description: 'Job name'
+        required: false
+      comment_id:
+        description: 'Comment id'
+        required: false
 
 permissions:
   contents: write
@@ -108,7 +120,7 @@ jobs:
     name: Plan (Digger)
     if: |
       github.event_name == 'pull_request' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '/plan'))
@@ -190,7 +202,7 @@ jobs:
   apply:
     name: Apply (Digger)
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '/apply'))
@@ -282,5 +294,5 @@ jobs:
           
           ### Auto Triggers
           - **PR push**: check, bootstrap-plan, plan
-          - **Post-merge**: All 6 actions (sequential)
+          - **Post-merge**: bootstrap-apply, apply (via Orchestrator workflow_dispatch)
           "
