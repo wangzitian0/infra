@@ -64,6 +64,9 @@ class TerraformRunner:
         # Terragrunt non-interactive mode via env var (not CLI flag)
         env["TERRAGRUNT_NON_INTERACTIVE"] = "true"
 
+        # Print command being run
+        print(f"  🔧 Running: {' '.join(cmd)}")
+
         try:
             result = subprocess.run(
                 cmd,
@@ -86,6 +89,14 @@ class TerraformRunner:
                 detailed_exitcode and result.returncode == 2
             )
 
+            # On error (not exit code 2 for plan changes), print full output
+            if result.returncode != 0 and result.returncode != 2:
+                print(f"\n❌ Command failed with exit code {result.returncode}")
+                if result.stdout:
+                    print(f"\n=== STDOUT ===\n{result.stdout}")
+                if result.stderr:
+                    print(f"\n=== STDERR ===\n{result.stderr}")
+
             return ExecutionResult(
                 success=success,
                 exit_code=result.returncode,
@@ -94,6 +105,7 @@ class TerraformRunner:
                 plan_result=plan_result,
             )
         except Exception as e:
+            print(f"\n❌ Exception running command: {e}")
             return ExecutionResult(
                 success=False,
                 exit_code=1,

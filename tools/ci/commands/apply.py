@@ -55,7 +55,8 @@ def run(args) -> int:
         # Init first
         init_result = runner.init()
         if not init_result.success:
-            print(f"❌ Init failed: {init_result.stderr}")
+            print(f"❌ Init failed")
+            # Full error already printed by TerraformRunner._run()
             results[layer.name] = "error"
             all_outputs.append(f"❌ Init failed:\n{init_result.stderr}")
             has_error = True
@@ -70,6 +71,7 @@ def run(args) -> int:
             continue
         elif plan_result.plan_result == PlanResult.ERROR:
             print(f"❌ {layer.name}: Plan error")
+            # Full error already printed by TerraformRunner._run()
             results[layer.name] = "error"
             all_outputs.append(f"❌ Plan error:\n{plan_result.stderr}")
             has_error = True

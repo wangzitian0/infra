@@ -58,7 +58,7 @@ def run(args) -> int:
                 applied.append(layer.name)
             else:
                 print("❌ Failed")
-                print(f"    Error: {apply_result.stderr[:500] if apply_result.stderr else 'Unknown error'}")
+                # Full error details already printed by TerraformRunner._run()
                 errors.append(layer.name)
                 break  # Stop on first error
 

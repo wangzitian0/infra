@@ -60,6 +60,15 @@ def run_terraform(action: str, working_dir: str) -> tuple[int, str]:
     )
     
     output = result.stdout + result.stderr
+    
+    # Print full output on error (not exit code 2 for plan changes)
+    if result.returncode != 0 and result.returncode != 2:
+        print(f"\n❌ Command failed with exit code {result.returncode}")
+        if result.stdout:
+            print(f"\n=== STDOUT ===\n{result.stdout}")
+        if result.stderr:
+            print(f"\n=== STDERR ===\n{result.stderr}")
+    
     return (result.returncode, output)
 
 
