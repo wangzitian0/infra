@@ -1,4 +1,28 @@
-# 完整架构设计：BRN-004 × BRN-007 × 所有选型
+# Infra-001: Staging Deployment Blueprint
+
+**Status**: Archived  
+**Owner**: Infra  
+**Legacy Source**: BRN-004 (Staging MVP) + BRN-007 (Five-env expansion)
+
+## Summary
+Define the staging MVP architecture, environment lifecycle, and core infra stack
+choices for k3s, Vault, and platform services, with a path to five environments.
+
+## PR Links
+- PR #56: https://github.com/wangzitian0/infra/pull/56
+- PR #309: https://github.com/wangzitian0/infra/pull/309
+- PR #336: https://github.com/wangzitian0/infra/pull/336
+- PR #260: https://github.com/wangzitian0/infra/pull/260
+
+## Change Log
+- [2025-12-05: Staging Deployment Design](../../change_log/2025-12-05.staging_deployment_design.md)
+
+## Git Commits (Backtrace)
+- 0a2d311 feat(platform): add OpenPanel L2 infrastructure with Portal Gate authentication (#336)
+- 01e253a docs: mermaid diagrams + ssot naming alignment (#309)
+- a1ba21d fix: replace port-forward with kubectl exec for L3 health checks (#260)
+
+## Legacy Design (BRN-004 × BRN-007 × All Selections)
 
 > **这是最终的全景架构设计**，整合了 BRN-004（Staging MVP）、BRN-007（五环境）以及所有基础设施、平台、观测等选型。
 

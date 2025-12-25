@@ -104,7 +104,7 @@ flowchart TB
 
 - **[开发者接入指南](../onboarding/README.md)** - 场景驱动的快速上手教程
 - **[文档中心](../README.md)** - 文档体系总入口
-- **[设计文档](../project/)** - BRN-* 项目设计
+- **[设计文档](../project/)** - Infra-* 项目文档
 - **[AI 行为准则](../../AGENTS.md)** - Claude 协作规范
 
 ---

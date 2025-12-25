@@ -1,41 +1,36 @@
-# Project Implementation Status
+# Project Portfolio
 
-**SSOT Type**: Implementation Progress & Status
-**Scope**: Concrete implementation steps, checklists, and status tracking for specific BRNs.
+**SSOT Type**: Implementation status and portfolio index  
+**Scope**: Infra project catalog and status tracking for Infra-xxx items.
+
+## Structure
+- Active projects live in `docs/project/active/`.
+- Archived projects live in `docs/project/archive/`.
+- Each project file includes PR links, change_log references, and git backtrace.
 
 ## Active Projects
+- [Infra-011: Platform Service Catalog](./active/Infra-011.platform_service_catalog.md) - **Proposed**
+- [Infra-012: Observability SLO Baseline](./active/Infra-012.observability_slo_baseline.md) - **Proposed**
+- [Infra-013: Backup and Restore Game Day](./active/Infra-013.backup_restore_game_day.md) - **Proposed**
+- [Infra-014: Terraform Module Hardening](./active/Infra-014.terraform_module_hardening.md) - **Proposed**
+- [Infra-015: Data Platform Cost Optimization](./active/Infra-015.data_platform_cost_optimization.md) - **Proposed**
 
-- [BRN-004: Staging Deployment](./BRN-004.md) - **Active**
-  - **Goal**: Deploy k3s + Vault + Core Platform on Staging VPS.
-  - **Status**: Phase 0.x (Bootstrap) Complete. Cloudflare integration in progress (PR #56).
-
-- [BRN-008: CI/CD Architecture - Deploy Verification](./BRN-008-CI-CD-Architecture.md) - **Active (NEW)**
-  - **Goal**: 解决 CI/CD 脱节问题 - Atlantis apply 后自动验证部署是否真的成功
-  - **Problem**: apply ✓ ≠ deployment success; E2E 测试手动触发，无法反馈到 PR
-  - **Solution**: 三层验证模型 (apply → readiness → e2e tests) + PR 评论反馈
-  - **Status**: Phase 1 完成 ✅ 框架已交付；Phase 2 待实施 (GitHub Actions 改造)
-  - **Deliverables**:
-    - E2E 自动化测试框架 (42 个测试)
-    - SSOT 文档 (docs/ssot/ops.e2e-regressions.md)
-    - 架构设计方案 (BRN-008-CI-CD-Architecture.md)
-
-## Active Issues
-
-- [ISSUE-2025-12-20: Kubero SSO rollout + emergency access](./ISSUE-2025-12-20.kubero-sso.md) - **Open**
-
-- [PR-336: OpenPanel Analytics L2/L3 Infrastructure](https://github.com/wangzitian0/infra/pull/336) - **In Progress**
-  - **Goal**: Deploy OpenPanel analytics platform following L2 (permissions) + L3 (data) + L4 (apps) architecture pattern
-  - **Status**: L2 refactor complete (moved password generation to L3), L3 data-staging in progress
-  - **Blockers**: Database password synchronization between Terraform and K8s Secrets
-  - **Plan**: See [openpanel-deployment-plan.md](./openpanel-deployment-plan.md)
-
-## Archived Projects
-
-(None)
+## Archived Projects (Infra-001 to Infra-010)
+- [Infra-001: Staging Deployment Blueprint](./archive/Infra-001.staging_deployment_blueprint.md) - **Archived**
+- [Infra-002: SSOT Refactor and Documentation Restructure](./archive/Infra-002.ssot_refactor_and_docs.md) - **Archived**
+- [Infra-003: CI/CD Deploy Verification Architecture](./archive/Infra-003.cicd_deploy_verification.md) - **Archived**
+- [Infra-004: Kubero SSO Rollout and Emergency Access](./archive/Infra-004.kubero_sso_rollout.md) - **Archived**
+- [Infra-005: OpenPanel Analytics Platform Deployment](./archive/Infra-005.openpanel_analytics_platform.md) - **Archived**
+- [Infra-006: Pipeline V2 Upgrade](./archive/Infra-006.pipeline_v2_upgrade.md) - **Archived**
+- [Infra-007: CI Secrets Refactor](./archive/Infra-007.ci_secrets_refactor.md) - **Archived**
+- [Infra-008: Vault OIDC Drift Defense](./archive/Infra-008.vault_oidc_drift_defense.md) - **Archived**
+- [Infra-009: L1 Provider Migration](./archive/Infra-009.l1_provider_migration.md) - **Archived**
+- [Infra-010: Bootstrap Drift Reconcile](./archive/Infra-010.bootstrap_drift_reconcile.md) - **Archived**
 
 ## Related
-
-- [apps/docs/index.md](../../apps/docs/index.md) - Apps documentation index (submodule)
+- [docs/change_log/README.md](../change_log/README.md) - Completed work history
+- [docs/ssot/README.md](../ssot/README.md) - SSOT index
+- [0.check_now.md](../../0.check_now.md) - Current execution checklist
 
 ---
-*Last updated: 2025-12-22*
+*Last updated: 2025-12-25*

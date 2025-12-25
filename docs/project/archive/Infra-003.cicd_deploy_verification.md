@@ -1,4 +1,26 @@
-# BRN-008: CI/CD 架构设计 - 从 Apply 失败到部署完全成功
+# Infra-003: CI/CD Deploy Verification Architecture
+
+**Status**: Archived  
+**Owner**: Infra  
+**Legacy Source**: BRN-008 (CI/CD Architecture Design)
+
+## Summary
+Define a three-layer verification model to close the gap between Terraform apply
+and real deployment readiness, with PR feedback loops.
+
+## PR Links
+- PR #357: https://github.com/wangzitian0/infra/pull/357
+- PR #290: https://github.com/wangzitian0/infra/pull/290
+- PR #289: https://github.com/wangzitian0/infra/pull/289
+
+## Change Log
+- [2025-12-19: Pipeline V2 Upgrade](../../change_log/2025-12-19.pipeline_v2_upgrade.md)
+- [2025-12-15: Infra-Flash Per-Commit](../../change_log/2025-12-15.infra_flash_per_commit.md)
+
+## Git Commits (Backtrace)
+- e52a10d feat(e2e): Add CI integration for E2E regression tests (#357)
+
+## Legacy Design (BRN-008 CI/CD Architecture)
 
 ## 问题陈述
 

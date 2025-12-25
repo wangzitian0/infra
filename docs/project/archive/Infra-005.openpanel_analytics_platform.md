@@ -1,4 +1,23 @@
-# OpenPanel 部署计划
+# Infra-005: OpenPanel Analytics Platform Deployment
+
+**Status**: Archived  
+**Owner**: Infra  
+**Legacy Source**: OpenPanel deployment plan (L2/L3 infra + L4 Helm)
+
+## Summary
+Prepare L2/L3 infrastructure and plan the L4 Helm deployment of OpenPanel with
+Portal Gate authentication for SSO.
+
+## PR Links
+- PR #336: https://github.com/wangzitian0/infra/pull/336
+
+## Change Log
+- No dedicated change_log entry (plan document only).
+
+## Git Commits (Backtrace)
+- 0a2d311 feat(platform): add OpenPanel L2 infrastructure with Portal Gate authentication (#336)
+
+## Legacy Plan (OpenPanel Deployment)
 
 ## 📊 Current Status (2025-12-22)
 

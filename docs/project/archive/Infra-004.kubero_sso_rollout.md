@@ -1,4 +1,23 @@
-# ISSUE-2025-12-20: Kubero SSO rollout + emergency access
+# Infra-004: Kubero SSO Rollout and Emergency Access
+
+**Status**: Archived  
+**Owner**: Infra  
+**Legacy Source**: ISSUE-2025-12-20 (Kubero SSO rollout)
+
+## Summary
+Roll out Casdoor OIDC for Kubero SSO while retaining a break-glass access path
+for infra operators, documenting pitfalls and validation steps.
+
+## PR Links
+- PR #307: https://github.com/wangzitian0/infra/pull/307
+
+## Change Log
+- No dedicated change_log entry (issue-driven operational work).
+
+## Git Commits (Backtrace)
+- eb1b5f8 feat(sso): decouple Casdoor OIDC from portal gate (#307)
+
+## Legacy Issue (ISSUE-2025-12-20)
 
 **Status**: 🟡 Open
 **Owner**: Infra
