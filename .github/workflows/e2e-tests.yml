@@ -1,13 +1,13 @@
 name: E2E Regression Tests
 
 on:
-  # Post-merge: 合并到 main 后立即运行
-  push:
-    branches: [main]
-    paths:
-      - 'platform/**'
-      - 'envs/*/data/**'
-      - 'platform/**'
+  # Post-merge: 由 ci.yml 统一调度，不再单独触发
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'platform/**'
+  #     - 'envs/*/data/**'
+  #     - 'platform/**'
 
   # 手动触发或由 Atlantis 调用
   workflow_dispatch:

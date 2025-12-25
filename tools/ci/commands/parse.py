@@ -56,8 +56,8 @@ def run(args) -> int:
         # Push to main -> Verify
         ref = os.environ.get("GITHUB_REF", "")
         if ref == "refs/heads/main":
-            mode = "python" # Verify is Python
-            command = "verify"
+            mode = "post-merge"
+            command = "apply"
             should_run = "true"
     
     elif event_name == "issue_comment":

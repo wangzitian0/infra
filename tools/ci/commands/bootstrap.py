@@ -24,11 +24,15 @@ def setup_terraform_env():
         "TF_VAR_vps_host",
         "TF_VAR_ssh_private_key",
         "TF_VAR_cloudflare_api_token",
+        "TF_VAR_infra_flash_app_id",
+        "TF_VAR_digger_bearer_token",
     ]
     
     missing = [v for v in required_vars if not os.environ.get(v)]
     if missing:
-        print(f"⚠️ Missing env vars: {missing}")
+        print(f"❌ Critical Error: Missing required env vars for bootstrap: {missing}")
+        print("💡 Ensure these secrets are set in GitHub Actions and loaded via ci_load_secrets.py")
+        sys.exit(1)
 
 
 def run_terraform(action: str, working_dir: str) -> tuple[int, str]:
