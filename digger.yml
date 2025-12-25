@@ -57,9 +57,9 @@ workflows:
   terragrunt:
     plan:
       steps:
-        - run: terragrunt init -backend=false -no-color
+        - run: terragrunt init -backend=false --terragrunt-non-interactive -no-color
         - run: terragrunt plan -no-color -out=plan.tfplan
     apply:
       steps:
-        - run: terragrunt init -backend=false -no-color
+        - run: terragrunt init -backend=false --terragrunt-non-interactive -no-color
         - run: terragrunt apply -no-color -auto-approve plan.tfplan
