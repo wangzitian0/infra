@@ -78,11 +78,15 @@ remote_state {
 # =============================================================================
 # Generate common provider configuration to eliminate duplication across layers.
 # Layer-specific providers should be defined in layer terragrunt.hcl files.
+# Bootstrap layer overrides these in its own terragrunt.hcl (needs fileexists() logic)
 
 generate "common_providers" {
   path      = "providers_common.tf"
   if_exists = "overwrite_terragrunt"
-  contents  = <<-EOF
+  
+  # Generate empty file for bootstrap (it defines its own providers)
+  # Full providers for other layers
+  contents = local.layer_name == "bootstrap" ? "# Bootstrap layer defines providers in providers_layer.tf\n" : <<-EOF
     # Common Provider Configuration
     # These providers are used by multiple layers and configured once here.
 
