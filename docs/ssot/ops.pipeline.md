@@ -1,28 +1,37 @@
 # Pipeline SSOT (运维流水线)
 
 > **SSOT Key**: `ops.pipeline`
-> **核心定义**: 定义基于 Digger Orchestrator 的 GitOps 工作流、自动化策略及手动介入流程。
+> **核心定义**: 基于 Digger 原生功能的简化 GitOps 工作流。
 
 ---
 
 ## 1. 真理来源 (The Source)
 
-> **原则**：CI 代码定义流程，GitHub Actions 负责调度，Digger 负责执行。
+> **原则**：依赖 Digger 原生能力，最小化自定义代码。
 
 本话题的配置和状态由以下物理位置唯一确定：
 
 | 维度 | 物理位置 (SSOT) | 说明 |
 |------|----------------|------|
-| **Workflow 设计** | [`.github/workflows/DESIGN.md`](../../.github/workflows/DESIGN.md) | Dashboard 架构、Job 职责、已知问题 |
-| **CI 实现** | [`tools/ci/README.md`](../../tools/ci/README.md) | Python 实现、Dashboard API、集成模式 |
-| **CI 入口** | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 统一入口，路由事件 |
-| **Dashboard 核心** | [`tools/ci/core/dashboard.py`](../../tools/ci/core/dashboard.py) | 数据模型、渲染逻辑 |
+| **Workflow 设计** | [`.github/workflows/DESIGN.md`](../../.github/workflows/DESIGN.md) | 简化架构、Job 职责、命令路由 |
+| **CI 入口** | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 4 个独立 jobs，简单 if 条件 |
+| **Bootstrap 脚本** | [`tools/ci/bootstrap.py`](../../tools/ci/bootstrap.py) | L1 层管理（150 lines） |
+| **Digger 配置** | [`digger.yml`](../../digger.yml) | Projects 定义、drift detection |
 
-### Code as SSOT 索引
+### 重大变更 (2025-12-25)
 
-- **命令解析器**：[`tools/ci/commands/parse.py`](../../tools/ci/commands/parse.py)
-- **命令路由**：[`tools/ci/commands/run.py`](../../tools/ci/commands/run.py)
-- **Dashboard 初始化**：[`tools/ci/commands/init.py`](../../tools/ci/commands/init.py)
+**删除**：
+- Dashboard 系统 (dashboard.py, init.py, update.py, parse.py, run.py)
+- 复杂路由逻辑 (parse job → digger/pyci)
+
+**保留**：
+- 所有命令 (/plan, /apply, /bootstrap, /e2e, /help)
+- 用户体验完全一致
+
+**简化**：
+- 从 1609 lines → 291 lines (-82%)
+- 使用 Digger 原生评论
+- 简单 workflow if 条件
 
 ---
 
@@ -33,16 +42,17 @@ flowchart TD
     User((User)) -->|Comment /plan| PR[Pull Request]
     PR -->|Webhook| GA[GitHub Actions]
     
-    subgraph "CI Pipeline"
-        GA -->|Parse| Router{parse job}
-        Router -->|Init| Dashboard[(Dashboard Comment)]
-        Router -->|mode=digger| DG[Digger Job]
-        Router -->|mode=python| PyCI[PyCI Job]
+    subgraph "Simplified CI"
+        GA -->|if /plan or /apply| Digger[Digger Job]
+        GA -->|if /bootstrap| Bootstrap[Bootstrap Job]
+        GA -->|if /e2e| E2E[E2E Job]
+        GA -->|if /help| Help[Help Job]
     end
     
-    DG -->|Update| Dashboard
-    PyCI -->|Update| Dashboard
-    Dashboard -->|Render| Status[PR Status View]
+    Digger -->|Native Comment| PR
+    Bootstrap -->|Result Comment| PR
+    E2E -->|Trigger Workflow| Tests
+    Help -->|Help Comment| PR
 ```
 
 ### 关键决策 (Architecture Decision)

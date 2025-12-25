@@ -1,43 +1,38 @@
-# GitHub Actions Workflows - Core Design
+# GitHub Actions Workflows - Simplified Design
 
-> **Philosophy**: Dashboard-first, event-driven infrastructure automation.  
-> **Goal**: Every commit gets a persistent, updateable status dashboard.
+> **Philosophy**: Leverage Digger native features, minimize custom code.  
+> **Goal**: Simple, maintainable CI with clear command routing.
 
 ---
 
 ## 🏗️ System Architecture
 
-### The Dashboard Model
+### Simplified Architecture
 
-**Core Concept**: One persistent comment per commit that acts as the SSOT for all CI status.
+**Core Principle**: Use Digger native comments, simple workflow routing.
 
 ```
 PR #123
-  ├─ Comment by user: "/plan"
-  ├─ Comment by infra-flash: 👀 (reaction only)
-  └─ Comment by infra-flash: Dashboard ← UPDATE THIS, DON'T CREATE NEW
-       <!-- infra-dashboard:abc1234 -->
-       ## ⚙️ Commit Dashboard `abc1234`
-       | Stage | Status | Output | Time |
-       |-------|--------|--------|------|
-       | CI    | ⏳     | -      | -    |
-       | Plan  | 🔄     | [View] | 14:23 |
-       ...
+  ├─ User comment: "/plan"
+  ├─ Bot reaction: 👀
+  └─ Digger comment: Plan results (auto-updated)
+       ## Terraform Plan for `platform`
+       **Plan**: 2 to add, 1 to change, 0 to destroy
+       <details>...</details>
 ```
 
-**Anti-pattern**: ❌ Creating new comments for each status update (causes spam)  
-**Correct pattern**: ✅ Update the single dashboard comment in-place
+**Key Insight**: Digger provides status tracking - no need for custom Dashboard!
 
 ---
 
 ## 📁 Workflow Files
 
-| File | Trigger | Purpose | Dashboard? |
-|------|---------|---------|------------|
-| **ci.yml** | PR, Comment, Push | Main orchestrator | ✅ Init + Update |
-| **e2e-tests.yml** | Manual, Post-merge | Validation tests | ⚠️ Partial |
-| **docs-site.yml** | Docs changes | Deploy docs | ❌ Independent |
-| **ops-drift-fix.yml** | Schedule | Drift detection | ❌ Maintenance |
+| File | Trigger | Purpose |
+|------|---------|---------|
+| **ci.yml** | PR, Comment, Push | Main pipeline (4 simple jobs) |
+| **e2e-tests.yml** | Manual, Post-merge | Validation tests |
+| **docs-site.yml** | Docs changes | Deploy documentation |
+| **ops-drift-fix.yml** | Schedule | Drift detection |
 
 ---
 
@@ -47,217 +42,138 @@ PR #123
 
 ```mermaid
 flowchart TB
-    Event[GitHub Event] --> Parse[parse job]
+    Event[GitHub Event] --> Check{Event Type?}
     
-    Parse --> |Init Dashboard| DB[(Dashboard Comment)]
-    Parse --> |mode=digger| Digger[digger job]
-    Parse --> |mode=python| PyCI[pyci job]
+    Check -->|PR/Push or /plan,/apply| Digger[digger job]
+    Check -->|/bootstrap| Bootstrap[bootstrap job]
+    Check -->|/e2e| E2E[e2e job]
+    Check -->|/help| Help[help job]
     
-    Digger --> |Update| DB
-    PyCI --> |Update| DB
-    
-    DB --> |Render| User[User sees status]
+    Digger --> DiggerComment[Digger Native Comment]
+    Bootstrap --> ResultComment[Result Comment]
+    E2E --> TriggerWorkflow[Trigger E2E Workflow]
+    Help --> HelpComment[Help Comment]
 ```
+
+**Key**: Simple `if` conditions in workflow YAML, no parse job needed.
 
 ### Jobs
 
-#### 1. `parse` - Event Router
-**Responsibility**: Determine what to do and initialize dashboard
+#### 1. **digger** - Terraform Orchestration
 
-**Steps**:
-1. Parse event (PR/comment/push)
-2. Determine mode (`digger` / `python` / `post-merge`)
-3. Add 👀 reaction to command comments
-4. **Initialize Dashboard** (`python -m ci init --pr <num>`)
+**Trigger**: 
+- PR opened/updated (auto-plan)
+- Comment contains `/plan` or `/apply` or `digger`
+- Push to main (post-merge apply)
 
-**Outputs**:
-- `mode`: Which job to run next
-- `command`: Parsed command from comment
-- `pr_number`: For dashboard updates
-- `should_run`: Gate for conditional jobs
+**Function**: Runs Digger which handles all Terraform operations
 
-#### 2. `digger` - Terraform via Digger
-**Responsibility**: Run terraform plan/apply through Digger orchestrator
+**Output**: Digger creates/updates native comments with plan/apply results
 
-**Dashboard Stages**:
-- `plan-bootstrap`, `plan-platform`, `plan-data-*`: During plan
-- `apply`: During apply
+#### 2. **bootstrap** - L1 Layer Management
 
-**Current Status**: ❌ **BROKEN** - No dashboard update logic  
-**Fix Required**: Add post-step to update dashboard
+**Trigger**: Comment contains `/bootstrap`
 
-#### 3. `pyci` - Python Commands
-**Responsibility**: Custom logic (bootstrap, verify, etc.)
+**Function**: 
+- Runs terragrunt plan/apply on bootstrap layer
+- Cannot use Digger (chicken-egg dependency)
 
-**Handles**:
-- `/bootstrap plan|apply`
-- Post-merge verification
-- `workflow_dispatch` manual triggers
+**Output**: Simple result comment with success/failure
 
-**Dashboard Updates**: ✅ Handled internally by `tools/ci/commands/run.py`
+#### 3. **e2e** - Test Trigger
 
----
+**Trigger**: Comment contains `/e2e`
 
-## 📊 Dashboard Stages
+**Function**: Triggers e2e-tests.yml workflow
 
-Default stages (defined in `tools/ci/core/dashboard.py`):
+**Output**: Comment with workflow link
 
-| Stage Key | Display Name | Typical Updater |
-|-----------|--------------|-----------------|
-| `ci` | CI Validate | ❌ None (needs job) |
-| `plan-bootstrap` | Plan: bootstrap | `pyci` job |
-| `plan-platform` | Plan: platform | `digger` job |
-| `plan-data-staging` | Plan: data-staging | `digger` job |
-| `plan-data-prod` | Plan: data-prod | `digger` job |
-| `apply` | Apply | `digger` / `pyci` |
-| `e2e` | E2E Tests | `e2e-tests` workflow |
-| `review` | AI Review | Manual / Copilot |
+#### 4. **help** - Command Help
+
+**Trigger**: Comment contains `/help`
+
+**Function**: Displays available commands
+
+**Output**: Help comment
 
 ---
 
-## 🔧 Dashboard Update Mechanisms
+## 📊 Available Commands
 
-### Method 1: Python API (Preferred)
-
-Used by `pyci` job and commands:
-
-```python
-from tools.ci.core import Dashboard, GitHubClient
-
-gh = GitHubClient()
-dashboard = Dashboard(pr_number=123, commit_sha="abc123", github=gh)
-dashboard.load()  # Find existing by marker
-
-dashboard.update_stage("plan-bootstrap", "running", link=run_url)
-dashboard.save()  # Update comment in-place
-```
-
-### Method 2: CLI Update (For external jobs)
-
-Used when Python context isn't available:
-
-```yaml
-- name: Update Dashboard
-  if: always()
-  env:
-    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    PYTHONPATH: ${{ github.workspace }}/tools
-  run: |
-    python -m ci update \
-      --pr ${{ needs.parse.outputs.pr_number }} \
-      --stage "plan-platform" \
-      --status "${{ steps.digger.outcome }}" \
-      --link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-```
-
-**Status Values**: `pending`, `running`, `success`, `failure`, `skipped`
+| Command | Handler | Function |
+|---------|---------|----------|
+| `/plan` or `digger plan` | digger job | Terraform plan all projects |
+| `/apply` or `digger apply` | digger job | Terraform apply |
+| `digger plan -p <project>` | digger job | Plan specific project |
+| `/bootstrap plan` | bootstrap job | Plan L1 layer |
+| `/bootstrap apply` | bootstrap job | Apply L1 layer |
+| `/e2e` | e2e job | Trigger tests |
+| `/help` | help job | Show commands |
+| `@copilot review` | GitHub native | AI code review |
 
 ---
 
-## 🐛 Known Issues & Fixes
+## 🔧 Implementation Details
 
-### Issue #1: Digger Dashboard Not Updating
+### Bootstrap Script
 
-**Symptom**: Digger runs but dashboard stays on ⏳ pending
+**File**: `tools/ci/bootstrap.py`
 
-**Root Cause**: `digger` job has no dashboard update step
+Simple Python script that:
+1. Runs `terragrunt init`
+2. Runs `terragrunt plan` or `apply`
+3. Returns exit code
 
-**Fix**: Add this step after Digger action in `ci.yml`:
+No Dashboard dependency, pure execution.
 
-```yaml
-- name: Update Dashboard (Digger)
-  if: always() && needs.parse.outputs.pr_number != ''
-  uses: actions/checkout@v4  # Need code for Python
-  
-- uses: actions/setup-python@v5
-  with:
-    python-version: '3.11'
+### Digger Integration
 
-- name: Update Dashboard Status
-  if: always() && needs.parse.outputs.pr_number != ''
-  env:
-    GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-    PYTHONPATH: ${{ github.workspace }}/tools
-  run: |
-    # Determine stage from command
-    STAGE="plan-platform"
-    if [[ "${{ needs.parse.outputs.command }}" == "apply" ]]; then
-      STAGE="apply"
-    fi
-    
-    python -m ci update \
-      --pr ${{ needs.parse.outputs.pr_number }} \
-      --stage "$STAGE" \
-      --status "${{ job.status }}" \
-      --link "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-```
+Digger handles:
+- Project detection (which layers changed)
+- Plan/apply orchestration
+- State locking
+- Native PR comments with results
 
-### Issue #2: CI Validate Stage Never Updates
-
-**Symptom**: `ci` stage always shows ⏳
-
-**Root Cause**: No job is responsible for this stage
-
-**Options**:
-1. **Remove from default stages** (quick fix)
-2. **Add validation job** that runs linters/tests
-
-**Recommended Fix**: Remove `ci` from `dashboard.py` default stages since we don't have a validation job yet.
+We just provide:
+- `digger.yml` configuration
+- Terraform/Terragrunt setup
+- Secrets injection
 
 ---
 
-## 🎯 Command Examples
+## 🐛 Troubleshooting
 
-### User Types: `/plan`
+### Commands not responding
 
-```mermaid
-sequenceDiagram
-    User->>PR: Comment "/plan"
-    PR->>parse: Webhook
-    parse->>Dashboard: Create/Find by commit SHA
-    parse->>User: 👀 Reaction
-    parse->>digger: Trigger (mode=digger)
-    digger->>Digger API: Run plan
-    Digger API-->>digger: Plan output
-    Note right of digger: ❌ Currently stops here
-    digger->>Dashboard: ❌ Should update but doesn't
-    Dashboard-->>User: Shows outdated status
-```
+**Check**:
+1. Workflow `if` conditions in ci.yml
+2. Comment spelling (case-sensitive)
+3. PR vs Issue comment context
 
-**After Fix**:
-```mermaid
-sequenceDiagram
-    User->>PR: Comment "/plan"
-    ...
-    digger->>Dashboard: ✅ Update plan-platform=success
-    Dashboard-->>User: ✅ Shows correct status
-```
+### Bootstrap fails
 
-### User Types: `/bootstrap apply`
+**Check**:
+1. `tools/ci/bootstrap.py` exists and is executable
+2. Terragrunt/Terraform setup action works
+3. Bootstrap directory exists
 
-```mermaid
-sequenceDiagram
-    User->>PR: Comment "/bootstrap apply"
-    PR->>parse: Webhook
-    parse->>Dashboard: Init
-    parse->>pyci: Trigger (mode=python)
-    pyci->>run.py: Execute
-    run.py->>Dashboard: Update plan-bootstrap=running
-    run.py->>bootstrap.py: Apply
-    bootstrap.py->>Terraform: Execute
-    Terraform-->>bootstrap.py: Result
-    bootstrap.py->>Dashboard: Update plan-bootstrap=success
-    Dashboard-->>User: ✅ Correct status
-```
+### Digger not planning all projects
+
+**Check**:
+1. `digger.yml` has `include_patterns: ["**/*"]` for drift detection
+2. Projects are properly configured
+
+### No comments appearing
+
+**Check**:
+1. GitHub App token has correct permissions
+2. Workflow has `pull-requests: write` permission
+3. Job completed successfully (check Actions logs)
 
 ---
 
 ## 📚 Related Documentation
 
-- **Pipeline SSOT**: [docs/ssot/ops.pipeline.md](../../docs/ssot/ops.pipeline.md)
-- **CI Tools**: [tools/ci/README.md](../../tools/ci/README.md)
-- **Dashboard Implementation**: [tools/ci/core/dashboard.py](../../tools/ci/core/dashboard.py)
-
----
-
-*Last updated: 2025-12-25 - Full design documentation with known issues*
+- [tools/ci/README.md](../../tools/ci/README.md) - Implementation details
+- [docs/ssot/ops.pipeline.md](../../docs/ssot/ops.pipeline.md) - SSOT reference
+- [digger.yml](../../digger.yml) - Digger configuration
