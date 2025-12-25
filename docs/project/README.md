@@ -14,6 +14,7 @@
 - [Infra-013: Backup and Restore Game Day](./active/Infra-013.backup_restore_game_day.md) - **Proposed**
 - [Infra-014: Terraform Module Hardening](./active/Infra-014.terraform_module_hardening.md) - **Proposed**
 - [Infra-015: Data Platform Cost Optimization](./active/Infra-015.data_platform_cost_optimization.md) - **Proposed**
+- [Infra-016: Digger Orchestrator](./active/Infra-016.digger_orchestrator.md) - **Proposed**
 
 ## Archived Projects (Infra-001 to Infra-010)
 - [Infra-001: Staging Deployment Blueprint](./archive/Infra-001.staging_deployment_blueprint.md) - **Archived**
