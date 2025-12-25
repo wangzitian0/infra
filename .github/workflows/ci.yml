@@ -23,12 +23,83 @@ env:
 jobs:
   # =================================================================
   # AUTO CI CHECKS (使用 GITHUB_TOKEN)
+  # 原生 Terraform/Terragrunt 体系 - 5 Stages
   # =================================================================
   
-  # 自动 Plan - PR CI Check
+  # Stage 1: Format Check
+  terraform-fmt:
+    if: github.event_name == 'pull_request'
+    name: Terraform Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+      
+      - name: Terragrunt HCL Format Check
+        run: |
+          set -e
+          echo "🎨 Checking Terragrunt HCL format..."
+          
+          # Check all .hcl files
+          terragrunt hclfmt --terragrunt-check
+          
+          echo "✅ Terragrunt HCL format OK"
+      
+      - name: Terraform Format Check
+        run: |
+          set -e
+          echo "🎨 Checking Terraform format..."
+          
+          # Check all .tf files recursively
+          terraform fmt -check -recursive .
+          
+          echo "✅ Terraform format OK"
+  
+  # Stage 2: Validate
+  terraform-validate:
+    if: github.event_name == 'pull_request'
+    name: Terraform Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+      
+      - name: Terragrunt Validate All
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+        run: |
+          set -e
+          echo "✓ Validating all Terragrunt configurations..."
+          
+          PROJECTS=("platform" "envs/staging/data" "envs/prod/data")
+          
+          for project in "${PROJECTS[@]}"; do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "📦 Validating: $project"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            cd "${{ github.workspace }}/$project"
+            terragrunt validate || {
+              echo "❌ Validation failed for $project"
+              exit 1
+            }
+          done
+          
+          echo "✅ All configurations valid"
+  
+  # Stage 3: Plan (自动 Plan - PR CI Check)
   terraform-plan:
     if: github.event_name == 'pull_request'
-    name: Terraform Plan (Auto)
+    name: Terraform Plan
+    needs: [terraform-fmt, terraform-validate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -132,10 +203,10 @@ jobs:
           </details>
           "
   
-  # 自动 Apply - Post-merge
+  # Stage 4: Apply (自动 Apply - Post-merge)
   terraform-apply:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    name: Terraform Apply (Auto)
+    name: Terraform Apply
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -186,9 +257,11 @@ jobs:
 
   # =================================================================
   # MANUAL COMMANDS (使用 infra-flash App token)
+  # Digger 体系 - 包含所有 5 stages (fmt/validate/plan/apply/drift)
   # =================================================================
   
   # Digger 手动命令: /plan, /apply, digger plan -p xxx
+  # Digger 内置支持: fmt, validate, plan, apply
   digger:
     if: |
       github.event_name == 'issue_comment' && 
