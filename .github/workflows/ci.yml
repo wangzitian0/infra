@@ -28,7 +28,6 @@ jobs:
   digger:
     if: |
       github.event_name == 'pull_request' ||
-      github.event_name == 'push' ||
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
        (contains(github.event.comment.body, 'digger') ||
@@ -44,6 +43,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.ref }}
+      
+      # PRECONDITION: Validate environment before expensive operations
+      - name: Validate Environment
+        run: |
+          echo "🔍 Validating CI environment..."
+          [ -z "${{ github.repository }}" ] && echo "❌ GITHUB_REPOSITORY missing" && exit 1
+          [ -z "${{ secrets.INFRA_FLASH_APP_ID }}" ] && echo "❌ INFRA_FLASH_APP_ID missing" && exit 1
+          [ -z "${{ secrets.INFRA_FLASH_APP_KEY }}" ] && echo "❌ INFRA_FLASH_APP_KEY missing" && exit 1
+          echo "✅ Environment validated"
       
       - name: Generate App Token
         id: app-token
@@ -69,7 +77,7 @@ jobs:
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          DIGGER_TOKEN: ${{ secrets.DIGGER_BEARER_TOKEN }}
+          # DIGGER_TOKEN not needed for OSS mode
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
 
   # =========================================================
@@ -91,6 +99,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.issue.number }}/head
+      
+      # PRECONDITION: Validate critical secrets
+      - name: Validate Secrets
+        run: |
+          echo "🔍 Validating secrets..."
+          [ -z "${{ secrets.AWS_ACCESS_KEY_ID }}" ] && echo "❌ AWS_ACCESS_KEY_ID missing" && exit 1
+          [ -z "${{ secrets.R2_BUCKET }}" ] && echo "❌ R2_BUCKET missing" && exit 1
+          echo "✅ Secrets validated"
       
       - name: React to comment
         run: |
