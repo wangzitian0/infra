@@ -14,23 +14,6 @@ from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 env_path = Path(__file__).parent / ".env"
 load_dotenv(env_path)
 
-# Try to extract CI secret schema for consistency (read file directly to avoid import issues)
-CI_MAPPING = {}
-try:
-    import re
-    infra_root = Path(__file__).parent.parent
-    loader_path = infra_root / "tools" / "secrets" / "ci_load_secrets.py"
-    if loader_path.exists():
-        content = loader_path.read_text()
-        # Simple regex to extract MAPPING dict entries (matches "KEY": "VALUE", or 'KEY': 'VALUE')
-        mapping_match = re.search(r"MAPPING = \{(.*?)\}", content, re.DOTALL)
-        if mapping_match:
-            # Handle both single and double quotes for flexibility
-            entries = re.findall(r'[\'"]([^\'"]+)[\'"]:\s*[\'"]([^\'"]+)[\'"]', mapping_match.group(1))
-            CI_MAPPING = dict(entries)
-except Exception:
-    # Silent fail, fallback to defaults in TestConfig
-    pass
 
 
 def get_env_required(name: str) -> str:
@@ -44,28 +27,24 @@ def get_env_required(name: str) -> str:
 class TestConfig:
     """Test configuration from environment variables."""
 
-    # Domains (Required)
-    BASE_DOMAIN = get_env_required("BASE_DOMAIN")
-    INTERNAL_DOMAIN = os.getenv("INTERNAL_DOMAIN", BASE_DOMAIN)
+    # Domain - E2E_DOMAIN (preferred) or fallback to INTERNAL_DOMAIN/BASE_DOMAIN
+    BASE_DOMAIN = os.getenv("E2E_DOMAIN") or os.getenv("INTERNAL_DOMAIN") or get_env_required("BASE_DOMAIN")
 
-    # Portal & SSO (Strictly derived or overridden)
-    PORTAL_URL = os.getenv("PORTAL_URL", f"https://home.{INTERNAL_DOMAIN}")
-    SSO_URL = os.getenv("SSO_URL", f"https://sso.{INTERNAL_DOMAIN}")
+    # Portal & SSO
+    PORTAL_URL = os.getenv("PORTAL_URL", f"https://home.{BASE_DOMAIN}")
+    SSO_URL = os.getenv("SSO_URL", f"https://sso.{BASE_DOMAIN}")
     
-    # Credentials (Use names defined in ci_load_secrets schema if possible)
-    _user_var = CI_MAPPING.get("E2E_TEST_USERNAME", "E2E_TEST_USERNAME")
-    _pass_var = CI_MAPPING.get("E2E_TEST_PASSWORD", "E2E_TEST_PASSWORD")
-    
-    E2E_TEST_USERNAME = os.getenv(_user_var, "admin")
-    E2E_TEST_PASSWORD = get_env_required(_pass_var)
+    # Credentials - E2E_USERNAME/E2E_PASSWORD (preferred) or fallback
+    E2E_USERNAME = os.getenv("E2E_USERNAME", "admin")
+    E2E_PASSWORD = get_env_required("E2E_PASSWORD")
 
-    # Platform Services (Strictly derived or overridden)
-    VAULT_URL = os.getenv("VAULT_URL", f"https://secrets.{INTERNAL_DOMAIN}")
-    DASHBOARD_URL = os.getenv("DASHBOARD_URL", f"https://kdashboard.{INTERNAL_DOMAIN}")
-    DIGGER_URL = os.getenv("DIGGER_URL", f"https://digger.{INTERNAL_DOMAIN}")
-    KUBERO_URL = os.getenv("KUBERO_URL", f"https://kcloud.{INTERNAL_DOMAIN}")
-    SIGNOZ_URL = os.getenv("SIGNOZ_URL", f"https://signoz.{INTERNAL_DOMAIN}")
-    K3S_URL = os.getenv("K3S_URL", f"https://k3s.{INTERNAL_DOMAIN}:6443")
+    # Platform Services
+    VAULT_URL = os.getenv("VAULT_URL", f"https://secrets.{BASE_DOMAIN}")
+    DASHBOARD_URL = os.getenv("DASHBOARD_URL", f"https://kdashboard.{BASE_DOMAIN}")
+    DIGGER_URL = os.getenv("DIGGER_URL", f"https://digger.{BASE_DOMAIN}")
+    KUBERO_URL = os.getenv("KUBERO_URL", f"https://kcloud.{BASE_DOMAIN}")
+    SIGNOZ_URL = os.getenv("SIGNOZ_URL", f"https://signoz.{BASE_DOMAIN}")
+    K3S_URL = os.getenv("K3S_URL", f"https://k3s.{BASE_DOMAIN}:6443")
 
     # K8s Resource Identifiers
     class K8sResources:

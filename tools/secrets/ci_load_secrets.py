@@ -10,14 +10,14 @@ import sys
 # Contract: Which secret lives in which 1Password item
 # This is used by sync_secrets.py to maintain order.
 OP_CONTRACT = {
-    "Infra-VPS": ["VPS_HOST", "VPS_USER", "VPS_SSH_PORT", "VPS_SSH_KEY"],
+    "Infra-VPS": ["VPS_HOST", "VPS_USER", "VPS_SSH_PORT"],
+    "Infra-SSH": ["VPS_SSH_KEY"],  # SSH Key type item, uses "private key" field
     "Infra-R2": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_ACCOUNT_ID"],
     "Infra-Cloudflare": ["BASE_DOMAIN", "CLOUDFLARE_ZONE_ID", "INTERNAL_DOMAIN", "INTERNAL_ZONE_ID", "CLOUDFLARE_API_TOKEN"],
     "Infra-Flash": ["INFRA_FLASH_APP_ID", "INFRA_FLASH_APP_KEY", "INFRA_FLASH_WEBHOOK_SECRET"],
     "Infra-Digger": ["DIGGER_BEARER_TOKEN", "DIGGER_WEBHOOK_SECRET", "DIGGER_HTTP_PASSWORD"],
     "Infra-Vault": ["VAULT_ROOT_TOKEN", "VAULT_POSTGRES_PASSWORD", "VAULT_UNSEAL_KEY"],
-    "Infra-OAuth": ["GH_OAUTH_CLIENT_ID", "GH_OAUTH_CLIENT_SECRET", "ENABLE_CASDOOR_OIDC", "ENABLE_PORTAL_SSO_GATE", "GH_PAT", "GH_ACCOUNT"],
-    "Infra-E2E": ["E2E_TEST_USERNAME", "E2E_TEST_PASSWORD"],
+    "Infra-OAuth": ["GH_OAUTH_CLIENT_ID", "GH_OAUTH_CLIENT_SECRET", "ENABLE_CASDOOR_OIDC", "ENABLE_PORTAL_SSO_GATE", "GH_PAT", "GH_ACCOUNT", "CASDOOR_ADMIN_PASSWORD"],
 }
 
 # Mapping: GitHub Secret Name -> Terraform Variable Name
@@ -44,9 +44,8 @@ MAPPING = {
     "INFRA_FLASH_APP_KEY": "TF_VAR_infra_flash_app_key",
     "INFRA_FLASH_WEBHOOK_SECRET": "TF_VAR_digger_webhook_secret",
     "VAULT_POSTGRES_PASSWORD": "TF_VAR_vault_postgres_password",
-    # E2E Test Schema
-    "E2E_TEST_USERNAME": "E2E_TEST_USERNAME",
-    "E2E_TEST_PASSWORD": "E2E_TEST_PASSWORD",
+    # Casdoor admin password - used for E2E tests and Terraform
+    "CASDOOR_ADMIN_PASSWORD": "TF_VAR_casdoor_admin_password",
     "GH_OAUTH_CLIENT_ID": "TF_VAR_github_oauth_client_id",
     "GH_OAUTH_CLIENT_SECRET": "TF_VAR_github_oauth_client_secret",
     "ENABLE_CASDOOR_OIDC": "TF_VAR_enable_casdoor_oidc",
