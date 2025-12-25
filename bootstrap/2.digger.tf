@@ -1,6 +1,7 @@
 # L1.2: Digger Orchestrator (Terraform CI/CD)
 # Purpose: Self-hosted Digger backend for on_commit_to_default support
 # Note: Replaces Atlantis - enables post-merge apply via GitHub Actions
+# 
 
 resource "kubernetes_namespace" "bootstrap" {
   metadata {
