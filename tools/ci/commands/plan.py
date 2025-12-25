@@ -63,7 +63,7 @@ def run(args) -> int:
             print(f"❌ Init failed")
             # Full error already printed by TerraformRunner._run()
             results[layer.name] = "error"
-            all_outputs.append(f"❌ Init failed:\n{init_result.stderr}")
+            all_outputs.append("❌ Init failed (see logs above)")
             has_error = True
             if dashboard:
                 dashboard.update_stage(stage_key, "failure", link=comment_url)

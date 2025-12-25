@@ -58,7 +58,7 @@ def run(args) -> int:
             print(f"❌ Init failed")
             # Full error already printed by TerraformRunner._run()
             results[layer.name] = "error"
-            all_outputs.append(f"❌ Init failed:\n{init_result.stderr}")
+            all_outputs.append("❌ Init failed (see logs above)")
             has_error = True
             break  # Stop on error for sequential apply
 
@@ -73,7 +73,7 @@ def run(args) -> int:
             print(f"❌ {layer.name}: Plan error")
             # Full error already printed by TerraformRunner._run()
             results[layer.name] = "error"
-            all_outputs.append(f"❌ Plan error:\n{plan_result.stderr}")
+            all_outputs.append("❌ Plan error (see logs above)")
             has_error = True
             break
 

@@ -61,7 +61,9 @@ def run_terraform(action: str, working_dir: str) -> tuple[int, str]:
     
     output = result.stdout + result.stderr
     
-    # Print full output on error (not exit code 2 for plan changes)
+    # Print full output on error for terminal logs (not exit code 2 for plan changes)
+    # Note: This is intentional - printing here for terminal visibility while
+    # `output` is returned to caller for PR comment display
     if result.returncode != 0 and result.returncode != 2:
         print(f"\n❌ Command failed with exit code {result.returncode}")
         if result.stdout:
