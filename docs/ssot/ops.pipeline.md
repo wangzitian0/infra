@@ -104,7 +104,7 @@ flowchart TD
     - **手动触发**: 不会自动运行，需主动请求。
     - **权限要求**: 需要 Copilot 订阅或组织授权。
     - **Dashboard**: Copilot 原生 review 不会更新 PR Dashboard。
-    - **详细指南**: 参见 [`.github/AI_CODE_REVIEW.md`](../../.github/AI_CODE_REVIEW.md)。
+    - **详细指南**: 参见 [`docs/project/active/ai_code_review.md`](../project/active/ai_code_review.md)。
 
 ---
 

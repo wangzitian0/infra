@@ -108,8 +108,8 @@ Copilot review **不会自动更新** PR Dashboard 的 "AI Review" 行。
 
 ## SSOT 参考
 
-- **Pipeline 操作**: [ops.pipeline.md](../../docs/ssot/ops.pipeline.md)
-- **AI 集成标准**: [platform.ai.md](../../docs/ssot/platform.ai.md)
+- **Pipeline 操作**: [ops.pipeline.md](../../ssot/ops.pipeline.md)
+- **AI 集成标准**: [platform.ai.md](../../ssot/platform.ai.md)
 
 ---
 
