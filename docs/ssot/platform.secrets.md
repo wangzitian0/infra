@@ -81,6 +81,14 @@ graph LR
     2. 运行同步脚本刷新 GitHub Secrets。
     3. 触发受影响层的 CI Pipeline (`/bootstrap plan` 或 `/plan`)。
 
+### SOP-003: 本地导出环境变量 (Local TF/Digger)
+
+- **触发条件**: 需要在本地运行 Terraform/Digger 进行迭代。
+- **步骤**:
+    1. 运行 `python3 tools/secrets/sync_secrets.py`，按提示输入三位开关（GitHub Secrets / tfvars.example / tfvars）。
+    2. 使用 `bootstrap/local.tfvars` 作为本地 Bootstrap Terraform 的输入（该文件默认被 git 忽略）。
+    3. `bootstrap/local.tfvars.example` 可提交，用于共享 key 清单。
+
 ---
 
 ## 5. 验证与测试 (The Proof)
