@@ -55,7 +55,6 @@ class Dashboard:
         """Initialize default stages."""
         if not self.stages:
             self.stages = {
-                "ci": StageStatus("CI Validate"),
                 "plan-bootstrap": StageStatus("Plan: bootstrap"),
                 "plan-platform": StageStatus("Plan: platform"),
                 "plan-data-staging": StageStatus("Plan: data-staging"),
@@ -217,7 +216,6 @@ class Dashboard:
             if append_history and (status != prev_status or status in ("success", "failure")):
                 # Map stage key to readable action
                 action_map = {
-                    "ci": "CI Validate",
                     "apply": "Terraform Apply",
                     "e2e": "E2E Tests",
                     "review": "AI Review"
