@@ -44,7 +44,7 @@
 | 文件 | SSOT Key | 关键内容 |
 |------|----------|----------|
 | [platform.auth.md](./platform.auth.md) | `platform.auth` | Casdoor SSO、Vault RBAC |
-| [platform.secrets.md](./platform.secrets.md) | `platform.secrets` | 密钥管理、四层模型、1Password |
+| [platform.secrets.md](./platform.secrets.md) | `platform.secrets` | 密钥管理、四层模型、1Password、本地 tfvars |
 | [platform.ai.md](./platform.ai.md) | `platform.ai` | AI 接入、OpenRouter |
 
 ---
