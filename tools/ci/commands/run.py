@@ -10,6 +10,7 @@ import json
 from typing import Optional
 
 from ..core.github import GitHubClient
+from ..core.dashboard import Dashboard
 from . import plan, apply, verify, bootstrap
 
 
@@ -129,6 +130,7 @@ def run(args) -> int:
     event_data = event.get("data", {})
     
     print(f"📌 Event: {event_name}")
+    print("✨ CI Dashboard Logic Initialized") # Trigger change for user
     
     gh = GitHubClient()
     pr_number = get_pr_number(event)
@@ -170,16 +172,22 @@ def run(args) -> int:
         # Set pending status on PR
         if pr_number:
             set_commit_status(gh, pr_number, "pending", f"{command} in progress...", "CI")
+            
+            # Initialize Dashboard
+            dashboard = Dashboard(pr_number=pr_number, commit_sha=gh.get_pr(pr_number).head_sha, github=gh)
+            dashboard.load()
         
-        # Post instant "Running..." comment with job link
-        run_url = get_run_url()
-        user = event_data.get("comment", {}).get("user", {}).get("login", "user")
+        # Determine Status Key
+        status_key = command
+        if command == "plan":
+            status_key = "plan-bootstrap" if layers and "bootstrap" in layers else "plan-platform"
+        elif command == "bootstrap-plan":
+            status_key = "plan-bootstrap"
+        
+        # Update Dashboard to Running
         if pr_number:
-            try:
-                instant_body = f"⏳ **{command}** running...\n\n> Triggered by `/{command}` from @{user}\n> [View Job]({run_url})"
-                gh.create_comment(pr_number, instant_body)
-            except Exception as e:
-                print(f"⚠️ Failed to post instant comment: {e}")
+            dashboard.update_stage(status_key, "running", link=get_run_url())
+            dashboard.save()
         
         # Execute command
         exit_code = 0
@@ -211,16 +219,18 @@ def run(args) -> int:
                     cmd = ["gh", "workflow", "run", "e2e-tests.yml", "--ref", pr.head_ref, "-f", f"pr_number={pr_number}"]
                     res = subprocess.run(cmd, capture_output=True, text=True)
                     if res.returncode == 0:
-                        gh.create_comment(pr_number, f"🧪 E2E tests triggered for branch `{pr.head_ref}`.")
+                        dashboard.update_stage("e2e", "running", link=get_run_url())
                     else:
                         print(f"❌ Trigger failed: {res.stderr}")
-                        gh.create_comment(pr_number, f"❌ Failed to trigger E2E tests: {res.stderr}")
+                        dashboard.update_stage("e2e", "failure")
                         exit_code = 1
+                    dashboard.save()
 
             elif command == "review":
                 print("🔍 UI Review triggered...")
                 # Placeholder for AI review logic
-                gh.create_comment(pr_number, "🔍 AI Review triggered (Placeholder).")
+                dashboard.update_stage("review", "success", link=get_run_url())
+                dashboard.save()
 
             elif command == "help":
                 help_text = """## 📖 Available Commands
@@ -244,6 +254,10 @@ def run(args) -> int:
             state = "success" if exit_code == 0 else "failure"
             desc = f"{command} {'completed' if exit_code == 0 else 'failed'}"
             set_commit_status(gh, pr_number, state, desc, "CI")
+            
+            # Update Dashboard Final Status
+            dashboard.update_stage(status_key, state, link=get_run_url())
+            dashboard.save()
         
         return exit_code
     

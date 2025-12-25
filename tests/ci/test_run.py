@@ -48,7 +48,9 @@ class TestRun(unittest.TestCase):
         gh_instance.get_pr.return_value.head_ref = "feature-branch"
         
         # Run
-        with patch("subprocess.run") as mock_sub:
+        with patch("subprocess.run") as mock_sub, \
+             patch("ci.commands.run.Dashboard") as mock_dashboard: # Patch Dashboard
+            
             mock_sub.return_value.returncode = 0
             ret = run.run(None)
             
@@ -58,6 +60,11 @@ class TestRun(unittest.TestCase):
             args = mock_sub.call_args[0][0]
             self.assertIn("e2e-tests.yml", args)
             self.assertIn("feature-branch", args)
+            
+            # Verify Dashboard interactions
+            mock_dashboard.return_value.update_stage.assert_any_call("e2e", "running", link=unittest.mock.ANY)
+            mock_dashboard.return_value.update_stage.assert_any_call("e2e", "success", link=unittest.mock.ANY)
+            mock_dashboard.return_value.save.assert_called()
 
 if __name__ == "__main__":
     unittest.main()
