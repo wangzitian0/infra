@@ -63,15 +63,17 @@ async def test_digger_health_endpoint(config: TestConfig):
 # =============================================================================
 
 @pytest.mark.bootstrap
-async def test_digger_bearer_token_configured():
+async def test_digger_bearer_token_configured(config: TestConfig):
     """Verify Digger Bearer Token is configured."""
     bearer_token = os.getenv("DIGGER_BEARER_TOKEN") or os.getenv("TF_VAR_digger_bearer_token")
     
     if not bearer_token:
         pytest.skip("DIGGER_BEARER_TOKEN not available in test environment")
     
+    min_length = config.K8sResources.MIN_TOKEN_LENGTH
     assert len(bearer_token) > 0, "Bearer token should not be empty"
-    assert len(bearer_token) >= 32, "Bearer token should be sufficiently long"
+    assert len(bearer_token) >= min_length, \
+        f"Bearer token should be at least {min_length} characters"
 
 
 @pytest.mark.bootstrap
@@ -246,15 +248,17 @@ async def test_digger_webhook_endpoint_structure(config: TestConfig):
 
 
 @pytest.mark.bootstrap
-async def test_digger_webhook_secret_configured():
+async def test_digger_webhook_secret_configured(config: TestConfig):
     """Verify Digger webhook secret is configured."""
     webhook_secret = os.getenv("DIGGER_WEBHOOK_SECRET") or os.getenv("TF_VAR_digger_webhook_secret")
     
     if not webhook_secret:
         pytest.skip("DIGGER_WEBHOOK_SECRET not available in test environment")
     
+    min_length = config.K8sResources.MIN_WEBHOOK_SECRET_LENGTH
     assert len(webhook_secret) > 0, "Webhook secret should not be empty"
-    assert len(webhook_secret) >= 16, "Webhook secret should be sufficiently long"
+    assert len(webhook_secret) >= min_length, \
+        f"Webhook secret should be at least {min_length} characters"
 
 
 # =============================================================================
