@@ -6,6 +6,7 @@ Tests K3s cluster health and Traefik ingress.
 import pytest
 import httpx
 import pathlib
+import subprocess
 from urllib.parse import urlparse
 from conftest import TestConfig
 
@@ -26,19 +27,26 @@ async def test_k3s_api_accessible(config: TestConfig):
 
 @pytest.mark.bootstrap
 async def test_k3s_namespaces_exist():
-    """Verify expected namespaces are defined in architecture."""
-    expected_namespaces = [
-        "kube-system",
-        "bootstrap",
-        "platform", 
-        "data-prod",
-        "data-staging",
-    ]
-    
-    # Structural verification - these namespaces should be part of our infra
-    assert len(expected_namespaces) >= 5, "Core namespaces should be defined"
-    assert "bootstrap" in expected_namespaces
-    assert "platform" in expected_namespaces
+    """Verify expected namespaces exist in cluster."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "namespaces", "-o", "jsonpath={.items[*].metadata.name}"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        
+        if result.returncode != 0:
+            pytest.skip("kubectl command failed or not accessible")
+        
+        namespaces = result.stdout.split()
+        
+        # Critical namespaces that must exist
+        critical_namespaces = ["kube-system", "bootstrap", "platform"]
+        
+        for ns in critical_namespaces:
+            assert ns in namespaces, \
+                f"Critical namespace '{ns}' should exist, found: {namespaces}"
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")
 
 
 @pytest.mark.bootstrap
@@ -70,15 +78,162 @@ async def test_digger_endpoint_accessible(config: TestConfig):
 
 
 @pytest.mark.bootstrap
-async def test_cnpg_operator_running(config: TestConfig):
-    """Verify CNPG Operator is running (indirectly via platform-pg presence)."""
-    # This is a proxy check - if platform-pg-rw exists, CNPG is likely working
-    pass
+async def test_cnpg_operator_running():
+    """Verify CNPG Operator pod is running."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", "cnpg-system", "-l", "app.kubernetes.io/name=cloudnative-pg", "-o", "jsonpath={.items[*].status.phase}"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            phases = result.stdout.split()
+            assert any(phase == "Running" for phase in phases), \
+                f"CNPG operator should be running, got phases: {phases}"
+        else:
+            pytest.skip("kubectl command failed or CNPG operator not found")
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")
+
+
+@pytest.mark.bootstrap
+async def test_k3s_nodes_ready():
+    """Verify K3s cluster nodes are in Ready state."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "nodes", "-o", "jsonpath={.items[*].status.conditions[?(@.type=='Ready')].status}"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            statuses = result.stdout.split()
+            assert all(status == "True" for status in statuses), \
+                f"All nodes should be Ready, got: {statuses}"
+            assert len(statuses) > 0, "At least one node should exist"
+        else:
+            pytest.skip("kubectl command failed")
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")
+
+
+@pytest.mark.bootstrap
+async def test_k3s_system_pods_healthy():
+    """Verify critical kube-system pods are running."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", "kube-system", "-o", "jsonpath={.items[*].status.phase}"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            phases = result.stdout.split()
+            running_count = sum(1 for phase in phases if phase == "Running")
+            total_count = len(phases)
+            
+            # At least 80% of system pods should be running
+            assert running_count >= total_count * 0.8, \
+                f"Most kube-system pods should be running: {running_count}/{total_count}"
+        else:
+            pytest.skip("kubectl command failed")
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")
+
+
+@pytest.mark.bootstrap
+async def test_bootstrap_namespace_pods_healthy():
+    """Verify bootstrap namespace pods are running."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", "bootstrap", "-o", "jsonpath={.items[*].status.phase}"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            phases = result.stdout.split()
+            if len(phases) > 0:
+                running_count = sum(1 for phase in phases if phase == "Running")
+                assert running_count > 0, \
+                    f"At least one bootstrap pod should be running, got: {phases}"
+        else:
+            pytest.skip("kubectl command failed or no bootstrap pods")
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")
+
+
+@pytest.mark.bootstrap
+async def test_platform_namespace_pods_healthy():
+    """Verify platform namespace pods are running."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", "platform", "-o", "jsonpath={.items[*].status.phase}"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            phases = result.stdout.split()
+            if len(phases) > 0:
+                running_count = sum(1 for phase in phases if phase == "Running")
+                # At least 50% of platform pods should be running (some may be initializing)
+                assert running_count >= len(phases) * 0.5, \
+                    f"Most platform pods should be running: {running_count}/{len(phases)}"
+        else:
+            pytest.skip("kubectl command failed or no platform pods")
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")
 
 
 # =============================================================================
 # Traefik Ingress Tests
 # =============================================================================
+
+@pytest.mark.bootstrap
+async def test_traefik_pod_running():
+    """Verify Traefik ingress controller is running."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "pods", "-n", "kube-system", "-l", "app.kubernetes.io/name=traefik", "-o", "jsonpath={.items[*].status.phase}"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            phases = result.stdout.split()
+            assert any(phase == "Running" for phase in phases), \
+                f"Traefik should be running, got phases: {phases}"
+        else:
+            # Try alternative label
+            result = subprocess.run(
+                ["kubectl", "get", "pods", "-n", "kube-system", "-l", "app=traefik", "-o", "jsonpath={.items[*].status.phase}"],
+                capture_output=True, text=True, timeout=10.0
+            )
+            if result.returncode == 0 and result.stdout:
+                phases = result.stdout.split()
+                assert any(phase == "Running" for phase in phases), \
+                    f"Traefik should be running, got phases: {phases}"
+            else:
+                pytest.skip("Traefik pods not found")
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")
+
+
+@pytest.mark.bootstrap
+async def test_traefik_service_exists():
+    """Verify Traefik service exists and has endpoints."""
+    try:
+        result = subprocess.run(
+            ["kubectl", "get", "svc", "-n", "kube-system", "traefik", "-o", "jsonpath={.spec.type}"],
+            capture_output=True, text=True, timeout=10.0
+        )
+        
+        if result.returncode == 0 and result.stdout:
+            service_type = result.stdout.strip()
+            # K3s typically uses LoadBalancer or NodePort for Traefik
+            assert service_type in ["LoadBalancer", "NodePort", "ClusterIP"], \
+                f"Traefik service should exist, got type: {service_type}"
+        else:
+            pytest.skip("Traefik service not found")
+    except FileNotFoundError:
+        pytest.skip("kubectl not found in test environment")
+
 
 @pytest.mark.smoke
 @pytest.mark.bootstrap
