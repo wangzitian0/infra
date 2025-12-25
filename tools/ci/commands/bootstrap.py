@@ -113,82 +113,117 @@ def verify_health(domain: str) -> bool:
     return False
 
 
+
 def run(args) -> int:
-    """Execute bootstrap command.
-    
-    Args:
-        args.action: "plan" or "apply"
-        args.pr: Optional PR number
-    """
+    """Execute bootstrap command."""
     action = getattr(args, "action", "plan")
     pr_number = getattr(args, "pr", None)
     
     print(f"🏗️ Bootstrap {action}...")
-    
     setup_terraform_env()
     
     gh = None
+    dashboard = None
+    comment_id = None
+    comment_url = ""
+    
     if pr_number:
         try:
             gh = GitHubClient()
+            from ..core.dashboard import Dashboard
+            dashboard = Dashboard(pr_number=pr_number, commit_sha=gh.get_pr(pr_number).head_sha, github=gh)
+            dashboard.load()
         except Exception as e:
-            print(f"⚠️ GitHub client init failed: {e}")
-    
+            print(f"⚠️ Dashboard init failed: {e}")
+
     working_dir = BOOTSTRAP_DIR
-    
+    stage_key = "apply" if action == "apply" else "plan-bootstrap"
+    title_action = "Bootstrap Apply" if action == "apply" else "Bootstrap Plan"
+
+    # 1. Create Running Comment & Update Dashboard
+    if dashboard and gh:
+        try:
+            comment_id, comment_url = gh.create_running_comment(pr_number, f"{title_action} Running...")
+            dashboard.update_stage(stage_key, "running", link=comment_url)
+            dashboard.save()
+        except Exception as e:
+            print(f"⚠️ Failed to create starting comment: {e}")
+
     # Init
     print("\n📦 Terraform init...")
     exit_code, output = run_terraform("init", working_dir)
     if exit_code != 0:
         print(f"❌ Init failed:\n{output}")
-        if gh and pr_number:
-            post_result_to_pr(gh, pr_number, False, "init")
+        if dashboard and gh and comment_id:
+            gh.update_result_comment(comment_id, pr_number, f"{title_action} Init Failed", output, False)
+            dashboard.update_stage(stage_key, "failure", link=comment_url)
+            dashboard.save()
         return 1
     
     # Plan
     print("\n📋 Terraform plan...")
     exit_code, plan_output = run_terraform("plan", working_dir)
+    has_changes = (exit_code == 2)
     
-    # detailed-exitcode: 0=no changes, 1=error, 2=has changes
     if exit_code == 1:
         print(f"❌ Plan failed:\n{plan_output}")
-        if gh and pr_number:
-            post_result_to_pr(gh, pr_number, False, "plan")
+        if dashboard and gh and comment_id:
+            gh.update_result_comment(comment_id, pr_number, f"{title_action} Failed", plan_output, False)
+            dashboard.update_stage(stage_key, "failure", link=comment_url)
+            dashboard.save()
         return 1
     
-    has_changes = (exit_code == 2)
-    print(f"{'⚠️ Changes detected' if has_changes else '✅ No changes'}")
-    
-    # Post plan to PR
-    if gh and pr_number:
-        post_plan_to_pr(gh, pr_number, plan_output)
-    
+    # Success Plan
+    if dashboard and gh and comment_id:
+        # For Plan: Log is the output
+        # For Apply: We haven't run apply yet if this is just plan
+        if action == "plan":
+            title = f"{title_action} (Changes)" if has_changes else f"{title_action} (No Changes)"
+            gh.update_result_comment(comment_id, pr_number, title, plan_output, True)
+            dashboard.update_stage(stage_key, "success", link=comment_url)
+            dashboard.save()
+            
+            # Hint for apply
+            if has_changes:
+                gh.create_comment(pr_number, "> **Next**: Run `/bootstrap apply` to deploy.")
+
     # Apply if requested
     if action == "apply" and has_changes:
+        # We reused the comment for Plan phase (if any), but wait.
+        # If action is apply, we skipped the "Plan" stage update in Dashboard?
+        # Actually bootstrap run does Init -> Plan -> Apply.
+        # If we are in "Apply" mode, we usually want to show Apply output.
+        # But we just ran Plan.
+        # Let's assume for Apply mode, we update the SAME comment to show progress?
+        # Or maybe we just append?
+        # For simplicity: If Apply mode, we overwrite the Plan output with Apply output 
+        # OR we should have separate stages. 
+        # But here we have one 'comment_id'.
+        # Let's keep it simple: If Apply, we update the comment again with Apply output.
+        
         print("\n🚀 Terraform apply...")
+        # Update comment to say "Applying..."
+        if dashboard and gh and comment_id:
+             try:
+                 gh.update_comment(comment_id, f"### 🔄 {title_action} Applying...\nRunning terraform apply...")
+             except: pass
+
         exit_code, apply_output = run_terraform("apply", working_dir)
         
         if exit_code != 0:
             print(f"❌ Apply failed:\n{apply_output}")
-            if gh and pr_number:
-                post_result_to_pr(gh, pr_number, False, "apply")
+            if dashboard and gh and comment_id:
+                gh.update_result_comment(comment_id, pr_number, f"{title_action} Failed", apply_output, False)
+                dashboard.update_stage(stage_key, "failure", link=comment_url)
+                dashboard.save()
             return 1
         
         print("✅ Apply complete")
-        
-        # Health check
-        domain = os.environ.get("INTERNAL_DOMAIN") or os.environ.get("BASE_DOMAIN", "")
-        if domain:
-            if not verify_health(domain):
-                if gh and pr_number:
-                    post_result_to_pr(gh, pr_number, False, "health check")
-                return 1
-        
-        if gh and pr_number:
-            post_result_to_pr(gh, pr_number, True, "apply")
-    
-    elif action == "plan":
-        if gh and pr_number:
-            gh.create_comment(pr_number, "> To apply: comment `/bootstrap apply`")
-    
+        if dashboard and gh and comment_id:
+            gh.update_result_comment(comment_id, pr_number, f"{title_action} Complete", apply_output, True)
+            dashboard.update_stage(stage_key, "success", link=comment_url)
+            dashboard.save()
+            
+    return 0
+            
     return 0

@@ -72,6 +72,13 @@ jobs:
               });
             } catch (e) {}
 
+      - name: Init Dashboard
+        if: steps.parse.outputs.pr_number != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONPATH: ${{ github.workspace }}/tools
+        run: python -m ci init --pr ${{ steps.parse.outputs.pr_number }}
+
   # =============================================================
   # Digger: Standard Plan/Apply (L2/L3)
   # =============================================================
@@ -100,13 +107,6 @@ jobs:
         uses: ./.github/actions/terraform-setup
         with:
           secrets_json: ${{ toJSON(secrets) }}
-
-      - name: Init Dashboard
-        if: github.event_name == 'pull_request'
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-          PYTHONPATH: ${{ github.workspace }}/tools
-        run: python -m ci init --pr ${{ github.event.pull_request.number }}
 
       - name: Digger
         uses: diggerhq/digger@v0.6.80

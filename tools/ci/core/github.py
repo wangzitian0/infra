@@ -139,6 +139,43 @@ class GitHubClient:
         """Alias for add_reaction for compatibility."""
         self.add_reaction(comment_id, reaction)
 
+    def create_running_comment(self, pr_number: int, title: str) -> tuple[int, str]:
+        """Create a standardized 'Running' comment for a long-running CI task.
+        
+        Returns:
+            (comment_id, comment_url)
+        """
+        repo = self.repo
+        body = f"""### ⏳ {title}
+*Work in progress...*
+
+[⬅️ Back to Dashboard](https://github.com/{repo}/pull/{pr_number})
+"""
+        comment_id = self.create_comment(pr_number, body)
+        url = f"https://github.com/{repo}/pull/{pr_number}#issuecomment-{comment_id}"
+        return comment_id, url
+
+    def update_result_comment(self, comment_id: int, pr_number: int, title: str, content: str, success: bool) -> None:
+        """Update a previously created 'Running' comment with actual results."""
+        # Truncate content if too long for GitHub comments (~65k limit)
+        if len(content) > 60000:
+            content = content[:60000] + "\n...(truncated)"
+
+        icon = "✅" if success else "❌"
+        repo = self.repo
+        body = f"""### {icon} {title}
+<details open>
+<summary>Logs</summary>
+
+```text
+{content}
+```
+</details>
+
+[⬅️ Back to Dashboard](https://github.com/{repo}/pull/{pr_number})
+"""
+        self.update_comment(comment_id, body)
+
     def create_commit_status(
         self,
         sha: str,
