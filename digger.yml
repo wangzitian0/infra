@@ -34,10 +34,9 @@ projects:
 # Auto-merge: disabled (use manual /apply)
 auto_merge: false
 
-# Post-merge: handled by terraform-apply job (not Digger)
-# Note: Digger OSS doesn't support push events
-# Auto-apply after merge is done by terraform-apply job using GITHUB_TOKEN
-on_commit_to_default: noop
+# Post-merge: now handled by self-hosted Digger Orchestrator
+# Orchestrator receives push webhooks and triggers apply automatically
+on_commit_to_default: apply
 
 # Comment options
 comment_render_mode: basic
@@ -55,11 +54,15 @@ workflows:
         - apply
         
   terragrunt:
+    workflow_configuration:
+      on_pull_request_pushed: [digger plan]
+      on_pull_request_closed: [digger unlock]
+      on_commit_to_default: [digger apply]
     plan:
       steps:
-        - run: terragrunt init -backend=false --terragrunt-non-interactive -no-color
+        - run: terragrunt init -no-color
         - run: terragrunt plan -no-color -out=plan.tfplan
     apply:
       steps:
-        - run: terragrunt init -backend=false --terragrunt-non-interactive -no-color
+        - run: terragrunt init -no-color
         - run: terragrunt apply -no-color -auto-approve plan.tfplan
