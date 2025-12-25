@@ -274,7 +274,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           echo "🧪 Triggering E2E tests..."
-          gh workflow run e2e-tests.yml \
+          gh workflow run -R "${{ github.repository }}" e2e-tests.yml \
             --ref "${{ steps.dispatch.outputs.head_ref }}" \
             -f test_scope="${{ steps.dispatch.outputs.scope }}" \
             -f pr_number="${{ steps.dispatch.outputs.pr_number }}" \
@@ -303,8 +303,8 @@ jobs:
         run: |
           set -euo pipefail
           PR_NUMBER="${{ github.event.issue.number }}"
-          HEAD_REF="$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.ref')"
-          HEAD_SHA="$(gh api repos/${{ github.repository }}/pulls/$PR_NUMBER --jq '.head.sha')"
+          HEAD_REF="$(gh api -R "${{ github.repository }}" pulls/$PR_NUMBER --jq '.head.ref')"
+          HEAD_SHA="$(gh api -R "${{ github.repository }}" pulls/$PR_NUMBER --jq '.head.sha')"
           COMMENT_BODY="${{ github.event.comment.body }}"
           if echo "$COMMENT_BODY" | grep -qiE "/e2e[[:space:]]+full"; then
             SCOPE="all"
@@ -322,7 +322,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           echo "🧪 Triggering E2E tests..."
-          gh workflow run e2e-tests.yml \
+          gh workflow run -R "${{ github.repository }}" e2e-tests.yml \
             --ref "${{ steps.dispatch.outputs.head_ref }}" \
             -f test_scope="${{ steps.dispatch.outputs.scope }}" \
             -f pr_number="${{ steps.dispatch.outputs.pr_number }}" \
