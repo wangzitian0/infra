@@ -1,7 +1,7 @@
 # Pipeline SSOT (运维流水线)
 
 > **SSOT Key**: `ops.pipeline`
-> **核心定义**: 双轨 CI 架构 - 自动 CI checks + 手动 Digger 命令。
+> **核心定义**: 6-Actions 架构 - 原子操作清晰，逻辑分组合理。
 
 ---
 
@@ -11,43 +11,117 @@
 
 | 维度 | 物理位置 (SSOT) | 说明 |
 |------|----------------|------|
-| **CI 入口** | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 双轨 CI: terraform-plan/apply + digger |
+| **CI 定义** | [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 6 个 actions 定义 |
 | **Bootstrap 脚本** | [`tools/ci/bootstrap.py`](../../tools/ci/bootstrap.py) | L1 层管理 |
 | **Digger 配置** | [`digger.yml`](../../digger.yml) | Projects 定义、OSS 配置 |
 | **测试防护** | [`tests/conftest.py`](../../tests/conftest.py) | Precondition checks |
 
 ---
 
-## 2. 架构模型 (Dual-Track)
+## 2. 架构模型 (6-Actions)
 
-```mermaid
-flowchart TD
-    PR[Pull Request] -->|自动| AutoPlan[terraform-plan]
-    AutoPlan -->|GITHUB_TOKEN| PlanExec[terragrunt plan]
-    PlanExec -->|infra-flash| Comment1[发布结果到 PR]
-    
-    Merge[Merge to Main] -->|自动| AutoApply[terraform-apply]
-    AutoApply -->|GITHUB_TOKEN| ApplyExec[terragrunt apply]
-    
-    User((User)) -->|/plan or /apply| Manual[Digger Job]
-    Manual -->|infra-flash| DiggerExec[Digger 编排]
-    DiggerExec -->|infra-flash| Comment2[发布结果到 PR]
-```
+### 核心设计
 
-### 关键决策 (Architecture Decision)
+**10 个原子操作** → **6 个逻辑 Action**
 
-**为什么双轨？**
-- **自动 CI checks**: 使用 GITHUB_TOKEN，显示在 PR checks，可设为 required
-- **手动命令**: 使用 infra-flash App，支持 Digger 项目级控制和高级功能
-- **Digger OSS 限制**: 不支持 push 事件，必须用原生 terragrunt 实现自动 apply
+| 原子操作 | 所属 Action |
+|---------|------------|
+| TF fmt | check |
+| TF validate | check |
+| Digger fmt | check |
+| Digger validate | check |
+| Bootstrap plan | bootstrap-plan |
+| TF plan | plan |
+| Digger plan | plan |
+| Bootstrap apply | bootstrap-apply |
+| TF apply | apply |
+| Digger apply | apply |
+| E2E tests | e2e |
 
-**Token 策略**:
-- **执行任务** (terraform/terragrunt) → `GITHUB_TOKEN`
-- **PR 交互** (评论/回复/label) → `infra-flash` App token
+### 6 个 Actions 定义
+
+#### 1. check
+**职责**: 格式和配置检查  
+**包含**: TF fmt + TF validate + Digger fmt + Digger validate  
+**触发**:
+- Auto: PR push, post-merge
+- Manual: `/check`
+
+#### 2. bootstrap-plan
+**职责**: L1 层计划  
+**包含**: Bootstrap plan  
+**触发**:
+- Auto: PR push, post-merge
+- Manual: `/bootstrap-plan`
+- **依赖**: check (仅 post-merge)
+
+#### 3. plan
+**职责**: L2-L4 层计划  
+**包含**: TF plan + Digger plan  
+**触发**:
+- Auto: PR push, post-merge
+- Manual: `/plan`
+- **依赖**: check (仅 post-merge)
+
+#### 4. bootstrap-apply
+**职责**: L1 层部署  
+**包含**: Bootstrap apply  
+**触发**:
+- Auto: post-merge only
+- Manual: `/bootstrap-apply`
+- **依赖**: check, bootstrap-plan, plan
+
+#### 5. apply
+**职责**: L2-L4 层部署  
+**包含**: TF apply + Digger apply  
+**触发**:
+- Auto: post-merge only
+- Manual: `/apply`
+- **依赖**: check, bootstrap-plan, plan
+
+#### 6. e2e
+**职责**: 端到端测试  
+**包含**: E2E test suite  
+**触发**:
+- Auto: post-merge only
+- Manual: `/e2e`
+- **依赖**: bootstrap-apply, apply
 
 ---
 
-## 3. 事件与 Token 映射
+## 3. Workflow 流程图
+
+```mermaid
+graph TD
+    PR[PR Push] --> Check[check]
+    PR --> BPlan[bootstrap-plan]
+    PR --> Plan[plan]
+    
+    Merge[Post-merge] --> Check2[check]
+    Check2 --> BPlan2[bootstrap-plan]
+    Check2 --> Plan2[plan]
+    BPlan2 --> BApply[bootstrap-apply]
+    Plan2 --> Apply[apply]
+    BApply --> E2E[e2e]
+    Apply --> E2E
+```
+
+**PR 阶段** (3个自动):
+```
+check → bootstrap-plan → plan
+```
+
+**Post-merge** (6个顺序):
+```
+check
+  ├→ bootstrap-plan → bootstrap-apply →
+  └→ plan → apply →
+                  └→ e2e
+```
+
+---
+
+## 4. 事件与 Token 映射
 
 | Event | Job | 执行 | 交互 | CI Check |
 |-------|-----|------|------|----------|
