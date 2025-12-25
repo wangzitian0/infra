@@ -1,0 +1,111 @@
+# AI Code Review 迁移说明
+
+## 变更摘要
+
+从 **Claude Code Action** 迁移到 **GitHub Copilot 原生 Code Review**。
+
+---
+
+## 核心变更
+
+### 删除
+- ❌ `.github/workflows/claude.yml` - 原 Claude workflow
+- ❌ `CLAUDE_CODE_OAUTH_TOKEN` secret（不再需要）
+
+### 新增
+- ✅ `.github/AI_CODE_REVIEW.md` - Copilot 使用指南
+- ✅ `docs/ssot/ops.pipeline.md` 新增 SOP-004: AI Code Review
+
+---
+
+## 触发方式对比
+
+| 旧方式 | 新方式 | 说明 |
+|--------|--------|------|
+| `@claude` | `@copilot` | GitHub 原生，无需 workflow |
+| - | `/review` | 兼容性别名 |
+
+---
+
+## 优势
+
+1. **无需维护 workflow**: 完全由 GitHub 托管
+2. **更好的集成**: 原生支持 CI 结果、文件树、历史上下文
+3. **无需额外密钥**: 使用 Copilot 订阅
+4. **持续改进**: GitHub 自动更新 Copilot 能力
+
+---
+
+## 配置要求
+
+### 用户级别
+- GitHub Copilot 订阅（Pro/Business/Enterprise）
+- 或组织启用"无许可用户使用 review"（按次计费）
+
+### 仓库级别
+- **无需配置** Rulesets（保持手动触发模式）
+- 可选：配置自动 review（不推荐，会导致每个 PR 自动触发）
+
+---
+
+## 迁移步骤
+
+1. **删除旧配置**:
+   ```bash
+   # GitHub Secret 可保留或删除
+   gh secret delete CLAUDE_CODE_OAUTH_TOKEN
+   ```
+
+2. **测试新方式**:
+   - 在任意 PR 评论输入 `@copilot review this`
+   - 或使用 `/review` 作为别名
+
+3. **更新团队习惯**:
+   - 旧: `@claude`
+   - 新: `@copilot` 或 `/review`
+
+---
+
+## Dashboard 集成
+
+⚠️ **重要变更**: 
+
+- Claude workflow 会自动更新 PR Dashboard 的 "AI Review" 行
+- Copilot 原生 review **不会自动更新 Dashboard**
+- 这是 trade-off：换取更强大的 review 能力，放弃自动化 Dashboard 更新
+
+如需恢复 Dashboard 集成，可考虑：
+1. 使用 GitHub GraphQL API 监听 Copilot 评论
+2. 或保留简化版自定义 workflow（参见历史提交）
+
+---
+
+## 成本对比
+
+| 方案 | 成本 |
+|------|------|
+| Claude Haiku 4.5 (旧) | $1/$5 per MTok (按用量) |
+| GitHub Copilot (新) | $10-19/月/用户 (订阅) |
+
+对于活跃使用场景，Copilot 订阅更划算。
+
+---
+
+## SSOT 更新
+
+- [docs/ssot/ops.pipeline.md](../docs/ssot/ops.pipeline.md) 新增 SOP-004
+- [.github/AI_CODE_REVIEW.md](./AI_CODE_REVIEW.md) 完整使用指南
+
+---
+
+## 回滚方案
+
+如需回退到 Claude：
+```bash
+git revert <this-commit>
+# 并重新配置 CLAUDE_CODE_OAUTH_TOKEN secret
+```
+
+---
+
+**问题反馈**: 参见 [ops.pipeline.md SOP-004](../docs/ssot/ops.pipeline.md#sop-004-ai-code-review-可选)
