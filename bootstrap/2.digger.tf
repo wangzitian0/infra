@@ -16,6 +16,38 @@ resource "kubernetes_namespace" "bootstrap" {
   }
 }
 
+# Digger PostgreSQL password secret
+# Managed separately from Helm to ensure password consistency
+import {
+  to = kubernetes_secret.digger_postgres_password
+  id = "bootstrap/digger-digger-backend-postgres-secret"
+}
+
+resource "kubernetes_secret" "digger_postgres_password" {
+  metadata {
+    name      = "digger-digger-backend-postgres-secret"
+    namespace = kubernetes_namespace.bootstrap.metadata[0].name
+    labels = {
+      "app.kubernetes.io/managed-by" = "Terraform"
+      "app.kubernetes.io/part-of"    = "digger"
+    }
+  }
+
+  data = {
+    postgres-password = var.vault_postgres_password
+  }
+
+  depends_on = [kubernetes_namespace.bootstrap]
+
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations["meta.helm.sh/release-name"],
+      metadata[0].annotations["meta.helm.sh/release-namespace"],
+      metadata[0].labels["app.kubernetes.io/managed-by"]
+    ]
+  }
+}
+
 import {
   to = helm_release.digger
   id = "bootstrap/digger"
@@ -48,6 +80,28 @@ resource "helm_release" "digger" {
           {
             name  = "HTTP_BASIC_AUTH"
             value = "0"
+          },
+          # Enable internal and API endpoints (required for self-hosted mode)
+          {
+            name  = "DIGGER_ENABLE_INTERNAL_ENDPOINTS"
+            value = "true"
+          },
+          {
+            name  = "DIGGER_ENABLE_API_ENDPOINTS"
+            value = "true"
+          },
+          {
+            name  = "DIGGER_INTERNAL_SECRET"
+            value = "digger-orchestrator-secret-2025"
+          },
+          {
+            name  = "HOSTNAME"
+            value = "https://${local.domains.digger}"
+          },
+          # Explicitly set ALLOW_DIRTY to allow existing schema
+          {
+            name  = "ALLOW_DIRTY"
+            value = "true"
           }
         ]
 
@@ -83,18 +137,25 @@ resource "helm_release" "digger" {
         }
 
         # PostgreSQL configuration (use Platform CNPG)
+        # Chart creates DATABASE_URL and references password from secret
         postgres = {
-          host     = local.k8s.platform_pg_host
-          database = "digger"
-          user     = "postgres"
-          password = var.vault_postgres_password
-          port     = "5432"
-          sslmode  = "disable"
+          host        = local.k8s.platform_pg_host
+          database    = "digger"
+          user        = "postgres"
+          port        = "5432"
+          sslmode     = "disable"
+          allow_dirty = true # Database already has schema/tables
+          # Chart expects secret with key "postgres-password"
+          # We manage this secret externally via kubernetes_secret.digger_postgres_password
         }
 
-        # Secrets configuration (removed httpBasicAuth to enable NOOP_AUTH)
+        # Secrets configuration 
+        # Note: HTTP Basic Auth is enabled by chart default via secret.httpBasicAuthUsername
+        # To disable, we must set empty values here
         secret = {
           useExistingSecret     = false
+          httpBasicAuthUsername = "" # Disable HTTP Basic Auth
+          httpBasicAuthPassword = "" # Disable HTTP Basic Auth
           bearerAuthToken       = var.digger_bearer_token
           hostname              = local.domains.digger
           githubOrg             = var.github_org
@@ -115,7 +176,8 @@ resource "helm_release" "digger" {
 
   depends_on = [
     kubernetes_namespace.bootstrap,
-    time_sleep.wait_for_platform_pg
+    time_sleep.wait_for_platform_pg,
+    kubernetes_secret.digger_postgres_password
   ]
 
   lifecycle {
@@ -146,3 +208,25 @@ output "digger_webhook_url" {
   value       = "https://${local.domains.digger}/github-app-webhook"
   description = "GitHub webhook URL for Digger"
 }
+
+# PostgreSQL Password Synchronization Notes:
+#
+# Fresh Bootstrap (Day 0):
+#   CNPG initializes PostgreSQL with password from platform-pg-superuser secret.
+#   The superuserSecret reference ensures correct password from the start.
+#   No manual intervention needed.
+#
+# Password Drift Recovery (Manual Fix):
+#   If platform-pg-superuser secret is updated after initial deployment, CNPG's
+#   cnpg.io/reload label only updates password files, NOT PostgreSQL's password hash.
+#   
+#   To fix drift manually:
+#   1. Verify secret: kubectl get secret -n platform platform-pg-superuser -o jsonpath='{.data.password}' | base64 -d
+#   2. Sync password: kubectl exec -n platform platform-pg-1 -- psql -U postgres -c "ALTER USER postgres WITH PASSWORD '\$NEW_PASS';"
+#   3. Restart consumers: kubectl rollout restart -n bootstrap deployment/digger-digger-backend-web
+#
+# Why no automated Job?
+#   - Fresh deploys don't need it (CNPG handles correctly)
+#   - Drift recovery is rare operational event
+#   - Automated Job adds complexity and RBAC surface
+#   - Manual recovery is explicit and auditable

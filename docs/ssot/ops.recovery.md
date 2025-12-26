@@ -113,3 +113,61 @@ graph TD
 
 - [docs/ssot/README.md](./README.md)
 - [docs/onboarding/README.md](../../docs/onboarding/README.md)
+---
+
+## 4. Bootstrap Day 0 Recovery Test
+
+### Purpose
+Verify that bootstrap layer can deploy from scratch without manual intervention.
+
+### Validation Checklist
+
+#### Platform PostgreSQL
+```bash
+# Check cluster health
+kubectl get cluster -n platform platform-pg
+# Expected: STATUS = "Cluster in healthy state"
+
+# Verify databases exist (vault, casdoor, digger)
+kubectl exec -n platform platform-pg-1 -- psql -U postgres -l
+
+# Test password authentication
+PGPASS=$(kubectl get secret -n platform platform-pg-superuser -o jsonpath='{.data.password}' | base64 -d)
+kubectl run -n platform psql-test --rm -it --image=postgres:16 \
+  --env="PGPASSWORD=$PGPASS" \
+  -- psql -h platform-pg-rw.platform.svc.cluster.local -U postgres -d digger -c "SELECT current_database();"
+```
+
+#### Digger Orchestrator
+```bash
+# Check pod status (should be Running, not CrashLoopBackOff)
+kubectl get pods -n bootstrap -l app.kubernetes.io/instance=digger
+
+# Verify no authentication errors
+kubectl logs -n bootstrap -l app.kubernetes.io/instance=digger --tail=50 | grep -i "auth\|password"
+
+# Test health endpoint
+curl -k https://digger.zitian.party/health
+
+# Verify password consistency
+diff <(kubectl get secret -n platform platform-pg-superuser -o jsonpath='{.data.password}' | base64 -d) \
+     <(kubectl get secret -n bootstrap digger-digger-backend-postgres-secret -o jsonpath='{.data.postgres-password}' | base64 -d)
+```
+
+### Password Drift Recovery
+
+If Digger shows password authentication failures:
+
+```bash
+# 1. Get correct password from secret
+NEW_PASS=$(kubectl get secret -n platform platform-pg-superuser -o jsonpath='{.data.password}' | base64 -d)
+
+# 2. Sync PostgreSQL password
+kubectl exec -n platform platform-pg-1 -- \
+  psql -U postgres -c "ALTER USER postgres WITH PASSWORD '$NEW_PASS';"
+
+# 3. Restart Digger
+kubectl rollout restart -n bootstrap deployment/digger-digger-backend-web
+```
+
+**Note**: Fresh deploys don't need password sync - CNPG's `superuserSecret` mechanism ensures correct initialization.
