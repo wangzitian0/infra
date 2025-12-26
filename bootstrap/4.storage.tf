@@ -42,6 +42,10 @@ locals {
 }
 
 # Patch default local-path-provisioner config to write volumes under /data/local-path-provisioner
+import {
+  to = kubernetes_config_map_v1.local_path_config
+  id = "kube-system/local-path-config"
+}
 resource "kubernetes_config_map_v1" "local_path_config" {
   metadata {
     name      = "local-path-config"
@@ -59,6 +63,10 @@ resource "kubernetes_config_map_v1" "local_path_config" {
 }
 
 # New StorageClass that keeps PVs after PVC deletion (manual cleanup required)
+import {
+  to = kubernetes_storage_class.local_path_retain
+  id = "local-path-retain"
+}
 resource "kubernetes_storage_class" "local_path_retain" {
   metadata {
     name = "local-path-retain"

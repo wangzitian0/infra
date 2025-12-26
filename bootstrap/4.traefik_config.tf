@@ -1,4 +1,8 @@
 # Deploy Traefik HelmChartConfig via kubectl_manifest to avoid SSH file copy.
+import {
+  to = kubectl_manifest.traefik_config
+  id = "helm.cattle.io/v1//HelmChartConfig//traefik//kube-system"
+}
 resource "kubectl_manifest" "traefik_config" {
   yaml_body = local.traefik_config_yaml
 

@@ -3,6 +3,10 @@
 # Note: Replaces Atlantis - enables post-merge apply via GitHub Actions
 # 
 
+import {
+  to = kubernetes_namespace.bootstrap
+  id = "bootstrap"
+}
 resource "kubernetes_namespace" "bootstrap" {
   metadata {
     name = local.k8s.ns_bootstrap
@@ -12,6 +16,10 @@ resource "kubernetes_namespace" "bootstrap" {
   }
 }
 
+import {
+  to = helm_release.digger
+  id = "bootstrap/digger"
+}
 resource "helm_release" "digger" {
   name       = "digger"
   namespace  = kubernetes_namespace.bootstrap.metadata[0].name
