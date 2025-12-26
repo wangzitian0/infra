@@ -79,7 +79,16 @@ resource "kubernetes_storage_class" "local_path_retain" {
   }
 }
 
-# Restart local-path-provisioner when any config field changes
-# REMOVED: kubectl_manifest patch was invalid (missing required selector/labels)
-# K3s local-path-provisioner auto-reloads ConfigMap changes, manual restart unnecessary.
-# If needed, use: kubectl rollout restart deployment/local-path-provisioner -n kube-system
+# Restart local-path-provisioner when config changes
+# 
+# Previous attempt used kubectl_manifest to patch Deployment with config hash annotation,
+# but the spec was invalid (missing required spec.selector and spec.template.metadata.labels).
+# 
+# Current approach: Manual operator intervention when needed
+# - ConfigMap changes are detected by K3s >= v1.21 and trigger pod restart automatically
+# - For older versions or to force immediate reload, operators can run:
+#   kubectl rollout restart deployment/local-path-provisioner -n kube-system
+# 
+# See: docs/change_log/2025-12-09.storage_retain.md - originally planned "auto-restart"
+# feature but implementation was removed due to invalid Kubernetes spec.
+# TODO: Consider implementing proper restart trigger if auto-reload proves unreliable.

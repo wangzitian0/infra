@@ -8,7 +8,9 @@
 # - Zero-downtime rolling upgrades
 # - Prometheus-native monitoring
 
-# Import existing helm release if already deployed
+# Import existing helm release to sync state if already deployed
+# Per ops.standards.md Rule 4: sync state via import, not ignore_changes
+# This handles cases where chart exists but isn't in Terraform state (e.g., after state rm)
 import {
   to = helm_release.cnpg_operator
   id = "cnpg-system/cnpg"
