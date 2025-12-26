@@ -149,7 +149,7 @@ jobs:
           private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
       
       - name: Digger Plan
-        uses: diggerhq/digger@v0.6.80
+        uses: diggerhq/digger@v0.6.138
         with:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
@@ -231,7 +231,7 @@ jobs:
           private-key: ${{ secrets.INFRA_FLASH_APP_KEY }}
       
       - name: Digger Apply
-        uses: diggerhq/digger@v0.6.80
+        uses: diggerhq/digger@v0.6.138
         with:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
