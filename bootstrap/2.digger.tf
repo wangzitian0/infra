@@ -48,6 +48,23 @@ resource "helm_release" "digger" {
           {
             name  = "HTTP_BASIC_AUTH"
             value = "0"
+          },
+          # Enable internal and API endpoints (required for self-hosted mode)
+          {
+            name  = "DIGGER_ENABLE_INTERNAL_ENDPOINTS"
+            value = "true"
+          },
+          {
+            name  = "DIGGER_ENABLE_API_ENDPOINTS"
+            value = "true"
+          },
+          {
+            name  = "DIGGER_INTERNAL_SECRET"
+            value = var.digger_internal_secret
+          },
+          {
+            name  = "HOSTNAME"
+            value = "https://${local.domains.digger}"
           }
         ]
 
