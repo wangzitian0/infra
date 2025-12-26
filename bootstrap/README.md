@@ -28,7 +28,7 @@ For authoritative architecture, configuration rules, and SOPs, refer to the **Si
     - Comment `/bootstrap apply` on PR
     - Push to `main` (Auto Apply)
 
-Push to `main` will trigger an automatic drift scan/apply for the Bootstrap layer (post-merge reconciliation).
+Push to `main` will trigger an automatic drift scan/apply for the Bootstrap layer (post-merge reconciliation, auto apply).
 
 ### Local Deployment (Emergency)
 > See [**Compute SSOT / Constraints**](../docs/ssot/bootstrap.compute.md#设计约束-dos--donts) for when this is allowed.
@@ -91,4 +91,4 @@ The CI loader (`tools/secrets/ci_load_secrets.py`) ensures the following are pas
 - **Import**: CI auto-imports existing Helm releases and secrets before apply.
 
 ---
-*Last updated: 2025-12-25*
+*Last updated: 2025-12-26*
