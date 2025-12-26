@@ -9,3 +9,6 @@ This PR tests:
 
 Installation link added to database manually.
 
+
+Testing Digger orchestrator after database setup.
+
