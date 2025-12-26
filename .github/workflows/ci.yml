@@ -41,6 +41,7 @@ jobs:
     name: Check (fmt + validate)
     if: |
       github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
