@@ -80,7 +80,7 @@ flowchart TB
 - **触发条件**：CPU 使用率 > 80% 持续 10分钟
 - **步骤**：
     1. 修改 `variables.tf` 中的 `node_count`。
-    2. 提交 PR 并执行 `atlantis apply`。
+    2. 提交 PR 并评论 `/apply`。
     3. (紧急情况) 手动 `terraform apply` 并事后补 PR。
 
 ---
