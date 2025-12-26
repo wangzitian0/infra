@@ -209,70 +209,24 @@ output "digger_webhook_url" {
   description = "GitHub webhook URL for Digger"
 }
 
-# One-time job to sync PostgreSQL password with platform-pg-superuser secret
-# This ensures CNPG's stored password matches what Digger expects
-# Note: Uses kubectl_manifest instead of kubernetes_job for better lifecycle control
-resource "kubectl_manifest" "sync_postgres_password" {
-  yaml_body = yamlencode({
-    apiVersion = "batch/v1"
-    kind       = "Job"
-    metadata = {
-      name      = "sync-postgres-password"
-      namespace = kubernetes_namespace.platform.metadata[0].name
-      labels = {
-        "app"   = "platform-pg-sync"
-        "layer" = "Bootstrap"
-      }
-    }
-    spec = {
-      # Clean up completed job after 1 hour
-      ttlSecondsAfterFinished = 3600
-      backoffLimit            = 3
-      template = {
-        metadata = {
-          labels = {
-            app = "platform-pg-sync"
-          }
-        }
-        spec = {
-          restartPolicy = "OnFailure"
-          containers = [{
-            name  = "sync-password"
-            image = "postgres:16-alpine"
-            command = [
-              "sh",
-              "-c",
-              <<-EOT
-                echo "Syncing PostgreSQL password with platform-pg-superuser secret..."
-                export PGPASSWORD="$PG_PASSWORD"
-                psql -h $PG_HOST -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD '$PG_PASSWORD';"
-                echo "Password sync completed successfully"
-              EOT
-            ]
-            env = [
-              {
-                name  = "PG_HOST"
-                value = local.k8s.platform_pg_host
-              },
-              {
-                name = "PG_PASSWORD"
-                valueFrom = {
-                  secretKeyRef = {
-                    name = kubernetes_secret.platform_pg_superuser.metadata[0].name
-                    key  = "password"
-                  }
-                }
-              }
-            ]
-          }]
-        }
-      }
-    }
-  })
-
-  depends_on = [
-    kubectl_manifest.platform_pg,
-    time_sleep.wait_for_platform_pg,
-    kubernetes_secret.digger_postgres_password
-  ]
-}
+# PostgreSQL Password Synchronization Notes:
+#
+# Fresh Bootstrap (Day 0):
+#   CNPG initializes PostgreSQL with password from platform-pg-superuser secret.
+#   The superuserSecret reference ensures correct password from the start.
+#   No manual intervention needed.
+#
+# Password Drift Recovery (Manual Fix):
+#   If platform-pg-superuser secret is updated after initial deployment, CNPG's
+#   cnpg.io/reload label only updates password files, NOT PostgreSQL's password hash.
+#   
+#   To fix drift manually:
+#   1. Verify secret: kubectl get secret -n platform platform-pg-superuser -o jsonpath='{.data.password}' | base64 -d
+#   2. Sync password: kubectl exec -n platform platform-pg-1 -- psql -U postgres -c "ALTER USER postgres WITH PASSWORD '\$NEW_PASS';"
+#   3. Restart consumers: kubectl rollout restart -n bootstrap deployment/digger-digger-backend-web
+#
+# Why no automated Job?
+#   - Fresh deploys don't need it (CNPG handles correctly)
+#   - Drift recovery is rare operational event
+#   - Automated Job adds complexity and RBAC surface
+#   - Manual recovery is explicit and auditable
