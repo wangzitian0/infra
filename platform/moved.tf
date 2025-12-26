@@ -23,7 +23,7 @@
 # }
 
 # CRITICAL: kubernetes_namespace.platform is now managed by Bootstrap (bootstrap/5.platform_pg.tf)
-# The resource is removed from L2 state via atlantis.yaml workflow step:
+# The resource is removed from L2 state via Digger workflow step:
 #   terraform state rm kubernetes_namespace.platform
 # This runs automatically before plan/apply to prevent namespace destruction.
 # See PR #125 for migration details.

@@ -1,6 +1,6 @@
 # Backend config for staging environment
-# Used by: atlantis.yaml staging workflow
-# Note: bucket and endpoints use placeholders - actual values from env vars in atlantis.yaml run step
+# Used by: Digger workflow
+# Note: bucket and endpoints use placeholders - actual values from env vars in Digger workflow
 
 bucket = "PLACEHOLDER_BUCKET"
 key    = "k3s/staging.tfstate"

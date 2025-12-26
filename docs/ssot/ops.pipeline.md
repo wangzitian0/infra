@@ -220,7 +220,32 @@ check
     2. 验证 PR 评论中是否有 marker: `<!-- infra-dashboard:{sha} -->`
     3. 检查 GitHub Token 权限（需要 `issues: write`）
     4. 手动测试：`python -m ci update --pr <num> --stage apply --status success`
-- **常见原因**: 参见 [Workflow DESIGN.md 故障排查章节](../../.github/workflows/DESIGN.md#-known-issues--fixes)
+- **常见原因**: 参见下方 SOP-006
+
+### SOP-006: 通用故障排查 (General Troubleshooting)
+
+#### 1. Commands not responding (指令无响应)
+- **Check**:
+    1. Workflow `if` conditions in `ci.yml`.
+    2. Comment spelling (case-sensitive, e.g., `/plan`).
+    3. Context: PR comment vs Issue comment (must be PR).
+
+#### 2. Bootstrap fails (L1 失败)
+- **Check**:
+    1. `tools/ci/bootstrap.py` exists and is executable.
+    2. Terragrunt/Terraform setup action works.
+    3. Bootstrap directory exists.
+
+#### 3. Digger not planning all projects (Plan 不全)
+- **Check**:
+    1. `digger.yml` has `include_patterns: ["**/*"]` for drift detection.
+    2. Projects are properly configured in `digger.yml`.
+
+#### 4. No comments appearing (无评论回显)
+- **Check**:
+    1. GitHub App token has correct permissions.
+    2. Workflow has `pull-requests: write` permission.
+    3. Job completed successfully (check Actions logs).
 
 ---
 
@@ -238,4 +263,3 @@ check
 
 - [docs/ssot/README.md](./README.md)
 - [bootstrap/README.md](../../bootstrap/README.md)
-- [.github/workflows/DESIGN.md](../../.github/workflows/DESIGN.md)
