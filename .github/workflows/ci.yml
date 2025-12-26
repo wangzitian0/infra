@@ -1,113 +1,14 @@
 name: CI Pipeline
 
-# 此 workflow 处理:
-# 1. 自动触发: PR, Push
-# 2. Bootstrap 命令: /check, /bootstrap-plan, /bootstrap-apply, /e2e, /help
-# 3. Platform/Data 命令 (/plan, /apply) 由 Digger Orchestrator 处理
-
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
-  issue_comment:
-    types: [created]
-
-env:
-  PYTHON_VERSION: '3.11'
-  TERRAGRUNT_VERSION: '0.68.4'
 
 jobs:
-  # ================================================================
-  # /check - Format & Validate (自动 + 命令)
-  # ================================================================
-  check:
-    name: Check (fmt + validate)
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request &&
-       contains(github.event.comment.body, '/check'))
-    uses: ./.github/workflows/check.yml
-  
-  # ================================================================
-  # /bootstrap-plan - Bootstrap Plan (自动 + 命令)
-  # ================================================================
-  bootstrap-plan:
-    name: Bootstrap Plan
-    if: |
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request &&
-       contains(github.event.comment.body, '/bootstrap-plan'))
-    needs: []
-    uses: ./.github/workflows/bootstrap-plan.yml
-    secrets: inherit
-  
-  # ================================================================
-  # /bootstrap-apply - Bootstrap Apply (自动 + 命令)
-  # ================================================================
-  bootstrap-apply:
-    name: Bootstrap Apply
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request &&
-       contains(github.event.comment.body, '/bootstrap-apply'))
-    uses: ./.github/workflows/bootstrap-apply.yml
-    secrets: inherit
-  
-  # ================================================================
-  # /e2e - E2E Tests (自动 + 命令)
-  # ================================================================
-  e2e:
-    name: E2E Tests
-    if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request &&
-       contains(github.event.comment.body, '/e2e'))
-    uses: ./.github/workflows/e2e.yml
-    secrets: inherit
-  
-  # ================================================================
-  # /help - Show Help
-  # ================================================================
-  help:
-    name: Help
-    if: |
-      github.event_name == 'issue_comment' && 
-      github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/help')
+  test-basic:
+    name: Basic Test
     runs-on: ubuntu-latest
     steps:
-      - name: Show Help
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr comment ${{ github.event.issue.number }} --body "
-          ## 📖 Available Commands (7 总共)
-          
-          | Command | Description | Layer | Handler |
-          |---------|-------------|-------|---------|
-          | \`/check\` | Format & Validate all | All | GitHub Actions |
-          | \`/bootstrap-plan\` | Plan Bootstrap (L1) | Bootstrap | GitHub Actions |
-          | \`/plan\` | Plan Platform/Data (L2-L4) | Digger | **Digger Orchestrator** |
-          | \`/bootstrap-apply\` | Apply Bootstrap (L1) | Bootstrap | GitHub Actions |
-          | \`/apply\` | Apply Platform/Data (L2-L4) | Digger | **Digger Orchestrator** |
-          | \`/e2e\` | Trigger E2E Tests | Test | GitHub Actions |
-          | \`/help\` | Show this message | - | GitHub Actions |
-          
-          ### 📌 说明
-          - **Bootstrap 命令** (\`/check\`, \`/bootstrap-*\`, \`/e2e\`, \`/help\`): 直接在 CI Pipeline 中处理
-          - **Digger 命令** (\`/plan\`, \`/apply\`): 由 Digger Orchestrator (K8s) 接收 webhook 并触发
-          
-          ### ⚡ 自动触发
-          - **PR 创建/更新**: 自动运行 \`check\`, \`bootstrap-plan\`
-          - **Merge 到 main**: 自动运行 \`bootstrap-apply\`, Platform/Data apply (via Digger)
-          "
-  
-  # ================================================================
-  # 注意: /plan 和 /apply 由 digger-orchestrator.yml 处理
-  # 通过 Digger Orchestrator (K8s) webhook → workflow_dispatch
-  # ================================================================
+      - uses: actions/checkout@v4
+      - run: echo "✅ Step 1: Basic inline job works"
+      - run: echo "Files changed:" && git diff --name-only origin/main..HEAD || true
