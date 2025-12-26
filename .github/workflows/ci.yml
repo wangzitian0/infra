@@ -289,8 +289,7 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           digger-hostname: https://digger.zitian.party
-          # NOOP_AUTH mode: token can be dummy value, auth handled by orchestrator
-          digger-token: noop
+          digger-token: ${{ secrets.DIGGER_BEARER_TOKEN }}
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -496,8 +495,7 @@ jobs:
           setup-terragrunt: true
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           digger-hostname: https://digger.zitian.party
-          # NOOP_AUTH mode: token can be dummy value, auth handled by orchestrator
-          digger-token: noop
+          digger-token: ${{ secrets.DIGGER_BEARER_TOKEN }}
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
