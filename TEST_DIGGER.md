@@ -27,3 +27,6 @@ Final test after fixing organization name in database.
 
 FINAL TEST: Correct GitHub App ID (1079088) configured!
 
+
+Final test with new GitHub App (Infra-DiggerV2, ID: 2542084)
+
