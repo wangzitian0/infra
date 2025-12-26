@@ -69,7 +69,7 @@ resource "kubernetes_secret" "platform_pg_superuser" {
 # Platform PostgreSQL via CloudNativePG Cluster
 import {
   to = kubectl_manifest.platform_pg
-  id = "/apis/postgresql.cnpg.io/v1/namespaces/platform/clusters/platform-pg"
+  id = "postgresql.cnpg.io/v1//Cluster//platform-pg//platform"
 }
 
 resource "kubectl_manifest" "platform_pg" {
