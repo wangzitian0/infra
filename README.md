@@ -52,6 +52,7 @@ check → bootstrap-plan + plan → bootstrap-apply + apply → e2e
 /help
 ```
 
+g
 ---
 *Last updated: 2025-12-25*
 # Test Digger Integration
