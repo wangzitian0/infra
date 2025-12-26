@@ -37,3 +37,6 @@ Test with Digger v0.6.101 (Helm default stable version)
 🎯 FINAL TEST with v0.6.101 stable version
 App ID: 2542124
 
+
+Test with v0.6.138 - should fix private key parsing
+
