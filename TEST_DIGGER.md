@@ -15,3 +15,6 @@ Testing Digger orchestrator after database setup.
 
 Final test after fixing database schema (repo_id column).
 
+
+After Digger restart with complete database setup.
+
