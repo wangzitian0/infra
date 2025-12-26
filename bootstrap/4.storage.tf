@@ -39,13 +39,6 @@ locals {
     set -eu
     rm -rf "$${VOL_DIR}"
   SCRIPT
-
-  local_path_config_hash = sha1(join("", [
-    local.local_path_config_json,
-    local.local_path_helper_pod,
-    local.local_path_setup,
-    local.local_path_teardown,
-  ]))
 }
 
 # Patch default local-path-provisioner config to write volumes under /data/local-path-provisioner

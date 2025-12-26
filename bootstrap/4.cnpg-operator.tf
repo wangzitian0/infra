@@ -8,6 +8,12 @@
 # - Zero-downtime rolling upgrades
 # - Prometheus-native monitoring
 
+# Import existing helm release if already deployed
+import {
+  to = helm_release.cnpg_operator
+  id = "cnpg-system/cnpg"
+}
+
 resource "helm_release" "cnpg_operator" {
   name             = "cnpg"
   namespace        = "cnpg-system"
@@ -25,10 +31,6 @@ resource "helm_release" "cnpg_operator" {
   })]
 
   lifecycle {
-    ignore_changes = [
-      # Prevent "cannot re-use a name" error when chart already exists
-      # State sync is managed through import or manual reconciliation
-    ]
     postcondition {
       condition     = self.status == "deployed"
       error_message = "CNPG operator Helm release failed to deploy."

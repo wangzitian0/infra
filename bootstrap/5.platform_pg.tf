@@ -16,19 +16,17 @@
 # No local locals needed here, moved to centralized locals.tf
 
 # Create/manage platform namespace in Bootstrap (before Platform layer Vault deployment)
+import {
+  to = kubernetes_namespace.platform
+  id = "platform"
+}
+
 resource "kubernetes_namespace" "platform" {
   metadata {
     name = local.k8s.ns_platform
     labels = {
       layer = "Platform"
     }
-  }
-
-  lifecycle {
-    ignore_changes = [
-      # Prevent "already exists" error on re-apply
-      # State sync via import if needed
-    ]
   }
 }
 
