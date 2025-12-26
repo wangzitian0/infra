@@ -23,6 +23,13 @@ resource "kubernetes_namespace" "platform" {
       layer = "Platform"
     }
   }
+
+  lifecycle {
+    ignore_changes = [
+      # Prevent "already exists" error on re-apply
+      # State sync via import if needed
+    ]
+  }
 }
 
 # Superuser secret for CNPG (must exist before Cluster)

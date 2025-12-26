@@ -87,27 +87,6 @@ resource "kubernetes_storage_class" "local_path_retain" {
 }
 
 # Restart local-path-provisioner when any config field changes
-# Use kubectl_manifest with server_side_apply to patch existing Deployment
-resource "kubectl_manifest" "local_path_provisioner_restart" {
-  yaml_body = yamlencode({
-    apiVersion = "apps/v1"
-    kind       = "Deployment"
-    metadata = {
-      name      = "local-path-provisioner"
-      namespace = "kube-system"
-    }
-    spec = {
-      template = {
-        metadata = {
-          annotations = {
-            "infra.zitian.party/config-hash" = local.local_path_config_hash
-          }
-        }
-      }
-    }
-  })
-
-  server_side_apply = true
-
-  depends_on = [kubernetes_config_map_v1.local_path_config]
-}
+# REMOVED: kubectl_manifest patch was invalid (missing required selector/labels)
+# K3s local-path-provisioner auto-reloads ConfigMap changes, manual restart unnecessary.
+# If needed, use: kubectl rollout restart deployment/local-path-provisioner -n kube-system

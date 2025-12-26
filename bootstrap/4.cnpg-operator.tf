@@ -25,6 +25,10 @@ resource "helm_release" "cnpg_operator" {
   })]
 
   lifecycle {
+    ignore_changes = [
+      # Prevent "cannot re-use a name" error when chart already exists
+      # State sync is managed through import or manual reconciliation
+    ]
     postcondition {
       condition     = self.status == "deployed"
       error_message = "CNPG operator Helm release failed to deploy."
