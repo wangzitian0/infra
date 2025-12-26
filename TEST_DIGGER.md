@@ -5,3 +5,7 @@ This PR tests:
 - Slash commands (/bootstrap-plan, /bootstrap-apply)
 - Digger Plan workflow
 
+# Digger v0.6.138 Test - Round 2
+
+Installation link added to database manually.
+
