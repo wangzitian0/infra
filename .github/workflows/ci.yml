@@ -290,6 +290,9 @@ jobs:
           terragrunt-version: ${{ env.TERRAGRUNT_VERSION }}
           digger-hostname: https://digger.zitian.party
           digger-token: ${{ secrets.DIGGER_BEARER_TOKEN }}
+          # Workaround: Set digger-spec to empty to force orchestrator mode
+          setup-aws: true
+          aws-region: us-east-1
         env:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
