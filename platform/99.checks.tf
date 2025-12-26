@@ -1,7 +1,7 @@
 # ============================================================
 # E2E Validation: Final SSO Health Checks
 # Retry: 2025-12-17 trigger apply
-# Test: verify Atlantis prompt optimization
+# Test: verify Digger/Terraform prompt optimization
 # ============================================================
 # These checks run AFTER all components are deployed.
 # They verify the complete SSO flow is working end-to-end.

@@ -31,7 +31,7 @@
 graph TD
     subgraph "Trust Anchor (L1)"
         ROOT[根密钥<br/>1Password]
-        B_ATLANTIS[Atlantis<br/>Basic Auth]
+        B_DIGGER[Digger<br/>Bearer Token]
         B_K3S[K3s API<br/>Token]
     end
 
@@ -46,7 +46,7 @@ graph TD
         SIGNOZ[SigNoz<br/>OIDC]
     end
 
-    ROOT -->|Basic Auth| B_ATLANTIS
+    ROOT -->|Bearer Token| B_DIGGER
     ROOT -->|Root Token| VAULT
     
     SSO -->|OIDC| VAULT
@@ -58,7 +58,7 @@ graph TD
 ### 关键决策 (Architecture Decision)
 
 - **分治策略 (Divide and Conquer)**:
-    - **L1 Bootstrap (Atlantis/K3s)**: 使用独立根密钥认证，**禁止**依赖 L2 Casdoor（避免循环依赖）。
+    - **L1 Bootstrap (Digger/K3s)**: 使用独立根密钥/Token认证，**禁止**依赖 L2 Casdoor（避免循环依赖）。
     - **原生 OIDC 应用 (Vault/Kubero)**: 直连 Casdoor OIDC，**禁用** Portal Gate（避免双重认证）。
     - **遗留应用 (Dashboard)**: 使用 Portal Gate (OAuth2-Proxy + ForwardAuth) 提供 SSO 保护。
 
@@ -73,7 +73,7 @@ graph TD
 ### ✅ 推荐模式 (Whitelist)
 
 - **模式 A**: 新接入的应用首选 **OIDC Authorization Code Flow**。
-- **模式 B**: 必须为 L1 服务保留“紧急访问通道” (Break-glass access)，如 1Password 中的 `ATLANTIS_WEB_PASSWORD`。
+- **模式 B**: 必须为 L1 服务保留“紧急访问通道” (Break-glass access)，如 1Password 中的 `DIGGER_BEARER_TOKEN` 或 Kubeconfig。
 
 ### ⛔ 禁止模式 (Blacklist)
 
