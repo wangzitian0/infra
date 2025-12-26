@@ -30,3 +30,6 @@ FINAL TEST: Correct GitHub App ID (1079088) configured!
 
 Final test with new GitHub App (Infra-DiggerV2, ID: 2542084)
 
+
+Test with Digger v0.6.101 (Helm default stable version)
+
