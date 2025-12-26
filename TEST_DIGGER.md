@@ -24,3 +24,6 @@ FINAL TEST: Digger with all environment variables configured.
 
 Final test after fixing organization name in database.
 
+
+FINAL TEST: Correct GitHub App ID (1079088) configured!
+
