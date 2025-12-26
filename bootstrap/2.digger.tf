@@ -16,6 +16,38 @@ resource "kubernetes_namespace" "bootstrap" {
   }
 }
 
+# Digger PostgreSQL password secret
+# Managed separately from Helm to ensure password consistency
+import {
+  to = kubernetes_secret.digger_postgres_password
+  id = "bootstrap/digger-digger-backend-postgres-secret"
+}
+
+resource "kubernetes_secret" "digger_postgres_password" {
+  metadata {
+    name      = "digger-digger-backend-postgres-secret"
+    namespace = kubernetes_namespace.bootstrap.metadata[0].name
+    labels = {
+      "app.kubernetes.io/managed-by" = "Terraform"
+      "app.kubernetes.io/part-of"    = "digger"
+    }
+  }
+
+  data = {
+    postgres-password = var.vault_postgres_password
+  }
+
+  depends_on = [kubernetes_namespace.bootstrap]
+
+  lifecycle {
+    ignore_changes = [
+      metadata[0].annotations["meta.helm.sh/release-name"],
+      metadata[0].annotations["meta.helm.sh/release-namespace"],
+      metadata[0].labels["app.kubernetes.io/managed-by"]
+    ]
+  }
+}
+
 import {
   to = helm_release.digger
   id = "bootstrap/digger"
@@ -65,6 +97,11 @@ resource "helm_release" "digger" {
           {
             name  = "HOSTNAME"
             value = "https://${local.domains.digger}"
+          },
+          # Explicitly set ALLOW_DIRTY to allow existing schema
+          {
+            name  = "ALLOW_DIRTY"
+            value = "true"
           }
         ]
 
@@ -100,14 +137,16 @@ resource "helm_release" "digger" {
         }
 
         # PostgreSQL configuration (use Platform CNPG)
+        # Chart creates DATABASE_URL and references password from secret
         postgres = {
           host        = local.k8s.platform_pg_host
           database    = "digger"
           user        = "postgres"
-          password    = var.vault_postgres_password
           port        = "5432"
           sslmode     = "disable"
-          allow_dirty = true  # Database already has schema/tables
+          allow_dirty = true # Database already has schema/tables
+          # Chart expects secret with key "postgres-password"
+          # We manage this secret externally via kubernetes_secret.digger_postgres_password
         }
 
         # Secrets configuration 
@@ -137,7 +176,8 @@ resource "helm_release" "digger" {
 
   depends_on = [
     kubernetes_namespace.bootstrap,
-    time_sleep.wait_for_platform_pg
+    time_sleep.wait_for_platform_pg,
+    kubernetes_secret.digger_postgres_password
   ]
 
   lifecycle {
@@ -167,4 +207,72 @@ output "digger_url" {
 output "digger_webhook_url" {
   value       = "https://${local.domains.digger}/github-app-webhook"
   description = "GitHub webhook URL for Digger"
+}
+
+# One-time job to sync PostgreSQL password with platform-pg-superuser secret
+# This ensures CNPG's stored password matches what Digger expects
+# Note: Uses kubectl_manifest instead of kubernetes_job for better lifecycle control
+resource "kubectl_manifest" "sync_postgres_password" {
+  yaml_body = yamlencode({
+    apiVersion = "batch/v1"
+    kind       = "Job"
+    metadata = {
+      name      = "sync-postgres-password"
+      namespace = kubernetes_namespace.platform.metadata[0].name
+      labels = {
+        "app"   = "platform-pg-sync"
+        "layer" = "Bootstrap"
+      }
+    }
+    spec = {
+      # Clean up completed job after 1 hour
+      ttlSecondsAfterFinished = 3600
+      backoffLimit            = 3
+      template = {
+        metadata = {
+          labels = {
+            app = "platform-pg-sync"
+          }
+        }
+        spec = {
+          restartPolicy = "OnFailure"
+          containers = [{
+            name  = "sync-password"
+            image = "postgres:16-alpine"
+            command = [
+              "sh",
+              "-c",
+              <<-EOT
+                echo "Syncing PostgreSQL password with platform-pg-superuser secret..."
+                export PGPASSWORD="$PG_PASSWORD"
+                psql -h $PG_HOST -U postgres -d postgres -c "ALTER USER postgres WITH PASSWORD '$PG_PASSWORD';"
+                echo "Password sync completed successfully"
+              EOT
+            ]
+            env = [
+              {
+                name  = "PG_HOST"
+                value = local.k8s.platform_pg_host
+              },
+              {
+                name = "PG_PASSWORD"
+                valueFrom = {
+                  secretKeyRef = {
+                    name = kubernetes_secret.platform_pg_superuser.metadata[0].name
+                    key  = "password"
+                  }
+                }
+              }
+            ]
+          }]
+        }
+      }
+    }
+  })
+
+  depends_on = [
+    kubectl_manifest.platform_pg,
+    time_sleep.wait_for_platform_pg,
+    kubernetes_secret.digger_postgres_password
+  ]
 }
