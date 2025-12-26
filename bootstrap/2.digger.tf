@@ -154,8 +154,8 @@ resource "helm_release" "digger" {
         # To disable, we must set empty values here
         secret = {
           useExistingSecret     = false
-          httpBasicAuthUsername = ""  # Disable HTTP Basic Auth
-          httpBasicAuthPassword = ""  # Disable HTTP Basic Auth
+          httpBasicAuthUsername = "" # Disable HTTP Basic Auth
+          httpBasicAuthPassword = "" # Disable HTTP Basic Auth
           bearerAuthToken       = var.digger_bearer_token
           hostname              = local.domains.digger
           githubOrg             = var.github_org
