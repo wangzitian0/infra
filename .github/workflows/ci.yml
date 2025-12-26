@@ -108,6 +108,16 @@ jobs:
       - name: Bootstrap Plan
         env:
           PYTHONPATH: ${{ github.workspace }}/tools
+          # Credentials for R2 Backend & Cloudflare
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_r2_bucket: ${{ secrets.R2_BUCKET }}
+          TF_VAR_r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+          TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+          TF_VAR_vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
         run: |
           echo "📋 Running bootstrap plan..."
           python tools/ci/bootstrap.py plan
@@ -159,6 +169,16 @@ jobs:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          # Credentials for R2 Backend & Cloudflare
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_r2_bucket: ${{ secrets.R2_BUCKET }}
+          TF_VAR_r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+          TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+          TF_VAR_vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
 
   # ================================================================
   # Action 4: bootstrap-apply
@@ -191,6 +211,16 @@ jobs:
       - name: Bootstrap Apply
         env:
           PYTHONPATH: ${{ github.workspace }}/tools
+          # Credentials for R2 Backend & Cloudflare
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_r2_bucket: ${{ secrets.R2_BUCKET }}
+          TF_VAR_r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+          TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+          TF_VAR_vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
         run: |
           echo "🚀 Running bootstrap apply..."
           python tools/ci/bootstrap.py apply
@@ -241,6 +271,16 @@ jobs:
           GITHUB_CONTEXT: ${{ toJSON(github) }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           KUBECONFIG: ${{ env.KUBECONFIG_PATH }}
+          # Credentials for R2 Backend & Cloudflare
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_r2_bucket: ${{ secrets.R2_BUCKET }}
+          TF_VAR_r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+          TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+          TF_VAR_vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
 
   # ================================================================
   # Action 6: e2e

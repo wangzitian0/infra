@@ -46,17 +46,14 @@
 | `INTERNAL_ZONE_ID` | Infra 域名 Zone ID（可选） | |
 
 **部署方式**:
-- **日常变更**: 通过 PR + Atlantis 管理 L2/L3/L4（自动 plan，评论 `atlantis apply`）
+- **日常变更**: 通过 PR + Digger 管理 L2/L3/L4（自动 plan，评论 `/apply`）
 - **初始引导/灾备**: 手动触发 `deploy-L1-bootstrap.yml`（仅 L1: k3s, cert-manager, Platform PG, Atlantis）
 
-**Pre-flight 验证（Shift-Left）**：
-- **Phase 0 (Inputs)**：立即验证所有必填 secrets，<30s 内报错
-- **Phase 2 (Dependencies)**：L2 Apply 前验证 Vault 可达性和 Token 有效性
-
 **PR Workflow**:
-1. Open PR → CI runs `fmt/tflint/validate` and posts per-commit infra-flash comment.
-2. PR 更新（push 新 commit）→ Atlantis autoplan 自动运行 `terraform plan` 并评论结果。
-3. Review plan 后评论 `atlantis apply`。
+1. Open PR → CI runs `fmt/validate` and Digger runs `terraform plan`.
+2. 检查 PR 评论中的 Plan 结果和 GitHub Status Check。
+3. Review pass 后评论 `/apply` 进行部署。
+4. 部署成功后合并 PR。
 
 ### 3. 本地部署（高级）
 
