@@ -1,6 +1,7 @@
 # L1.2: Digger Orchestrator (Terraform CI/CD)
 # Purpose: Self-hosted Digger backend for on_commit_to_default support
 # Note: Replaces Atlantis - enables post-merge apply via GitHub Actions
+# 
 
 resource "kubernetes_namespace" "bootstrap" {
   metadata {
@@ -28,12 +29,16 @@ resource "helm_release" "digger" {
           tag        = "v0.6.101"
         }
 
-        # Enable Bearer Token authentication (required for GitHub Actions)
-        # By default only HTTP_BASIC_AUTH is enabled
+        # Use NOOP_AUTH for self-hosted Orchestrator (official recommendation)
+        # Future: integrate with Casdoor for additional authentication layer
         customEnv = [
           {
-            name  = "BEARER_AUTH"
+            name  = "NOOP_AUTH"
             value = "1"
+          },
+          {
+            name  = "HTTP_BASIC_AUTH"
+            value = "0"
           }
         ]
 

@@ -88,6 +88,10 @@ flowchart TB
 
 **Output**: Comment with workflow link
 
+**Notes**:
+- Uses `workflow_dispatch` with infra-flash App token to avoid bot comment suppression.
+- `/e2e` uses a dedicated job without plan/apply dependencies; post-merge e2e remains gated by apply.
+
 #### 4. **help** - Command Help
 
 **Trigger**: Comment contains `/help`
@@ -114,6 +118,12 @@ flowchart TB
 ---
 
 ## 🔧 Implementation Details
+
+### Command Feedback
+
+For `/check`, `/plan`, `/apply`, `/bootstrap-*`, and `/e2e`:
+- Post a "running" comment immediately with the run URL.
+- Update the same comment on completion with success/failure.
 
 ### Bootstrap Script
 
