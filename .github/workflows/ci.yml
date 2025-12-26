@@ -45,7 +45,9 @@ jobs:
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
-       contains(github.event.comment.body, '/check'))
+       (contains(github.event.comment.body, '/check') ||
+        contains(github.event.comment.body, '/bootstrap-apply') ||
+        contains(github.event.comment.body, '/apply')))
     runs-on: ubuntu-latest
     steps:
       - name: Comment Start (/check)
@@ -140,7 +142,8 @@ jobs:
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
-       contains(github.event.comment.body, '/bootstrap-plan'))
+       (contains(github.event.comment.body, '/bootstrap-plan') ||
+        contains(github.event.comment.body, '/bootstrap-apply')))
     needs: [check]
     runs-on: ubuntu-latest
     steps:
@@ -344,9 +347,8 @@ jobs:
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '/bootstrap-apply'))
-    # On push: depends on check, bootstrap-plan
-    # On comment: run independently (no dependencies to avoid skip cascade)
-    needs: ${{ github.event_name == 'push' && fromJSON('["check", "bootstrap-plan"]') || fromJSON('[]') }}
+    # Always run after check and bootstrap-plan complete (success or skipped)
+    needs: [check, bootstrap-plan]
     runs-on: ubuntu-latest
     steps:
       - name: Comment Start (/bootstrap-apply)
