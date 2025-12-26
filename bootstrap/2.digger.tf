@@ -33,8 +33,9 @@ resource "helm_release" "digger" {
     yamlencode({
       digger = {
         image = {
+          # Use latest stable version to fix nil pointer crash in PR event handling
           repository = "registry.digger.dev/diggerhq/digger_backend"
-          tag        = "v0.6.101"
+          tag        = "v0.6.138"
         }
 
         # Use NOOP_AUTH for self-hosted Orchestrator (official recommendation)
