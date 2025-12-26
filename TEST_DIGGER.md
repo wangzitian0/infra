@@ -12,3 +12,6 @@ Installation link added to database manually.
 
 Testing Digger orchestrator after database setup.
 
+
+Final test after fixing database schema (repo_id column).
+
