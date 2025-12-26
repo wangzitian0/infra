@@ -101,12 +101,13 @@ resource "helm_release" "digger" {
 
         # PostgreSQL configuration (use Platform CNPG)
         postgres = {
-          host     = local.k8s.platform_pg_host
-          database = "digger"
-          user     = "postgres"
-          password = var.vault_postgres_password
-          port     = "5432"
-          sslmode  = "disable"
+          host        = local.k8s.platform_pg_host
+          database    = "digger"
+          user        = "postgres"
+          password    = var.vault_postgres_password
+          port        = "5432"
+          sslmode     = "disable"
+          allow_dirty = true  # Database already has schema/tables
         }
 
         # Secrets configuration 
