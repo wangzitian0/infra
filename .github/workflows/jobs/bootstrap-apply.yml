@@ -1,0 +1,56 @@
+name: Bootstrap Apply
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      R2_BUCKET:
+        required: true
+      R2_ACCOUNT_ID:
+        required: true
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ZONE_ID:
+        required: true
+      BASE_DOMAIN:
+        required: true
+      VPS_HOST:
+        required: true
+      VPS_SSH_KEY:
+        required: true
+
+jobs:
+  bootstrap-apply:
+    name: Bootstrap Apply
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Setup Terraform
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+      
+      - name: Bootstrap Apply
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tools
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_r2_bucket: ${{ secrets.R2_BUCKET }}
+          TF_VAR_r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+          TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+          TF_VAR_vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          echo "🚀 Running bootstrap apply..."
+          python tools/ci/bootstrap.py apply
+          echo "✅ Bootstrap apply completed"

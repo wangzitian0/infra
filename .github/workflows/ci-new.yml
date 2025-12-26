@@ -1,0 +1,53 @@
+name: CI Pipeline (Auto Triggers)
+
+# 此 workflow 处理自动触发的任务 (PR, Push)
+# 命令触发 (/plan, /apply等) 由 Digger Orchestrator 处理
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: '3.11'
+  TERRAGRUNT_VERSION: '0.68.4'
+
+jobs:
+  # ================================================================
+  # PR: 自动 Format Check & Validate
+  # ================================================================
+  check:
+    name: Check (fmt + validate)
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/jobs/check.yml
+  
+  # ================================================================
+  # PR: 自动 Bootstrap Plan
+  # ================================================================
+  bootstrap-plan:
+    name: Bootstrap Plan
+    if: github.event_name == 'pull_request'
+    needs: [check]
+    uses: ./.github/workflows/jobs/bootstrap-plan.yml
+    secrets: inherit
+  
+  # ================================================================
+  # Push to main: 自动 Bootstrap Apply
+  # ================================================================
+  bootstrap-apply:
+    name: Bootstrap Apply
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: []  # Push 时不依赖其他 jobs（它们在 PR 时已运行）
+    uses: ./.github/workflows/jobs/bootstrap-apply.yml
+    secrets: inherit
+  
+  # ================================================================
+  # Push to main: 触发 E2E
+  # ================================================================
+  e2e:
+    name: E2E Tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [bootstrap-apply]
+    uses: ./.github/workflows/jobs/e2e.yml
+    secrets: inherit
