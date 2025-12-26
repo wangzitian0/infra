@@ -109,9 +109,13 @@ resource "helm_release" "digger" {
           sslmode  = "disable"
         }
 
-        # Secrets configuration (removed httpBasicAuth to enable NOOP_AUTH)
+        # Secrets configuration 
+        # Note: HTTP Basic Auth is enabled by chart default via secret.httpBasicAuthUsername
+        # To disable, we must set empty values here
         secret = {
           useExistingSecret     = false
+          httpBasicAuthUsername = ""  # Disable HTTP Basic Auth
+          httpBasicAuthPassword = ""  # Disable HTTP Basic Auth
           bearerAuthToken       = var.digger_bearer_token
           hostname              = local.domains.digger
           githubOrg             = var.github_org
