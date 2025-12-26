@@ -60,7 +60,7 @@ resource "helm_release" "digger" {
           },
           {
             name  = "DIGGER_INTERNAL_SECRET"
-            value = var.digger_internal_secret
+            value = "digger-orchestrator-secret-2025"
           },
           {
             name  = "HOSTNAME"
