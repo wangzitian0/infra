@@ -39,13 +39,6 @@ locals {
     set -eu
     rm -rf "$${VOL_DIR}"
   SCRIPT
-
-  local_path_config_hash = sha1(join("", [
-    local.local_path_config_json,
-    local.local_path_helper_pod,
-    local.local_path_setup,
-    local.local_path_teardown,
-  ]))
 }
 
 # Patch default local-path-provisioner config to write volumes under /data/local-path-provisioner
@@ -86,28 +79,16 @@ resource "kubernetes_storage_class" "local_path_retain" {
   }
 }
 
-# Restart local-path-provisioner when any config field changes
-# Use kubectl_manifest with server_side_apply to patch existing Deployment
-resource "kubectl_manifest" "local_path_provisioner_restart" {
-  yaml_body = yamlencode({
-    apiVersion = "apps/v1"
-    kind       = "Deployment"
-    metadata = {
-      name      = "local-path-provisioner"
-      namespace = "kube-system"
-    }
-    spec = {
-      template = {
-        metadata = {
-          annotations = {
-            "infra.zitian.party/config-hash" = local.local_path_config_hash
-          }
-        }
-      }
-    }
-  })
-
-  server_side_apply = true
-
-  depends_on = [kubernetes_config_map_v1.local_path_config]
-}
+# Restart local-path-provisioner when config changes
+# 
+# Previous attempt used kubectl_manifest to patch Deployment with config hash annotation,
+# but the spec was invalid (missing required spec.selector and spec.template.metadata.labels).
+# 
+# Current approach: Manual operator intervention when needed
+# - ConfigMap changes are detected by K3s >= v1.21 and trigger pod restart automatically
+# - For older versions or to force immediate reload, operators can run:
+#   kubectl rollout restart deployment/local-path-provisioner -n kube-system
+# 
+# See: docs/change_log/2025-12-09.storage_retain.md - originally planned "auto-restart"
+# feature but implementation was removed due to invalid Kubernetes spec.
+# TODO: Consider implementing proper restart trigger if auto-reload proves unreliable.

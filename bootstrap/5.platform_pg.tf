@@ -16,6 +16,13 @@
 # No local locals needed here, moved to centralized locals.tf
 
 # Create/manage platform namespace in Bootstrap (before Platform layer Vault deployment)
+# Import block handles state drift when namespace exists but isn't in state
+# Per ops.standards.md Rule 4 and similar pattern in platform/03.vault-database.tf
+import {
+  to = kubernetes_namespace.platform
+  id = "platform"
+}
+
 resource "kubernetes_namespace" "platform" {
   metadata {
     name = local.k8s.ns_platform
