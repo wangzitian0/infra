@@ -21,3 +21,6 @@ After Digger restart with complete database setup.
 
 FINAL TEST: Digger with all environment variables configured.
 
+
+Final test after fixing organization name in database.
+
