@@ -21,6 +21,10 @@ locals {
 
 # 1. Namespaces
 # Define "cert-manager" namespace explicitly so we can put secrets in it
+import {
+  to = kubernetes_namespace.cert_manager
+  id = "cert-manager"
+}
 resource "kubernetes_namespace" "cert_manager" {
   metadata {
     name = local.k8s.ns_cert_manager
@@ -29,6 +33,10 @@ resource "kubernetes_namespace" "cert_manager" {
 
 # 2. Secrets
 # Cloudflare API Token for DNS-01 challenge
+import {
+  to = kubernetes_secret.cloudflare_api_token
+  id = "cert-manager/cloudflare-api-token-secret"
+}
 resource "kubernetes_secret" "cloudflare_api_token" {
   metadata {
     name      = "cloudflare-api-token-secret"
@@ -40,6 +48,10 @@ resource "kubernetes_secret" "cloudflare_api_token" {
 }
 
 # 3. Cert Manager Helm Release
+import {
+  to = helm_release.cert_manager
+  id = "cert-manager/cert-manager"
+}
 resource "helm_release" "cert_manager" {
   name       = "cert-manager"
   repository = "https://charts.jetstack.io"
@@ -66,6 +78,10 @@ resource "helm_release" "cert_manager" {
 
 # 4. ClusterIssuer (Let's Encrypt Production)
 # Use kubectl_manifest to avoid plan-time CRD validation failures.
+import {
+  to = kubectl_manifest.cluster_issuer_letsencrypt_prod
+  id = "cert-manager.io/v1//ClusterIssuer//letsencrypt-prod//"
+}
 resource "kubectl_manifest" "cluster_issuer_letsencrypt_prod" {
   yaml_body = yamlencode({
     apiVersion = "cert-manager.io/v1"
@@ -103,6 +119,10 @@ resource "kubectl_manifest" "cluster_issuer_letsencrypt_prod" {
 
 # 5. Wildcard Certificate (covers *.domain and domain)
 # Using DNS-01 challenge via Cloudflare for wildcard cert
+import {
+  to = kubectl_manifest.wildcard_certificate_public
+  id = "cert-manager.io/v1//Certificate//wildcard-tls-public//cert-manager"
+}
 resource "kubectl_manifest" "wildcard_certificate_public" {
   yaml_body = yamlencode({
     apiVersion = "cert-manager.io/v1"
@@ -126,6 +146,10 @@ resource "kubectl_manifest" "wildcard_certificate_public" {
   depends_on = [kubectl_manifest.cluster_issuer_letsencrypt_prod]
 }
 
+import {
+  to = kubectl_manifest.wildcard_certificate_internal
+  id = "cert-manager.io/v1//Certificate//wildcard-tls-internal//cert-manager"
+}
 resource "kubectl_manifest" "wildcard_certificate_internal" {
   yaml_body = yamlencode({
     apiVersion = "cert-manager.io/v1"
