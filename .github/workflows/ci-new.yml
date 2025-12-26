@@ -1,13 +1,17 @@
-name: CI Pipeline (Auto Triggers)
+name: CI Pipeline
 
-# 此 workflow 处理自动触发的任务 (PR, Push)
-# 命令触发 (/plan, /apply等) 由 Digger Orchestrator 处理
+# 此 workflow 处理:
+# 1. 自动触发: PR, Push
+# 2. Bootstrap 命令: /check, /bootstrap-plan, /bootstrap-apply, /e2e, /help
+# 3. Platform/Data 命令 (/plan, /apply) 由 Digger Orchestrator 处理
 
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
+  issue_comment:
+    types: [created]
 
 env:
   PYTHON_VERSION: '3.11'
@@ -15,39 +19,95 @@ env:
 
 jobs:
   # ================================================================
-  # PR: 自动 Format Check & Validate
+  # /check - Format & Validate (自动 + 命令)
   # ================================================================
   check:
     name: Check (fmt + validate)
-    if: github.event_name == 'pull_request'
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/check'))
     uses: ./.github/workflows/jobs/check.yml
   
   # ================================================================
-  # PR: 自动 Bootstrap Plan
+  # /bootstrap-plan - Bootstrap Plan (自动 + 命令)
   # ================================================================
   bootstrap-plan:
     name: Bootstrap Plan
-    if: github.event_name == 'pull_request'
-    needs: [check]
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/bootstrap-plan'))
+    needs: []
     uses: ./.github/workflows/jobs/bootstrap-plan.yml
     secrets: inherit
   
   # ================================================================
-  # Push to main: 自动 Bootstrap Apply
+  # /bootstrap-apply - Bootstrap Apply (自动 + 命令)
   # ================================================================
   bootstrap-apply:
     name: Bootstrap Apply
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: []  # Push 时不依赖其他 jobs（它们在 PR 时已运行）
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/bootstrap-apply'))
     uses: ./.github/workflows/jobs/bootstrap-apply.yml
     secrets: inherit
   
   # ================================================================
-  # Push to main: 触发 E2E
+  # /e2e - E2E Tests (自动 + 命令)
   # ================================================================
   e2e:
     name: E2E Tests
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [bootstrap-apply]
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/e2e'))
     uses: ./.github/workflows/jobs/e2e.yml
     secrets: inherit
+  
+  # ================================================================
+  # /help - Show Help
+  # ================================================================
+  help:
+    name: Help
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/help')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show Help
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.issue.number }} --body "
+          ## 📖 Available Commands (7 总共)
+          
+          | Command | Description | Layer | Handler |
+          |---------|-------------|-------|---------|
+          | \`/check\` | Format & Validate all | All | GitHub Actions |
+          | \`/bootstrap-plan\` | Plan Bootstrap (L1) | Bootstrap | GitHub Actions |
+          | \`/plan\` | Plan Platform/Data (L2-L4) | Digger | **Digger Orchestrator** |
+          | \`/bootstrap-apply\` | Apply Bootstrap (L1) | Bootstrap | GitHub Actions |
+          | \`/apply\` | Apply Platform/Data (L2-L4) | Digger | **Digger Orchestrator** |
+          | \`/e2e\` | Trigger E2E Tests | Test | GitHub Actions |
+          | \`/help\` | Show this message | - | GitHub Actions |
+          
+          ### 📌 说明
+          - **Bootstrap 命令** (\`/check\`, \`/bootstrap-*\`, \`/e2e\`, \`/help\`): 直接在 CI Pipeline 中处理
+          - **Digger 命令** (\`/plan\`, \`/apply\`): 由 Digger Orchestrator (K8s) 接收 webhook 并触发
+          
+          ### ⚡ 自动触发
+          - **PR 创建/更新**: 自动运行 \`check\`, \`bootstrap-plan\`
+          - **Merge 到 main**: 自动运行 \`bootstrap-apply\`, Platform/Data apply (via Digger)
+          "
+  
+  # ================================================================
+  # 注意: /plan 和 /apply 由 digger-orchestrator.yml 处理
+  # 通过 Digger Orchestrator (K8s) webhook → workflow_dispatch
+  # ================================================================
