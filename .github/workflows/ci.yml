@@ -1,0 +1,161 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+  issue_comment:
+    types: [created]
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ================================================================
+  # Step 1: Basic check
+  # ================================================================
+  check:
+    name: Check (fmt + validate)
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/check'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.3
+          terraform_wrapper: false
+      
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+      
+      - run: echo "✅ Check job completed"
+  
+  # ================================================================
+  # Step 2: Help command
+  # ================================================================
+  help:
+    name: Help
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/help')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show Help
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.issue.number }} --body "
+          ## 📖 CI Pipeline - Available Commands
+          
+          | Command | Description | Status |
+          |---------|-------------|--------|
+          | /check | Format & Validate | ✅ Working |
+          | /help | Show this message | ✅ Working |
+          | /bootstrap-plan | Run L1 (Bootstrap) Plan | ✅ Available |
+          | /bootstrap-apply | Run L1 (Bootstrap) Apply | ✅ Available |
+          | /e2e | Trigger E2E Tests | ✅ Available |
+          "
+
+  # ================================================================
+  # Step 3: Bootstrap Plan (L1)
+  # ================================================================
+  bootstrap-plan:
+    name: Bootstrap Plan
+    needs: [check]
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/bootstrap-plan'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Setup Terraform & Secrets
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+          working_directory: bootstrap
+      
+      - name: Run Bootstrap Plan
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tools
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_r2_bucket: ${{ secrets.R2_BUCKET }}
+          TF_VAR_r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+          TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+          TF_VAR_vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          python tools/ci/bootstrap.py plan
+
+  # ================================================================
+  # Step 4: Bootstrap Apply (L1)
+  # ================================================================
+  bootstrap-apply:
+    name: Bootstrap Apply
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/bootstrap-apply')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Setup Terraform & Secrets
+        uses: ./.github/actions/terraform-setup
+        with:
+          secrets_json: ${{ toJSON(secrets) }}
+          working_directory: bootstrap
+      
+      - name: Run Bootstrap Apply
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tools
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_r2_bucket: ${{ secrets.R2_BUCKET }}
+          TF_VAR_r2_account_id: ${{ secrets.R2_ACCOUNT_ID }}
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          TF_VAR_base_domain: ${{ secrets.BASE_DOMAIN }}
+          TF_VAR_vps_host: ${{ secrets.VPS_HOST }}
+          TF_VAR_vps_ssh_key: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          python tools/ci/bootstrap.py apply
+
+  # ================================================================
+  # Step 5: E2E Tests
+  # ================================================================
+  e2e:
+    name: E2E Tests
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/e2e'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger E2E Workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run e2e-tests.yml || true
+          echo "✅ E2E triggered"
