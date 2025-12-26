@@ -35,6 +35,11 @@ resource "kubernetes_namespace" "platform" {
 # Superuser secret for CNPG (must exist before Cluster)
 # Type must be basic-auth for CNPG to use provided password on creation
 # Label cnpg.io/reload triggers CNPG to sync password to PG when Secret changes
+import {
+  to = kubernetes_secret.platform_pg_superuser
+  id = "platform/platform-pg-superuser"
+}
+
 resource "kubernetes_secret" "platform_pg_superuser" {
   type = "kubernetes.io/basic-auth"
 
@@ -62,6 +67,11 @@ resource "kubernetes_secret" "platform_pg_superuser" {
 }
 
 # Platform PostgreSQL via CloudNativePG Cluster
+import {
+  to = kubectl_manifest.platform_pg
+  id = "/apis/postgresql.cnpg.io/v1/namespaces/platform/clusters/platform-pg"
+}
+
 resource "kubectl_manifest" "platform_pg" {
   yaml_body = yamlencode({
     apiVersion = "postgresql.cnpg.io/v1"
